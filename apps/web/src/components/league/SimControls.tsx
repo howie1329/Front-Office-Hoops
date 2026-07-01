@@ -1,4 +1,4 @@
-import type { SeasonState } from "@workspace/shared/types"
+import type { SeasonPhase, SeasonState } from "@workspace/shared/types"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -14,6 +14,7 @@ import type { LeagueStatus, SaveStatus } from "@/hooks/useLeague"
 
 type SimControlsProps = {
   state: SeasonState | null
+  phase?: SeasonPhase
   status: LeagueStatus
   saveStatus: SaveStatus
   error: string | null
@@ -23,6 +24,8 @@ type SimControlsProps = {
   onSimDay: () => void
   onSimWeek: () => void
   onSimSeason: () => void
+  onSimPlayoffDay?: () => void
+  onSimPlayoffs?: () => void
   showNewSeason?: boolean
   title?: string
   description?: string
@@ -30,6 +33,7 @@ type SimControlsProps = {
 
 export function SimControls({
   state,
+  phase = "regular",
   status,
   saveStatus,
   error,
@@ -39,6 +43,8 @@ export function SimControls({
   onSimDay,
   onSimWeek,
   onSimSeason,
+  onSimPlayoffDay,
+  onSimPlayoffs,
   showNewSeason = false,
   title = "Season controls",
   description = "Simulate by day, week, or full season.",
@@ -46,11 +52,19 @@ export function SimControls({
   const remainingGames =
     state?.schedule.filter((game) => game.status === "scheduled").length ?? 0
 
+  if (phase === "complete") {
+    return null
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription>
+          {phase === "playoffs"
+            ? "Simulate playoff days or run the full postseason."
+            : description}
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {showNewSeason ? (
@@ -71,15 +85,37 @@ export function SimControls({
               New season
             </Button>
           ) : null}
-          <Button variant="secondary" onClick={onSimDay} disabled={!state}>
-            Sim day
-          </Button>
-          <Button variant="secondary" onClick={onSimWeek} disabled={!state}>
-            Sim week
-          </Button>
-          <Button variant="secondary" onClick={onSimSeason} disabled={!state}>
-            Sim season
-          </Button>
+
+          {phase === "regular" ? (
+            <>
+              <Button variant="secondary" onClick={onSimDay} disabled={!state}>
+                Sim day
+              </Button>
+              <Button variant="secondary" onClick={onSimWeek} disabled={!state}>
+                Sim week
+              </Button>
+              <Button variant="secondary" onClick={onSimSeason} disabled={!state}>
+                Sim season
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                onClick={onSimPlayoffDay ?? onSimDay}
+                disabled={!state}
+              >
+                Sim playoff day
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={onSimPlayoffs}
+                disabled={!state || !onSimPlayoffs}
+              >
+                Sim all playoffs
+              </Button>
+            </>
+          )}
         </div>
 
         {status === "loading" ? (

@@ -11,6 +11,53 @@ export type ScheduleGame = {
   awayTeamId: string
   status: ScheduleGameStatus
   gameId?: string
+  seriesId?: string
+  playoffRound?: PlayoffRound
+}
+
+export type SeasonPhase = "regular" | "playoffs" | "complete"
+
+export type PlayoffRound = 1 | 2 | 3 | 4
+
+export type PlayoffSeries = {
+  id: string
+  season: number
+  round: PlayoffRound
+  conferenceId?: "east" | "west"
+  higherSeedTeamId: string
+  lowerSeedTeamId: string
+  higherSeed: number
+  lowerSeed: number
+  winsHigher: number
+  winsLower: number
+  winnerId?: string
+  loserId?: string
+}
+
+export type PlayoffBracket = {
+  series: PlayoffSeries[]
+  championTeamId?: string
+  runnerUpTeamId?: string
+}
+
+export type UserPlayoffResult =
+  | "champion"
+  | "runner_up"
+  | "conference_finals"
+  | "semifinals"
+  | "first_round"
+  | "missed_playoffs"
+
+export type SeasonHistoryEntry = {
+  season: number
+  championTeamId: string
+  runnerUpTeamId: string | null
+  standings: Standing[]
+  userTeamId: string | null
+  userWins: number
+  userLosses: number
+  userPlayoffResult: UserPlayoffResult | null
+  completedAt: string
 }
 
 export type Game = {
@@ -70,6 +117,8 @@ export type SeasonState = {
   playerSeasonStats: PlayerSeasonStats[]
   currentDay: number
   baseSeed: string
+  phase: SeasonPhase
+  playoffBracket?: PlayoffBracket
 }
 
 export type SimulateGameContext = {

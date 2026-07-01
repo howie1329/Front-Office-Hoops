@@ -3,6 +3,7 @@ import { simulateDay, simulateSeason, simulateWeek } from "@workspace/sim"
 
 import { GameLog } from "@/components/league/GameLog"
 import { SchedulePanel } from "@/components/league/SchedulePanel"
+import { SeasonPhaseCard } from "@/components/league/SeasonPhaseCard"
 import { SimControls } from "@/components/league/SimControls"
 import { StandingsTable } from "@/components/league/StandingsTable"
 import { useLeagueContext } from "@/contexts/LeagueContext"
@@ -26,6 +27,13 @@ function LeagueDashboardPage() {
     saveStatus,
     error,
     myTeam,
+    phase,
+    championTeamId,
+    canBeginPlayoffs,
+    canStartNextSeason,
+    beginPlayoffs,
+    simulatePlayoffs,
+    startNextSeason,
     updateSeasonState,
   } = useLeagueContext()
 
@@ -61,6 +69,15 @@ function LeagueDashboardPage() {
         </Card>
       ) : null}
 
+      <SeasonPhaseCard
+        state={seasonState}
+        championTeamId={championTeamId}
+        canBeginPlayoffs={canBeginPlayoffs}
+        canStartNextSeason={canStartNextSeason}
+        onBeginPlayoffs={beginPlayoffs}
+        onStartNextSeason={() => void startNextSeason()}
+      />
+
       {myTeam ? (
         <Card>
           <CardHeader>
@@ -74,6 +91,7 @@ function LeagueDashboardPage() {
 
       <SimControls
         state={seasonState}
+        phase={phase}
         status={status}
         saveStatus={saveStatus}
         error={error}
@@ -82,16 +100,22 @@ function LeagueDashboardPage() {
         onSimDay={handleSimDay}
         onSimWeek={handleSimWeek}
         onSimSeason={handleSimSeason}
+        onSimPlayoffDay={handleSimDay}
+        onSimPlayoffs={simulatePlayoffs}
         title="Simulation"
         description={`Advance ${league?.name ?? "your league"} by day, week, or full season.`}
       />
 
-      <StandingsTable state={seasonState} />
-      <SchedulePanel state={seasonState} />
-      <GameLog
-        state={seasonState}
-        getGameHref={(gameId) => `/league/games/${gameId}`}
-      />
+      {phase === "regular" ? (
+        <>
+          <StandingsTable state={seasonState} />
+          <SchedulePanel state={seasonState} />
+          <GameLog
+            state={seasonState}
+            getGameHref={(gameId) => `/league/games/${gameId}`}
+          />
+        </>
+      ) : null}
     </div>
   )
 }

@@ -27,6 +27,8 @@ describe("createLeague", () => {
     expect(league.seasonState.schedule.length).toBe(30)
     expect(league.seasonState.standings.length).toBe(SAMPLE_ROSTERS.length)
     expect(league.seasonState.playerSeasonStats).toEqual([])
+    expect(league.seasonState.phase).toBe("regular")
+    expect(league.seasonHistory).toEqual([])
     expect(league.createdAt).toBe(league.updatedAt)
   })
 })

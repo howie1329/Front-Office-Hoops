@@ -49,6 +49,7 @@ export function createInitialSeason(
     playerSeasonStats: [],
     currentDay: 1,
     baseSeed,
+    phase: "regular",
   }
 
   return {

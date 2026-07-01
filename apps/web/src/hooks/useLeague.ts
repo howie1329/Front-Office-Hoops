@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { createLeague, createRng } from "@workspace/sim"
+import {
+  beginPlayoffs,
+  createLeague,
+  createRng,
+  normalizeLeagueRecord,
+  simulatePlayoffs,
+  startNextSeason,
+} from "@workspace/sim"
 import type { LeagueRecord, LeagueSummary, SeasonState } from "@workspace/shared/types"
 
 import {
@@ -35,7 +42,7 @@ async function resolveActiveLeagueRecord(): Promise<{
   }
 
   setActiveLeagueId(record.id)
-  return { record, saves }
+  return { record: normalizeLeagueRecord(record), saves }
 }
 
 export function useLeague() {
@@ -187,7 +194,7 @@ export function useLeague() {
         throw new Error("League not found")
       }
 
-      return activateLeagueRecord(record)
+      return activateLeagueRecord(normalizeLeagueRecord(record))
     },
     [activateLeagueRecord, flushPendingSave],
   )
@@ -217,7 +224,7 @@ export function useLeague() {
 
       const nextRecord = await getLeague(nextSaves[0]!.id)
       if (nextRecord) {
-        await activateLeagueRecord(nextRecord)
+        await activateLeagueRecord(normalizeLeagueRecord(nextRecord))
       } else {
         clearActiveLeagueId()
         setActiveLeagueIdState(null)
@@ -338,11 +345,45 @@ export function useLeague() {
     [scheduleSave],
   )
 
+  const beginPlayoffsAction = useCallback(() => {
+    updateSeasonState((state) => beginPlayoffs(state))
+  }, [updateSeasonState])
+
+  const simulatePlayoffsAction = useCallback(() => {
+    updateSeasonState((state) => simulatePlayoffs(state))
+  }, [updateSeasonState])
+
+  const startNextSeasonAction = useCallback(async () => {
+    const current = leagueRef.current
+    if (!current) {
+      return
+    }
+
+    await flushPendingSave()
+
+    const result = startNextSeason(
+      current.seasonState,
+      current.userTeamId,
+      createRng(
+        `${current.seasonState.baseSeed}:season:${current.seasonState.season + 1}`,
+      ),
+    )
+
+    const updated = normalizeLeagueRecord({
+      ...current,
+      seasonState: result.seasonState,
+      seasonHistory: [...(current.seasonHistory ?? []), result.historyEntry],
+    })
+
+    return persistLeague(updated)
+  }, [flushPendingSave, persistLeague])
+
   return {
     status,
     saveStatus,
     league,
     seasonState: league?.seasonState ?? null,
+    seasonHistory: league?.seasonHistory ?? [],
     userTeamId: league?.userTeamId ?? null,
     saves,
     activeLeagueId,
@@ -353,6 +394,9 @@ export function useLeague() {
     switchLeague,
     deleteLeague: deleteLeagueById,
     loadLeagueList,
+    beginPlayoffs: beginPlayoffsAction,
+    simulatePlayoffs: simulatePlayoffsAction,
+    startNextSeason: startNextSeasonAction,
     updateSeasonState,
     persistLeague,
   }

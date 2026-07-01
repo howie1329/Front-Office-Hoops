@@ -6,8 +6,10 @@ const tabs = [
   { to: "/league", label: "Dashboard", exact: true },
   { to: "/league/standings", label: "Standings" },
   { to: "/league/schedule", label: "Schedule" },
+  { to: "/league/playoffs", label: "Playoffs" },
   { to: "/league/team", label: "My Team" },
   { to: "/league/stats", label: "Stats" },
+  { to: "/league/history", label: "History" },
   { to: "/league/saves", label: "Saves" },
 ] as const
 

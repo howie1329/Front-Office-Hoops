@@ -57,12 +57,18 @@ export type {
 export type {
   Game,
   PlayerSeasonStats,
+  PlayoffBracket,
+  PlayoffRound,
+  PlayoffSeries,
   ScheduleConfig,
   ScheduleGame,
   ScheduleGameStatus,
+  SeasonHistoryEntry,
+  SeasonPhase,
   SeasonState,
   SimulateGameContext,
   Standing,
+  UserPlayoffResult,
 } from "./seasonTypes"
 
 export {

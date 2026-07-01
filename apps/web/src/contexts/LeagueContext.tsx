@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react"
 
 import type { TeamWithRoster } from "@workspace/shared/types"
+import { isRegularSeasonComplete } from "@workspace/sim"
 
 import { useLeague, type LeagueStatus, type SaveStatus } from "@/hooks/useLeague"
 
@@ -9,6 +10,13 @@ type LeagueContextValue = ReturnType<typeof useLeague> & {
   needsPickTeam: boolean
   isReady: boolean
   myTeam: TeamWithRoster | null
+  phase: "regular" | "playoffs" | "complete"
+  isRegularComplete: boolean
+  isPlayoffs: boolean
+  isSeasonComplete: boolean
+  championTeamId: string | null
+  canBeginPlayoffs: boolean
+  canStartNextSeason: boolean
 }
 
 const LeagueContext = createContext<LeagueContextValue | null>(null)
@@ -17,12 +25,22 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const leagueState = useLeague()
 
   const value = useMemo<LeagueContextValue>(() => {
+    const seasonState = leagueState.seasonState
     const myTeam =
-      leagueState.seasonState && leagueState.userTeamId
-        ? (leagueState.seasonState.teams.find(
+      seasonState && leagueState.userTeamId
+        ? (seasonState.teams.find(
             (team) => team.id === leagueState.userTeamId,
           ) ?? null)
         : null
+
+    const phase = seasonState?.phase ?? "regular"
+    const isRegularComplete = seasonState
+      ? isRegularSeasonComplete(seasonState)
+      : false
+    const isPlayoffs = phase === "playoffs"
+    const isSeasonComplete = phase === "complete"
+    const championTeamId =
+      seasonState?.playoffBracket?.championTeamId ?? null
 
     return {
       ...leagueState,
@@ -32,6 +50,13 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       isReady:
         leagueState.status === "ready" && leagueState.userTeamId !== null,
       myTeam,
+      phase,
+      isRegularComplete,
+      isPlayoffs,
+      isSeasonComplete,
+      championTeamId,
+      canBeginPlayoffs: phase === "regular" && isRegularComplete,
+      canStartNextSeason: isSeasonComplete && Boolean(championTeamId),
     }
   }, [leagueState])
 

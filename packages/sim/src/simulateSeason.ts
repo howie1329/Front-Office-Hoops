@@ -3,6 +3,10 @@ import type { SeasonState } from "@workspace/shared/types"
 import { simulateDay } from "./simulateDay"
 
 export function simulateSeason(state: SeasonState): SeasonState {
+  if (state.phase !== "regular") {
+    return state
+  }
+
   let nextState = state
   const maxDay = Math.max(...state.schedule.map((game) => game.day), 0)
   let safety = 0

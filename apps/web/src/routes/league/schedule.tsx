@@ -81,12 +81,13 @@ function LeagueSchedulePage() {
 
         <div className="flex max-h-[32rem] flex-col gap-1 overflow-y-auto text-sm">
           {games.map((game) => {
-            const line = `Day ${game.day}: ${formatScheduledLine(seasonState, game)} · ${game.status}`
-            const completedGame = seasonState.games.find(
-              (entry) => entry.id === game.id,
-            )
+            const playoffLabel = game.playoffRound
+              ? ` · Playoffs R${game.playoffRound}`
+              : ""
+            const line = `Day ${game.day}: ${formatScheduledLine(seasonState, game)} · ${game.status}${playoffLabel}`
+            const completedGameId = game.gameId
 
-            if (game.status === "final" && completedGame) {
+            if (game.status === "final" && completedGameId) {
               return (
                 <Button
                   key={game.id}
@@ -94,7 +95,10 @@ function LeagueSchedulePage() {
                   className="h-auto justify-start px-2 py-1.5 text-left font-normal"
                   asChild
                 >
-                  <Link to="/league/games/$gameId" params={{ gameId: game.id }}>
+                  <Link
+                    to="/league/games/$gameId"
+                    params={{ gameId: completedGameId }}
+                  >
                     {line}
                   </Link>
                 </Button>

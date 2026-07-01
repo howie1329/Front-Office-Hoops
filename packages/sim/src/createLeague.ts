@@ -34,5 +34,6 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     updatedAt: now,
     userTeamId: input.userTeamId ?? null,
     seasonState,
+    seasonHistory: [],
   }
 }
