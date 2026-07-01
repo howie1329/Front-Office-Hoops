@@ -12,7 +12,8 @@
     "./constants": "./src/constants.ts",
     "./sampleTeams": "./src/sampleTeams.ts",
     "./playerTypes": "./src/playerTypes.ts",
-    "./seasonTypes": "./src/seasonTypes.ts"
+    "./seasonTypes": "./src/seasonTypes.ts",
+    "./leagueTypes": "./src/leagueTypes.ts"
   },
   "devDependencies": {
     "typescript": "^6"

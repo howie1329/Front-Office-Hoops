@@ -62,3 +62,10 @@ export type {
   SimulateGameContext,
   Standing,
 } from "./seasonTypes"
+
+export {
+  SAVE_VERSION,
+  type League,
+  type LeagueRecord,
+  type LeagueSummary,
+} from "./leagueTypes"

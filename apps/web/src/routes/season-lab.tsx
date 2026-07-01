@@ -2,9 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 
 import {
-  createInitialSeason,
-  createRng,
-  SAMPLE_ROSTERS,
   simulateDay,
   simulateSeason,
   simulateWeek,
@@ -13,6 +10,7 @@ import {
 import type { Game, ScheduleGame, SeasonState } from "@workspace/shared/types"
 import { GameDetailCard } from "@/components/box-score/GameDetailCard"
 import { playerName } from "@/components/box-score/playerName"
+import { useLeague } from "@/hooks/useLeague"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -223,18 +221,20 @@ function PlayerSeasonStatsTable({ state }: { state: SeasonState }) {
 
 function SeasonLabPage() {
   const [seed, setSeed] = useState("season-demo")
-  const [state, setState] = useState<SeasonState | null>(null)
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null)
+  const {
+    status,
+    saveStatus,
+    seasonState: state,
+    error,
+    createNewLeague,
+    updateSeasonState,
+  } = useLeague()
 
-  function handleNewSeason() {
+  async function handleNewSeason() {
     setSelectedGameId(null)
-    setState(
-      createInitialSeason(
-        SAMPLE_ROSTERS,
-        seed || "season-demo",
-        createRng(`schedule:${seed || "season-demo"}`),
-      ),
-    )
+    const baseSeed = seed || "season-demo"
+    await createNewLeague(`Season ${baseSeed}`, baseSeed)
   }
 
   function handleSimDay() {
@@ -242,7 +242,7 @@ function SeasonLabPage() {
       return
     }
 
-    setState(simulateDay(state))
+    updateSeasonState((current) => simulateDay(current))
   }
 
   function handleSimWeek() {
@@ -250,7 +250,7 @@ function SeasonLabPage() {
       return
     }
 
-    setState(simulateWeek(state))
+    updateSeasonState((current) => simulateWeek(current))
   }
 
   function handleSimSeason() {
@@ -258,7 +258,7 @@ function SeasonLabPage() {
       return
     }
 
-    setState(simulateSeason(state))
+    updateSeasonState((current) => simulateSeason(current))
   }
 
   function handleGameClick(gameId: string) {
@@ -297,7 +297,7 @@ function SeasonLabPage() {
           <h1 className="font-medium">Season Lab</h1>
           <p className="text-xs text-muted-foreground">
             Six-team double round-robin: schedule, day/week sim, standings, game
-            detail, and player stats.
+            detail, player stats, and local save.
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
@@ -324,7 +324,9 @@ function SeasonLabPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleNewSeason}>New season</Button>
+            <Button onClick={() => void handleNewSeason()} disabled={status === "loading"}>
+              New season
+            </Button>
             <Button variant="secondary" onClick={handleSimDay} disabled={!state}>
               Sim day
             </Button>
@@ -335,6 +337,20 @@ function SeasonLabPage() {
               Sim season
             </Button>
           </div>
+
+          {status === "loading" ? (
+            <p className="text-xs text-muted-foreground">Loading saved league…</p>
+          ) : null}
+
+          {error ? (
+            <p className="text-xs text-destructive">{error}</p>
+          ) : null}
+
+          {saveStatus === "saving" ? (
+            <p className="text-xs text-muted-foreground">Saving…</p>
+          ) : saveStatus === "saved" && state ? (
+            <p className="text-xs text-muted-foreground">Saved locally</p>
+          ) : null}
 
           {state ? (
             <p className="text-xs text-muted-foreground">

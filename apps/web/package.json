@@ -20,6 +20,7 @@
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/react-start": "latest",
     "@tanstack/router-plugin": "latest",
+    "@workspace/db": "*",
     "@workspace/shared": "*",
     "@workspace/sim": "*",
     "@workspace/ui": "*",
