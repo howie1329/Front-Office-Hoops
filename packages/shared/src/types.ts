@@ -51,3 +51,13 @@ export type {
   RotationEntry,
   TeamWithRoster,
 } from "./playerTypes"
+
+export type {
+  Game,
+  ScheduleConfig,
+  ScheduleGame,
+  ScheduleGameStatus,
+  SeasonState,
+  SimulateGameContext,
+  Standing,
+} from "./seasonTypes"

@@ -10,9 +10,14 @@ function App() {
         <div>
           <h1 className="font-medium">Front Office Hoops</h1>
           <p>Simulation-first basketball GM prototype.</p>
-          <Button className="mt-2" asChild>
-            <Link to="/sim-lab">Open Sim Lab</Link>
-          </Button>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button asChild>
+              <Link to="/sim-lab">Open Sim Lab</Link>
+            </Button>
+            <Button variant="secondary" asChild>
+              <Link to="/season-lab">Open Season Lab</Link>
+            </Button>
+          </div>
         </div>
       </div>
     </div>

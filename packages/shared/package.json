@@ -11,7 +11,8 @@
     "./types": "./src/types.ts",
     "./constants": "./src/constants.ts",
     "./sampleTeams": "./src/sampleTeams.ts",
-    "./playerTypes": "./src/playerTypes.ts"
+    "./playerTypes": "./src/playerTypes.ts",
+    "./seasonTypes": "./src/seasonTypes.ts"
   },
   "devDependencies": {
     "typescript": "^6"
