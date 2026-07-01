@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { useState } from "react"
 
 import { Button } from "@workspace/ui/components/button"
@@ -20,18 +20,10 @@ export const Route = createFileRoute("/league/create")({
 
 function LeagueCreatePage() {
   const navigate = useNavigate()
-  const { status, userTeamId, createProductLeague, error } = useLeagueContext()
+  const { status, createProductLeague, error } = useLeagueContext()
   const [name, setName] = useState("My League")
   const [seed, setSeed] = useState("league-demo")
   const [submitting, setSubmitting] = useState(false)
-
-  if (status === "ready" && userTeamId) {
-    return <Navigate to="/league" />
-  }
-
-  if (status === "ready" && !userTeamId) {
-    return <Navigate to="/league/pick-team" />
-  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()

@@ -9,6 +9,8 @@ export async function listLeagues(): Promise<LeagueSummary[]> {
     id: row.id,
     name: row.name,
     updatedAt: row.updatedAt,
+    userTeamId: row.userTeamId,
+    teamCount: row.seasonState.teams.length,
   }))
 }
 

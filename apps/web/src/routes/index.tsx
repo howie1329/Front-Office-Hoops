@@ -1,7 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { Button } from "@workspace/ui/components/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 
-import { useSavedLeagueSummary } from "@/hooks/useLeague"
+import { useLeagueSaves } from "@/hooks/useLeagueSaves"
 
 export const Route = createFileRoute("/")({ component: App })
 
@@ -10,11 +17,11 @@ function formatUpdatedAt(iso: string): string {
 }
 
 function App() {
-  const { summary, loading } = useSavedLeagueSummary()
+  const { saves, activeSave, loading, error } = useLeagueSaves()
 
-  const hasSave = Boolean(summary)
-  const isReady = Boolean(summary?.userTeamId)
-  const needsPickTeam = hasSave && !summary?.userTeamId
+  const hasSave = saves.length > 0
+  const isReady = Boolean(activeSave?.userTeamId)
+  const needsPickTeam = Boolean(activeSave && !activeSave.userTeamId)
 
   return (
     <div className="flex min-h-svh p-6">
@@ -24,14 +31,18 @@ function App() {
           <p>Simulation-first basketball GM prototype.</p>
 
           {loading ? (
-            <p className="mt-2 text-xs text-muted-foreground">Checking for saved league…</p>
+            <p className="mt-2 text-xs text-muted-foreground">Checking for saved leagues…</p>
           ) : null}
 
-          {!loading && isReady ? (
+          {error ? (
+            <p className="mt-2 text-xs text-destructive">{error}</p>
+          ) : null}
+
+          {!loading && isReady && activeSave ? (
             <div className="mt-2 flex flex-col gap-2">
               <p className="text-xs text-muted-foreground">
-                Continue {summary!.name} · last saved{" "}
-                {formatUpdatedAt(summary!.updatedAt)}
+                Continue {activeSave.name} · last saved{" "}
+                {formatUpdatedAt(activeSave.updatedAt)}
               </p>
               <Button asChild>
                 <Link to="/league">Continue league</Link>
@@ -39,10 +50,10 @@ function App() {
             </div>
           ) : null}
 
-          {!loading && needsPickTeam ? (
+          {!loading && needsPickTeam && activeSave ? (
             <div className="mt-2 flex flex-col gap-2">
               <p className="text-xs text-muted-foreground">
-                Finish setup for {summary!.name} · pick your team to play.
+                Finish setup for {activeSave.name} · pick your team to play.
               </p>
               <Button asChild>
                 <Link to="/league/pick-team">Finish setup</Link>
@@ -50,12 +61,43 @@ function App() {
             </div>
           ) : null}
 
-          {!loading && !hasSave ? (
-            <div className="mt-2 flex flex-col gap-2">
-              <Button asChild>
-                <Link to="/league/create">Create league</Link>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Button variant={hasSave ? "secondary" : "default"} asChild>
+              <Link to="/league/create">Create league</Link>
+            </Button>
+            {hasSave ? (
+              <Button variant="outline" asChild>
+                <Link to="/league/saves">Manage saves</Link>
               </Button>
-            </div>
+            ) : null}
+          </div>
+
+          {!loading && saves.length > 1 ? (
+            <Card className="mt-2">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Saved leagues</CardTitle>
+                <CardDescription>
+                  {saves.length} saves on this device. The active save is used
+                  when you continue.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2 text-xs">
+                {saves.map((save) => (
+                  <div
+                    key={save.id}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span>
+                      {save.name}
+                      {save.id === activeSave?.id ? " · Active" : ""}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {formatUpdatedAt(save.updatedAt)}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           ) : null}
 
           <div className="mt-6 flex flex-col gap-2">

@@ -6,6 +6,7 @@ import { createLeague, createRng } from "@workspace/sim"
 
 import { resetDbForTests } from "../src/db"
 import {
+  deleteLeague,
   getLeague,
   getMostRecentLeague,
   listLeagues,
@@ -18,6 +19,7 @@ function makeLeague(id: string, name: string): LeagueRecord {
     name,
     baseSeed: `seed-${id}`,
     rng: createRng(`schedule:seed-${id}`),
+    useMiniLeague: true,
   })
 }
 
@@ -52,6 +54,20 @@ describe("leagueRepository", () => {
 
     const list = await listLeagues()
     expect(list.map((row) => row.id)).toEqual(["league_new", "league_old"])
+    expect(list[0]).toMatchObject({
+      userTeamId: null,
+      teamCount: 6,
+    })
+  })
+
+  it("deletes a league by id", async () => {
+    const league = makeLeague("league_a", "League A")
+    await saveLeague(league)
+
+    await deleteLeague(league.id)
+
+    expect(await getLeague(league.id)).toBeUndefined()
+    expect(await listLeagues()).toEqual([])
   })
 
   it("bumps updatedAt when overwriting the same id", async () => {

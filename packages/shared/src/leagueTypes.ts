@@ -15,4 +15,9 @@ export type LeagueRecord = League & {
   seasonState: SeasonState
 }
 
-export type LeagueSummary = Pick<League, "id" | "name" | "updatedAt">
+export type LeagueSummary = Pick<
+  League,
+  "id" | "name" | "updatedAt" | "userTeamId"
+> & {
+  teamCount: number
+}

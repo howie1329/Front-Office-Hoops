@@ -21,7 +21,8 @@ function LeagueLayout() {
 
   const isCreate = pathname === "/league/create"
   const isPickTeam = pathname === "/league/pick-team"
-  const isSetupRoute = isCreate || isPickTeam
+  const isSaves = pathname === "/league/saves"
+  const isSetupRoute = isCreate || isPickTeam || isSaves
 
   if (status === "loading") {
     return (
@@ -35,7 +36,7 @@ function LeagueLayout() {
     return <Navigate to="/league/create" />
   }
 
-  if (needsPickTeam && !isPickTeam && !isCreate) {
+  if (needsPickTeam && !isPickTeam && !isCreate && !isSaves) {
     return <Navigate to="/league/pick-team" />
   }
 

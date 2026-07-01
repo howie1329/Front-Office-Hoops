@@ -8,6 +8,7 @@ const tabs = [
   { to: "/league/schedule", label: "Schedule" },
   { to: "/league/team", label: "My Team" },
   { to: "/league/stats", label: "Stats" },
+  { to: "/league/saves", label: "Saves" },
 ] as const
 
 export function LeagueNav({ leagueName }: { leagueName?: string }) {
