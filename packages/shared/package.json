@@ -10,7 +10,8 @@
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
     "./constants": "./src/constants.ts",
-    "./sampleTeams": "./src/sampleTeams.ts"
+    "./sampleTeams": "./src/sampleTeams.ts",
+    "./playerTypes": "./src/playerTypes.ts"
   },
   "devDependencies": {
     "typescript": "^6"

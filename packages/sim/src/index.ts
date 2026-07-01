@@ -1,3 +1,11 @@
 export { createRng } from "./rng"
-export { estimateDefFactor, estimateOffRtg } from "./teamStrength"
+export {
+  estimateOffRtg,
+  estimateTeamDefFactor,
+  estimateTeamOffFactor,
+} from "./teamStrength"
 export { simulateTeamMatchup } from "./simulateTeamMatchup"
+export { generatePlayers, generateTeamWithRoster } from "./generatePlayers"
+export { selectRotation } from "./selectRotation"
+export { allocatePlayerStats } from "./allocatePlayerStats"
+export { SAMPLE_ROSTERS, getRosterByTeamId } from "./sampleRosters"

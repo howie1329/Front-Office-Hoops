@@ -1,3 +1,5 @@
+import type { PlayerGameStats, TeamWithRoster } from "./playerTypes"
+
 export type Team = {
   id: string
   name: string
@@ -7,8 +9,8 @@ export type Team = {
 }
 
 export type TeamMatchupInput = {
-  home: Team
-  away: Team
+  home: TeamWithRoster
+  away: TeamWithRoster
   homeCourtAdvantage?: number
 }
 
@@ -26,6 +28,8 @@ export type TeamMatchupResult = {
   awayScore: number
   winnerId: string
   meta: TeamMatchupMeta
+  homePlayerStats: PlayerGameStats[]
+  awayPlayerStats: PlayerGameStats[]
 }
 
 export type Rng = {
@@ -33,3 +37,14 @@ export type Rng = {
   int: (min: number, max: number) => number
   normal: (mean?: number, stdDev?: number) => number
 }
+
+export type {
+  ID,
+  Player,
+  PlayerGameStats,
+  PlayerPosition,
+  PlayerRatings,
+  PlayerStatus,
+  RotationEntry,
+  TeamWithRoster,
+} from "./playerTypes"

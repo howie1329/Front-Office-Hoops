@@ -1,9 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useState } from "react"
 
-import { createRng, simulateTeamMatchup } from "@workspace/sim"
-import { SAMPLE_TEAMS } from "@workspace/shared/sampleTeams"
-import type { TeamMatchupResult } from "@workspace/shared/types"
+import {
+  createRng,
+  getRosterByTeamId,
+  SAMPLE_ROSTERS,
+  simulateTeamMatchup,
+} from "@workspace/sim"
+import type {
+  Player,
+  PlayerGameStats,
+  TeamMatchupResult,
+  TeamWithRoster,
+} from "@workspace/shared/types"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -21,26 +30,137 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@workspace/ui/components/table"
 
 export const Route = createFileRoute("/sim-lab")({ component: SimLabPage })
 
+function playerName(players: Player[], playerId: string): string {
+  const player = players.find((entry) => entry.id === playerId)
+  return player ? `${player.firstName} ${player.lastName}` : playerId
+}
+
+function RosterCard({ roster }: { roster: TeamWithRoster }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{roster.name}</CardTitle>
+        <CardDescription>
+          {roster.abbrev} · {roster.overall} OVR · {roster.pace} pace
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Player</TableHead>
+              <TableHead>Pos</TableHead>
+              <TableHead>OVR</TableHead>
+              <TableHead>USG</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {roster.players.map((player) => (
+              <TableRow key={player.id}>
+                <TableCell>
+                  {player.firstName} {player.lastName}
+                </TableCell>
+                <TableCell>{player.position}</TableCell>
+                <TableCell>{player.ratings.overall}</TableCell>
+                <TableCell>{player.ratings.usage}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
+
+function BoxScoreTable({
+  roster,
+  stats,
+}: {
+  roster: TeamWithRoster
+  stats: PlayerGameStats[]
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{roster.name} Box Score</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Player</TableHead>
+              <TableHead>MIN</TableHead>
+              <TableHead>PTS</TableHead>
+              <TableHead>REB</TableHead>
+              <TableHead>AST</TableHead>
+              <TableHead>STL</TableHead>
+              <TableHead>BLK</TableHead>
+              <TableHead>TOV</TableHead>
+              <TableHead>FG</TableHead>
+              <TableHead>3PT</TableHead>
+              <TableHead>FT</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {stats.map((line) => (
+              <TableRow key={line.playerId}>
+                <TableCell>
+                  {playerName(roster.players, line.playerId)}
+                  {line.starter ? "" : ""}
+                </TableCell>
+                <TableCell>{line.minutes}</TableCell>
+                <TableCell>{line.pts}</TableCell>
+                <TableCell>{line.reb}</TableCell>
+                <TableCell>{line.ast}</TableCell>
+                <TableCell>{line.stl}</TableCell>
+                <TableCell>{line.blk}</TableCell>
+                <TableCell>{line.tov}</TableCell>
+                <TableCell>
+                  {line.fgm}-{line.fga}
+                </TableCell>
+                <TableCell>
+                  {line.tpm}-{line.tpa}
+                </TableCell>
+                <TableCell>
+                  {line.ftm}-{line.fta}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
+
 function SimLabPage() {
-  const [homeTeamId, setHomeTeamId] = useState(SAMPLE_TEAMS[0]!.id)
-  const [awayTeamId, setAwayTeamId] = useState(SAMPLE_TEAMS[1]!.id)
+  const [homeTeamId, setHomeTeamId] = useState(SAMPLE_ROSTERS[0]!.id)
+  const [awayTeamId, setAwayTeamId] = useState(SAMPLE_ROSTERS[1]!.id)
   const [seed, setSeed] = useState("demo")
   const [result, setResult] = useState<TeamMatchupResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const homeTeam = SAMPLE_TEAMS.find((team) => team.id === homeTeamId)
-  const awayTeam = SAMPLE_TEAMS.find((team) => team.id === awayTeamId)
+  const homeRoster = getRosterByTeamId(homeTeamId)
+  const awayRoster = getRosterByTeamId(awayTeamId)
 
   function handleSimulate() {
-    if (!homeTeam || !awayTeam) {
+    if (!homeRoster || !awayRoster) {
       setError("Select valid home and away teams.")
       return
     }
 
-    if (homeTeam.id === awayTeam.id) {
+    if (homeRoster.id === awayRoster.id) {
       setError("Home and away teams must be different.")
       return
     }
@@ -48,26 +168,26 @@ function SimLabPage() {
     setError(null)
     setResult(
       simulateTeamMatchup(
-        { home: homeTeam, away: awayTeam },
+        { home: homeRoster, away: awayRoster },
         createRng(seed || "demo"),
       ),
     )
   }
 
   const winner =
-    result && homeTeam && awayTeam
-      ? result.winnerId === homeTeam.id
-        ? homeTeam
-        : awayTeam
+    result && homeRoster && awayRoster
+      ? result.winnerId === homeRoster.id
+        ? homeRoster
+        : awayRoster
       : null
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-lg flex-col gap-4 p-6">
+    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="font-medium">Sim Lab</h1>
           <p className="text-xs text-muted-foreground">
-            Team vs team probe for Step 1 simulation.
+            Roster-driven team simulation with box scores.
           </p>
         </div>
         <Button variant="outline" size="sm" asChild>
@@ -90,7 +210,7 @@ function SimLabPage() {
                 <SelectValue placeholder="Select home team" />
               </SelectTrigger>
               <SelectContent>
-                {SAMPLE_TEAMS.map((team) => (
+                {SAMPLE_ROSTERS.map((team) => (
                   <SelectItem
                     key={team.id}
                     value={team.id}
@@ -110,7 +230,7 @@ function SimLabPage() {
                 <SelectValue placeholder="Select away team" />
               </SelectTrigger>
               <SelectContent>
-                {SAMPLE_TEAMS.map((team) => (
+                {SAMPLE_ROSTERS.map((team) => (
                   <SelectItem
                     key={team.id}
                     value={team.id}
@@ -141,24 +261,38 @@ function SimLabPage() {
         </CardContent>
       </Card>
 
-      {result && homeTeam && awayTeam ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Result</CardTitle>
-            <CardDescription>
-              Winner: {winner?.name ?? "Unknown"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <p className="font-medium">
-              {homeTeam.abbrev} {result.homeScore} – {result.awayScore}{" "}
-              {awayTeam.abbrev}
-            </p>
-            <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-[0.7rem] leading-relaxed">
-              {JSON.stringify(result.meta, null, 2)}
-            </pre>
-          </CardContent>
-        </Card>
+      {homeRoster && awayRoster ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <RosterCard roster={homeRoster} />
+          <RosterCard roster={awayRoster} />
+        </div>
+      ) : null}
+
+      {result && homeRoster && awayRoster ? (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Result</CardTitle>
+              <CardDescription>
+                Winner: {winner?.name ?? "Unknown"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <p className="font-medium">
+                {homeRoster.abbrev} {result.homeScore} – {result.awayScore}{" "}
+                {awayRoster.abbrev}
+              </p>
+              <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-[0.7rem] leading-relaxed">
+                {JSON.stringify(result.meta, null, 2)}
+              </pre>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <BoxScoreTable roster={homeRoster} stats={result.homePlayerStats} />
+            <BoxScoreTable roster={awayRoster} stats={result.awayPlayerStats} />
+          </div>
+        </>
       ) : null}
     </div>
   )

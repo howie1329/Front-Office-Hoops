@@ -1,24 +1,27 @@
 import { describe, expect, it } from "vitest"
 
-import { SAMPLE_TEAMS } from "@workspace/shared/sampleTeams"
-import type { Team } from "@workspace/shared/types"
+import type { Team, TeamWithRoster } from "@workspace/shared/types"
 
 import { createRng } from "../src/rng"
+import { generateTeamWithRoster } from "../src/generatePlayers"
+import { SAMPLE_ROSTERS } from "../src/sampleRosters"
 import { simulateTeamMatchup } from "../src/simulateTeamMatchup"
 
-const memphis = SAMPLE_TEAMS.find((team) => team.abbrev === "MEM")!
-const reno = SAMPLE_TEAMS.find((team) => team.abbrev === "RNO")!
-const baltimore = SAMPLE_TEAMS.find((team) => team.abbrev === "BAL")!
-const portland = SAMPLE_TEAMS.find((team) => team.abbrev === "POR")!
+const memphis = SAMPLE_ROSTERS.find((team) => team.abbrev === "MEM")!
+const reno = SAMPLE_ROSTERS.find((team) => team.abbrev === "RNO")!
+const baltimore = SAMPLE_ROSTERS.find((team) => team.abbrev === "BAL")!
+const portland = SAMPLE_ROSTERS.find((team) => team.abbrev === "POR")!
 
-function makeTeam(overall: number, id = "t_test"): Team {
-  return {
+function makeRoster(overall: number, id = "t_test"): TeamWithRoster {
+  const team: Team = {
     id,
     name: "Test Team",
     abbrev: "TST",
     overall,
     pace: 100,
   }
+
+  return generateTeamWithRoster(team, createRng(`${id}-${overall}`))
 }
 
 describe("createRng", () => {
@@ -56,8 +59,8 @@ describe("simulateTeamMatchup", () => {
   })
 
   it("gives the stronger team a meaningful edge over many sims", () => {
-    const strong = makeTeam(80, "t_strong")
-    const weak = makeTeam(52, "t_weak")
+    const strong = makeRoster(80, "t_strong")
+    const weak = makeRoster(52, "t_weak")
     let strongWins = 0
 
     for (let i = 0; i < 100; i++) {
@@ -78,8 +81,8 @@ describe("simulateTeamMatchup", () => {
     const scores: number[] = []
 
     for (let i = 0; i < 200; i++) {
-      const home = SAMPLE_TEAMS[i % SAMPLE_TEAMS.length]!
-      const away = SAMPLE_TEAMS[(i + 2) % SAMPLE_TEAMS.length]!
+      const home = SAMPLE_ROSTERS[i % SAMPLE_ROSTERS.length]!
+      const away = SAMPLE_ROSTERS[(i + 2) % SAMPLE_ROSTERS.length]!
       const result = simulateTeamMatchup(
         { home, away },
         createRng(`score-range-${i}`),
@@ -118,8 +121,8 @@ describe("simulateTeamMatchup", () => {
 
   it("never returns a tie", () => {
     for (let i = 0; i < 100; i++) {
-      const home = SAMPLE_TEAMS[i % SAMPLE_TEAMS.length]!
-      const away = SAMPLE_TEAMS[(i + 1) % SAMPLE_TEAMS.length]!
+      const home = SAMPLE_ROSTERS[i % SAMPLE_ROSTERS.length]!
+      const away = SAMPLE_ROSTERS[(i + 1) % SAMPLE_ROSTERS.length]!
       const result = simulateTeamMatchup(
         { home, away },
         createRng(`no-ties-${i}`),
@@ -127,5 +130,19 @@ describe("simulateTeamMatchup", () => {
 
       expect(result.homeScore).not.toBe(result.awayScore)
     }
+  })
+
+  it("reconciles player points to team scores", () => {
+    const result = simulateTeamMatchup(
+      { home: memphis, away: reno },
+      createRng("reconcile"),
+    )
+
+    expect(result.homePlayerStats.reduce((sum, line) => sum + line.pts, 0)).toBe(
+      result.homeScore,
+    )
+    expect(result.awayPlayerStats.reduce((sum, line) => sum + line.pts, 0)).toBe(
+      result.awayScore,
+    )
   })
 })

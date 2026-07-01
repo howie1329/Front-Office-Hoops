@@ -15,6 +15,7 @@
     "vitest": "^3.2.4"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./sampleRosters": "./src/sampleRosters.ts"
   }
 }

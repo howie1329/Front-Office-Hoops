@@ -1,7 +1,9 @@
 import { DEFAULT_HOME_COURT_ADVANTAGE } from "@workspace/shared/constants"
 import type { Rng, TeamMatchupInput, TeamMatchupResult } from "@workspace/shared/types"
 
-import { estimateDefFactor, estimateOffRtg } from "./teamStrength"
+import { allocatePlayerStats } from "./allocatePlayerStats"
+import { selectRotation } from "./selectRotation"
+import { estimateOffRtg, estimateTeamDefFactor } from "./teamStrength"
 
 const POSSESSION_NOISE_STDDEV = 3
 
@@ -54,11 +56,22 @@ export function simulateTeamMatchup(
   const homeCourtAdvantage =
     input.homeCourtAdvantage ?? DEFAULT_HOME_COURT_ADVANTAGE
 
+  const homeRotation = selectRotation(home.players)
+  const awayRotation = selectRotation(away.players)
+
   const homePossessions = estimatePossessions(home.pace, rng)
   const awayPossessions = estimatePossessions(away.pace, rng)
 
-  const homeOffRtg = estimateOffRtg(home, estimateDefFactor(away), rng)
-  const awayOffRtg = estimateOffRtg(away, estimateDefFactor(home), rng)
+  const homeOffRtg = estimateOffRtg(
+    homeRotation,
+    estimateTeamDefFactor(awayRotation),
+    rng,
+  )
+  const awayOffRtg = estimateOffRtg(
+    awayRotation,
+    estimateTeamDefFactor(homeRotation),
+    rng,
+  )
 
   let homeScore = scoreFromPossessions(homePossessions, homeOffRtg) + homeCourtAdvantage
   let awayScore = scoreFromPossessions(awayPossessions, awayOffRtg)
@@ -66,6 +79,19 @@ export function simulateTeamMatchup(
   const resolved = resolveTie(homeScore, awayScore, home.id, away.id, rng)
   homeScore = resolved.homeScore
   awayScore = resolved.awayScore
+
+  const homePlayerStats = allocatePlayerStats(
+    homeRotation,
+    homeScore,
+    home.id,
+    rng,
+  )
+  const awayPlayerStats = allocatePlayerStats(
+    awayRotation,
+    awayScore,
+    away.id,
+    rng,
+  )
 
   return {
     homeTeamId: home.id,
@@ -79,5 +105,7 @@ export function simulateTeamMatchup(
       homeOffRtg,
       awayOffRtg,
     },
+    homePlayerStats,
+    awayPlayerStats,
   }
 }
