@@ -6,6 +6,7 @@ export {
 } from "./teamStrength"
 export { simulateTeamMatchup } from "./simulateTeamMatchup"
 export { generatePlayers, generateTeamWithRoster } from "./generatePlayers"
+export { generateLeagueRosters, generateTeams } from "./generateTeams"
 export { selectRotation } from "./selectRotation"
 export { allocatePlayerStats } from "./allocatePlayerStats"
 export { distributeQuarterScores } from "./distributeQuarterScores"

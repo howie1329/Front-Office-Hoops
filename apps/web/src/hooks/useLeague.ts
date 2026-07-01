@@ -107,6 +107,7 @@ export function useLeague() {
         name,
         baseSeed,
         rng: createRng(`schedule:${baseSeed}`),
+        useMiniLeague: true,
       })
 
       setSaveStatus("saving")
@@ -133,6 +134,56 @@ export function useLeague() {
     [],
   )
 
+  const createProductLeague = useCallback(
+    async (name: string, seed: string) => {
+      const baseSeed = seed || "league-demo"
+      const record = createLeague({
+        name,
+        baseSeed,
+        rng: createRng(`schedule:${baseSeed}`),
+      })
+
+      setSaveStatus("saving")
+
+      try {
+        const { saveLeague } = await import("@workspace/db")
+        const saved = await saveLeague(record)
+        setLeague(saved)
+        leagueRef.current = saved
+        setStatus("ready")
+        setSaveStatus("saved")
+        setError(null)
+        return saved
+      } catch (createError: unknown) {
+        setSaveStatus("error")
+        setError(
+          createError instanceof Error
+            ? createError.message
+            : "Failed to create league",
+        )
+        throw createError
+      }
+    },
+    [],
+  )
+
+  const setUserTeamId = useCallback(
+    async (teamId: string) => {
+      const current = leagueRef.current
+      if (!current) {
+        return
+      }
+
+      const updated: LeagueRecord = {
+        ...current,
+        userTeamId: teamId,
+      }
+
+      return persistLeague(updated)
+    },
+    [persistLeague],
+  )
+
   const updateSeasonState = useCallback(
     (updater: (state: SeasonState) => SeasonState) => {
       const current = leagueRef.current
@@ -153,8 +204,11 @@ export function useLeague() {
     saveStatus,
     league,
     seasonState: league?.seasonState ?? null,
+    userTeamId: league?.userTeamId ?? null,
     error,
     createNewLeague,
+    createProductLeague,
+    setUserTeamId,
     updateSeasonState,
     persistLeague,
   }
@@ -165,6 +219,7 @@ export function useSavedLeagueSummary() {
     id: string
     name: string
     updatedAt: string
+    userTeamId: string | null
   } | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -183,6 +238,7 @@ export function useSavedLeagueSummary() {
             id: league.id,
             name: league.name,
             updatedAt: league.updatedAt,
+            userTeamId: league.userTeamId,
           })
         }
       })

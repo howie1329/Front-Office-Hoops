@@ -13,6 +13,7 @@ describe("createLeague", () => {
       name: "Test League",
       baseSeed: "league-seed",
       rng: createRng("schedule:league-seed"),
+      useMiniLeague: true,
     })
 
     expect(league).toMatchObject({

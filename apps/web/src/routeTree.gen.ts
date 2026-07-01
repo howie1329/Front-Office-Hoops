@@ -11,7 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SimLabRouteImport } from './routes/sim-lab'
 import { Route as SeasonLabRouteImport } from './routes/season-lab'
+import { Route as LeagueRouteRouteImport } from './routes/league/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LeagueIndexRouteImport } from './routes/league/index'
+import { Route as LeagueTeamRouteImport } from './routes/league/team'
+import { Route as LeagueStatsRouteImport } from './routes/league/stats'
+import { Route as LeagueStandingsRouteImport } from './routes/league/standings'
+import { Route as LeagueScheduleRouteImport } from './routes/league/schedule'
+import { Route as LeaguePickTeamRouteImport } from './routes/league/pick-team'
+import { Route as LeagueCreateRouteImport } from './routes/league/create'
+import { Route as LeagueGamesGameIdRouteImport } from './routes/league/games/$gameId'
 
 const SimLabRoute = SimLabRouteImport.update({
   id: '/sim-lab',
@@ -23,38 +32,146 @@ const SeasonLabRoute = SeasonLabRouteImport.update({
   path: '/season-lab',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LeagueRouteRoute = LeagueRouteRouteImport.update({
+  id: '/league',
+  path: '/league',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LeagueIndexRoute = LeagueIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueTeamRoute = LeagueTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueStatsRoute = LeagueStatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueStandingsRoute = LeagueStandingsRouteImport.update({
+  id: '/standings',
+  path: '/standings',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueScheduleRoute = LeagueScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeaguePickTeamRoute = LeaguePickTeamRouteImport.update({
+  id: '/pick-team',
+  path: '/pick-team',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueCreateRoute = LeagueCreateRouteImport.update({
+  id: '/create',
+  path: '/create',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueGamesGameIdRoute = LeagueGamesGameIdRouteImport.update({
+  id: '/games/$gameId',
+  path: '/games/$gameId',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/league': typeof LeagueRouteRouteWithChildren
   '/season-lab': typeof SeasonLabRoute
   '/sim-lab': typeof SimLabRoute
+  '/league/create': typeof LeagueCreateRoute
+  '/league/pick-team': typeof LeaguePickTeamRoute
+  '/league/schedule': typeof LeagueScheduleRoute
+  '/league/standings': typeof LeagueStandingsRoute
+  '/league/stats': typeof LeagueStatsRoute
+  '/league/team': typeof LeagueTeamRoute
+  '/league/': typeof LeagueIndexRoute
+  '/league/games/$gameId': typeof LeagueGamesGameIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/season-lab': typeof SeasonLabRoute
   '/sim-lab': typeof SimLabRoute
+  '/league/create': typeof LeagueCreateRoute
+  '/league/pick-team': typeof LeaguePickTeamRoute
+  '/league/schedule': typeof LeagueScheduleRoute
+  '/league/standings': typeof LeagueStandingsRoute
+  '/league/stats': typeof LeagueStatsRoute
+  '/league/team': typeof LeagueTeamRoute
+  '/league': typeof LeagueIndexRoute
+  '/league/games/$gameId': typeof LeagueGamesGameIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/league': typeof LeagueRouteRouteWithChildren
   '/season-lab': typeof SeasonLabRoute
   '/sim-lab': typeof SimLabRoute
+  '/league/create': typeof LeagueCreateRoute
+  '/league/pick-team': typeof LeaguePickTeamRoute
+  '/league/schedule': typeof LeagueScheduleRoute
+  '/league/standings': typeof LeagueStandingsRoute
+  '/league/stats': typeof LeagueStatsRoute
+  '/league/team': typeof LeagueTeamRoute
+  '/league/': typeof LeagueIndexRoute
+  '/league/games/$gameId': typeof LeagueGamesGameIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/season-lab' | '/sim-lab'
+  fullPaths:
+    | '/'
+    | '/league'
+    | '/season-lab'
+    | '/sim-lab'
+    | '/league/create'
+    | '/league/pick-team'
+    | '/league/schedule'
+    | '/league/standings'
+    | '/league/stats'
+    | '/league/team'
+    | '/league/'
+    | '/league/games/$gameId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/season-lab' | '/sim-lab'
-  id: '__root__' | '/' | '/season-lab' | '/sim-lab'
+  to:
+    | '/'
+    | '/season-lab'
+    | '/sim-lab'
+    | '/league/create'
+    | '/league/pick-team'
+    | '/league/schedule'
+    | '/league/standings'
+    | '/league/stats'
+    | '/league/team'
+    | '/league'
+    | '/league/games/$gameId'
+  id:
+    | '__root__'
+    | '/'
+    | '/league'
+    | '/season-lab'
+    | '/sim-lab'
+    | '/league/create'
+    | '/league/pick-team'
+    | '/league/schedule'
+    | '/league/standings'
+    | '/league/stats'
+    | '/league/team'
+    | '/league/'
+    | '/league/games/$gameId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LeagueRouteRoute: typeof LeagueRouteRouteWithChildren
   SeasonLabRoute: typeof SeasonLabRoute
   SimLabRoute: typeof SimLabRoute
 }
@@ -75,6 +192,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SeasonLabRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/league': {
+      id: '/league'
+      path: '/league'
+      fullPath: '/league'
+      preLoaderRoute: typeof LeagueRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -82,11 +206,94 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/league/': {
+      id: '/league/'
+      path: '/'
+      fullPath: '/league/'
+      preLoaderRoute: typeof LeagueIndexRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/team': {
+      id: '/league/team'
+      path: '/team'
+      fullPath: '/league/team'
+      preLoaderRoute: typeof LeagueTeamRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/stats': {
+      id: '/league/stats'
+      path: '/stats'
+      fullPath: '/league/stats'
+      preLoaderRoute: typeof LeagueStatsRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/standings': {
+      id: '/league/standings'
+      path: '/standings'
+      fullPath: '/league/standings'
+      preLoaderRoute: typeof LeagueStandingsRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/schedule': {
+      id: '/league/schedule'
+      path: '/schedule'
+      fullPath: '/league/schedule'
+      preLoaderRoute: typeof LeagueScheduleRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/pick-team': {
+      id: '/league/pick-team'
+      path: '/pick-team'
+      fullPath: '/league/pick-team'
+      preLoaderRoute: typeof LeaguePickTeamRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/create': {
+      id: '/league/create'
+      path: '/create'
+      fullPath: '/league/create'
+      preLoaderRoute: typeof LeagueCreateRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/games/$gameId': {
+      id: '/league/games/$gameId'
+      path: '/games/$gameId'
+      fullPath: '/league/games/$gameId'
+      preLoaderRoute: typeof LeagueGamesGameIdRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
   }
 }
 
+interface LeagueRouteRouteChildren {
+  LeagueCreateRoute: typeof LeagueCreateRoute
+  LeaguePickTeamRoute: typeof LeaguePickTeamRoute
+  LeagueScheduleRoute: typeof LeagueScheduleRoute
+  LeagueStandingsRoute: typeof LeagueStandingsRoute
+  LeagueStatsRoute: typeof LeagueStatsRoute
+  LeagueTeamRoute: typeof LeagueTeamRoute
+  LeagueIndexRoute: typeof LeagueIndexRoute
+  LeagueGamesGameIdRoute: typeof LeagueGamesGameIdRoute
+}
+
+const LeagueRouteRouteChildren: LeagueRouteRouteChildren = {
+  LeagueCreateRoute: LeagueCreateRoute,
+  LeaguePickTeamRoute: LeaguePickTeamRoute,
+  LeagueScheduleRoute: LeagueScheduleRoute,
+  LeagueStandingsRoute: LeagueStandingsRoute,
+  LeagueStatsRoute: LeagueStatsRoute,
+  LeagueTeamRoute: LeagueTeamRoute,
+  LeagueIndexRoute: LeagueIndexRoute,
+  LeagueGamesGameIdRoute: LeagueGamesGameIdRoute,
+}
+
+const LeagueRouteRouteWithChildren = LeagueRouteRoute._addFileChildren(
+  LeagueRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LeagueRouteRoute: LeagueRouteRouteWithChildren,
   SeasonLabRoute: SeasonLabRoute,
   SimLabRoute: SimLabRoute,
 }

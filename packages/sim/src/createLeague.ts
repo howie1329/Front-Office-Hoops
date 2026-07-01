@@ -2,6 +2,7 @@ import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
 import type { LeagueRecord, Rng, TeamWithRoster } from "@workspace/shared/types"
 
 import { createInitialSeason } from "./createInitialSeason"
+import { generateLeagueRosters } from "./generateTeams"
 import { SAMPLE_ROSTERS } from "./sampleRosters"
 
 export type CreateLeagueInput = {
@@ -11,6 +12,7 @@ export type CreateLeagueInput = {
   rng: Rng
   userTeamId?: string | null
   id?: string
+  useMiniLeague?: boolean
 }
 
 function createLeagueId(): string {
@@ -18,7 +20,9 @@ function createLeagueId(): string {
 }
 
 export function createLeague(input: CreateLeagueInput): LeagueRecord {
-  const teams = input.teams ?? SAMPLE_ROSTERS
+  const teams =
+    input.teams ??
+    (input.useMiniLeague ? SAMPLE_ROSTERS : generateLeagueRosters(input.rng))
   const now = new Date().toISOString()
   const seasonState = createInitialSeason(teams, input.baseSeed, input.rng)
 

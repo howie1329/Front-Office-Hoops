@@ -15,3 +15,11 @@ export const TEAM_MINUTES = 240
 
 export const SIX_TEAM_GAMES_PER_TEAM = 10
 export const DEFAULT_SEASON_LENGTH_DAYS = 30
+
+export const LEAGUE_TEAM_COUNT = 30
+export const NBA_GAMES_PER_TEAM = 82
+export const NBA_SEASON_LENGTH_DAYS = 170
+export const CONFERENCE_COUNT = 2
+export const DIVISIONS_PER_CONFERENCE = 3
+export const TEAMS_PER_DIVISION = 5
+export const NBA_TOTAL_GAMES = (LEAGUE_TEAM_COUNT * NBA_GAMES_PER_TEAM) / 2

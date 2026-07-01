@@ -7,9 +7,10 @@ import {
   SAMPLE_ROSTERS,
   simulateTeamMatchup,
 } from "@workspace/sim"
-import type { TeamMatchupResult, TeamWithRoster } from "@workspace/shared/types"
+import type { TeamMatchupResult } from "@workspace/shared/types"
 import { BoxScoreTable } from "@/components/box-score/BoxScoreTable"
 import { QuarterLineTable } from "@/components/box-score/QuarterLineTable"
+import { RosterCard } from "@/components/league/RosterCard"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -27,53 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
 
 export const Route = createFileRoute("/sim-lab")({ component: SimLabPage })
-
-function RosterCard({ roster }: { roster: TeamWithRoster }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{roster.name}</CardTitle>
-        <CardDescription>
-          {roster.abbrev} · {roster.overall} OVR · {roster.pace} pace
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Player</TableHead>
-              <TableHead>Pos</TableHead>
-              <TableHead>OVR</TableHead>
-              <TableHead>USG</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {roster.players.map((player) => (
-              <TableRow key={player.id}>
-                <TableCell>
-                  {player.firstName} {player.lastName}
-                </TableCell>
-                <TableCell>{player.position}</TableCell>
-                <TableCell>{player.ratings.overall}</TableCell>
-                <TableCell>{player.ratings.usage}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  )
-}
 
 function SimLabPage() {
   const [homeTeamId, setHomeTeamId] = useState(SAMPLE_ROSTERS[0]!.id)
