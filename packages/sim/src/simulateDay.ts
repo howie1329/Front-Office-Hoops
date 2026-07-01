@@ -1,5 +1,6 @@
 import type { SeasonState } from "@workspace/shared/types"
 
+import { derivePlayerSeasonStats } from "./derivePlayerSeasonStats"
 import { deriveStandings } from "./deriveStandings"
 import { simulateGame } from "./simulateGame"
 
@@ -20,6 +21,11 @@ export function simulateDay(
       ...state,
       currentDay: day + 1,
       standings: deriveStandings(state.teams, state.games, state.season),
+      playerSeasonStats: derivePlayerSeasonStats(
+        state.teams,
+        state.games,
+        state.season,
+      ),
     }
   }
 
@@ -60,10 +66,16 @@ export function simulateDay(
     games: newGames,
     currentDay: day + 1,
     standings: [],
+    playerSeasonStats: [],
   }
 
   return {
     ...nextState,
     standings: deriveStandings(nextState.teams, nextState.games, nextState.season),
+    playerSeasonStats: derivePlayerSeasonStats(
+      nextState.teams,
+      nextState.games,
+      nextState.season,
+    ),
   }
 }

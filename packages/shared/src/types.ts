@@ -54,6 +54,7 @@ export type {
 
 export type {
   Game,
+  PlayerSeasonStats,
   ScheduleConfig,
   ScheduleGame,
   ScheduleGameStatus,

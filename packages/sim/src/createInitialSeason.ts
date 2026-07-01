@@ -5,6 +5,7 @@ import {
 import type { Rng, SeasonState, TeamWithRoster } from "@workspace/shared/types"
 
 import { createSchedule } from "./createSchedule"
+import { derivePlayerSeasonStats } from "./derivePlayerSeasonStats"
 import { deriveStandings } from "./deriveStandings"
 
 export function createInitialSeason(
@@ -29,6 +30,7 @@ export function createInitialSeason(
     schedule,
     games: [],
     standings: [],
+    playerSeasonStats: [],
     currentDay: 1,
     baseSeed,
   }
@@ -36,5 +38,10 @@ export function createInitialSeason(
   return {
     ...state,
     standings: deriveStandings(state.teams, state.games, state.season),
+    playerSeasonStats: derivePlayerSeasonStats(
+      state.teams,
+      state.games,
+      state.season,
+    ),
   }
 }

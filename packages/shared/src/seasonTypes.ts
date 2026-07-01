@@ -32,6 +32,28 @@ export type Standing = {
   streak: number
 }
 
+export type PlayerSeasonStats = {
+  id: string
+  playerId: string
+  teamId: string
+  season: number
+  gp: number
+  gs: number
+  min: number
+  pts: number
+  reb: number
+  ast: number
+  stl: number
+  blk: number
+  tov: number
+  fgm: number
+  fga: number
+  tpm: number
+  tpa: number
+  ftm: number
+  fta: number
+}
+
 export type ScheduleConfig = {
   season: number
   teams: TeamWithRoster[]
@@ -45,6 +67,7 @@ export type SeasonState = {
   schedule: ScheduleGame[]
   games: Game[]
   standings: Standing[]
+  playerSeasonStats: PlayerSeasonStats[]
   currentDay: number
   baseSeed: string
 }

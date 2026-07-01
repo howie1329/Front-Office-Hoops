@@ -13,6 +13,10 @@ export { SAMPLE_ROSTERS, getRosterByTeamId } from "./sampleRosters"
 export { createSchedule } from "./createSchedule"
 export { simulateGame } from "./simulateGame"
 export { deriveStandings, sortStandings } from "./deriveStandings"
+export {
+  derivePlayerSeasonStats,
+  sortPlayerSeasonStats,
+} from "./derivePlayerSeasonStats"
 export { simulateDay } from "./simulateDay"
 export { simulateWeek } from "./simulateWeek"
 export { simulateSeason } from "./simulateSeason"

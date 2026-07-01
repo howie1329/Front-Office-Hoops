@@ -7,13 +7,9 @@ import {
   SAMPLE_ROSTERS,
   simulateTeamMatchup,
 } from "@workspace/sim"
-import type {
-  Player,
-  PlayerGameStats,
-  QuarterScores,
-  TeamMatchupResult,
-  TeamWithRoster,
-} from "@workspace/shared/types"
+import type { TeamMatchupResult, TeamWithRoster } from "@workspace/shared/types"
+import { BoxScoreTable } from "@/components/box-score/BoxScoreTable"
+import { QuarterLineTable } from "@/components/box-score/QuarterLineTable"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -41,37 +37,6 @@ import {
 } from "@workspace/ui/components/table"
 
 export const Route = createFileRoute("/sim-lab")({ component: SimLabPage })
-
-function playerName(players: Player[], playerId: string): string {
-  const player = players.find((entry) => entry.id === playerId)
-  return player ? `${player.firstName} ${player.lastName}` : playerId
-}
-
-function formatQuarterLine(
-  abbrev: string,
-  quarters: QuarterScores,
-  total: number,
-): string {
-  return `${abbrev}  ${quarters.join("  ")}  (${total})`
-}
-
-function QuarterLineTable({
-  homeAbbrev,
-  awayAbbrev,
-  result,
-}: {
-  homeAbbrev: string
-  awayAbbrev: string
-  result: TeamMatchupResult
-}) {
-  return (
-    <div className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-[0.75rem] leading-relaxed">
-      <div className="mb-1 text-muted-foreground">Q1   Q2   Q3   Q4   (T)</div>
-      <div>{formatQuarterLine(homeAbbrev, result.homeQuarterScores, result.homeScore)}</div>
-      <div>{formatQuarterLine(awayAbbrev, result.awayQuarterScores, result.awayScore)}</div>
-    </div>
-  )
-}
 
 function RosterCard({ roster }: { roster: TeamWithRoster }) {
   return (
@@ -101,67 +66,6 @@ function RosterCard({ roster }: { roster: TeamWithRoster }) {
                 <TableCell>{player.position}</TableCell>
                 <TableCell>{player.ratings.overall}</TableCell>
                 <TableCell>{player.ratings.usage}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  )
-}
-
-function BoxScoreTable({
-  roster,
-  stats,
-}: {
-  roster: TeamWithRoster
-  stats: PlayerGameStats[]
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{roster.name} Box Score</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Player</TableHead>
-              <TableHead>MIN</TableHead>
-              <TableHead>PTS</TableHead>
-              <TableHead>REB</TableHead>
-              <TableHead>AST</TableHead>
-              <TableHead>STL</TableHead>
-              <TableHead>BLK</TableHead>
-              <TableHead>TOV</TableHead>
-              <TableHead>FG</TableHead>
-              <TableHead>3PT</TableHead>
-              <TableHead>FT</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {stats.map((line) => (
-              <TableRow key={line.playerId}>
-                <TableCell>
-                  {playerName(roster.players, line.playerId)}
-                  {line.starter ? "" : ""}
-                </TableCell>
-                <TableCell>{line.minutes}</TableCell>
-                <TableCell>{line.pts}</TableCell>
-                <TableCell>{line.reb}</TableCell>
-                <TableCell>{line.ast}</TableCell>
-                <TableCell>{line.stl}</TableCell>
-                <TableCell>{line.blk}</TableCell>
-                <TableCell>{line.tov}</TableCell>
-                <TableCell>
-                  {line.fgm}-{line.fga}
-                </TableCell>
-                <TableCell>
-                  {line.tpm}-{line.tpa}
-                </TableCell>
-                <TableCell>
-                  {line.ftm}-{line.fta}
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
