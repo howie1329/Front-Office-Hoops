@@ -20,6 +20,8 @@
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/react-start": "latest",
     "@tanstack/router-plugin": "latest",
+    "@workspace/shared": "*",
+    "@workspace/sim": "*",
     "@workspace/ui": "*",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
