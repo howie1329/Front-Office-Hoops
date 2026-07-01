@@ -145,4 +145,18 @@ describe("simulateTeamMatchup", () => {
       result.awayScore,
     )
   })
+
+  it("reconciles quarter scores to team scores", () => {
+    const result = simulateTeamMatchup(
+      { home: memphis, away: reno },
+      createRng("quarters"),
+    )
+
+    expect(result.homeQuarterScores.reduce((sum, pts) => sum + pts, 0)).toBe(
+      result.homeScore,
+    )
+    expect(result.awayQuarterScores.reduce((sum, pts) => sum + pts, 0)).toBe(
+      result.awayScore,
+    )
+  })
 })

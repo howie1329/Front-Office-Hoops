@@ -2,6 +2,7 @@ import { DEFAULT_HOME_COURT_ADVANTAGE } from "@workspace/shared/constants"
 import type { Rng, TeamMatchupInput, TeamMatchupResult } from "@workspace/shared/types"
 
 import { allocatePlayerStats } from "./allocatePlayerStats"
+import { distributeQuarterScores } from "./distributeQuarterScores"
 import { selectRotation } from "./selectRotation"
 import { estimateOffRtg, estimateTeamDefFactor } from "./teamStrength"
 
@@ -80,6 +81,9 @@ export function simulateTeamMatchup(
   homeScore = resolved.homeScore
   awayScore = resolved.awayScore
 
+  const homeQuarterScores = distributeQuarterScores(homeScore, rng)
+  const awayQuarterScores = distributeQuarterScores(awayScore, rng)
+
   const homePlayerStats = allocatePlayerStats(
     homeRotation,
     homeScore,
@@ -105,6 +109,8 @@ export function simulateTeamMatchup(
       homeOffRtg,
       awayOffRtg,
     },
+    homeQuarterScores,
+    awayQuarterScores,
     homePlayerStats,
     awayPlayerStats,
   }

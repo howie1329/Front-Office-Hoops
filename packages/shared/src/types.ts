@@ -1,4 +1,4 @@
-import type { PlayerGameStats, TeamWithRoster } from "./playerTypes"
+import type { PlayerGameStats, QuarterScores, TeamWithRoster } from "./playerTypes"
 
 export type Team = {
   id: string
@@ -28,6 +28,8 @@ export type TeamMatchupResult = {
   awayScore: number
   winnerId: string
   meta: TeamMatchupMeta
+  homeQuarterScores: QuarterScores
+  awayQuarterScores: QuarterScores
   homePlayerStats: PlayerGameStats[]
   awayPlayerStats: PlayerGameStats[]
 }
@@ -45,6 +47,7 @@ export type {
   PlayerPosition,
   PlayerRatings,
   PlayerStatus,
+  QuarterScores,
   RotationEntry,
   TeamWithRoster,
 } from "./playerTypes"

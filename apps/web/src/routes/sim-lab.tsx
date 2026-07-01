@@ -10,6 +10,7 @@ import {
 import type {
   Player,
   PlayerGameStats,
+  QuarterScores,
   TeamMatchupResult,
   TeamWithRoster,
 } from "@workspace/shared/types"
@@ -44,6 +45,32 @@ export const Route = createFileRoute("/sim-lab")({ component: SimLabPage })
 function playerName(players: Player[], playerId: string): string {
   const player = players.find((entry) => entry.id === playerId)
   return player ? `${player.firstName} ${player.lastName}` : playerId
+}
+
+function formatQuarterLine(
+  abbrev: string,
+  quarters: QuarterScores,
+  total: number,
+): string {
+  return `${abbrev}  ${quarters.join("  ")}  (${total})`
+}
+
+function QuarterLineTable({
+  homeAbbrev,
+  awayAbbrev,
+  result,
+}: {
+  homeAbbrev: string
+  awayAbbrev: string
+  result: TeamMatchupResult
+}) {
+  return (
+    <div className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-[0.75rem] leading-relaxed">
+      <div className="mb-1 text-muted-foreground">Q1   Q2   Q3   Q4   (T)</div>
+      <div>{formatQuarterLine(homeAbbrev, result.homeQuarterScores, result.homeScore)}</div>
+      <div>{formatQuarterLine(awayAbbrev, result.awayQuarterScores, result.awayScore)}</div>
+    </div>
+  )
 }
 
 function RosterCard({ roster }: { roster: TeamWithRoster }) {
@@ -278,6 +305,11 @@ function SimLabPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
+              <QuarterLineTable
+                homeAbbrev={homeRoster.abbrev}
+                awayAbbrev={awayRoster.abbrev}
+                result={result}
+              />
               <p className="font-medium">
                 {homeRoster.abbrev} {result.homeScore} – {result.awayScore}{" "}
                 {awayRoster.abbrev}

@@ -60,3 +60,5 @@ export type RotationEntry = {
   player: Player
   minutes: number
 }
+
+export type QuarterScores = [number, number, number, number]
