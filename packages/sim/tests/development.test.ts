@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { RATING_MAX, RATING_MIN, VETERAN_TAG } from "@workspace/shared/constants"
-import type { Player, TeamWithRoster } from "@workspace/shared/types"
+import type { LeagueRecord, Player, TeamWithRoster } from "@workspace/shared/types"
 
 import { beginOffseason } from "../src/beginOffseason"
 import { applyOffseasonProgression } from "../src/development/applyOffseasonProgression"
@@ -38,6 +38,9 @@ function createTestPlayer(overrides: Partial<Player> = {}): Player {
     status: "active",
     injury: null,
     draftInfo: null,
+    activeContractId: null,
+    seasonsWithTeam: 0,
+    yearsOfService: 0,
     ...overrides,
   }
 }
@@ -415,9 +418,9 @@ describe("offseason phase", () => {
       },
     }
 
-    const normalized = normalizeLeagueRecord(legacyRecord as typeof league)
+    const normalized = normalizeLeagueRecord(legacyRecord as unknown as LeagueRecord)
 
-    expect(normalized.saveVersion).toBe(4)
+    expect(normalized.saveVersion).toBe(5)
     for (const team of normalized.seasonState.teams) {
       for (const player of team.players) {
         expect(player.peakAge).toBeGreaterThanOrEqual(26)

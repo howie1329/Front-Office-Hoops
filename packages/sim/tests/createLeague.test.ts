@@ -22,7 +22,12 @@ describe("createLeague", () => {
       saveVersion: SAVE_VERSION,
       userTeamId: null,
     })
-    expect(league.seasonState.teams).toEqual(SAMPLE_ROSTERS)
+    expect(league.seasonState.teams).toHaveLength(SAMPLE_ROSTERS.length)
+    expect(league.seasonState.teams.map((team) => team.id)).toEqual(
+      SAMPLE_ROSTERS.map((team) => team.id),
+    )
+    expect(league.contracts.length).toBeGreaterThan(0)
+    expect(league.teamFinancials).toHaveLength(SAMPLE_ROSTERS.length)
     expect(league.seasonState.games).toEqual([])
     expect(league.seasonState.schedule.length).toBe(30)
     expect(league.seasonState.standings.length).toBe(SAMPLE_ROSTERS.length)

@@ -4,6 +4,7 @@ import { VETERAN_MIN_AGE, VETERAN_TAG } from "@workspace/shared/constants"
 
 import { migratePeakAge } from "./development/generatePeakAge"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
+import { migrateV4ToV5 } from "./financials/migrateV4ToV5"
 
 function normalizePlayer(player: Player): Player {
   const peakAge =
@@ -58,11 +59,20 @@ export function normalizeLeagueRecord(record: LeagueRecord): LeagueRecord {
   const normalizedState = normalizeSeasonState(record.seasonState)
   const saveVersion = record.saveVersion ?? 2
 
-  return {
+  let normalized: LeagueRecord = {
     ...record,
-    saveVersion: SAVE_VERSION,
     seasonHistory: record.seasonHistory ?? [],
     freeAgentPool: record.freeAgentPool ?? [],
     seasonState: normalizedState,
+    saveVersion,
+  }
+
+  if (saveVersion < 5) {
+    normalized = migrateV4ToV5(normalized)
+  }
+
+  return {
+    ...normalized,
+    saveVersion: SAVE_VERSION,
   }
 }

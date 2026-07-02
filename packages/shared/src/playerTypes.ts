@@ -1,4 +1,5 @@
 import type { DraftInfo } from "./draftTypes"
+import type { Team } from "./teamTypes"
 
 export type { DraftInfo, DraftPick, DraftProspect, DraftSelection, DraftState } from "./draftTypes"
 
@@ -45,6 +46,9 @@ export type Player = {
   status: PlayerStatus
   injury: null
   draftInfo: DraftInfo | null
+  activeContractId: string | null
+  seasonsWithTeam: number
+  yearsOfService: number
 }
 
 export type TeamWithRoster = Team & {

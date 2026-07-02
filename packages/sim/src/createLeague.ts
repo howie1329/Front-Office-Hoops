@@ -2,6 +2,7 @@ import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
 import type { LeagueRecord, Rng, TeamWithRoster } from "@workspace/shared/types"
 
 import { createInitialSeason } from "./createInitialSeason"
+import { initializeFinancialsForLeague } from "./financials"
 import { generateLeagueRosters } from "./generateTeams"
 import { SAMPLE_ROSTERS } from "./sampleRosters"
 
@@ -26,7 +27,7 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
   const now = new Date().toISOString()
   const seasonState = createInitialSeason(teams, input.baseSeed, input.rng)
 
-  return {
+  const baseRecord: LeagueRecord = {
     id: input.id ?? createLeagueId(),
     name: input.name,
     saveVersion: SAVE_VERSION,
@@ -36,5 +37,11 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     seasonState,
     seasonHistory: [],
     freeAgentPool: [],
+    contracts: [],
+    leagueFinancials: { baseCap: 141, growthRate: 0.05, bySeason: {} },
+    teamFinancials: [],
+    spendingProfileEvents: [],
   }
+
+  return initializeFinancialsForLeague(baseRecord, input.rng)
 }

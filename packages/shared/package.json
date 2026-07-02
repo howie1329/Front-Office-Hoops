@@ -13,7 +13,10 @@
     "./sampleTeams": "./src/sampleTeams.ts",
     "./playerTypes": "./src/playerTypes.ts",
     "./seasonTypes": "./src/seasonTypes.ts",
-    "./leagueTypes": "./src/leagueTypes.ts"
+    "./leagueTypes": "./src/leagueTypes.ts",
+    "./contractTypes": "./src/contractTypes.ts",
+    "./financialTypes": "./src/financialTypes.ts",
+    "./financialConstants": "./src/financialConstants.ts"
   },
   "devDependencies": {
     "typescript": "^6"

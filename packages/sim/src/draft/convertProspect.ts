@@ -20,6 +20,9 @@ export function convertProspectToPlayer(
     status: "active",
     injury: null,
     draftInfo,
+    activeContractId: null,
+    seasonsWithTeam: 0,
+    yearsOfService: 0,
   }
 }
 
@@ -39,5 +42,8 @@ export function convertProspectToFreeAgent(prospect: DraftProspect): Player {
     status: "free_agent",
     injury: null,
     draftInfo: null,
+    activeContractId: null,
+    seasonsWithTeam: 0,
+    yearsOfService: Math.max(0, prospect.age - 19),
   }
 }

@@ -42,3 +42,20 @@ export { normalizeLeagueRecord, normalizeSeasonState } from "./normalizeLeague"
 export { createInitialSeason } from "./createInitialSeason"
 export { createLeague } from "./createLeague"
 export type { CreateLeagueInput } from "./createLeague"
+export {
+  processOffseasonFinancials,
+  prepareNewSeasonFinancials,
+  initializeFinancialsForLeague,
+  attachRookieContractToLeague,
+  signFreeAgent,
+  canSignPlayer,
+  getTeamPayroll,
+  getPlayerContract,
+  getSeasonFinancials,
+  calculateLuxuryTax,
+  getCapSpace,
+  getCurrentSalary,
+  getYearsRemaining,
+} from "./financials"
+export { waivePlayerContract } from "./financials/contracts/processContracts"
+export type { SignValidationResult } from "./financials/freeAgency"
