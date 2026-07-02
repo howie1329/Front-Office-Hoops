@@ -1,6 +1,6 @@
 # Contracts & Salary Cap — Design Spec (v1)
 
-**Status:** Draft — pending review  
+**Status:** Approved — see [Implementation Plan](../plans/2026-07-02-financials-v1-implementation-plan.md)  
 **Date:** 2026-07-02  
 **Scope:** Planning only. No implementation in this document.
 
