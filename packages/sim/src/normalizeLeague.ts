@@ -1,31 +1,67 @@
-import type { LeagueRecord, SeasonState } from "@workspace/shared/types"
+import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
+import type { LeagueRecord, Player, SeasonState } from "@workspace/shared/types"
+import { VETERAN_MIN_AGE, VETERAN_TAG } from "@workspace/shared/constants"
 
+import { migratePeakAge } from "./development/generatePeakAge"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
 
+function normalizePlayer(player: Player): Player {
+  const peakAge =
+    player.peakAge ??
+    migratePeakAge(player.age, player.ratings.overall, player.ratings.potential)
+  const tags = player.tags ?? []
+  const nextTags =
+    player.age >= VETERAN_MIN_AGE && !tags.includes(VETERAN_TAG)
+      ? [...tags, VETERAN_TAG]
+      : tags
+
+  return {
+    ...player,
+    peakAge,
+    tags: nextTags,
+  }
+}
+
+function normalizeTeams(state: SeasonState): SeasonState {
+  return {
+    ...state,
+    teams: state.teams.map((team) => ({
+      ...team,
+      players: team.players.map(normalizePlayer),
+    })),
+  }
+}
+
 export function normalizeSeasonState(state: SeasonState): SeasonState {
-  if (state.phase) {
-    return state
+  const withTeams = normalizeTeams(state)
+
+  if (withTeams.phase) {
+    return withTeams
   }
 
-  if (state.playoffBracket?.championTeamId) {
-    return { ...state, phase: "complete" }
+  if (withTeams.playoffBracket?.championTeamId) {
+    return { ...withTeams, phase: "complete" }
   }
 
-  if (state.playoffBracket) {
-    return { ...state, phase: "playoffs" }
+  if (withTeams.playoffBracket) {
+    return { ...withTeams, phase: "playoffs" }
   }
 
-  if (isRegularSeasonComplete({ ...state, phase: "regular" })) {
-    return { ...state, phase: "regular" }
+  if (isRegularSeasonComplete({ ...withTeams, phase: "regular" })) {
+    return { ...withTeams, phase: "regular" }
   }
 
-  return { ...state, phase: "regular" }
+  return { ...withTeams, phase: "regular" }
 }
 
 export function normalizeLeagueRecord(record: LeagueRecord): LeagueRecord {
+  const normalizedState = normalizeSeasonState(record.seasonState)
+  const saveVersion = record.saveVersion ?? 2
+
   return {
     ...record,
+    saveVersion: SAVE_VERSION,
     seasonHistory: record.seasonHistory ?? [],
-    seasonState: normalizeSeasonState(record.seasonState),
+    seasonState: normalizedState,
   }
 }

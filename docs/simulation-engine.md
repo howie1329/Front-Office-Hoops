@@ -120,9 +120,20 @@ createLeague
     → [simulate regular season]
     → beginPlayoffs
     → [simulate playoffs]
+    → beginOffseason (player development)
     → finalizeSeason + archiveSeason
     → startNextSeason (increment season, new schedule)
 ```
+
+## Player development (offseason)
+
+Each offseason, `beginOffseason` applies `applyOffseasonProgression`:
+
+- Increments player age
+- Per-skill growth or regression based on individual `peakAge` and `potential` headroom
+- Slow potential drift (seeded RNG)
+- Veteran mentorship modifier for developing teammates and post-peak regression
+- Recalculates `overall`, `usage`, and team `overall`
 
 `createLeague` accepts:
 

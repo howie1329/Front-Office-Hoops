@@ -4,7 +4,17 @@ export type ID = string
 
 export type PlayerPosition = "PG" | "SG" | "SF" | "PF" | "C"
 
+export type PlayerTag = string
+
 export type PlayerStatus = "active" | "injured" | "inactive"
+
+export type SkillKey =
+  | "shooting"
+  | "inside"
+  | "passing"
+  | "rebounding"
+  | "defense"
+  | "stamina"
 
 export type PlayerRatings = {
   overall: number
@@ -24,10 +34,12 @@ export type Player = {
   firstName: string
   lastName: string
   age: number
+  peakAge: number
   heightInches: number
   weightLbs: number
   position: PlayerPosition
   ratings: PlayerRatings
+  tags: PlayerTag[]
   status: PlayerStatus
   injury: null
   draftInfo: null

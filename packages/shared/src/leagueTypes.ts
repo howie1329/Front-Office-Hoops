@@ -1,6 +1,6 @@
 import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
 
-export const SAVE_VERSION = 2 as const
+export const SAVE_VERSION = 3 as const
 
 export type League = {
   id: string

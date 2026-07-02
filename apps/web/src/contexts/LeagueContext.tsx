@@ -10,12 +10,14 @@ type LeagueContextValue = ReturnType<typeof useLeague> & {
   needsPickTeam: boolean
   isReady: boolean
   myTeam: TeamWithRoster | null
-  phase: "regular" | "playoffs" | "complete"
+  phase: "regular" | "playoffs" | "complete" | "offseason"
   isRegularComplete: boolean
   isPlayoffs: boolean
   isSeasonComplete: boolean
+  isOffseason: boolean
   championTeamId: string | null
   canBeginPlayoffs: boolean
+  canBeginOffseason: boolean
   canStartNextSeason: boolean
 }
 
@@ -39,6 +41,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       : false
     const isPlayoffs = phase === "playoffs"
     const isSeasonComplete = phase === "complete"
+    const isOffseason = phase === "offseason"
     const championTeamId =
       seasonState?.playoffBracket?.championTeamId ?? null
 
@@ -54,9 +57,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       isRegularComplete,
       isPlayoffs,
       isSeasonComplete,
+      isOffseason,
       championTeamId,
       canBeginPlayoffs: phase === "regular" && isRegularComplete,
-      canStartNextSeason: isSeasonComplete && Boolean(championTeamId),
+      canBeginOffseason: isSeasonComplete && Boolean(championTeamId),
+      canStartNextSeason: isOffseason,
     }
   }, [leagueState])
 

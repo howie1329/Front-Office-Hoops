@@ -1,8 +1,7 @@
 import {
   PLAYERS_PER_TEAM,
-  RATING_MAX,
-  RATING_MIN,
-  ROTATION_SIZE,
+  VETERAN_MIN_AGE,
+  VETERAN_TAG,
 } from "@workspace/shared/constants"
 import type {
   Player,
@@ -13,8 +12,14 @@ import type {
   TeamWithRoster,
 } from "@workspace/shared/types"
 
+import { generatePeakAge } from "./development/generatePeakAge"
 import { FIRST_NAMES, LAST_NAMES } from "./namePools"
-import { selectRotation } from "./selectRotation"
+import {
+  clampRating,
+  deriveOverall,
+  deriveTeamOverall,
+  deriveUsage,
+} from "./playerRatings"
 
 const POSITION_TEMPLATE: PlayerPosition[] = [
   "PG",
@@ -39,24 +44,8 @@ const POSITION_HEIGHT: Record<PlayerPosition, { min: number; max: number }> = {
   C: { min: 80, max: 84 },
 }
 
-function clampRating(value: number): number {
-  return Math.round(Math.max(RATING_MIN, Math.min(RATING_MAX, value)))
-}
-
 function pickName(pool: string[], rng: Rng): string {
   return pool[rng.int(0, pool.length - 1)]!
-}
-
-function deriveOverall(ratings: Omit<PlayerRatings, "overall" | "potential" | "usage">): number {
-  return clampRating(
-    (ratings.shooting +
-      ratings.inside +
-      ratings.passing +
-      ratings.rebounding +
-      ratings.defense +
-      ratings.stamina) /
-      6,
-  )
 }
 
 function positionSkillBias(
@@ -109,29 +98,12 @@ function positionSkillBias(
   }
 }
 
-function deriveUsage(overall: number, index: number): number {
-  if (index < 2) return Math.min(30, Math.max(8, Math.round(22 + overall / 8)))
-  if (index < 5) return Math.min(26, Math.max(8, Math.round(16 + overall / 10)))
-  if (index < ROTATION_SIZE) {
-    return Math.min(22, Math.max(6, Math.round(10 + overall / 12)))
-  }
-  return Math.min(16, Math.max(4, Math.round(6 + overall / 15)))
-}
-
-function deriveTeamOverall(players: Player[]): number {
-  const rotation = selectRotation(players)
-  const totalMinutes = rotation.reduce((sum, entry) => sum + entry.minutes, 0)
-
-  if (totalMinutes === 0) {
-    return 50
+function deriveTags(age: number): string[] {
+  if (age >= VETERAN_MIN_AGE) {
+    return [VETERAN_TAG]
   }
 
-  const weightedOverall = rotation.reduce(
-    (sum, entry) => sum + entry.player.ratings.overall * entry.minutes,
-    0,
-  )
-
-  return Math.round(weightedOverall / totalMinutes)
+  return []
 }
 
 export function generatePlayers(team: Team, rng: Rng): Player[] {
@@ -147,6 +119,7 @@ export function generatePlayers(team: Team, rng: Rng): Player[] {
     const potential = clampRating(
       overall + (age <= 23 ? rng.int(4, 14) : rng.int(-2, 6)),
     )
+    const peakAge = generatePeakAge(age, overall, potential, rng)
 
     let firstName = pickName(FIRST_NAMES, rng)
     let lastName = pickName(LAST_NAMES, rng)
@@ -170,6 +143,7 @@ export function generatePlayers(team: Team, rng: Rng): Player[] {
       firstName,
       lastName,
       age,
+      peakAge,
       heightInches,
       weightLbs,
       position,
@@ -179,6 +153,7 @@ export function generatePlayers(team: Team, rng: Rng): Player[] {
         potential,
         usage: deriveUsage(overall, index),
       },
+      tags: deriveTags(age),
       status: "active",
       injury: null,
       draftInfo: null,

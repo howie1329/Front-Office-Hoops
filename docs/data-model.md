@@ -61,7 +61,7 @@ Lightweight listing for save slot UI (no full season state).
 | `playerSeasonStats` | `PlayerSeasonStats[]` | Aggregated player stats |
 | `currentDay` | `number` | Simulation cursor |
 | `baseSeed` | `string` | League RNG seed |
-| `phase` | `SeasonPhase` | `regular` \| `playoffs` \| `complete` |
+| `phase` | `SeasonPhase` | `regular` \| `playoffs` \| `complete` \| `offseason` |
 | `playoffBracket` | `PlayoffBracket?` | Present during/after playoffs |
 
 ### `SeasonHistoryEntry`
@@ -76,8 +76,10 @@ Archived season snapshot:
 ### `SeasonPhase`
 
 ```
-regular → playoffs → complete
+regular → playoffs → complete → offseason
 ```
+
+Offseason applies player development before the next season begins.
 
 ## Teams and players
 
@@ -101,9 +103,11 @@ regular → playoffs → complete
 | `teamId` | `string` | Current team |
 | `firstName`, `lastName` | `string` | Name |
 | `age` | `number` | Age in years |
+| `peakAge` | `number` | Expected peak age for development curve |
 | `heightInches`, `weightLbs` | `number` | Physical attributes |
 | `position` | `PlayerPosition` | PG, SG, SF, PF, C |
 | `ratings` | `PlayerRatings` | Skill ratings |
+| `tags` | `PlayerTag[]` | Modifier tags (e.g. `veteran`) |
 | `status` | `PlayerStatus` | active, injured, inactive |
 | `injury` | `null` | Reserved for injury system |
 | `draftInfo` | `null` | Reserved for draft system |

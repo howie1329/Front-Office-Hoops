@@ -15,7 +15,7 @@ export type ScheduleGame = {
   playoffRound?: PlayoffRound
 }
 
-export type SeasonPhase = "regular" | "playoffs" | "complete"
+export type SeasonPhase = "regular" | "playoffs" | "complete" | "offseason"
 
 export type PlayoffRound = 1 | 2 | 3 | 4
 
