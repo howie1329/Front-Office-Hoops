@@ -24,6 +24,16 @@ describe("generatePlayers", () => {
     expect(ids.size).toBe(PLAYERS_PER_TEAM)
   })
 
+  it("assigns peak age and tags", () => {
+    const players = generatePlayers(team, createRng("roster-peak"))
+
+    for (const player of players) {
+      expect(player.peakAge).toBeGreaterThanOrEqual(26)
+      expect(player.peakAge).toBeLessThanOrEqual(33)
+      expect(player.tags).toBeDefined()
+    }
+  })
+
   it("keeps ratings within bounds", () => {
     const players = generatePlayers(team, createRng("roster-c"))
 

@@ -49,8 +49,10 @@ export type {
   PlayerPosition,
   PlayerRatings,
   PlayerStatus,
+  PlayerTag,
   QuarterScores,
   RotationEntry,
+  SkillKey,
   TeamWithRoster,
 } from "./playerTypes"
 

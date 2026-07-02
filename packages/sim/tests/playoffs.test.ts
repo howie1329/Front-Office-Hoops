@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { createLeague, createRng, simulateSeason, startNextSeason } from "../src"
+import { beginOffseason } from "../src/beginOffseason"
 import { beginPlayoffs } from "../src/beginPlayoffs"
 import { createInitialPlayoffSeries } from "../src/playoffs/createBracket"
 import { seedPlayoffTeams } from "../src/playoffs/seedTeams"
@@ -66,6 +67,9 @@ describe("playoffs", () => {
     expect(state.playoffBracket?.championTeamId).toBeTruthy()
 
     const userTeamId = state.teams[0]!.id
+    state = beginOffseason(state, createRng("mini-playoff-offseason"))
+    expect(state.phase).toBe("offseason")
+
     const next = startNextSeason(state, userTeamId, createRng("mini-playoff-next"))
     expect(next.seasonState.season).toBe(2)
     expect(next.seasonState.phase).toBe("regular")

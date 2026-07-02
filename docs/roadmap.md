@@ -46,7 +46,7 @@ Current implementation status and planned work. This reflects the codebase as of
 | Playoffs — series sim | ✅ | Best-of-3 and best-of-7 |
 | Season archive + history | ✅ | `archiveSeason`, history table |
 | Multi-season progression | ✅ | `startNextSeason` |
-| Player development / aging | ⬜ | Ratings static per season |
+| Player development / aging | ✅ | Offseason progression with peak age, per-skill growth/regression |
 | Injuries | ⬜ | `injury` field reserved |
 | Fatigue / minutes management | ⬜ | Rotation exists; no fatigue model |
 | Trades | ⬜ | — |
@@ -146,6 +146,6 @@ A pragmatic sequence for future work:
 ## Versioning
 
 - **App version:** `0.0.1` (early prototype)
-- **Save version:** `2` (`SAVE_VERSION` in shared types)
+- **Save version:** `3` (`SAVE_VERSION` in shared types)
 
 Increment `SAVE_VERSION` and add normalization logic whenever persisted shape changes.

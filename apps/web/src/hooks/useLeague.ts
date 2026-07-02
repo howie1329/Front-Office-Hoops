@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
+  beginOffseason,
   beginPlayoffs,
   createLeague,
   createRng,
@@ -349,6 +350,20 @@ export function useLeague() {
     updateSeasonState((state) => beginPlayoffs(state))
   }, [updateSeasonState])
 
+  const beginOffseasonAction = useCallback(() => {
+    const current = leagueRef.current
+    if (!current) {
+      return
+    }
+
+    updateSeasonState((state) =>
+      beginOffseason(
+        state,
+        createRng(`${state.baseSeed}:offseason:${state.season}`),
+      ),
+    )
+  }, [updateSeasonState])
+
   const simulatePlayoffsAction = useCallback(() => {
     updateSeasonState((state) => simulatePlayoffs(state))
   }, [updateSeasonState])
@@ -395,6 +410,7 @@ export function useLeague() {
     deleteLeague: deleteLeagueById,
     loadLeagueList,
     beginPlayoffs: beginPlayoffsAction,
+    beginOffseason: beginOffseasonAction,
     simulatePlayoffs: simulatePlayoffsAction,
     startNextSeason: startNextSeasonAction,
     updateSeasonState,

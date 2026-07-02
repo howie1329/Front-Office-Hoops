@@ -52,7 +52,7 @@ export function SimControls({
   const remainingGames =
     state?.schedule.filter((game) => game.status === "scheduled").length ?? 0
 
-  if (phase === "complete") {
+  if (phase === "complete" || phase === "offseason") {
     return null
   }
 

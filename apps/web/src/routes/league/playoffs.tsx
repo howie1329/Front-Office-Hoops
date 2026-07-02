@@ -21,8 +21,10 @@ function LeaguePlayoffsPage() {
     phase,
     championTeamId,
     canBeginPlayoffs,
+    canBeginOffseason,
     canStartNextSeason,
     beginPlayoffs,
+    beginOffseason,
     simulatePlayoffs,
     startNextSeason,
     updateSeasonState,
@@ -38,8 +40,10 @@ function LeaguePlayoffsPage() {
         state={seasonState}
         championTeamId={championTeamId}
         canBeginPlayoffs={canBeginPlayoffs}
+        canBeginOffseason={canBeginOffseason}
         canStartNextSeason={canStartNextSeason}
         onBeginPlayoffs={beginPlayoffs}
+        onBeginOffseason={beginOffseason}
         onStartNextSeason={() => void startNextSeason()}
       />
 

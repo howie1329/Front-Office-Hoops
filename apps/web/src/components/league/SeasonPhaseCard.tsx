@@ -16,8 +16,10 @@ type SeasonPhaseCardProps = {
   state: SeasonState
   championTeamId: string | null
   canBeginPlayoffs: boolean
+  canBeginOffseason: boolean
   canStartNextSeason: boolean
   onBeginPlayoffs: () => void
+  onBeginOffseason: () => void
   onStartNextSeason: () => void
 }
 
@@ -28,6 +30,9 @@ function phaseLabel(phase: SeasonState["phase"]): string {
   if (phase === "complete") {
     return "Season complete"
   }
+  if (phase === "offseason") {
+    return "Offseason"
+  }
   return "Regular season"
 }
 
@@ -35,8 +40,10 @@ export function SeasonPhaseCard({
   state,
   championTeamId,
   canBeginPlayoffs,
+  canBeginOffseason,
   canStartNextSeason,
   onBeginPlayoffs,
+  onBeginOffseason,
   onStartNextSeason,
 }: SeasonPhaseCardProps) {
   const championName = championTeamId
@@ -54,9 +61,11 @@ export function SeasonPhaseCard({
             ? "Finish the regular season, then begin the playoffs."
             : state.phase === "playoffs"
               ? "Sim playoff games from the bracket page."
-              : championName
-                ? `${championName} won the championship.`
-                : "Champion crowned."}
+              : state.phase === "offseason"
+                ? "Player development applied. Start the next season when ready."
+                : championName
+                  ? `${championName} won the championship.`
+                  : "Champion crowned."}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
@@ -70,13 +79,17 @@ export function SeasonPhaseCard({
           </Button>
         ) : null}
 
+        {canBeginOffseason ? (
+          <Button onClick={onBeginOffseason}>Begin offseason</Button>
+        ) : null}
+
         {canStartNextSeason ? (
           <Button onClick={() => void onStartNextSeason()}>
             Start Season {state.season + 1}
           </Button>
         ) : null}
 
-        {state.phase === "complete" ? (
+        {state.phase === "complete" || state.phase === "offseason" ? (
           <Button variant="outline" asChild>
             <Link to="/league/history">View history</Link>
           </Button>

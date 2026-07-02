@@ -14,8 +14,8 @@ export function startNextSeason(
   userTeamId: string | null,
   rng: Rng,
 ): StartNextSeasonResult {
-  if (state.phase !== "complete") {
-    throw new Error("Season must be complete before starting the next season")
+  if (state.phase !== "offseason") {
+    throw new Error("Season must be in the offseason before starting the next season")
   }
 
   const finalized = finalizeSeason(state)
