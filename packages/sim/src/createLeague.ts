@@ -35,5 +35,6 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     userTeamId: input.userTeamId ?? null,
     seasonState,
     seasonHistory: [],
+    freeAgentPool: [],
   }
 }

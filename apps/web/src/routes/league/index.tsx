@@ -31,9 +31,13 @@ function LeagueDashboardPage() {
     championTeamId,
     canBeginPlayoffs,
     canBeginOffseason,
+    canPrepareDraft,
     canStartNextSeason,
+    rosterOverLimit,
+    cutsNeeded,
     beginPlayoffs,
     beginOffseason,
+    prepareDraft,
     simulatePlayoffs,
     startNextSeason,
     updateSeasonState,
@@ -76,9 +80,13 @@ function LeagueDashboardPage() {
         championTeamId={championTeamId}
         canBeginPlayoffs={canBeginPlayoffs}
         canBeginOffseason={canBeginOffseason}
+        canPrepareDraft={canPrepareDraft}
         canStartNextSeason={canStartNextSeason}
+        rosterOverLimit={rosterOverLimit}
+        cutsNeeded={cutsNeeded}
         onBeginPlayoffs={beginPlayoffs}
         onBeginOffseason={beginOffseason}
+        onPrepareDraft={prepareDraft}
         onStartNextSeason={() => void startNextSeason()}
       />
 

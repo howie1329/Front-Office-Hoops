@@ -57,6 +57,14 @@ export type {
 } from "./playerTypes"
 
 export type {
+  DraftInfo,
+  DraftPick,
+  DraftProspect,
+  DraftSelection,
+  DraftState,
+} from "./draftTypes"
+
+export type {
   Game,
   PlayerSeasonStats,
   PlayoffBracket,

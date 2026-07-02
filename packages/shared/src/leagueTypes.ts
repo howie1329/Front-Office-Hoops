@@ -1,6 +1,7 @@
+import type { Player } from "./playerTypes"
 import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
 
-export const SAVE_VERSION = 3 as const
+export const SAVE_VERSION = 4 as const
 
 export type League = {
   id: string
@@ -14,6 +15,7 @@ export type League = {
 export type LeagueRecord = League & {
   seasonState: SeasonState
   seasonHistory: SeasonHistoryEntry[]
+  freeAgentPool: Player[]
 }
 
 export type LeagueSummary = Pick<

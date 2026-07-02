@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 
 import { RosterCard } from "@/components/league/RosterCard"
 import { useLeagueContext } from "@/contexts/LeagueContext"
@@ -6,16 +6,27 @@ import { Button } from "@workspace/ui/components/button"
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@workspace/ui/components/table"
+
+import { teamName } from "@/components/league/lib/teamFormat"
 
 export const Route = createFileRoute("/league/team")({
   component: LeagueTeamPage,
 })
 
 function LeagueTeamPage() {
-  const { myTeam } = useLeagueContext()
+  const { myTeam, isOffseason, releasePlayer } = useLeagueContext()
 
   if (!myTeam) {
     return (
@@ -34,12 +45,22 @@ function LeagueTeamPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/league/stats">View player stats</Link>
-        </Button>
-      </div>
-      <RosterCard roster={myTeam} />
+      {isOffseason ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Offseason roster moves</CardTitle>
+            <CardDescription>
+              Release players to get back to 12 before the next season starts.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      <RosterCard
+        roster={myTeam}
+        showRelease={isOffseason}
+        onReleasePlayer={releasePlayer}
+      />
     </div>
   )
 }

@@ -53,3 +53,14 @@ export const SKILL_KEYS = [
   "defense",
   "stamina",
 ] as const
+
+export const DRAFT_ROUNDS = 2
+export const ROSTER_MAX = PLAYERS_PER_TEAM
+
+export const ROOKIE_AGE_MIN = 19
+export const ROOKIE_AGE_MAX = 22
+
+export const ROOKIE_OVERALL_MIN = 45
+export const ROOKIE_OVERALL_BASE = 52
+export const ROOKIE_POTENTIAL_GAP_MIN = 8
+export const ROOKIE_POTENTIAL_GAP_MAX = 20

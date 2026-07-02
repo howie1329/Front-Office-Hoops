@@ -70,7 +70,12 @@ describe("playoffs", () => {
     state = beginOffseason(state, createRng("mini-playoff-offseason"))
     expect(state.phase).toBe("offseason")
 
-    const next = startNextSeason(state, userTeamId, createRng("mini-playoff-next"))
+    const next = startNextSeason({
+      seasonState: state,
+      userTeamId,
+      freeAgentPool: [],
+      rng: createRng("mini-playoff-next"),
+    })
     expect(next.seasonState.season).toBe(2)
     expect(next.seasonState.phase).toBe("regular")
     expect(next.historyEntry.championTeamId).toBe(state.playoffBracket?.championTeamId)

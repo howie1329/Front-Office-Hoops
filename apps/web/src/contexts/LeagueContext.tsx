@@ -1,7 +1,12 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react"
 
+import { ROSTER_MAX } from "@workspace/shared/constants"
 import type { TeamWithRoster } from "@workspace/shared/types"
-import { isRegularSeasonComplete } from "@workspace/sim"
+import {
+  isDraftRequired,
+  isRegularSeasonComplete,
+  isUserOnClock,
+} from "@workspace/sim"
 
 import { useLeague, type LeagueStatus, type SaveStatus } from "@/hooks/useLeague"
 
@@ -18,6 +23,10 @@ type LeagueContextValue = ReturnType<typeof useLeague> & {
   championTeamId: string | null
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
+  canPrepareDraft: boolean
+  isUserOnClock: boolean
+  rosterOverLimit: boolean
+  cutsNeeded: number
   canStartNextSeason: boolean
 }
 
@@ -44,6 +53,16 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const isOffseason = phase === "offseason"
     const championTeamId =
       seasonState?.playoffBracket?.championTeamId ?? null
+    const completedSeason = seasonState?.season ?? 1
+    const draftRequired = isDraftRequired(completedSeason)
+    const draftState = seasonState?.draftState
+    const draftComplete = !draftRequired || Boolean(draftState?.completed)
+    const userRosterSize = myTeam?.players.length ?? 0
+    const rosterOverLimit = userRosterSize > ROSTER_MAX
+    const cutsNeeded = Math.max(0, userRosterSize - ROSTER_MAX)
+    const userOnClock = seasonState
+      ? isUserOnClock(seasonState, leagueState.userTeamId)
+      : false
 
     return {
       ...leagueState,
@@ -61,7 +80,16 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       championTeamId,
       canBeginPlayoffs: phase === "regular" && isRegularComplete,
       canBeginOffseason: isSeasonComplete && Boolean(championTeamId),
-      canStartNextSeason: isOffseason,
+      canPrepareDraft:
+        isOffseason && draftRequired && !draftState && Boolean(championTeamId),
+      isUserOnClock: userOnClock,
+      rosterOverLimit,
+      cutsNeeded,
+      canStartNextSeason:
+        isOffseason &&
+        draftComplete &&
+        !rosterOverLimit &&
+        userRosterSize === ROSTER_MAX,
     }
   }, [leagueState])
 

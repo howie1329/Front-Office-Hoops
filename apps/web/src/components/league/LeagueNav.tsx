@@ -7,6 +7,7 @@ const tabs = [
   { to: "/league/standings", label: "Standings" },
   { to: "/league/schedule", label: "Schedule" },
   { to: "/league/playoffs", label: "Playoffs" },
+  { to: "/league/draft", label: "Draft" },
   { to: "/league/team", label: "My Team" },
   { to: "/league/stats", label: "Stats" },
   { to: "/league/history", label: "History" },

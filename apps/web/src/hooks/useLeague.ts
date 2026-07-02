@@ -5,7 +5,12 @@ import {
   beginPlayoffs,
   createLeague,
   createRng,
+  makeDraftPick,
   normalizeLeagueRecord,
+  prepareDraft,
+  releasePlayer,
+  simAiPick,
+  simToUserPick,
   simulatePlayoffs,
   startNextSeason,
 } from "@workspace/sim"
@@ -346,6 +351,97 @@ export function useLeague() {
     [scheduleSave],
   )
 
+  const updateLeagueRecord = useCallback(
+    (updater: (record: LeagueRecord) => LeagueRecord) => {
+      const current = leagueRef.current
+      if (!current) {
+        return
+      }
+
+      scheduleSave(updater(current))
+    },
+    [scheduleSave],
+  )
+
+  const prepareDraftAction = useCallback(() => {
+    updateLeagueRecord((record) => ({
+      ...record,
+      seasonState: prepareDraft(record.seasonState),
+    }))
+  }, [updateLeagueRecord])
+
+  const makeDraftPickAction = useCallback(
+    (prospectId: string) => {
+      updateLeagueRecord((record) => {
+        const result = makeDraftPick(
+          record.seasonState,
+          prospectId,
+          record.freeAgentPool ?? [],
+        )
+        return {
+          ...record,
+          seasonState: result.seasonState,
+          freeAgentPool: result.freeAgentPool,
+        }
+      })
+    },
+    [updateLeagueRecord],
+  )
+
+  const simAiPickAction = useCallback(() => {
+    updateLeagueRecord((record) => {
+      const result = simAiPick(record.seasonState, record.freeAgentPool ?? [])
+      return {
+        ...record,
+        seasonState: result.seasonState,
+        freeAgentPool: result.freeAgentPool,
+      }
+    })
+  }, [updateLeagueRecord])
+
+  const simToUserPickAction = useCallback(() => {
+    updateLeagueRecord((record) => {
+      const result = simToUserPick(
+        record.seasonState,
+        record.userTeamId,
+        record.freeAgentPool ?? [],
+      )
+      return {
+        ...record,
+        seasonState: result.seasonState,
+        freeAgentPool: result.freeAgentPool,
+      }
+    })
+  }, [updateLeagueRecord])
+
+  const releasePlayerAction = useCallback(
+    (playerId: string) => {
+      const current = leagueRef.current
+      if (!current?.userTeamId) {
+        return
+      }
+
+      const result = releasePlayer(
+        current.seasonState.teams,
+        current.freeAgentPool ?? [],
+        {
+          teamId: current.userTeamId,
+          playerId,
+        },
+      )
+
+      updateLeagueRecord((record) => ({
+        ...record,
+        seasonState: {
+          ...record.seasonState,
+          teams: result.teams,
+        },
+        freeAgentPool: result.freeAgentPool,
+      }))
+    },
+    [updateLeagueRecord],
+  )
+
   const beginPlayoffsAction = useCallback(() => {
     updateSeasonState((state) => beginPlayoffs(state))
   }, [updateSeasonState])
@@ -376,18 +472,20 @@ export function useLeague() {
 
     await flushPendingSave()
 
-    const result = startNextSeason(
-      current.seasonState,
-      current.userTeamId,
-      createRng(
+    const result = startNextSeason({
+      seasonState: current.seasonState,
+      userTeamId: current.userTeamId,
+      freeAgentPool: current.freeAgentPool ?? [],
+      rng: createRng(
         `${current.seasonState.baseSeed}:season:${current.seasonState.season + 1}`,
       ),
-    )
+    })
 
     const updated = normalizeLeagueRecord({
       ...current,
       seasonState: result.seasonState,
       seasonHistory: [...(current.seasonHistory ?? []), result.historyEntry],
+      freeAgentPool: result.freeAgentPool,
     })
 
     return persistLeague(updated)
@@ -399,6 +497,7 @@ export function useLeague() {
     league,
     seasonState: league?.seasonState ?? null,
     seasonHistory: league?.seasonHistory ?? [],
+    freeAgentPool: league?.freeAgentPool ?? [],
     userTeamId: league?.userTeamId ?? null,
     saves,
     activeLeagueId,
@@ -411,6 +510,11 @@ export function useLeague() {
     loadLeagueList,
     beginPlayoffs: beginPlayoffsAction,
     beginOffseason: beginOffseasonAction,
+    prepareDraft: prepareDraftAction,
+    makeDraftPick: makeDraftPickAction,
+    simAiPick: simAiPickAction,
+    simToUserPick: simToUserPickAction,
+    releasePlayer: releasePlayerAction,
     simulatePlayoffs: simulatePlayoffsAction,
     startNextSeason: startNextSeasonAction,
     updateSeasonState,

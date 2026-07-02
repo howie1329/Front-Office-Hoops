@@ -1,4 +1,6 @@
-import type { Team } from "./types"
+import type { DraftInfo } from "./draftTypes"
+
+export type { DraftInfo, DraftPick, DraftProspect, DraftSelection, DraftState } from "./draftTypes"
 
 export type ID = string
 
@@ -6,7 +8,7 @@ export type PlayerPosition = "PG" | "SG" | "SF" | "PF" | "C"
 
 export type PlayerTag = string
 
-export type PlayerStatus = "active" | "injured" | "inactive"
+export type PlayerStatus = "active" | "injured" | "inactive" | "free_agent"
 
 export type SkillKey =
   | "shooting"
@@ -30,7 +32,7 @@ export type PlayerRatings = {
 
 export type Player = {
   id: ID
-  teamId: ID
+  teamId: ID | null
   firstName: string
   lastName: string
   age: number
@@ -42,7 +44,7 @@ export type Player = {
   tags: PlayerTag[]
   status: PlayerStatus
   injury: null
-  draftInfo: null
+  draftInfo: DraftInfo | null
 }
 
 export type TeamWithRoster = Team & {

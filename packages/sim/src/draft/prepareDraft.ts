@@ -1,0 +1,59 @@
+import type { SeasonState } from "@workspace/shared/types"
+
+import { createRng } from "../rng"
+import { generateDraftClass } from "./generateDraftClass"
+import { generateDraftOrderFromSeed } from "./generateDraftOrder"
+import { isDraftRequired } from "./isDraftRequired"
+
+export function prepareDraft(state: SeasonState): SeasonState {
+  if (state.phase !== "offseason") {
+    throw new Error("Draft can only be prepared during the offseason")
+  }
+
+  if (!isDraftRequired(state.season)) {
+    throw new Error("Draft is not required for this offseason")
+  }
+
+  if (state.draftState) {
+    throw new Error("Draft is already prepared")
+  }
+
+  const year = state.season + 1
+  const prospects = generateDraftClass(
+    state.teams.length,
+    year,
+    state.baseSeed,
+    createRng(`${state.baseSeed}:draft-class:${year}`),
+  )
+  const order = generateDraftOrderFromSeed(state, state.baseSeed)
+
+  return {
+    ...state,
+    draftState: {
+      year,
+      prospects,
+      order,
+      currentPickIndex: 0,
+      completed: false,
+      selections: [],
+    },
+  }
+}
+
+export function getCurrentDraftPick(state: SeasonState) {
+  const draftState = state.draftState
+  if (!draftState || draftState.completed) {
+    return null
+  }
+
+  return draftState.order[draftState.currentPickIndex] ?? null
+}
+
+export function isUserOnClock(state: SeasonState, userTeamId: string | null): boolean {
+  if (!userTeamId) {
+    return false
+  }
+
+  const currentPick = getCurrentDraftPick(state)
+  return currentPick?.teamId === userTeamId
+}

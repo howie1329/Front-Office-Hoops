@@ -1,5 +1,6 @@
 import type { TeamMatchupResult } from "./types"
 import type { TeamWithRoster } from "./playerTypes"
+import type { DraftState } from "./draftTypes"
 
 export type ScheduleGameStatus = "scheduled" | "final"
 
@@ -119,6 +120,7 @@ export type SeasonState = {
   baseSeed: string
   phase: SeasonPhase
   playoffBracket?: PlayoffBracket
+  draftState?: DraftState
 }
 
 export type SimulateGameContext = {
