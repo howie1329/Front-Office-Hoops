@@ -47,6 +47,7 @@ Current implementation status and planned work. This reflects the codebase as of
 | Season archive + history | ✅ | `archiveSeason`, history table |
 | Multi-season progression | ✅ | `startNextSeason` |
 | Player development / aging | ✅ | Offseason progression with peak age, per-skill growth/regression |
+| Draft + rookie generation | ✅ | 2-round snake draft, rookie class, free agent pool |
 | Injuries | ⬜ | `injury` field reserved |
 | Fatigue / minutes management | ⬜ | Rotation exists; no fatigue model |
 | Trades | ⬜ | — |
@@ -146,6 +147,6 @@ A pragmatic sequence for future work:
 ## Versioning
 
 - **App version:** `0.0.1` (early prototype)
-- **Save version:** `3` (`SAVE_VERSION` in shared types)
+- **Save version:** `4` (`SAVE_VERSION` in shared types)
 
 Increment `SAVE_VERSION` and add normalization logic whenever persisted shape changes.

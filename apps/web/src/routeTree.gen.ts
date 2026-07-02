@@ -22,6 +22,7 @@ import { Route as LeagueSavesRouteImport } from './routes/league/saves'
 import { Route as LeaguePlayoffsRouteImport } from './routes/league/playoffs'
 import { Route as LeaguePickTeamRouteImport } from './routes/league/pick-team'
 import { Route as LeagueHistoryRouteImport } from './routes/league/history'
+import { Route as LeagueDraftRouteImport } from './routes/league/draft'
 import { Route as LeagueCreateRouteImport } from './routes/league/create'
 import { Route as LeagueGamesGameIdRouteImport } from './routes/league/games/$gameId'
 
@@ -90,6 +91,11 @@ const LeagueHistoryRoute = LeagueHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => LeagueRouteRoute,
 } as any)
+const LeagueDraftRoute = LeagueDraftRouteImport.update({
+  id: '/draft',
+  path: '/draft',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
 const LeagueCreateRoute = LeagueCreateRouteImport.update({
   id: '/create',
   path: '/create',
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/season-lab': typeof SeasonLabRoute
   '/sim-lab': typeof SimLabRoute
   '/league/create': typeof LeagueCreateRoute
+  '/league/draft': typeof LeagueDraftRoute
   '/league/history': typeof LeagueHistoryRoute
   '/league/pick-team': typeof LeaguePickTeamRoute
   '/league/playoffs': typeof LeaguePlayoffsRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/season-lab': typeof SeasonLabRoute
   '/sim-lab': typeof SimLabRoute
   '/league/create': typeof LeagueCreateRoute
+  '/league/draft': typeof LeagueDraftRoute
   '/league/history': typeof LeagueHistoryRoute
   '/league/pick-team': typeof LeaguePickTeamRoute
   '/league/playoffs': typeof LeaguePlayoffsRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/season-lab': typeof SeasonLabRoute
   '/sim-lab': typeof SimLabRoute
   '/league/create': typeof LeagueCreateRoute
+  '/league/draft': typeof LeagueDraftRoute
   '/league/history': typeof LeagueHistoryRoute
   '/league/pick-team': typeof LeaguePickTeamRoute
   '/league/playoffs': typeof LeaguePlayoffsRoute
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/season-lab'
     | '/sim-lab'
     | '/league/create'
+    | '/league/draft'
     | '/league/history'
     | '/league/pick-team'
     | '/league/playoffs'
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/season-lab'
     | '/sim-lab'
     | '/league/create'
+    | '/league/draft'
     | '/league/history'
     | '/league/pick-team'
     | '/league/playoffs'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/season-lab'
     | '/sim-lab'
     | '/league/create'
+    | '/league/draft'
     | '/league/history'
     | '/league/pick-team'
     | '/league/playoffs'
@@ -305,6 +317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeagueHistoryRouteImport
       parentRoute: typeof LeagueRouteRoute
     }
+    '/league/draft': {
+      id: '/league/draft'
+      path: '/draft'
+      fullPath: '/league/draft'
+      preLoaderRoute: typeof LeagueDraftRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
     '/league/create': {
       id: '/league/create'
       path: '/create'
@@ -324,6 +343,7 @@ declare module '@tanstack/react-router' {
 
 interface LeagueRouteRouteChildren {
   LeagueCreateRoute: typeof LeagueCreateRoute
+  LeagueDraftRoute: typeof LeagueDraftRoute
   LeagueHistoryRoute: typeof LeagueHistoryRoute
   LeaguePickTeamRoute: typeof LeaguePickTeamRoute
   LeaguePlayoffsRoute: typeof LeaguePlayoffsRoute
@@ -338,6 +358,7 @@ interface LeagueRouteRouteChildren {
 
 const LeagueRouteRouteChildren: LeagueRouteRouteChildren = {
   LeagueCreateRoute: LeagueCreateRoute,
+  LeagueDraftRoute: LeagueDraftRoute,
   LeagueHistoryRoute: LeagueHistoryRoute,
   LeaguePickTeamRoute: LeaguePickTeamRoute,
   LeaguePlayoffsRoute: LeaguePlayoffsRoute,

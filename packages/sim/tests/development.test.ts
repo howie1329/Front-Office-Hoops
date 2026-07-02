@@ -375,15 +375,21 @@ describe("offseason phase", () => {
     state = simulatePlayoffs(state)
 
     expect(() =>
-      startNextSeason(state, league.userTeamId, createRng("offseason-guard-next")),
+      startNextSeason({
+        seasonState: state,
+        userTeamId: league.userTeamId,
+        freeAgentPool: [],
+        rng: createRng("offseason-guard-next"),
+      }),
     ).toThrow("offseason")
 
     state = beginOffseason(state, createRng("offseason-guard:offseason:1"))
-    const next = startNextSeason(
-      state,
-      league.userTeamId,
-      createRng("offseason-guard-next"),
-    )
+    const next = startNextSeason({
+      seasonState: state,
+      userTeamId: league.userTeamId,
+      freeAgentPool: [],
+      rng: createRng("offseason-guard-next"),
+    })
 
     expect(next.seasonState.season).toBe(2)
     expect(next.seasonState.phase).toBe("regular")
@@ -411,7 +417,7 @@ describe("offseason phase", () => {
 
     const normalized = normalizeLeagueRecord(legacyRecord as typeof league)
 
-    expect(normalized.saveVersion).toBe(3)
+    expect(normalized.saveVersion).toBe(4)
     for (const team of normalized.seasonState.teams) {
       for (const player of team.players) {
         expect(player.peakAge).toBeGreaterThanOrEqual(26)
