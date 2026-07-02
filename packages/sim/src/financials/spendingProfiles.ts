@@ -10,6 +10,7 @@ import {
 } from "@workspace/shared/financialConstants"
 import type {
   MarketTier,
+  SeasonFinancials,
   TaxTolerance,
   TeamFinancials,
   TeamSpendingProfile,
@@ -17,6 +18,7 @@ import type {
 import type { Rng, TeamWithRoster } from "@workspace/shared/types"
 
 import { buildLeagueFinancials } from "./capMath"
+import { createDefaultStrategy } from "./teamStrategy"
 
 function weightedPick<T extends string>(
   weights: Record<T, number>,
@@ -71,7 +73,7 @@ export function createSpendingProfile(
 export function initializeTeamFinancials(
   teams: TeamWithRoster[],
   rng: Rng,
-  seasonFinancials: { mleNonTaxpayer: number },
+  seasonFinancials: SeasonFinancials,
 ): TeamFinancials[] {
   return teams.map((team, index) => {
     const spendingProfile = createSpendingProfile(index, rng)
@@ -79,6 +81,7 @@ export function initializeTeamFinancials(
     return {
       teamId: team.id,
       spendingProfile,
+      strategy: createDefaultStrategy(seasonFinancials.season, "buying"),
       cashReserves: STARTING_CASH_RESERVES,
       debt: 0,
       consecutiveTaxSeasons: 0,

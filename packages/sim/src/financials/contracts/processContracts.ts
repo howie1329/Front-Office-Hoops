@@ -23,7 +23,6 @@ export function expireOneYearContracts(league: LeagueRecord): LeagueRecord {
       teamId: null,
       status: "free_agent" as const,
       activeContractId: null,
-      seasonsWithTeam: 0,
     }))
 
   const teams = league.seasonState.teams.map((team) => ({

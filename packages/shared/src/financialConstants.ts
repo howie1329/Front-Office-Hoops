@@ -1,4 +1,4 @@
-import type { MarketTier, TaxTolerance } from "./financialTypes"
+import type { MarketTier, TaxTolerance, TeamMode } from "./financialTypes"
 
 export const BASE_SALARY_CAP = 141
 
@@ -63,3 +63,34 @@ export const TOLERANCE_BY_MARKET: Record<
 }
 
 export const LUXURY_TAX_RATES = [1.5, 1.75, 2.5, 3.25] as const
+
+export const MODE_PAYROLL_OVER_TAX_SELLING = 5
+export const MODE_CAP_SPACE_BUYING = 7
+export const MODE_CONTENDING_OVR = 78
+export const MODE_SELLING_OVR = 72
+export const MODE_HYSTERESIS_SEASONS = 2
+export const MODE_DEBT_FORCE_SELLING = 30
+export const MODE_PAYROLL_FORCE_SELLING = 20
+
+export const RE_SIGN_OVR_CONTENDING = 75
+export const RE_SIGN_TOP_N_BUYING = 3
+export const RE_SIGN_MAX_AGE_SELLING = 25
+
+export const MODE_OFFER_MULTIPLIER: Record<TeamMode, { min: number; max: number }> = {
+  selling: { min: 0.85, max: 1.0 },
+  buying: { min: 1.0, max: 1.15 },
+  contending: { min: 0.95, max: 1.1 },
+}
+
+export const MODE_YEARS_RANGE: Record<TeamMode, [number, number]> = {
+  selling: [1, 2],
+  buying: [2, 3],
+  contending: [2, 4],
+}
+
+export const TOLERANCE_OFFER_MULTIPLIER: Record<TaxTolerance, number> = {
+  tax_averse: 0.92,
+  prudent: 1.0,
+  competitive: 1.08,
+  all_in: 1.15,
+}

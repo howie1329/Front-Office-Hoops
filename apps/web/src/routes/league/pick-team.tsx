@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router"
 
 import { teamName } from "@/components/league/lib/teamFormat"
-import { formatMarketTier, formatMoney } from "@/components/league/lib/moneyFormat"
+import { formatMarketTier, formatMoney, formatTeamMode, formatTolerance } from "@/components/league/lib/moneyFormat"
 import { useLeagueContext } from "@/contexts/LeagueContext"
 import {
   getSeasonFinancials,
@@ -101,7 +101,11 @@ function LeaguePickTeamPage() {
               {teamFinance && seasonFinancials ? (
                 <span className="text-xs text-muted-foreground">
                   {formatMarketTier(teamFinance.spendingProfile.marketTier)} ·{" "}
-                  Payroll {formatMoney(payroll)} · {taxOutlook}
+                  {formatTolerance(teamFinance.spendingProfile.taxTolerance)} ·{" "}
+                  {formatTeamMode(teamFinance.strategy.mode)} · Payroll{" "}
+                  {formatMoney(payroll)} · {taxOutlook} · Cash{" "}
+                  {formatMoney(teamFinance.cashReserves)} · Debt{" "}
+                  {formatMoney(teamFinance.debt)}
                 </span>
               ) : null}
             </Button>

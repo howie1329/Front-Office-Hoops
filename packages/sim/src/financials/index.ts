@@ -1,5 +1,4 @@
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
-
 import {
   applyMinimumSalaryFloorPenalty,
   advanceContractYears,
@@ -7,8 +6,10 @@ import {
   rollFinancialYear,
   syncPlayersAfterContractChanges,
 } from "./assessSeasonFinances"
+import { applyAiCapBehavior } from "./ai/capCuts"
+import { processAiReSignings } from "./ai/reSignings"
 import { expireOneYearContracts } from "./contracts/processContracts"
-import { applyAiCapBehavior, attachRookieContract, processAiFreeAgency } from "./freeAgency"
+import { attachRookieContract, processAiFreeAgency } from "./freeAgency"
 import {
   generateInitialContractsForLeague,
   applyInitialContractsToPlayers,
@@ -18,6 +19,7 @@ import {
   initializeTeamFinancials,
 } from "./spendingProfiles"
 import { getSeasonFinancials } from "./capMath"
+import { assignInitialTeamStrategy, updateAllTeamStrategies } from "./teamStrategy"
 
 export * from "./capMath"
 export * from "./birdRights"
@@ -27,13 +29,18 @@ export * from "./assessSeasonFinances"
 export * from "./freeAgency"
 export * from "./contracts/createContract"
 export * from "./contracts/processContracts"
+export * from "./teamStrategy"
+export { processAiReSignings } from "./ai/reSignings"
+export { applyAiCapBehavior } from "./ai/capCuts"
 
 export function processOffseasonFinancials(
   league: LeagueRecord,
   rng: Rng,
 ): LeagueRecord {
-  let current = assessLeagueSeasonFinances(league, league.seasonState)
+  let current = updateAllTeamStrategies(league)
+  current = assessLeagueSeasonFinances(current, current.seasonState)
   current = expireOneYearContracts(current)
+  current = processAiReSignings(current, rng)
   current = processAiFreeAgency(current, rng)
   return current
 }
@@ -90,11 +97,27 @@ export function initializeFinancialsForLeague(
     return { ...team, players }
   })
 
+  const teamFinancialsWithStrategy = teamFinancials.map((teamFinance) => {
+    const team = teams.find((entry) => entry.id === teamFinance.teamId)
+    if (!team) {
+      return teamFinance
+    }
+    return {
+      ...teamFinance,
+      strategy: assignInitialTeamStrategy(
+        team,
+        contracts,
+        seasonFinancials,
+        1,
+      ),
+    }
+  })
+
   return {
     ...league,
     contracts,
     leagueFinancials,
-    teamFinancials,
+    teamFinancials: teamFinancialsWithStrategy,
     spendingProfileEvents: [],
     seasonState: {
       ...league.seasonState,

@@ -17,6 +17,17 @@ export function formatTolerance(
   }
 }
 
+export function formatTeamMode(mode: "selling" | "buying" | "contending"): string {
+  switch (mode) {
+    case "selling":
+      return "Selling"
+    case "buying":
+      return "Buying"
+    case "contending":
+      return "Contending"
+  }
+}
+
 export function formatMarketTier(tier: "large" | "mid" | "small"): string {
   switch (tier) {
     case "large":

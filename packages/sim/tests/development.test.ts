@@ -420,7 +420,7 @@ describe("offseason phase", () => {
 
     const normalized = normalizeLeagueRecord(legacyRecord as unknown as LeagueRecord)
 
-    expect(normalized.saveVersion).toBe(5)
+    expect(normalized.saveVersion).toBe(6)
     for (const team of normalized.seasonState.teams) {
       for (const player of team.players) {
         expect(player.peakAge).toBeGreaterThanOrEqual(26)
