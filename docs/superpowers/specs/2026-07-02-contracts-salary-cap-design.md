@@ -244,7 +244,7 @@ Assignment algorithm:
 2. Weighted random `taxTolerance` biased by market tier
 3. Store on `TeamFinancials.spendingProfile`
 
-User sees their team's profile on the cap sheet after picking a team (not before — discovering franchise identity is part of the game).
+User sees their team's profile on the cap sheet after picking a team (not before — discovering franchise identity is part of the game). See [Owner, Goals & Narrative Layer](./2026-07-02-owner-goals-narrative-design.md) for the phased UI plan (market/cap visible at pick; owner archetype revealed after selection; full difficulty badge when owner system ships).
 
 ### Future narrative events (not v1)
 
