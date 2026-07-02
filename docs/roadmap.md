@@ -54,7 +54,7 @@ Current implementation status and planned work. This reflects the codebase as of
 | Free agency | ⬜ | — |
 | Draft | ⬜ | `draftInfo` field reserved |
 | Coaching / tactics | ⬜ | — |
-| Financials / salary cap | ⬜ | — |
+| Financials / salary cap | ✅ | Contracts, cap, tax, FA signing, cap sheet UI |
 
 ---
 

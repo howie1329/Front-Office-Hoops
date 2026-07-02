@@ -1,14 +1,6 @@
 import type { PlayerGameStats, QuarterScores, TeamWithRoster } from "./playerTypes"
 
-export type Team = {
-  id: string
-  name: string
-  abbrev: string
-  overall: number
-  pace: number
-  conferenceId?: string
-  divisionId?: string
-}
+export type { Team } from "./teamTypes"
 
 export type TeamMatchupInput = {
   home: TeamWithRoster
@@ -80,6 +72,27 @@ export type {
   Standing,
   UserPlayoffResult,
 } from "./seasonTypes"
+
+export type {
+  Contract,
+  ContractOption,
+  ContractStatus,
+  ContractType,
+  FreeAgentOffer,
+  SigningException,
+} from "./contractTypes"
+
+export type {
+  BirdRightsType,
+  LeagueFinancials,
+  MarketTier,
+  SeasonFinancials,
+  SpendingProfileEvent,
+  TaxTolerance,
+  TeamFinancials,
+  TeamSpendingProfile,
+  TradeException,
+} from "./financialTypes"
 
 export {
   SAVE_VERSION,

@@ -1,7 +1,12 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router"
 
 import { teamName } from "@/components/league/lib/teamFormat"
+import { formatMarketTier, formatMoney } from "@/components/league/lib/moneyFormat"
 import { useLeagueContext } from "@/contexts/LeagueContext"
+import {
+  getSeasonFinancials,
+  getTeamPayroll,
+} from "@workspace/sim"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -17,7 +22,7 @@ export const Route = createFileRoute("/league/pick-team")({
 
 function LeaguePickTeamPage() {
   const navigate = useNavigate()
-  const { status, seasonState, userTeamId, setUserTeamId, error } =
+  const { status, seasonState, userTeamId, setUserTeamId, error, league } =
     useLeagueContext()
 
   if (status === "empty") {
@@ -63,7 +68,24 @@ function LeaguePickTeamPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {teams.map((team) => (
+          {teams.map((team) => {
+            const payroll = league
+              ? getTeamPayroll(team.id, league.contracts)
+              : 0
+            const seasonFinancials = league
+              ? getSeasonFinancials(league.leagueFinancials, seasonState.season)
+              : null
+            const taxOutlook =
+              seasonFinancials && payroll > seasonFinancials.luxuryTaxLine
+                ? "Over tax line"
+                : seasonFinancials && payroll > seasonFinancials.salaryCap
+                  ? "Over cap"
+                  : "Under cap"
+            const teamFinance = league?.teamFinancials.find(
+              (entry) => entry.teamId === team.id,
+            )
+
+            return (
             <Button
               key={team.id}
               variant="outline"
@@ -76,8 +98,15 @@ function LeaguePickTeamPage() {
                 {team.conferenceId ? ` · ${team.conferenceId}` : ""}
                 {team.divisionId ? ` · ${team.divisionId}` : ""}
               </span>
+              {teamFinance && seasonFinancials ? (
+                <span className="text-xs text-muted-foreground">
+                  {formatMarketTier(teamFinance.spendingProfile.marketTier)} ·{" "}
+                  Payroll {formatMoney(payroll)} · {taxOutlook}
+                </span>
+              ) : null}
             </Button>
-          ))}
+            )
+          })}
         </CardContent>
       </Card>
 

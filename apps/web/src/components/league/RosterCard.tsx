@@ -1,4 +1,7 @@
-import type { TeamWithRoster } from "@workspace/shared/types"
+import type { Contract, TeamWithRoster } from "@workspace/shared/types"
+import { getCurrentSalary, getYearsRemaining } from "@workspace/sim"
+
+import { formatMoney } from "@/components/league/lib/moneyFormat"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -18,12 +21,20 @@ import {
 
 type RosterCardProps = {
   roster: TeamWithRoster
+  contracts?: Contract[]
   showRelease?: boolean
   onReleasePlayer?: (playerId: string) => void
 }
 
+function getContractForPlayer(contracts: Contract[] | undefined, playerId: string) {
+  return contracts?.find(
+    (contract) => contract.playerId === playerId && contract.status === "active",
+  )
+}
+
 export function RosterCard({
   roster,
+  contracts,
   showRelease = false,
   onReleasePlayer,
 }: RosterCardProps) {
@@ -46,32 +57,43 @@ export function RosterCard({
               <TableHead>Age</TableHead>
               <TableHead>OVR</TableHead>
               <TableHead>POT</TableHead>
+              {contracts ? <TableHead>Salary</TableHead> : null}
+              {contracts ? <TableHead>Yrs</TableHead> : null}
               {showRelease ? <TableHead /> : null}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {roster.players.map((player) => (
-              <TableRow key={player.id}>
-                <TableCell>
-                  {player.firstName} {player.lastName}
-                </TableCell>
-                <TableCell>{player.position}</TableCell>
-                <TableCell>{player.age}</TableCell>
-                <TableCell>{player.ratings.overall}</TableCell>
-                <TableCell>{player.ratings.potential}</TableCell>
-                {showRelease ? (
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onReleasePlayer?.(player.id)}
-                    >
-                      Release
-                    </Button>
+            {roster.players.map((player) => {
+              const contract = getContractForPlayer(contracts, player.id)
+              return (
+                <TableRow key={player.id}>
+                  <TableCell>
+                    {player.firstName} {player.lastName}
                   </TableCell>
-                ) : null}
-              </TableRow>
-            ))}
+                  <TableCell>{player.position}</TableCell>
+                  <TableCell>{player.age}</TableCell>
+                  <TableCell>{player.ratings.overall}</TableCell>
+                  <TableCell>{player.ratings.potential}</TableCell>
+                  {contracts ? (
+                    <TableCell>{formatMoney(getCurrentSalary(contract))}</TableCell>
+                  ) : null}
+                  {contracts ? (
+                    <TableCell>{getYearsRemaining(contract)}</TableCell>
+                  ) : null}
+                  {showRelease ? (
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onReleasePlayer?.(player.id)}
+                      >
+                        Release
+                      </Button>
+                    </TableCell>
+                  ) : null}
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </CardContent>

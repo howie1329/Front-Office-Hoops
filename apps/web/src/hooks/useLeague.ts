@@ -8,13 +8,18 @@ import {
   makeDraftPick,
   normalizeLeagueRecord,
   prepareDraft,
+  processOffseasonFinancials,
   releasePlayer,
+  signFreeAgent,
+  attachRookieContractToLeague,
   simAiPick,
   simToUserPick,
   simulatePlayoffs,
   startNextSeason,
+  waivePlayerContract,
 } from "@workspace/sim"
-import type { LeagueRecord, LeagueSummary, SeasonState } from "@workspace/shared/types"
+import type { FreeAgentOffer, LeagueRecord, LeagueSummary, SeasonState } from "@workspace/shared/types"
+import { getCurrentDraftPick } from "@workspace/sim"
 
 import {
   clearActiveLeagueId,
@@ -373,16 +378,28 @@ export function useLeague() {
   const makeDraftPickAction = useCallback(
     (prospectId: string) => {
       updateLeagueRecord((record) => {
+        const currentPick = getCurrentDraftPick(record.seasonState)
         const result = makeDraftPick(
           record.seasonState,
           prospectId,
           record.freeAgentPool ?? [],
         )
-        return {
+        const selection = result.seasonState.draftState?.selections.at(-1)
+        let updated: LeagueRecord = {
           ...record,
           seasonState: result.seasonState,
           freeAgentPool: result.freeAgentPool,
         }
+        if (currentPick && selection) {
+          updated = attachRookieContractToLeague(
+            updated,
+            selection.playerId,
+            currentPick.overallPick,
+            currentPick.round,
+            currentPick.teamId,
+          )
+        }
+        return updated
       })
     },
     [updateLeagueRecord],
@@ -421,23 +438,25 @@ export function useLeague() {
         return
       }
 
-      const result = releasePlayer(
-        current.seasonState.teams,
-        current.freeAgentPool ?? [],
-        {
-          teamId: current.userTeamId,
-          playerId,
-        },
-      )
-
-      updateLeagueRecord((record) => ({
-        ...record,
-        seasonState: {
-          ...record.seasonState,
-          teams: result.teams,
-        },
-        freeAgentPool: result.freeAgentPool,
-      }))
+      updateLeagueRecord((record) => {
+        const updated = waivePlayerContract(record, playerId)
+        const result = releasePlayer(
+          updated.seasonState.teams,
+          updated.freeAgentPool ?? [],
+          {
+            teamId: current.userTeamId!,
+            playerId,
+          },
+        )
+        return {
+          ...updated,
+          seasonState: {
+            ...updated.seasonState,
+            teams: result.teams,
+          },
+          freeAgentPool: result.freeAgentPool,
+        }
+      })
     },
     [updateLeagueRecord],
   )
@@ -452,13 +471,17 @@ export function useLeague() {
       return
     }
 
-    updateSeasonState((state) =>
-      beginOffseason(
-        state,
-        createRng(`${state.baseSeed}:offseason:${state.season}`),
-      ),
+    const rng = createRng(
+      `${current.seasonState.baseSeed}:offseason:${current.seasonState.season}`,
     )
-  }, [updateSeasonState])
+    const nextState = beginOffseason(current.seasonState, rng)
+    const updated = processOffseasonFinancials(
+      { ...current, seasonState: nextState },
+      rng,
+    )
+
+    scheduleSave(updated)
+  }, [scheduleSave])
 
   const simulatePlayoffsAction = useCallback(() => {
     updateSeasonState((state) => simulatePlayoffs(state))
@@ -479,6 +502,12 @@ export function useLeague() {
       rng: createRng(
         `${current.seasonState.baseSeed}:season:${current.seasonState.season + 1}`,
       ),
+      league: {
+        contracts: current.contracts ?? [],
+        leagueFinancials: current.leagueFinancials,
+        teamFinancials: current.teamFinancials ?? [],
+        spendingProfileEvents: current.spendingProfileEvents ?? [],
+      },
     })
 
     const updated = normalizeLeagueRecord({
@@ -486,10 +515,27 @@ export function useLeague() {
       seasonState: result.seasonState,
       seasonHistory: [...(current.seasonHistory ?? []), result.historyEntry],
       freeAgentPool: result.freeAgentPool,
+      contracts: result.contracts,
+      leagueFinancials: result.leagueFinancials,
+      teamFinancials: result.teamFinancials,
     })
 
     return persistLeague(updated)
   }, [flushPendingSave, persistLeague])
+
+  const signFreeAgentAction = useCallback(
+    (playerId: string, offer: FreeAgentOffer) => {
+      const current = leagueRef.current
+      if (!current?.userTeamId) {
+        return
+      }
+
+      updateLeagueRecord((record) =>
+        signFreeAgent(record, record.userTeamId!, playerId, offer),
+      )
+    },
+    [updateLeagueRecord],
+  )
 
   return {
     status,
@@ -515,6 +561,7 @@ export function useLeague() {
     simAiPick: simAiPickAction,
     simToUserPick: simToUserPickAction,
     releasePlayer: releasePlayerAction,
+    signFreeAgent: signFreeAgentAction,
     simulatePlayoffs: simulatePlayoffsAction,
     startNextSeason: startNextSeasonAction,
     updateSeasonState,

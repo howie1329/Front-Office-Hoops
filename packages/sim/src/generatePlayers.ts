@@ -157,6 +157,9 @@ export function generatePlayers(team: Team, rng: Rng): Player[] {
       status: "active",
       injury: null,
       draftInfo: null,
+      activeContractId: null,
+      seasonsWithTeam: 0,
+      yearsOfService: Math.max(0, age - 19),
     })
   }
 

@@ -1,9 +1,15 @@
-import type { Rng, SeasonHistoryEntry, SeasonState, Player } from "@workspace/shared/types"
+import type { Rng, SeasonHistoryEntry, SeasonState, Player, LeagueRecord } from "@workspace/shared/types"
+import type {
+  Contract,
+  LeagueFinancials,
+  TeamFinancials,
+} from "@workspace/shared/types"
 
 import { archiveSeason } from "./archiveSeason"
 import { createInitialSeason } from "./createInitialSeason"
 import { isDraftRequired } from "./draft/isDraftRequired"
 import { finalizeSeason } from "./finalizeSeason"
+import { prepareNewSeasonFinancials } from "./financials"
 import { applyAiRosterTrimming, validateRostersForSeasonStart } from "./roster/rosterManagement"
 
 export type StartNextSeasonInput = {
@@ -11,16 +17,23 @@ export type StartNextSeasonInput = {
   userTeamId: string | null
   freeAgentPool: Player[]
   rng: Rng
+  league?: Pick<
+    LeagueRecord,
+    "contracts" | "leagueFinancials" | "teamFinancials" | "spendingProfileEvents"
+  >
 }
 
 export type StartNextSeasonResult = {
   seasonState: SeasonState
   historyEntry: SeasonHistoryEntry
   freeAgentPool: Player[]
+  contracts: Contract[]
+  leagueFinancials: LeagueFinancials
+  teamFinancials: TeamFinancials[]
 }
 
 export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonResult {
-  const { seasonState, userTeamId, rng } = input
+  const { seasonState, userTeamId, rng, league } = input
   let { freeAgentPool } = input
 
   if (seasonState.phase !== "offseason") {
@@ -52,23 +65,70 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
 
   validateRostersForSeasonStart(trimmed.teams, userTeamId)
 
+  const newSeason = seasonState.season + 1
+
+  let financialBundle = {
+    contracts: league?.contracts ?? [],
+    leagueFinancials: league?.leagueFinancials ?? {
+      baseCap: 141,
+      growthRate: 0.05,
+      bySeason: {},
+    },
+    teamFinancials: league?.teamFinancials ?? [],
+    spendingProfileEvents: league?.spendingProfileEvents ?? [],
+    freeAgentPool,
+    seasonState: {
+      ...seasonState,
+      teams: trimmed.teams,
+    },
+  } satisfies Pick<
+    LeagueRecord,
+    | "contracts"
+    | "leagueFinancials"
+    | "teamFinancials"
+    | "spendingProfileEvents"
+    | "freeAgentPool"
+    | "seasonState"
+  >
+
+  if (league) {
+    financialBundle = prepareNewSeasonFinancials(
+      {
+        ...financialBundle,
+        id: "",
+        name: "",
+        saveVersion: 5,
+        createdAt: "",
+        updatedAt: "",
+        userTeamId,
+        seasonHistory: [],
+      },
+      newSeason,
+      rng,
+    )
+    freeAgentPool = financialBundle.freeAgentPool
+  }
+
   const stateForArchive = {
-    ...seasonState,
+    ...financialBundle.seasonState,
     teams: trimmed.teams,
   }
 
   const finalized = finalizeSeason(stateForArchive)
   const historyEntry = archiveSeason(finalized, userTeamId)
   const nextSeasonState = createInitialSeason(
-    finalized.teams,
+    financialBundle.seasonState.teams,
     finalized.baseSeed,
     rng,
-    finalized.season + 1,
+    newSeason,
   )
 
   return {
     seasonState: nextSeasonState,
     historyEntry,
     freeAgentPool,
+    contracts: financialBundle.contracts,
+    leagueFinancials: financialBundle.leagueFinancials,
+    teamFinancials: financialBundle.teamFinancials,
   }
 }

@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router"
 
+import { CapSheetCard } from "@/components/league/CapSheetCard"
+import { FreeAgencyPanel } from "@/components/league/FreeAgencyPanel"
 import { RosterCard } from "@/components/league/RosterCard"
 import { useLeagueContext } from "@/contexts/LeagueContext"
-import { Button } from "@workspace/ui/components/button"
 import {
   Card,
   CardContent,
@@ -10,25 +11,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
-
-import { teamName } from "@/components/league/lib/teamFormat"
 
 export const Route = createFileRoute("/league/team")({
   component: LeagueTeamPage,
 })
 
 function LeagueTeamPage() {
-  const { myTeam, isOffseason, releasePlayer } = useLeagueContext()
+  const {
+    league,
+    myTeam,
+    userTeamId,
+    isOffseason,
+    releasePlayer,
+    signFreeAgent,
+    freeAgentPool,
+  } = useLeagueContext()
 
-  if (!myTeam) {
+  if (!myTeam || !league || !userTeamId) {
     return (
       <Card>
         <CardHeader>
@@ -45,12 +44,15 @@ function LeagueTeamPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <CapSheetCard league={league} teamId={userTeamId} />
+
       {isOffseason ? (
         <Card>
           <CardHeader>
             <CardTitle>Offseason roster moves</CardTitle>
             <CardDescription>
-              Release players to get back to 12 before the next season starts.
+              Release players or sign free agents to reach a 12-man roster before
+              the next season.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -58,9 +60,19 @@ function LeagueTeamPage() {
 
       <RosterCard
         roster={myTeam}
+        contracts={league.contracts}
         showRelease={isOffseason}
         onReleasePlayer={releasePlayer}
       />
+
+      {isOffseason ? (
+        <FreeAgencyPanel
+          league={league}
+          teamId={userTeamId}
+          freeAgents={freeAgentPool}
+          onSign={signFreeAgent}
+        />
+      ) : null}
     </div>
   )
 }
