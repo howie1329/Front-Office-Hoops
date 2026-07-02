@@ -1,5 +1,5 @@
 import type { FreeAgentOffer } from "@workspace/shared/contractTypes"
-import type { LeagueRecord, Player, Rng, TeamWithRoster } from "@workspace/shared/types"
+import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
 import { ROSTER_MAX } from "@workspace/shared/constants"
 
 import { getSeasonFinancials, calculateMaxSalary, calculateMinSalary } from "./capMath"
@@ -14,13 +14,33 @@ import {
   createSignedContract,
   waiveContract,
 } from "./contracts/createContract"
-import { computeAiCutScore } from "../roster/rosterManagement"
 import { deriveTeamOverall } from "../playerRatings"
-import { releasePlayer } from "../roster/rosterManagement"
+import {
+  buildExternalFaOffer,
+  buildFairSalary,
+  canAffordOffer,
+} from "./ai/offers"
+import {
+  scoreFreeAgentForTeam,
+  selectFreeAgentTarget,
+} from "./ai/freeAgentScoring"
 
 export type SignValidationResult =
   | { ok: true; signingException: FreeAgentOffer["signingException"] }
   | { ok: false; reason: string }
+
+function playerWasOnTeam(
+  league: LeagueRecord,
+  playerId: string,
+  teamId: string,
+): boolean {
+  return league.contracts.some(
+    (contract) =>
+      contract.playerId === playerId &&
+      contract.teamId === teamId &&
+      contract.status === "expired",
+  )
+}
 
 export function canSignPlayer(
   league: LeagueRecord,
@@ -61,7 +81,9 @@ export function canSignPlayer(
     return { ok: false, reason: "Offer exceeds maximum salary" }
   }
 
-  const isReSigning = player.teamId === teamId
+  const isReSigning =
+    player.teamId === teamId ||
+    playerWasOnTeam(league, playerId, teamId)
   const priorContract = getPlayerContract(league.contracts, player)
   const birdRights = deriveBirdRights(player.seasonsWithTeam)
 
@@ -137,6 +159,8 @@ export function signFreeAgent(
     throw new Error("Player not found")
   }
 
+  const isReSign = playerWasOnTeam(league, playerId, teamId)
+
   const contract = createSignedContract(
     player,
     teamId,
@@ -151,7 +175,7 @@ export function signFreeAgent(
     teamId,
     status: "active",
     activeContractId: contract.id,
-    seasonsWithTeam: player.teamId === teamId ? player.seasonsWithTeam : 0,
+    seasonsWithTeam: isReSign ? player.seasonsWithTeam : 0,
   }
 
   let teams = league.seasonState.teams.map((team) => {
@@ -167,7 +191,9 @@ export function signFreeAgent(
     return {
       ...team,
       players: team.players.filter((entry) => entry.id !== playerId),
-      overall: deriveTeamOverall(team.players.filter((entry) => entry.id !== playerId)),
+      overall: deriveTeamOverall(
+        team.players.filter((entry) => entry.id !== playerId),
+      ),
     }
   })
 
@@ -215,15 +241,6 @@ export function signFreeAgent(
   }
 }
 
-function selectBestFreeAgent(
-  freeAgentPool: Player[],
-  _team: TeamWithRoster,
-): Player | undefined {
-  return [...freeAgentPool].sort(
-    (a, b) => b.ratings.overall - a.ratings.overall,
-  )[0]
-}
-
 export function processAiFreeAgency(
   league: LeagueRecord,
   rng: Rng,
@@ -234,104 +251,73 @@ export function processAiFreeAgency(
     current.seasonState.season,
   )
 
-  for (const team of current.seasonState.teams) {
-    while (team.players.length < ROSTER_MAX) {
+  for (const teamFinance of current.teamFinancials) {
+    const team =
+      current.seasonState.teams.find(
+        (entry) => entry.id === teamFinance.teamId,
+      ) ?? null
+    if (!team) {
+      continue
+    }
+
+    while (true) {
       const rosterSize =
-        current.seasonState.teams.find((entry) => entry.id === team.id)?.players
-          .length ?? 0
+        current.seasonState.teams.find((entry) => entry.id === teamFinance.teamId)
+          ?.players.length ?? 0
       if (rosterSize >= ROSTER_MAX) {
         break
       }
 
-      const fa = selectBestFreeAgent(current.freeAgentPool, team)
+      const currentTeam = current.seasonState.teams.find(
+        (entry) => entry.id === teamFinance.teamId,
+      )!
+      const payroll = getTeamPayroll(teamFinance.teamId, current.contracts)
+
+      const scoreFn = (player: Player) => {
+        const offer = buildExternalFaOffer(
+          player,
+          teamFinance,
+          seasonFinancials,
+          rng,
+        )
+        const fair = buildFairSalary(player, seasonFinancials)
+        return scoreFreeAgentForTeam(
+          player,
+          currentTeam,
+          teamFinance.strategy.mode,
+          offer.firstYearSalary,
+          fair,
+        )
+      }
+
+      const fa = selectFreeAgentTarget(
+        current.freeAgentPool,
+        currentTeam,
+        teamFinance.strategy.mode,
+        scoreFn,
+      )
       if (!fa) {
         break
       }
 
-      const minSalary = calculateMinSalary(seasonFinancials, fa.yearsOfService)
-      const payroll = getTeamPayroll(team.id, current.contracts)
-      const capSpace = seasonFinancials.salaryCap - payroll
-      const offerSalary =
-        capSpace >= minSalary
-          ? minSalary
-          : Math.min(
-              minSalary * 1.5,
-              current.teamFinancials.find((entry) => entry.teamId === team.id)
-                ?.mleRemaining ?? 0,
-            )
+      const offer = buildExternalFaOffer(fa, teamFinance, seasonFinancials, rng)
 
-      if (offerSalary < minSalary) {
+      if (
+        !canAffordOffer(
+          teamFinance,
+          payroll,
+          offer.firstYearSalary,
+          seasonFinancials,
+        )
+      ) {
         break
       }
 
       try {
-        current = signFreeAgent(current, team.id, fa.id, {
-          years: rng.int(1, 2),
-          firstYearSalary: offerSalary,
-        })
+        current = signFreeAgent(current, teamFinance.teamId, fa.id, offer)
       } catch {
         break
       }
-    }
-  }
-
-  return current
-}
-
-export function applyAiCapBehavior(
-  league: LeagueRecord,
-  _rng: Rng,
-): LeagueRecord {
-  const seasonFinancials = getSeasonFinancials(
-    league.leagueFinancials,
-    league.seasonState.season,
-  )
-
-  let current = league
-
-  for (const teamFinance of current.teamFinancials) {
-    if (teamFinance.spendingProfile.taxTolerance !== "tax_averse") {
-      continue
-    }
-
-    let payroll = getTeamPayroll(teamFinance.teamId, current.contracts)
-    while (payroll > seasonFinancials.luxuryTaxLine) {
-      const team = current.seasonState.teams.find(
-        (entry) => entry.id === teamFinance.teamId,
-      )
-      if (!team || team.players.length <= 8) {
-        break
-      }
-
-      const cutCandidate = [...team.players].sort(
-        (a, b) => computeAiCutScore(b) - computeAiCutScore(a),
-      )[0]
-      if (!cutCandidate) {
-        break
-      }
-
-      const contract = getPlayerContract(current.contracts, cutCandidate)
-      const releaseResult = releasePlayer(
-        current.seasonState.teams,
-        current.freeAgentPool,
-        { teamId: teamFinance.teamId, playerId: cutCandidate.id },
-      )
-
-      current = {
-        ...current,
-        seasonState: {
-          ...current.seasonState,
-          teams: releaseResult.teams,
-        },
-        freeAgentPool: releaseResult.freeAgentPool,
-        contracts: contract
-          ? current.contracts.map((entry) =>
-              entry.id === contract.id ? waiveContract(entry) : entry,
-            )
-          : current.contracts,
-      }
-
-      payroll = getTeamPayroll(teamFinance.teamId, current.contracts)
     }
   }
 

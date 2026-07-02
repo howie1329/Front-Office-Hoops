@@ -97,7 +97,7 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
         ...financialBundle,
         id: "",
         name: "",
-        saveVersion: 5,
+        saveVersion: 6,
         createdAt: "",
         updatedAt: "",
         userTeamId,

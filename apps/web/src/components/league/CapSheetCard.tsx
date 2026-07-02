@@ -3,6 +3,7 @@ import type { LeagueRecord } from "@workspace/shared/types"
 import {
   formatMarketTier,
   formatMoney,
+  formatTeamMode,
   formatTolerance,
 } from "@/components/league/lib/moneyFormat"
 import { useTeamFinancials } from "@/hooks/useTeamFinancials"
@@ -35,7 +36,8 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
         <CardTitle>Cap sheet</CardTitle>
         <CardDescription>
           {formatMarketTier(teamFinance.spendingProfile.marketTier)} ·{" "}
-          {formatTolerance(teamFinance.spendingProfile.taxTolerance)}
+          {formatTolerance(teamFinance.spendingProfile.taxTolerance)} ·{" "}
+          {formatTeamMode(teamFinance.strategy.mode)}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
@@ -72,6 +74,10 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           <span className={teamFinance.debt > 0 ? "text-destructive" : undefined}>
             {formatMoney(teamFinance.debt)}
           </span>
+        </div>
+        <div className="flex justify-between gap-4">
+          <span className="text-muted-foreground">Team mode</span>
+          <span>{formatTeamMode(teamFinance.strategy.mode)}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-muted-foreground">MLE remaining</span>

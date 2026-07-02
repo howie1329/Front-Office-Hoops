@@ -4,6 +4,18 @@ export type MarketTier = "large" | "mid" | "small"
 
 export type TaxTolerance = "tax_averse" | "prudent" | "competitive" | "all_in"
 
+export type TeamMode = "selling" | "buying" | "contending"
+
+export type TeamModeSource = "initial" | "auto" | "owner" | "financial_distress"
+
+export type TeamStrategy = {
+  mode: TeamMode
+  modeSetSeason: number
+  source: TeamModeSource
+  pendingMode: TeamMode | null
+  pendingSeasons: number
+}
+
 export type TeamSpendingProfile = {
   marketTier: MarketTier
   taxTolerance: TaxTolerance
@@ -45,6 +57,7 @@ export type TradeException = {
 export type TeamFinancials = {
   teamId: string
   spendingProfile: TeamSpendingProfile
+  strategy: TeamStrategy
   cashReserves: number
   debt: number
   consecutiveTaxSeasons: number

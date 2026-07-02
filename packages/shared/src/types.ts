@@ -90,7 +90,10 @@ export type {
   SpendingProfileEvent,
   TaxTolerance,
   TeamFinancials,
+  TeamMode,
+  TeamModeSource,
   TeamSpendingProfile,
+  TeamStrategy,
   TradeException,
 } from "./financialTypes"
 
