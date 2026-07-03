@@ -1,4 +1,5 @@
 import type { Contract } from "@workspace/shared/contractTypes"
+import type { TeamMode } from "@workspace/shared/financialTypes"
 import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
 import {
   DEBT_Austerity_THRESHOLD,
@@ -15,11 +16,12 @@ import { getScarceRolePenalty } from "../../roster/rosterBalance"
 export function computeCapCutScore(
   player: Player,
   salary: number,
-  roster: Player[] = []
+  roster: Player[] = [],
+  mode: TeamMode = "buying"
 ): number {
   return (
     salary * 2 +
-    (90 - calculateRosterKeepValue(player, "buying")) -
+    (90 - calculateRosterKeepValue(player, mode)) -
     getScarceRolePenalty(roster, player)
   )
 }
@@ -62,12 +64,16 @@ export function shouldCutForCap(
 
 export function selectCapCutCandidate(
   team: { players: Player[] },
-  contracts: Contract[]
+  contracts: Contract[],
+  mode: TeamMode = "buying"
 ): Player | undefined {
   const scored = team.players.map((player) => {
     const contract = getPlayerContract(contracts, player)
     const salary = contract?.yearlySalaries[0] ?? 0
-    return { player, score: computeCapCutScore(player, salary, team.players) }
+    return {
+      player,
+      score: computeCapCutScore(player, salary, team.players, mode),
+    }
   })
 
   return scored.sort((a, b) => b.score - a.score)[0]?.player
@@ -97,19 +103,17 @@ export function applyAiCapBehavior(
         break
       }
 
-      const cutCandidate =
-        teamFinance.strategy.mode === "contending"
-          ? selectCapCutCandidate(team, current.contracts)
-          : selectCapCutCandidate(team, current.contracts)
+      const mode = teamFinance.strategy.mode
+      const cutCandidate = selectCapCutCandidate(team, current.contracts, mode)
 
       if (!cutCandidate) {
         break
       }
 
-      if (teamFinance.strategy.mode === "contending") {
+      if (mode === "contending") {
         const contract = getPlayerContract(current.contracts, cutCandidate)
         const salary = contract?.yearlySalaries[0] ?? 0
-        const score = computeCapCutScore(cutCandidate, salary, team.players)
+        const score = computeCapCutScore(cutCandidate, salary, team.players, mode)
         if (score < 80 || cutCandidate.ratings.overall >= 75) {
           break
         }

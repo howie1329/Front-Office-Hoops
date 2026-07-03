@@ -41,21 +41,6 @@ export function buildSalaryCurve(
   return salaries
 }
 
-export function estimateSalaryFromOverall(
-  overall: number,
-  yearsOfService: number,
-  seasonFinancials: SeasonFinancials
-): number {
-  const minSalary = calculateMinSalary(seasonFinancials, yearsOfService)
-  const maxSalary = calculateMaxSalary(
-    seasonFinancials.salaryCap,
-    yearsOfService
-  )
-  const normalized = (overall - 40) / 50
-  const salary = minSalary + normalized * (maxSalary - minSalary)
-  return roundMoney(Math.max(minSalary, Math.min(maxSalary, salary)))
-}
-
 export function estimateSalaryFromValue(
   value: number,
   yearsOfService: number,

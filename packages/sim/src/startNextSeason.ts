@@ -64,6 +64,12 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
     seasonState.teams,
     freeAgentPool,
     userTeamId,
+    Object.fromEntries(
+      league?.teamFinancials.map((entry) => [
+        entry.teamId,
+        entry.strategy.mode,
+      ]) ?? []
+    ),
   )
   freeAgentPool = trimmed.freeAgentPool
 
