@@ -7,8 +7,16 @@ import { beginOffseason } from "../src/beginOffseason"
 import { applyOffseasonProgression } from "../src/development/applyOffseasonProgression"
 import { collectModifiers } from "../src/development/collectModifiers"
 import { progressPlayer } from "../src/development/progressPlayer"
-import { createLeague, createRng, simulateSeason, startNextSeason } from "../src"
+import {
+  createLeague,
+  createRng,
+  prepareDraft,
+  simDraftUntilComplete,
+  simulateSeason,
+  startNextSeason,
+} from "../src"
 import { beginPlayoffs } from "../src/beginPlayoffs"
+import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 import { normalizeLeagueRecord } from "../src/normalizeLeague"
 
@@ -387,10 +395,17 @@ describe("offseason phase", () => {
     ).toThrow("offseason")
 
     state = beginOffseason(state, createRng("offseason-guard:offseason:1"))
+    const prepared = prepareDraft(state)
+    const completed = simDraftUntilComplete(prepared, [])
+    const trimmed = applyAiRosterTrimming(
+      completed.seasonState.teams,
+      completed.freeAgentPool,
+      null,
+    )
     const next = startNextSeason({
-      seasonState: state,
+      seasonState: { ...completed.seasonState, teams: trimmed.teams },
       userTeamId: league.userTeamId,
-      freeAgentPool: [],
+      freeAgentPool: trimmed.freeAgentPool,
       rng: createRng("offseason-guard-next"),
     })
 

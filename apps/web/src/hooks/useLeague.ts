@@ -11,7 +11,7 @@ import {
   processOffseasonFinancials,
   releasePlayer,
   signFreeAgent,
-  attachRookieContractToLeague,
+  attachRookieContractsForDraftSelections,
   simAiPick,
   simToUserPick,
   simulatePlayoffs,
@@ -19,7 +19,6 @@ import {
   waivePlayerContract,
 } from "@workspace/sim"
 import type { FreeAgentOffer, LeagueRecord, LeagueSummary, SeasonState } from "@workspace/shared/types"
-import { getCurrentDraftPick } from "@workspace/sim"
 
 import {
   clearActiveLeagueId,
@@ -378,28 +377,18 @@ export function useLeague() {
   const makeDraftPickAction = useCallback(
     (prospectId: string) => {
       updateLeagueRecord((record) => {
-        const currentPick = getCurrentDraftPick(record.seasonState)
         const result = makeDraftPick(
           record.seasonState,
           prospectId,
           record.freeAgentPool ?? [],
         )
-        const selection = result.seasonState.draftState?.selections.at(-1)
-        let updated: LeagueRecord = {
+        const updated: LeagueRecord = {
           ...record,
           seasonState: result.seasonState,
           freeAgentPool: result.freeAgentPool,
         }
-        if (currentPick && selection) {
-          updated = attachRookieContractToLeague(
-            updated,
-            selection.playerId,
-            currentPick.overallPick,
-            currentPick.round,
-            currentPick.teamId,
-          )
-        }
-        return updated
+
+        return attachRookieContractsForDraftSelections(updated)
       })
     },
     [updateLeagueRecord],
@@ -408,11 +397,13 @@ export function useLeague() {
   const simAiPickAction = useCallback(() => {
     updateLeagueRecord((record) => {
       const result = simAiPick(record.seasonState, record.freeAgentPool ?? [])
-      return {
+      const updated: LeagueRecord = {
         ...record,
         seasonState: result.seasonState,
         freeAgentPool: result.freeAgentPool,
       }
+
+      return attachRookieContractsForDraftSelections(updated)
     })
   }, [updateLeagueRecord])
 
@@ -423,11 +414,13 @@ export function useLeague() {
         record.userTeamId,
         record.freeAgentPool ?? [],
       )
-      return {
+      const updated: LeagueRecord = {
         ...record,
         seasonState: result.seasonState,
         freeAgentPool: result.freeAgentPool,
       }
+
+      return attachRookieContractsForDraftSelections(updated)
     })
   }, [updateLeagueRecord])
 

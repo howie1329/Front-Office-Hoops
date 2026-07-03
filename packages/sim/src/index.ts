@@ -47,6 +47,7 @@ export {
   prepareNewSeasonFinancials,
   initializeFinancialsForLeague,
   attachRookieContractToLeague,
+  attachRookieContractsForDraftSelections,
   signFreeAgent,
   canSignPlayer,
   getTeamPayroll,

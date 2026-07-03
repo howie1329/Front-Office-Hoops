@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest"
 
-import { createLeague, createRng, simulateSeason, startNextSeason } from "../src"
+import {
+  createLeague,
+  createRng,
+  prepareDraft,
+  simDraftUntilComplete,
+  simulateSeason,
+  startNextSeason,
+} from "../src"
 import { beginOffseason } from "../src/beginOffseason"
 import { beginPlayoffs } from "../src/beginPlayoffs"
 import { createInitialPlayoffSeries } from "../src/playoffs/createBracket"
+import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { seedPlayoffTeams } from "../src/playoffs/seedTeams"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 import { isRegularSeasonComplete } from "../src/isRegularSeasonComplete"
@@ -69,11 +77,18 @@ describe("playoffs", () => {
     const userTeamId = state.teams[0]!.id
     state = beginOffseason(state, createRng("mini-playoff-offseason"))
     expect(state.phase).toBe("offseason")
+    const prepared = prepareDraft(state)
+    const completed = simDraftUntilComplete(prepared, [])
+    const trimmed = applyAiRosterTrimming(
+      completed.seasonState.teams,
+      completed.freeAgentPool,
+      null,
+    )
 
     const next = startNextSeason({
-      seasonState: state,
+      seasonState: { ...completed.seasonState, teams: trimmed.teams },
       userTeamId,
-      freeAgentPool: [],
+      freeAgentPool: trimmed.freeAgentPool,
       rng: createRng("mini-playoff-next"),
     })
     expect(next.seasonState.season).toBe(2)

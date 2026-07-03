@@ -143,3 +143,35 @@ export function attachRookieContractToLeague(
 
   return attachRookieContract(league, player, pickNumber, round, teamId)
 }
+
+export function attachRookieContractsForDraftSelections(
+  league: LeagueRecord,
+): LeagueRecord {
+  const selections = league.seasonState.draftState?.selections ?? []
+  let current = league
+
+  for (const selection of selections) {
+    const player = current.seasonState.teams
+      .flatMap((team) => team.players)
+      .find((entry) => entry.id === selection.playerId)
+    const hasActiveContract = current.contracts.some(
+      (contract) =>
+        contract.playerId === selection.playerId &&
+        contract.status === "active",
+    )
+
+    if (!player || player.activeContractId || hasActiveContract) {
+      continue
+    }
+
+    current = attachRookieContractToLeague(
+      current,
+      selection.playerId,
+      selection.overallPick,
+      selection.round,
+      selection.teamId,
+    )
+  }
+
+  return current
+}
