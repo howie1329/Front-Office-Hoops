@@ -36,6 +36,22 @@ const POSITION_TEMPLATE: PlayerPosition[] = [
   "SF",
 ]
 
+/** Target OVR offset from team.overall by roster depth (star → bench). */
+const ROSTER_TIER_OFFSETS: Array<{ min: number; max: number }> = [
+  { min: 4, max: 10 },
+  { min: 3, max: 9 },
+  { min: 0, max: 6 },
+  { min: -1, max: 5 },
+  { min: -2, max: 4 },
+  { min: -6, max: 0 },
+  { min: -8, max: -2 },
+  { min: -10, max: -4 },
+  { min: -18, max: -10 },
+  { min: -20, max: -12 },
+  { min: -22, max: -14 },
+  { min: -24, max: -16 },
+]
+
 const POSITION_HEIGHT: Record<PlayerPosition, { min: number; max: number }> = {
   PG: { min: 72, max: 76 },
   SG: { min: 74, max: 78 },
@@ -48,43 +64,85 @@ function pickName(pool: string[], rng: Rng): string {
   return pool[rng.int(0, pool.length - 1)]!
 }
 
-function positionSkillBias(
+function targetOverallForRosterSlot(teamOverall: number, index: number, rng: Rng): number {
+  const tier = ROSTER_TIER_OFFSETS[index] ?? ROSTER_TIER_OFFSETS.at(-1)!
+  return clampRating(teamOverall + rng.int(tier.min, tier.max))
+}
+
+function generateAgeForRosterSlot(index: number, rng: Rng): number {
+  if (index < 2) {
+    return rng.int(27, 32)
+  }
+
+  if (index < 5) {
+    return rng.int(24, 32)
+  }
+
+  if (index < 8) {
+    return rng.int(22, 33)
+  }
+
+  return rng.next() < 0.55 ? rng.int(19, 23) : rng.int(30, 34)
+}
+
+function generatePotential(overall: number, age: number, rng: Rng): number {
+  if (age <= 22) {
+    return clampRating(overall + rng.int(8, 18))
+  }
+
+  if (age <= 25) {
+    return clampRating(overall + rng.int(4, 12))
+  }
+
+  if (age >= 32) {
+    return clampRating(overall + rng.int(-4, 2))
+  }
+
+  return clampRating(overall + rng.int(-2, 8))
+}
+
+function generateSkillRatings(
   position: PlayerPosition,
-  base: number,
+  targetOverall: number,
   rng: Rng,
 ): Omit<PlayerRatings, "overall" | "potential" | "usage"> {
-  const variance = () => rng.int(-8, 8)
+  const skillVariance = () => rng.int(-4, 4)
   const skills = {
-    shooting: base + variance(),
-    inside: base + variance(),
-    passing: base + variance(),
-    rebounding: base + variance(),
-    defense: base + variance(),
-    stamina: base + variance(),
+    shooting: targetOverall + skillVariance(),
+    inside: targetOverall + skillVariance(),
+    passing: targetOverall + skillVariance(),
+    rebounding: targetOverall + skillVariance(),
+    defense: targetOverall + skillVariance(),
+    stamina: targetOverall + skillVariance(),
   }
 
   switch (position) {
     case "PG":
-      skills.passing += 8
-      skills.shooting += 3
-      skills.rebounding -= 4
+      skills.passing += 6
+      skills.rebounding -= 6
       break
     case "SG":
-      skills.shooting += 8
-      skills.passing += 2
+      skills.shooting += 6
+      skills.passing -= 2
+      skills.rebounding -= 4
       break
     case "SF":
-      skills.shooting += 5
-      skills.defense += 3
+      skills.shooting += 4
+      skills.defense += 2
+      skills.passing -= 3
+      skills.rebounding -= 3
       break
     case "PF":
-      skills.rebounding += 7
-      skills.inside += 5
+      skills.rebounding += 5
+      skills.inside += 4
+      skills.shooting -= 4
+      skills.passing -= 5
       break
     case "C":
-      skills.rebounding += 10
-      skills.inside += 8
-      skills.passing -= 4
+      skills.rebounding += 6
+      skills.inside += 5
+      skills.passing -= 6
+      skills.shooting -= 5
       break
   }
 
@@ -106,19 +164,31 @@ function deriveTags(age: number): string[] {
   return []
 }
 
+function finalizeRosterUsage(players: Player[]): Player[] {
+  const sorted = [...players].sort(
+    (a, b) => b.ratings.overall - a.ratings.overall,
+  )
+
+  return sorted.map((player, index) => ({
+    ...player,
+    ratings: {
+      ...player.ratings,
+      usage: deriveUsage(player.ratings.overall, index),
+    },
+  }))
+}
+
 export function generatePlayers(team: Team, rng: Rng): Player[] {
   const players: Player[] = []
   const usedNames = new Set<string>()
 
   for (let index = 0; index < PLAYERS_PER_TEAM; index++) {
     const position = POSITION_TEMPLATE[index]!
-    const baseRating = clampRating(team.overall + rng.int(-10, 10))
-    const age = rng.int(19, 34)
-    const skillRatings = positionSkillBias(position, baseRating, rng)
+    const targetOverall = targetOverallForRosterSlot(team.overall, index, rng)
+    const age = generateAgeForRosterSlot(index, rng)
+    const skillRatings = generateSkillRatings(position, targetOverall, rng)
     const overall = deriveOverall(skillRatings)
-    const potential = clampRating(
-      overall + (age <= 23 ? rng.int(4, 14) : rng.int(-2, 6)),
-    )
+    const potential = generatePotential(overall, age, rng)
     const peakAge = generatePeakAge(age, overall, potential, rng)
 
     let firstName = pickName(FIRST_NAMES, rng)
@@ -163,7 +233,7 @@ export function generatePlayers(team: Team, rng: Rng): Player[] {
     })
   }
 
-  return players
+  return finalizeRosterUsage(players)
 }
 
 export function generateTeamWithRoster(team: Team, rng: Rng): TeamWithRoster {
