@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest"
 
-import type { LeagueRecord } from "@workspace/shared/types"
-
 import {
   advanceToDraftPhase,
   advanceToFreeAgencyPhase,
@@ -14,7 +12,6 @@ import {
 } from "../src"
 import { beginOffseason } from "../src/beginOffseason"
 import { beginPlayoffs } from "../src/beginPlayoffs"
-import { normalizeLeagueRecord } from "../src/normalizeLeague"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 
@@ -45,7 +42,9 @@ describe("offseason phases", () => {
     const draftPhase = advanceToDraftPhase(state)
 
     expect(draftPhase.offseasonPhase).toBe("draft")
-    expect(() => advanceToFreeAgencyPhase(draftPhase)).toThrow("Draft must be completed")
+    expect(() => advanceToFreeAgencyPhase(draftPhase)).toThrow(
+      "Draft must be completed"
+    )
 
     const completedDraft = simDraftUntilComplete(prepareDraft(draftPhase), [])
     const freeAgencyPhase = advanceToFreeAgencyPhase(completedDraft.seasonState)
@@ -60,7 +59,7 @@ describe("offseason phases", () => {
     const trimmed = applyAiRosterTrimming(
       completedDraft.seasonState.teams,
       completedDraft.freeAgentPool,
-      null,
+      null
     )
 
     expect(() =>
@@ -69,7 +68,7 @@ describe("offseason phases", () => {
         userTeamId: league.userTeamId,
         freeAgentPool: trimmed.freeAgentPool,
         rng: createRng("blocked-before-fa"),
-      }),
+      })
     ).toThrow("free agency")
 
     const next = startNextSeason({
@@ -83,35 +82,5 @@ describe("offseason phases", () => {
     })
 
     expect(next.seasonState.season).toBe(2)
-  })
-
-  it("migrates v6 offseason saves to the best matching offseason phase", () => {
-    const { league, state } = createOffseasonLeague()
-    const prepared = prepareDraft(advanceToDraftPhase(state))
-    const legacyDraftRecord = {
-      ...league,
-      saveVersion: 6 as const,
-      seasonState: {
-        ...prepared,
-        offseasonPhase: undefined,
-      },
-    }
-    const legacyFreeAgencyRecord = {
-      ...league,
-      saveVersion: 6 as const,
-      seasonState: {
-        ...simDraftUntilComplete(prepared, []).seasonState,
-        offseasonPhase: undefined,
-      },
-    }
-
-    expect(
-      normalizeLeagueRecord(legacyDraftRecord as unknown as LeagueRecord).seasonState
-        .offseasonPhase,
-    ).toBe("draft")
-    expect(
-      normalizeLeagueRecord(legacyFreeAgencyRecord as unknown as LeagueRecord).seasonState
-        .offseasonPhase,
-    ).toBe("free_agency")
   })
 })

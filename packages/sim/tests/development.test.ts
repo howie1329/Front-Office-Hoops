@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { RATING_MAX, RATING_MIN, VETERAN_TAG } from "@workspace/shared/constants"
-import type { LeagueRecord, Player, TeamWithRoster } from "@workspace/shared/types"
+import {
+  RATING_MAX,
+  RATING_MIN,
+  VETERAN_TAG,
+} from "@workspace/shared/constants"
+import type { Player, TeamWithRoster } from "@workspace/shared/types"
 
 import { beginOffseason } from "../src/beginOffseason"
 import { applyOffseasonProgression } from "../src/development/applyOffseasonProgression"
@@ -20,7 +24,6 @@ import {
 import { beginPlayoffs } from "../src/beginPlayoffs"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
-import { normalizeLeagueRecord } from "../src/normalizeLeague"
 
 function createTestPlayer(overrides: Partial<Player> = {}): Player {
   return {
@@ -56,7 +59,8 @@ function createTestPlayer(overrides: Partial<Player> = {}): Player {
 }
 
 function sumSkills(player: Player): number {
-  const { shooting, inside, passing, rebounding, defense, stamina } = player.ratings
+  const { shooting, inside, passing, rebounding, defense, stamina } =
+    player.ratings
   return shooting + inside + passing + rebounding + defense + stamina
 }
 
@@ -214,14 +218,14 @@ describe("player development", () => {
       createTestTeam([youngPlayer]),
       1,
       [],
-      "vet-seed",
+      "vet-seed"
     )
     const withVet = progressPlayer(
       youngPlayer,
       createTestTeam([youngPlayer, veteran]),
       1,
       [],
-      "vet-seed",
+      "vet-seed"
     )
 
     expect(sumSkills(withVet)).toBeGreaterThan(sumSkills(withoutVet))
@@ -254,8 +258,8 @@ describe("player development", () => {
         (modifier) =>
           modifier.id === "team:veteran_mentorship_regression" &&
           modifier.regressionMultiplier !== undefined &&
-          modifier.regressionMultiplier < 1,
-      ),
+          modifier.regressionMultiplier < 1
+      )
     ).toBe(true)
   })
 
@@ -329,7 +333,7 @@ describe("player development", () => {
       1,
       [],
       "team-overall-seed",
-      createRng("team-overall-seed"),
+      createRng("team-overall-seed")
     )
 
     expect(updatedTeam!.players[0]!.ratings.overall).toBeGreaterThan(50)
@@ -364,15 +368,27 @@ describe("offseason phase", () => {
     state = simulatePlayoffs(state)
     expect(state.phase).toBe("complete")
 
-    const firstPlayer = state.teams[0]!.players[0]!
-    const beforeOverall = firstPlayer.ratings.overall
-    const beforeAge = firstPlayer.age
+    const beforePlayers = state.teams[0]!.players.map((player) => ({
+      id: player.id,
+      age: player.age,
+      overall: player.ratings.overall,
+    }))
 
     state = beginOffseason(state, createRng("offseason-test:offseason:1"))
 
     expect(state.phase).toBe("offseason")
-    expect(state.teams[0]!.players[0]!.age).toBe(beforeAge + 1)
-    expect(state.teams[0]!.players[0]!.ratings.overall).not.toBe(beforeOverall)
+    for (const before of beforePlayers) {
+      const after = state.teams[0]!.players.find(
+        (player) => player.id === before.id
+      )!
+      expect(after.age).toBe(before.age + 1)
+    }
+    expect(
+      state.teams[0]!.players.some((player) => {
+        const before = beforePlayers.find((entry) => entry.id === player.id)!
+        return player.ratings.overall !== before.overall
+      })
+    ).toBe(true)
   })
 
   it("requires offseason before starting the next season", () => {
@@ -393,7 +409,7 @@ describe("offseason phase", () => {
         userTeamId: league.userTeamId,
         freeAgentPool: [],
         rng: createRng("offseason-guard-next"),
-      }),
+      })
     ).toThrow("offseason")
 
     state = beginOffseason(state, createRng("offseason-guard:offseason:1"))
@@ -402,7 +418,7 @@ describe("offseason phase", () => {
     const trimmed = applyAiRosterTrimming(
       completed.seasonState.teams,
       completed.freeAgentPool,
-      null,
+      null
     )
     const next = startNextSeason({
       seasonState: {
@@ -416,36 +432,5 @@ describe("offseason phase", () => {
 
     expect(next.seasonState.season).toBe(2)
     expect(next.seasonState.phase).toBe("regular")
-  })
-
-  it("migrates older saves without peakAge and tags", () => {
-    const league = createLeague({
-      name: "Migration Test",
-      baseSeed: "migration-test",
-      rng: createRng("migration-test"),
-      useMiniLeague: true,
-    })
-
-    const legacyRecord = {
-      ...league,
-      saveVersion: 2 as const,
-      seasonState: {
-        ...league.seasonState,
-        teams: league.seasonState.teams.map((team) => ({
-          ...team,
-          players: team.players.map(({ peakAge: _peakAge, tags: _tags, ...player }) => player),
-        })),
-      },
-    }
-
-    const normalized = normalizeLeagueRecord(legacyRecord as unknown as LeagueRecord)
-
-    expect(normalized.saveVersion).toBe(7)
-    for (const team of normalized.seasonState.teams) {
-      for (const player of team.players) {
-        expect(player.peakAge).toBeGreaterThanOrEqual(26)
-        expect(player.tags).toBeDefined()
-      }
-    }
   })
 })

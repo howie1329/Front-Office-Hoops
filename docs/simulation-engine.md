@@ -15,9 +15,9 @@ The simulation engine lives in `packages/sim`. It is **pure TypeScript** — no 
 import { createRng } from "@workspace/sim"
 
 const rng = createRng("my-seed")
-rng.next()              // [0, 1)
-rng.int(1, 10)          // inclusive integer
-rng.normal(0, 1)        // Gaussian sample
+rng.next() // [0, 1)
+rng.int(1, 10) // inclusive integer
+rng.normal(0, 1) // Gaussian sample
 ```
 
 Each game derives a sub-seed from `baseSeed`, season, day, and `gameId` so individual games are reproducible within a league.
@@ -61,7 +61,7 @@ Wraps `simulateTeamMatchup` with schedule context (`season`, `day`, `gameId`) an
 `createSchedule` builds a round-robin style schedule:
 
 | League size | Games per team | Season days |
-|-------------|----------------|-------------|
+| ----------- | -------------- | ----------- |
 | 6 (mini)    | 10             | 30          |
 | 30 (full)   | 82             | 170         |
 
@@ -71,12 +71,12 @@ Schedule games track `status` (`scheduled` | `final`), link to `gameId` when pla
 
 ### Day / week / season
 
-| Function | Behavior |
-|----------|----------|
+| Function             | Behavior                                                                       |
+| -------------------- | ------------------------------------------------------------------------------ |
 | `simulateRegularDay` | Plays all games scheduled for `currentDay`, updates standings and player stats |
-| `simulateDay` | Dispatches to regular or playoff day based on `phase` |
-| `simulateWeek` | Simulates up to 7 days |
-| `simulateSeason` | Runs until regular season complete or playoffs/season done |
+| `simulateDay`        | Dispatches to regular or playoff day based on `phase`                          |
+| `simulateWeek`       | Simulates up to 7 days                                                         |
+| `simulateSeason`     | Runs until regular season complete or playoffs/season done                     |
 
 ### Standings (`deriveStandings`)
 
@@ -94,10 +94,10 @@ Aggregated from all `PlayerGameStats` across games in the season.
 
 ### Bracket formats
 
-| Teams | Format | Wins to advance |
-|-------|--------|-----------------|
-| 30    | Best-of-7 | 4 |
-| 6     | Best-of-3 | 2 |
+| Teams | Format    | Wins to advance |
+| ----- | --------- | --------------- |
+| 30    | Best-of-7 | 4               |
+| 6     | Best-of-3 | 2               |
 
 `getPlayoffFormat(teamCount)` selects the format. Home-court patterns follow standard NBA series scheduling (2-2-1-1-1 for best-of-7).
 
@@ -141,7 +141,7 @@ Each offseason, `beginOffseason` applies `applyOffseasonProgression`:
 - Optional `teams` or `useMiniLeague` (6-team sample rosters)
 - Optional `userTeamId`
 
-`normalizeLeagueRecord` handles save version upgrades when loading persisted data.
+`normalizeLeagueRecord` normalizes current-shape records when loading persisted data. Older local saves are not migrated during pre-user development.
 
 ## Offseason loop
 
@@ -193,14 +193,14 @@ Unselected prospects are converted to free agents when the draft completes.
 
 Key values from `@workspace/shared/constants`:
 
-| Constant | Value | Purpose |
-|----------|-------|---------|
-| `BASE_OFF_RATING` | 108 | League-average offensive rating |
-| `DEFAULT_PACE` | 100 | Possessions per game baseline |
-| `RATING_MIN` / `RATING_MAX` | 40 / 90 | Player rating bounds |
-| `LEAGUE_TEAM_COUNT` | 30 | Full league size |
-| `NBA_GAMES_PER_TEAM` | 82 | Full season length |
-| `PLAYOFF_TEAMS_PER_CONFERENCE` | 8 | NBA playoff field per conference |
+| Constant                       | Value   | Purpose                          |
+| ------------------------------ | ------- | -------------------------------- |
+| `BASE_OFF_RATING`              | 108     | League-average offensive rating  |
+| `DEFAULT_PACE`                 | 100     | Possessions per game baseline    |
+| `RATING_MIN` / `RATING_MAX`    | 40 / 90 | Player rating bounds             |
+| `LEAGUE_TEAM_COUNT`            | 30      | Full league size                 |
+| `NBA_GAMES_PER_TEAM`           | 82      | Full season length               |
+| `PLAYOFF_TEAMS_PER_CONFERENCE` | 8       | NBA playoff field per conference |
 
 ## Testing
 

@@ -68,7 +68,7 @@ Shared **types and constants** consumed by `sim`, `db`, and `web`.
 
 - Domain types: `Player`, `Team`, `Game`, `SeasonState`, `LeagueRecord`
 - League constants: team counts, season lengths, playoff formats
-- `SAVE_VERSION` for migration compatibility
+- `SAVE_VERSION` for the current save schema marker
 
 ### `packages/db`
 
@@ -98,7 +98,7 @@ pnpm dlx shadcn@latest add <component> -c apps/web
 
 1. `useLeague` mounts → dynamic import `@workspace/db`
 2. `listLeagues()` reads IndexedDB, resolves active save from `localStorage`
-3. `normalizeLeagueRecord()` migrates/validates save version
+3. `normalizeLeagueRecord()` normalizes current-shape records
 4. State flows into `LeagueProvider` → route components
 
 ### Simulation tick
@@ -114,22 +114,22 @@ pnpm dlx shadcn@latest add <component> -c apps/web
 
 ## Routing
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Home — continue/create league, manage saves |
-| `/league` | League dashboard |
-| `/league/create` | New league wizard |
-| `/league/pick-team` | Team selection |
-| `/league/saves` | Save slot management |
-| `/league/standings` | Standings table |
-| `/league/schedule` | Schedule + sim controls |
-| `/league/stats` | Player season stats |
-| `/league/team` | User team roster |
-| `/league/playoffs` | Playoff bracket |
-| `/league/history` | Past seasons |
-| `/league/games/$gameId` | Box score detail |
-| `/sim-lab` | Single-game simulation playground |
-| `/season-lab` | Season simulation playground |
+| Route                   | Purpose                                     |
+| ----------------------- | ------------------------------------------- |
+| `/`                     | Home — continue/create league, manage saves |
+| `/league`               | League dashboard                            |
+| `/league/create`        | New league wizard                           |
+| `/league/pick-team`     | Team selection                              |
+| `/league/saves`         | Save slot management                        |
+| `/league/standings`     | Standings table                             |
+| `/league/schedule`      | Schedule + sim controls                     |
+| `/league/stats`         | Player season stats                         |
+| `/league/team`          | User team roster                            |
+| `/league/playoffs`      | Playoff bracket                             |
+| `/league/history`       | Past seasons                                |
+| `/league/games/$gameId` | Box score detail                            |
+| `/sim-lab`              | Single-game simulation playground           |
+| `/season-lab`           | Season simulation playground                |
 
 ## Planned layers
 
@@ -157,11 +157,11 @@ AI output will be stored as optional narrative attachments on games/seasons, nev
 
 ## Design decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| Client-side sim | Instant feedback, offline play, easy testing |
-| Monorepo | Shared types between engine and UI; independent test runs |
-| Dexie over raw IndexedDB | Ergonomic queries, schema versioning |
-| Seeded RNG | Reproducible games given `baseSeed` + context |
-| Dynamic `import("@workspace/db")` | Avoids IndexedDB access during SSR |
-| `SAVE_VERSION` constant | Forward-compatible save migrations |
+| Decision                          | Rationale                                                 |
+| --------------------------------- | --------------------------------------------------------- |
+| Client-side sim                   | Instant feedback, offline play, easy testing              |
+| Monorepo                          | Shared types between engine and UI; independent test runs |
+| Dexie over raw IndexedDB          | Ergonomic queries, schema versioning                      |
+| Seeded RNG                        | Reproducible games given `baseSeed` + context             |
+| Dynamic `import("@workspace/db")` | Avoids IndexedDB access during SSR                        |
+| `SAVE_VERSION` constant           | Current save schema marker                                |

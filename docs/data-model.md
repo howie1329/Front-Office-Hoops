@@ -25,22 +25,22 @@ erDiagram
 
 Top-level metadata for a save slot.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Unique league ID (`league_<uuid>`) |
-| `name` | `string` | Display name |
-| `saveVersion` | `7` | Schema version for migrations |
-| `createdAt` | ISO string | Creation timestamp |
-| `updatedAt` | ISO string | Last save timestamp |
-| `userTeamId` | `string \| null` | Player-controlled team |
+| Field         | Type             | Description                        |
+| ------------- | ---------------- | ---------------------------------- |
+| `id`          | `string`         | Unique league ID (`league_<uuid>`) |
+| `name`        | `string`         | Display name                       |
+| `saveVersion` | `7`              | Current save schema marker         |
+| `createdAt`   | ISO string       | Creation timestamp                 |
+| `updatedAt`   | ISO string       | Last save timestamp                |
+| `userTeamId`  | `string \| null` | Player-controlled team             |
 
 ### `LeagueRecord`
 
 Full save payload = `League` + simulation state.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `seasonState` | `SeasonState` | Current season |
+| Field           | Type                   | Description       |
+| --------------- | ---------------------- | ----------------- |
+| `seasonState`   | `SeasonState`          | Current season    |
 | `seasonHistory` | `SeasonHistoryEntry[]` | Completed seasons |
 
 ### `LeagueSummary`
@@ -51,20 +51,20 @@ Lightweight listing for save slot UI (no full season state).
 
 ### `SeasonState`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `season` | `number` | Season year (1-based) |
-| `teams` | `TeamWithRoster[]` | All teams with rosters |
-| `schedule` | `ScheduleGame[]` | Full schedule |
-| `games` | `Game[]` | Completed games |
-| `standings` | `Standing[]` | Current standings |
-| `playerSeasonStats` | `PlayerSeasonStats[]` | Aggregated player stats |
-| `currentDay` | `number` | Simulation cursor |
-| `baseSeed` | `string` | League RNG seed |
-| `phase` | `SeasonPhase` | `regular` \| `playoffs` \| `complete` \| `offseason` |
-| `offseasonPhase` | `OffseasonPhase?` | During offseason: `re_signing` \| `draft` \| `free_agency` |
-| `playoffBracket` | `PlayoffBracket?` | Present during/after playoffs |
-| `draftState` | `DraftState?` | Draft board, order, selections, and remaining prospects |
+| Field               | Type                  | Description                                                |
+| ------------------- | --------------------- | ---------------------------------------------------------- |
+| `season`            | `number`              | Season year (1-based)                                      |
+| `teams`             | `TeamWithRoster[]`    | All teams with rosters                                     |
+| `schedule`          | `ScheduleGame[]`      | Full schedule                                              |
+| `games`             | `Game[]`              | Completed games                                            |
+| `standings`         | `Standing[]`          | Current standings                                          |
+| `playerSeasonStats` | `PlayerSeasonStats[]` | Aggregated player stats                                    |
+| `currentDay`        | `number`              | Simulation cursor                                          |
+| `baseSeed`          | `string`              | League RNG seed                                            |
+| `phase`             | `SeasonPhase`         | `regular` \| `playoffs` \| `complete` \| `offseason`       |
+| `offseasonPhase`    | `OffseasonPhase?`     | During offseason: `re_signing` \| `draft` \| `free_agency` |
+| `playoffBracket`    | `PlayoffBracket?`     | Present during/after playoffs                              |
+| `draftState`        | `DraftState?`         | Draft board, order, selections, and remaining prospects    |
 
 ### `SeasonHistoryEntry`
 
@@ -88,32 +88,32 @@ Offseason applies player development, expires contracts, then advances through
 
 ### `Team`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Team identifier |
-| `name` | `string` | Full name |
-| `abbrev` | `string` | Short code |
-| `overall` | `number` | Team overall rating |
-| `pace` | `number` | Pace factor |
+| Field          | Type      | Description           |
+| -------------- | --------- | --------------------- |
+| `id`           | `string`  | Team identifier       |
+| `name`         | `string`  | Full name             |
+| `abbrev`       | `string`  | Short code            |
+| `overall`      | `number`  | Team overall rating   |
+| `pace`         | `number`  | Pace factor           |
 | `conferenceId` | `string?` | Conference assignment |
-| `divisionId` | `string?` | Division assignment |
+| `divisionId`   | `string?` | Division assignment   |
 
 ### `Player`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Player identifier |
-| `teamId` | `string` | Current team |
-| `firstName`, `lastName` | `string` | Name |
-| `age` | `number` | Age in years |
-| `peakAge` | `number` | Expected peak age for development curve |
-| `heightInches`, `weightLbs` | `number` | Physical attributes |
-| `position` | `PlayerPosition` | PG, SG, SF, PF, C |
-| `ratings` | `PlayerRatings` | Skill ratings |
-| `tags` | `PlayerTag[]` | Modifier tags (e.g. `veteran`) |
-| `status` | `PlayerStatus` | active, injured, inactive |
-| `injury` | `null` | Reserved for injury system |
-| `draftInfo` | `null` | Reserved for draft system |
+| Field                       | Type             | Description                             |
+| --------------------------- | ---------------- | --------------------------------------- |
+| `id`                        | `string`         | Player identifier                       |
+| `teamId`                    | `string`         | Current team                            |
+| `firstName`, `lastName`     | `string`         | Name                                    |
+| `age`                       | `number`         | Age in years                            |
+| `peakAge`                   | `number`         | Expected peak age for development curve |
+| `heightInches`, `weightLbs` | `number`         | Physical attributes                     |
+| `position`                  | `PlayerPosition` | PG, SG, SF, PF, C                       |
+| `ratings`                   | `PlayerRatings`  | Skill ratings                           |
+| `tags`                      | `PlayerTag[]`    | Modifier tags (e.g. `veteran`)          |
+| `status`                    | `PlayerStatus`   | active, injured, inactive               |
+| `injury`                    | `null`           | Reserved for injury system              |
+| `draftInfo`                 | `null`           | Reserved for draft system               |
 
 ### `PlayerRatings`
 
@@ -123,15 +123,15 @@ Offseason applies player development, expires contracts, then advances through
 
 ### `ScheduleGame`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Schedule entry ID |
-| `season`, `day` | `number` | When the game occurs |
-| `homeTeamId`, `awayTeamId` | `string` | Matchup |
-| `status` | `scheduled` \| `final` | Whether played |
-| `gameId` | `string?` | Link to `Game` when final |
-| `seriesId` | `string?` | Playoff series link |
-| `playoffRound` | `1-4?` | Playoff round number |
+| Field                      | Type                   | Description               |
+| -------------------------- | ---------------------- | ------------------------- |
+| `id`                       | `string`               | Schedule entry ID         |
+| `season`, `day`            | `number`               | When the game occurs      |
+| `homeTeamId`, `awayTeamId` | `string`               | Matchup                   |
+| `status`                   | `scheduled` \| `final` | Whether played            |
+| `gameId`                   | `string?`              | Link to `Game` when final |
+| `seriesId`                 | `string?`              | Playoff series link       |
+| `playoffRound`             | `1-4?`                 | Playoff round number      |
 
 ### `Game`
 
@@ -176,9 +176,9 @@ Season aggregates: `gp`, `gs`, `min`, `pts`, `reb`, `ast`, `stl`, `blk`, `tov`, 
 
 Database name: `front-office-hoops`
 
-| Table | Primary key | Indexes |
-|-------|-------------|---------|
-| `leagues` | `id` | `updatedAt`, `name` |
+| Table     | Primary key | Indexes             |
+| --------- | ----------- | ------------------- |
+| `leagues` | `id`        | `updatedAt`, `name` |
 
 Each row is a full `LeagueRecord` JSON document.
 
@@ -188,7 +188,7 @@ Each row is a full `LeagueRecord` JSON document.
 
 ### Save versioning
 
-`SAVE_VERSION` (currently `7`) in `packages/shared/src/leagueTypes.ts`. `normalizeLeagueRecord` in `@workspace/sim` upgrades older saves on load.
+`SAVE_VERSION` (currently `7`) in `packages/shared/src/leagueTypes.ts` marks the current save shape. During pre-user development, older local saves are not migrated; clear local saves after schema changes.
 
 ### Auto-save behavior
 
@@ -196,9 +196,9 @@ Each row is a full `LeagueRecord` JSON document.
 
 ## Future persistence (planned)
 
-| Feature | Storage |
-|---------|---------|
-| Cloud sync | Convex documents mirroring `LeagueRecord` |
+| Feature       | Storage                                             |
+| ------------- | --------------------------------------------------- |
+| Cloud sync    | Convex documents mirroring `LeagueRecord`           |
 | AI narratives | Attachments on `Game` or separate `Narrative` table |
-| User accounts | Convex auth + ownership mapping to save IDs |
-| Export/import | JSON file download/upload of `LeagueRecord` |
+| User accounts | Convex auth + ownership mapping to save IDs         |
+| Export/import | JSON file download/upload of `LeagueRecord`         |
