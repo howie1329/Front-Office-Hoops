@@ -1,10 +1,8 @@
 import {
   POTENTIAL_OVERSHOOT_ALLOWANCE,
-  RATING_MAX,
-  RATING_MIN,
   SKILL_KEYS,
 } from "@workspace/shared/constants"
-import type { Player, SkillKey } from "@workspace/shared/types"
+import type { Player } from "@workspace/shared/types"
 
 import { clampRating } from "../playerRatings"
 import type { SkillDeltas } from "./types"

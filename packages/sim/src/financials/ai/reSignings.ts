@@ -2,7 +2,7 @@ import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
 import { getSeasonFinancials } from "../capMath"
 import { getTeamPayroll } from "../payroll"
-import { signFreeAgent, canSignPlayer } from "../freeAgency"
+import { signFreeAgent, canSignPlayer, getTeamExpiredFreeAgents } from "../freeAgency"
 import {
   buildFairSalary,
   buildReSignOffer,
@@ -10,19 +10,6 @@ import {
   getPriorContractSalary,
   shouldReSignPlayer,
 } from "./offers"
-
-function getTeamExpiredFreeAgents(league: LeagueRecord, teamId: string) {
-  const expiredPlayerIds = new Set(
-    league.contracts
-      .filter(
-        (contract) =>
-          contract.status === "expired" && contract.teamId === teamId,
-      )
-      .map((contract) => contract.playerId),
-  )
-
-  return league.freeAgentPool.filter((player) => expiredPlayerIds.has(player.id))
-}
 
 export function processAiReSignings(
   league: LeagueRecord,

@@ -10,6 +10,8 @@ import type { Player, Rng } from "@workspace/shared/types"
 
 import { calculateMaxSalary, calculateMinSalary, roundMoney } from "../capMath"
 
+type InitialContractProfile = "young_minimum" | "standard"
+
 export function createContractId(playerId: string, season: number): string {
   return `c_${playerId}_s${season}`
 }
@@ -45,6 +47,20 @@ export function estimateSalaryFromOverall(
   return roundMoney(Math.max(minSalary, Math.min(maxSalary, salary)))
 }
 
+export function resolveInitialContractProfile(player: Player): InitialContractProfile {
+  const yearsOfService = Math.max(0, player.yearsOfService ?? player.age - 19)
+
+  if (player.age <= 22 && yearsOfService <= 2) {
+    return "young_minimum"
+  }
+
+  if (player.age <= 24 && yearsOfService <= 3) {
+    return "young_minimum"
+  }
+
+  return "standard"
+}
+
 export function generateInitialContract(
   player: Player,
   teamId: string,
@@ -52,6 +68,17 @@ export function generateInitialContract(
   seasonFinancials: SeasonFinancials,
   rng: Rng,
 ): Contract {
+  const profile = resolveInitialContractProfile(player)
+  if (profile === "young_minimum") {
+    return createMinimumContract(
+      player,
+      teamId,
+      season,
+      seasonFinancials,
+      rng.int(1, 2),
+    )
+  }
+
   const yearsOfService = Math.max(0, player.age - 19)
   const salary = estimateSalaryFromOverall(
     player.ratings.overall,

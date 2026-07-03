@@ -7,9 +7,8 @@ import {
   syncPlayersAfterContractChanges,
 } from "./assessSeasonFinances"
 import { applyAiCapBehavior } from "./ai/capCuts"
-import { processAiReSignings } from "./ai/reSignings"
 import { expireOneYearContracts } from "./contracts/processContracts"
-import { attachRookieContract, processAiFreeAgency } from "./freeAgency"
+import { attachRookieContract } from "./freeAgency"
 import {
   generateInitialContractsForLeague,
   applyInitialContractsToPlayers,
@@ -35,13 +34,11 @@ export { applyAiCapBehavior } from "./ai/capCuts"
 
 export function processOffseasonFinancials(
   league: LeagueRecord,
-  rng: Rng,
+  _rng: Rng,
 ): LeagueRecord {
   let current = updateAllTeamStrategies(league)
   current = assessLeagueSeasonFinances(current, current.seasonState)
   current = expireOneYearContracts(current)
-  current = processAiReSignings(current, rng)
-  current = processAiFreeAgency(current, rng)
   return current
 }
 
@@ -142,4 +139,36 @@ export function attachRookieContractToLeague(
   }
 
   return attachRookieContract(league, player, pickNumber, round, teamId)
+}
+
+export function attachRookieContractsForDraftSelections(
+  league: LeagueRecord,
+): LeagueRecord {
+  const selections = league.seasonState.draftState?.selections ?? []
+  let current = league
+
+  for (const selection of selections) {
+    const player = current.seasonState.teams
+      .flatMap((team) => team.players)
+      .find((entry) => entry.id === selection.playerId)
+    const hasActiveContract = current.contracts.some(
+      (contract) =>
+        contract.playerId === selection.playerId &&
+        contract.status === "active",
+    )
+
+    if (!player || player.activeContractId || hasActiveContract) {
+      continue
+    }
+
+    current = attachRookieContractToLeague(
+      current,
+      selection.playerId,
+      selection.overallPick,
+      selection.round,
+      selection.teamId,
+    )
+  }
+
+  return current
 }

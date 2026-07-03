@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
+import { getExternalFreeAgents, getTeamExpiredFreeAgents } from "@workspace/sim"
 
 import { CapSheetCard } from "@/components/league/CapSheetCard"
 import { FreeAgencyPanel } from "@/components/league/FreeAgencyPanel"
@@ -22,9 +23,9 @@ function LeagueTeamPage() {
     myTeam,
     userTeamId,
     isOffseason,
+    offseasonPhase,
     releasePlayer,
     signFreeAgent,
-    freeAgentPool,
   } = useLeagueContext()
 
   if (!myTeam || !league || !userTeamId) {
@@ -42,6 +43,9 @@ function LeagueTeamPage() {
     )
   }
 
+  const reSignFreeAgents = getTeamExpiredFreeAgents(league, userTeamId)
+  const externalFreeAgents = getExternalFreeAgents(league, userTeamId)
+
   return (
     <div className="flex flex-col gap-4">
       <CapSheetCard league={league} teamId={userTeamId} />
@@ -51,8 +55,8 @@ function LeagueTeamPage() {
           <CardHeader>
             <CardTitle>Offseason roster moves</CardTitle>
             <CardDescription>
-              Release players or sign free agents to reach a 12-man roster before
-              the next season.
+              Release players, re-sign your own free agents, and fill out a 12-man
+              roster before the next season.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -65,11 +69,28 @@ function LeagueTeamPage() {
         onReleasePlayer={releasePlayer}
       />
 
-      {isOffseason ? (
+      {isOffseason && offseasonPhase === "re_signing" ? (
         <FreeAgencyPanel
           league={league}
           teamId={userTeamId}
-          freeAgents={freeAgentPool}
+          freeAgents={reSignFreeAgents}
+          title="Re-signing"
+          description="Negotiate with your own expiring players before the draft opens."
+          emptyMessage="You do not have any expiring players to re-sign."
+          mode="re_sign"
+          onSign={signFreeAgent}
+        />
+      ) : null}
+
+      {isOffseason && offseasonPhase === "free_agency" ? (
+        <FreeAgencyPanel
+          league={league}
+          teamId={userTeamId}
+          freeAgents={externalFreeAgents}
+          title="Free agency"
+          description="Sign external free agents after the draft."
+          emptyMessage="No external free agents are currently available."
+          mode="external"
           onSign={signFreeAgent}
         />
       ) : null}

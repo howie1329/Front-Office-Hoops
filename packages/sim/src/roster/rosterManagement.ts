@@ -1,4 +1,9 @@
-import { RATING_MAX, ROSTER_MAX } from "@workspace/shared/constants"
+import {
+  PRIMARY_POSITIONS,
+  RATING_MAX,
+  ROSTER_MAX,
+  ROSTER_MIN,
+} from "@workspace/shared/constants"
 import type { Player, TeamWithRoster } from "@workspace/shared/types"
 
 import { deriveTeamOverall } from "../playerRatings"
@@ -16,12 +21,36 @@ export function selectAiCutCandidate(players: Player[]): Player {
     return a.id.localeCompare(b.id)
   })
 
-  const candidate = sorted[0]
+  const candidate = sorted.find((player) => {
+    const remaining = players.filter((entry) => entry.id !== player.id)
+    return validateRosterFloor(remaining).ok
+  })
+
   if (!candidate) {
-    throw new Error("No player available to cut")
+    throw new Error("No player available to cut without violating roster rules")
   }
 
   return candidate
+}
+
+export function validateRosterFloor(players: Player[]): { ok: true } | { ok: false; reason: string } {
+  if (players.length < ROSTER_MIN) {
+    return {
+      ok: false,
+      reason: `Team must keep a minimum roster of ${ROSTER_MIN} players`,
+    }
+  }
+
+  for (const position of PRIMARY_POSITIONS) {
+    if (!players.some((player) => player.position === position)) {
+      return {
+        ok: false,
+        reason: `Team would lose required position coverage at ${position}`,
+      }
+    }
+  }
+
+  return { ok: true }
 }
 
 export function releasePlayer(
@@ -46,6 +75,12 @@ export function releasePlayer(
   }
 
   const nextPlayers = team.players.filter((entry) => entry.id !== input.playerId)
+  const floorValidation = validateRosterFloor(nextPlayers)
+
+  if (!floorValidation.ok) {
+    throw new Error(floorValidation.reason)
+  }
+
   const nextTeams = teams.map((entry) =>
     entry.id === input.teamId
       ? {

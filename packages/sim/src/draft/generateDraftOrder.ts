@@ -1,15 +1,6 @@
-import {
-  DRAFT_ROUNDS,
-  RATING_MAX,
-  ROOKIE_AGE_MAX,
-  ROOKIE_AGE_MIN,
-  ROOKIE_OVERALL_BASE,
-  ROOKIE_POTENTIAL_GAP_MAX,
-  ROOKIE_POTENTIAL_GAP_MIN,
-} from "@workspace/shared/constants"
+import { DRAFT_ROUNDS } from "@workspace/shared/constants"
 import type {
   DraftPick,
-  PlayerPosition,
   Rng,
   SeasonState,
 } from "@workspace/shared/types"

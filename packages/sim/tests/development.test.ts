@@ -7,8 +7,18 @@ import { beginOffseason } from "../src/beginOffseason"
 import { applyOffseasonProgression } from "../src/development/applyOffseasonProgression"
 import { collectModifiers } from "../src/development/collectModifiers"
 import { progressPlayer } from "../src/development/progressPlayer"
-import { createLeague, createRng, simulateSeason, startNextSeason } from "../src"
+import {
+  advanceToDraftPhase,
+  advanceToFreeAgencyPhase,
+  createLeague,
+  createRng,
+  prepareDraft,
+  simDraftUntilComplete,
+  simulateSeason,
+  startNextSeason,
+} from "../src"
 import { beginPlayoffs } from "../src/beginPlayoffs"
+import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 import { normalizeLeagueRecord } from "../src/normalizeLeague"
 
@@ -387,10 +397,20 @@ describe("offseason phase", () => {
     ).toThrow("offseason")
 
     state = beginOffseason(state, createRng("offseason-guard:offseason:1"))
+    const prepared = prepareDraft(advanceToDraftPhase(state))
+    const completed = simDraftUntilComplete(prepared, [])
+    const trimmed = applyAiRosterTrimming(
+      completed.seasonState.teams,
+      completed.freeAgentPool,
+      null,
+    )
     const next = startNextSeason({
-      seasonState: state,
+      seasonState: {
+        ...advanceToFreeAgencyPhase(completed.seasonState),
+        teams: trimmed.teams,
+      },
       userTeamId: league.userTeamId,
-      freeAgentPool: [],
+      freeAgentPool: trimmed.freeAgentPool,
       rng: createRng("offseason-guard-next"),
     })
 
@@ -420,7 +440,7 @@ describe("offseason phase", () => {
 
     const normalized = normalizeLeagueRecord(legacyRecord as unknown as LeagueRecord)
 
-    expect(normalized.saveVersion).toBe(6)
+    expect(normalized.saveVersion).toBe(7)
     for (const team of normalized.seasonState.teams) {
       for (const player of team.players) {
         expect(player.peakAge).toBeGreaterThanOrEqual(26)

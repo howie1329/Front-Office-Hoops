@@ -1,0 +1,109 @@
+import { describe, expect, it } from "vitest"
+
+import type { Player } from "@workspace/shared/types"
+
+import {
+  createLeague,
+  createRng,
+  prepareDraft,
+  simAiPick,
+  simulateSeason,
+} from "../../src"
+import { beginOffseason } from "../../src/beginOffseason"
+import { beginPlayoffs } from "../../src/beginPlayoffs"
+import {
+  attachRookieContractsForDraftSelections,
+  calculateSeasonFinancials,
+  generateInitialContract,
+} from "../../src/financials"
+import { simulatePlayoffs } from "../../src/simulatePlayoffs"
+
+function makePlayer(overrides: Partial<Player> = {}): Player {
+  return {
+    id: "p_test_young",
+    teamId: "t_test",
+    firstName: "Test",
+    lastName: "Player",
+    age: 20,
+    peakAge: 29,
+    heightInches: 78,
+    weightLbs: 210,
+    position: "SG",
+    ratings: {
+      overall: 78,
+      potential: 88,
+      shooting: 78,
+      inside: 78,
+      passing: 78,
+      rebounding: 78,
+      defense: 78,
+      stamina: 78,
+      usage: 20,
+    },
+    tags: [],
+    status: "active",
+    injury: null,
+    draftInfo: null,
+    activeContractId: null,
+    seasonsWithTeam: 1,
+    yearsOfService: 1,
+    ...overrides,
+  }
+}
+
+function completeSeasonToOffseason(league = createLeague({
+  name: "Contract Draft Test",
+  baseSeed: "contract-draft",
+  rng: createRng("contract-draft"),
+  useMiniLeague: true,
+})) {
+  let state = simulateSeason(league.seasonState)
+  state = beginPlayoffs(state)
+  state = simulatePlayoffs(state)
+  state = beginOffseason(state, createRng(`${state.baseSeed}:offseason:${state.season}`))
+  return { league, state }
+}
+
+describe("contracts", () => {
+  it("puts young league-start players on minimum deals instead of OVR-priced standard deals", () => {
+    const seasonFinancials = calculateSeasonFinancials(141, 0.05, 1)
+    const player = makePlayer()
+    const contract = generateInitialContract(
+      player,
+      "t_test",
+      1,
+      seasonFinancials,
+      createRng("young-contract"),
+    )
+
+    expect(contract.contractType).toBe("minimum")
+    expect(contract.signingException).toBe("minimum")
+    expect(contract.yearlySalaries[0]).toBeLessThanOrEqual(
+      seasonFinancials.minimumSalaries.tier1 * 1.25,
+    )
+  })
+
+  it("attaches rookie contracts to AI draft selections", () => {
+    const { league, state } = completeSeasonToOffseason()
+    const prepared = prepareDraft(state)
+    const picked = simAiPick(prepared, league.freeAgentPool)
+    const withSelection = {
+      ...league,
+      seasonState: picked.seasonState,
+      freeAgentPool: picked.freeAgentPool,
+    }
+
+    const updated = attachRookieContractsForDraftSelections(withSelection)
+    const selection = updated.seasonState.draftState?.selections[0]
+    const draftedPlayer = updated.seasonState.teams
+      .flatMap((team) => team.players)
+      .find((player) => player.id === selection?.playerId)
+    const contract = updated.contracts.find(
+      (entry) => entry.playerId === selection?.playerId,
+    )
+
+    expect(draftedPlayer?.activeContractId).toBe(contract?.id)
+    expect(contract?.contractType).toBe("rookie_scale")
+    expect(contract?.yearlySalaries[0]).toBeLessThan(15)
+  })
+})

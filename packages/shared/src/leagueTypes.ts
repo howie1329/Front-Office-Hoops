@@ -3,7 +3,7 @@ import type { LeagueFinancials, SpendingProfileEvent, TeamFinancials } from "./f
 import type { Player } from "./playerTypes"
 import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
 
-export const SAVE_VERSION = 6 as const
+export const SAVE_VERSION = 7 as const
 
 export type League = {
   id: string
