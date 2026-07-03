@@ -50,9 +50,7 @@ function LeagueDraftPage() {
 
   const { draftState } = seasonState
   const currentPick = draftState.order[draftState.currentPickIndex]
-  const availableProspects = [...draftState.prospects].sort(
-    (a, b) => b.ratings.potential - a.ratings.potential,
-  )
+  const availableProspects = draftState.prospects
 
   if (draftState.completed) {
     return (
