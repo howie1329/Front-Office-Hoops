@@ -71,7 +71,7 @@ function completeSeasonToOffseason(
 }
 
 describe("contracts", () => {
-  it("puts young league-start players on minimum deals instead of OVR-priced standard deals", () => {
+  it("puts valuable young league-start players on bargain standard deals", () => {
     const seasonFinancials = calculateSeasonFinancials(141, 0.05, 1)
     const player = makePlayer()
     const contract = generateInitialContract(
@@ -82,11 +82,42 @@ describe("contracts", () => {
       createRng("young-contract")
     )
 
-    expect(contract.contractType).toBe("minimum")
-    expect(contract.signingException).toBe("minimum")
-    expect(contract.yearlySalaries[0]).toBeLessThanOrEqual(
-      seasonFinancials.minimumSalaries.tier1 * 1.25
+    expect(contract.contractType).toBe("standard")
+    expect(contract.signingException).toBe("cap_room")
+    expect(contract.yearlySalaries[0]).toBeGreaterThan(
+      seasonFinancials.minimumSalaries.tier1 * 3
     )
+    expect(contract.yearlySalaries[0]).toBeLessThan(
+      seasonFinancials.salaryCap * 0.25
+    )
+  })
+
+  it("still allows low-value young depth players to start on minimum deals", () => {
+    const seasonFinancials = calculateSeasonFinancials(141, 0.05, 1)
+    const player = makePlayer({
+      age: 20,
+      yearsOfService: 1,
+      ratings: {
+        ...makePlayer().ratings,
+        overall: 50,
+        potential: 58,
+        shooting: 50,
+        inside: 50,
+        passing: 50,
+        rebounding: 50,
+        defense: 50,
+        stamina: 50,
+      },
+    })
+    const contract = generateInitialContract(
+      player,
+      "t_test",
+      1,
+      seasonFinancials,
+      createRng("young-depth-contract")
+    )
+
+    expect(contract.contractType).toBe("minimum")
   })
 
   it("attaches rookie contracts to AI draft selections", () => {
@@ -159,6 +190,50 @@ describe("contracts", () => {
       const payroll = getTeamPayroll(team.id, league.contracts)
 
       expect(payroll).toBeLessThanOrEqual(seasonFinancials.salaryCap * 1.82)
+    }
+  })
+
+  it("keeps full-league opening payrolls above realistic minimum bands", () => {
+    const league = createLeague({
+      name: "Full League Payroll Floor",
+      baseSeed: "full-league-payroll-floor",
+      rng: createRng("full-league-payroll-floor"),
+    })
+    const seasonFinancials = league.leagueFinancials.bySeason[1]!
+
+    for (const team of league.seasonState.teams) {
+      const payroll = getTeamPayroll(team.id, league.contracts)
+
+      expect(payroll).toBeGreaterThanOrEqual(seasonFinancials.salaryCap * 0.65)
+    }
+  })
+
+  it("does not leave generated young starters on minimum contracts", () => {
+    const league = createLeague({
+      name: "Young Starter Contracts",
+      baseSeed: "young-starter-contracts",
+      rng: createRng("young-starter-contracts"),
+    })
+    const seasonFinancials = league.leagueFinancials.bySeason[1]!
+    const youngStarters = league.seasonState.teams
+      .flatMap((team) => team.players)
+      .filter(
+        (player) =>
+          player.age <= 22 &&
+          player.ratings.overall >= 70 &&
+          player.ratings.potential >= 80,
+      )
+
+    expect(youngStarters.length).toBeGreaterThan(0)
+    for (const player of youngStarters) {
+      const contract = league.contracts.find(
+        (entry) => entry.playerId === player.id
+      )
+
+      expect(contract?.contractType).toBe("standard")
+      expect(contract?.yearlySalaries[0]).toBeGreaterThan(
+        seasonFinancials.minimumSalaries.tier1 * 3
+      )
     }
   })
 })

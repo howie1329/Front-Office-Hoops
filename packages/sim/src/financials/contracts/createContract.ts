@@ -19,7 +19,7 @@ import { calculateMaxSalary, calculateMinSalary, roundMoney } from "../capMath"
 import { getTeamPayroll } from "../payroll"
 import { calculateContractValue } from "../../playerValue"
 
-type InitialContractProfile = "young_minimum" | "standard"
+type InitialContractProfile = "minimum" | "young_bargain" | "standard"
 
 export function createContractId(playerId: string, season: number): string {
   return `c_${playerId}_s${season}`
@@ -60,16 +60,35 @@ export function resolveInitialContractProfile(
   player: Player
 ): InitialContractProfile {
   const yearsOfService = Math.max(0, player.yearsOfService ?? player.age - 19)
+  const value = calculateContractValue(player)
 
   if (player.age <= 22 && yearsOfService <= 2) {
-    return "young_minimum"
+    return value < 56 && player.ratings.overall < 64
+      ? "minimum"
+      : "young_bargain"
   }
 
   if (player.age <= 24 && yearsOfService <= 3) {
-    return "young_minimum"
+    return value < 52 && player.ratings.overall < 60
+      ? "minimum"
+      : "young_bargain"
+  }
+
+  if (value < 44 && player.ratings.overall < 52) {
+    return "minimum"
   }
 
   return "standard"
+}
+
+function youngBargainDiscount(player: Player): number {
+  if (player.ratings.overall >= 74 || calculateContractValue(player) >= 66) {
+    return 0.78
+  }
+  if (player.ratings.overall >= 68 || calculateContractValue(player) >= 60) {
+    return 0.68
+  }
+  return 0.58
 }
 
 export function generateInitialContract(
@@ -80,7 +99,7 @@ export function generateInitialContract(
   rng: Rng
 ): Contract {
   const profile = resolveInitialContractProfile(player)
-  if (profile === "young_minimum") {
+  if (profile === "minimum") {
     return createMinimumContract(
       player,
       teamId,
@@ -91,13 +110,25 @@ export function generateInitialContract(
   }
 
   const yearsOfService = Math.max(0, player.age - 19)
-  const salary = estimateSalaryFromValue(
-    calculateContractValue(player),
-    yearsOfService,
-    seasonFinancials
+  const value = calculateContractValue(player)
+  const salary = roundMoney(
+    estimateSalaryFromValue(
+      value,
+      yearsOfService,
+      seasonFinancials
+    ) *
+      (profile === "young_bargain" ? youngBargainDiscount(player) : 1)
   )
-  const years = rng.int(1, 4)
-  const yearlySalaries = buildSalaryCurve(salary, years, RAISE_PCT_STANDARD)
+  const minSalary = calculateMinSalary(
+    seasonFinancials,
+    yearsOfService,
+  )
+  const years = profile === "young_bargain" ? rng.int(2, 3) : rng.int(1, 4)
+  const yearlySalaries = buildSalaryCurve(
+    Math.max(minSalary, salary),
+    years,
+    RAISE_PCT_STANDARD
+  )
   const endSeason = season + years - 1
 
   const options: ContractOption[] | undefined =
@@ -249,6 +280,29 @@ function openingPayrollCeiling(
   )
 }
 
+function openingPayrollFloor(
+  team: { overall: number },
+  teamFinance: TeamFinancials,
+  seasonFinancials: SeasonFinancials
+): number {
+  const quality =
+    team.overall >= 78
+      ? 1.02
+      : team.overall >= 72
+        ? 0.96
+        : team.overall >= 66
+          ? 0.88
+          : 0.78
+  const tolerance =
+    teamFinance.spendingProfile.taxTolerance === "tax_averse"
+      ? 0.94
+      : teamFinance.spendingProfile.taxTolerance === "all_in"
+        ? 1.04
+        : 1
+
+  return roundMoney(seasonFinancials.minimumTeamSalary * quality * tolerance)
+}
+
 function withUpdatedSalaryAndYears(
   contract: Contract,
   firstYearSalary: number,
@@ -266,6 +320,18 @@ function withUpdatedSalaryAndYears(
       years >= 3 && contract.options
         ? contract.options.filter((option) => option.yearIndex < years)
         : contract.options,
+  }
+}
+
+function withStandardContract(
+  contract: Contract,
+  firstYearSalary: number,
+  years: number
+): Contract {
+  return {
+    ...withUpdatedSalaryAndYears(contract, firstYearSalary, years),
+    contractType: "standard",
+    signingException: "cap_room",
   }
 }
 
@@ -336,14 +402,11 @@ export function normalizeInitialContractsForLeague(
     })
 
     const payroll = getTeamPayroll(team.id, normalized)
-    const floor = seasonFinancials.minimumTeamSalary * 0.75
+    const floor = openingPayrollFloor(team, teamFinance, seasonFinancials)
     if (payroll < floor) {
-      const scale = Math.min(1.18, floor / Math.max(1, payroll))
+      const scale = floor / Math.max(1, payroll)
       normalized = normalized.map((contract) => {
-        if (
-          contract.teamId !== team.id ||
-          contract.contractType === "minimum"
-        ) {
+        if (contract.teamId !== team.id) {
           return contract
         }
         const player = team.players.find(
@@ -356,9 +419,52 @@ export function normalizeInitialContractsForLeague(
           seasonFinancials.salaryCap,
           player.yearsOfService
         )
-        return withUpdatedSalaryAndYears(
+        const value = calculateContractValue(player)
+        const valueSalary = estimateSalaryFromValue(
+          value,
+          player.yearsOfService,
+          seasonFinancials
+        )
+        const targetSalary =
+          contract.contractType === "minimum"
+            ? Math.max(
+                contract.yearlySalaries[0]!,
+                valueSalary *
+                  (player.age <= 24 && value >= 54 ? 0.55 : 0.38)
+              )
+            : contract.yearlySalaries[0]! * scale
+
+        return withStandardContract(
           contract,
-          Math.min(maxSalary, roundMoney(contract.yearlySalaries[0]! * scale)),
+          Math.min(maxSalary, roundMoney(targetSalary)),
+          Math.max(contract.yearlySalaries.length, player.age <= 24 ? 2 : 1)
+        )
+      })
+    }
+
+    const payrollAfterInitialFloor = getTeamPayroll(team.id, normalized)
+    if (payrollAfterInitialFloor < floor) {
+      const scale = floor / Math.max(1, payrollAfterInitialFloor)
+      normalized = normalized.map((contract) => {
+        if (contract.teamId !== team.id) {
+          return contract
+        }
+        const player = team.players.find(
+          (entry) => entry.id === contract.playerId
+        )
+        if (!player) {
+          return contract
+        }
+        const maxSalary = calculateMaxSalary(
+          seasonFinancials.salaryCap,
+          player.yearsOfService
+        )
+        return withStandardContract(
+          contract,
+          Math.min(
+            maxSalary,
+            roundMoney(contract.yearlySalaries[0]! * scale)
+          ),
           contract.yearlySalaries.length
         )
       })
