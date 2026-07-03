@@ -7,14 +7,29 @@ import {
 import type { Player, TeamWithRoster } from "@workspace/shared/types"
 
 import { deriveTeamOverall } from "../playerRatings"
+import { calculateRosterKeepValue } from "../playerValue"
+import { getScarceRolePenalty } from "./rosterBalance"
 
-export function computeAiCutScore(player: Player): number {
-  return player.age * 10 + (RATING_MAX - player.ratings.overall)
+export function computeAiCutScore(
+  player: Player,
+  roster: Player[] = [],
+  mode: "selling" | "buying" | "contending" = "buying"
+): number {
+  return (
+    RATING_MAX -
+    calculateRosterKeepValue(player, mode) +
+    Math.max(0, player.age - 30) * 0.8 -
+    getScarceRolePenalty(roster, player)
+  )
 }
 
-export function selectAiCutCandidate(players: Player[]): Player {
+export function selectAiCutCandidate(
+  players: Player[],
+  mode: "selling" | "buying" | "contending" = "buying"
+): Player {
   const sorted = [...players].sort((a, b) => {
-    const scoreDiff = computeAiCutScore(b) - computeAiCutScore(a)
+    const scoreDiff =
+      computeAiCutScore(b, players, mode) - computeAiCutScore(a, players, mode)
     if (scoreDiff !== 0) {
       return scoreDiff
     }
@@ -33,7 +48,9 @@ export function selectAiCutCandidate(players: Player[]): Player {
   return candidate
 }
 
-export function validateRosterFloor(players: Player[]): { ok: true } | { ok: false; reason: string } {
+export function validateRosterFloor(
+  players: Player[]
+): { ok: true } | { ok: false; reason: string } {
   if (players.length < ROSTER_MIN) {
     return {
       ok: false,
@@ -56,7 +73,7 @@ export function validateRosterFloor(players: Player[]): { ok: true } | { ok: fal
 export function releasePlayer(
   teams: TeamWithRoster[],
   freeAgentPool: Player[],
-  input: { teamId: string; playerId: string },
+  input: { teamId: string; playerId: string }
 ): { teams: TeamWithRoster[]; freeAgentPool: Player[] } {
   const team = teams.find((entry) => entry.id === input.teamId)
   if (!team) {
@@ -74,7 +91,9 @@ export function releasePlayer(
     status: "free_agent",
   }
 
-  const nextPlayers = team.players.filter((entry) => entry.id !== input.playerId)
+  const nextPlayers = team.players.filter(
+    (entry) => entry.id !== input.playerId
+  )
   const floorValidation = validateRosterFloor(nextPlayers)
 
   if (!floorValidation.ok) {
@@ -88,7 +107,7 @@ export function releasePlayer(
           players: nextPlayers,
           overall: deriveTeamOverall(nextPlayers),
         }
-      : entry,
+      : entry
   )
 
   return {
@@ -101,6 +120,7 @@ export function applyAiRosterTrimming(
   teams: TeamWithRoster[],
   freeAgentPool: Player[],
   userTeamId: string | null,
+  teamModes: Partial<Record<string, "selling" | "buying" | "contending">> = {}
 ): { teams: TeamWithRoster[]; freeAgentPool: Player[] } {
   let nextTeams = teams
   let nextPool = freeAgentPool
@@ -112,7 +132,10 @@ export function applyAiRosterTrimming(
 
     let roster = team.players
     while (roster.length > ROSTER_MAX) {
-      const cutCandidate = selectAiCutCandidate(roster)
+      const cutCandidate = selectAiCutCandidate(
+        roster,
+        teamModes[team.id] ?? "buying"
+      )
       const result = releasePlayer(nextTeams, nextPool, {
         teamId: team.id,
         playerId: cutCandidate.id,
@@ -129,24 +152,27 @@ export function applyAiRosterTrimming(
   }
 }
 
-export function getTeamRosterSize(teams: TeamWithRoster[], teamId: string): number {
+export function getTeamRosterSize(
+  teams: TeamWithRoster[],
+  teamId: string
+): number {
   return teams.find((team) => team.id === teamId)?.players.length ?? 0
 }
 
 export function validateRostersForSeasonStart(
   teams: TeamWithRoster[],
-  userTeamId: string | null,
+  userTeamId: string | null
 ): void {
   if (userTeamId) {
     const userSize = getTeamRosterSize(teams, userTeamId)
     if (userSize > ROSTER_MAX) {
       throw new Error(
-        `User roster over limit (${userSize}/${ROSTER_MAX}) — release players before starting the season`,
+        `User roster over limit (${userSize}/${ROSTER_MAX}) — release players before starting the season`
       )
     }
     if (userSize < ROSTER_MAX) {
       throw new Error(
-        `User roster under limit (${userSize}/${ROSTER_MAX}) — add or keep players before starting the season`,
+        `User roster under limit (${userSize}/${ROSTER_MAX}) — add or keep players before starting the season`
       )
     }
   }
@@ -154,7 +180,7 @@ export function validateRostersForSeasonStart(
   for (const team of teams) {
     if (team.players.length !== ROSTER_MAX) {
       throw new Error(
-        `Team ${team.abbrev} roster must be ${ROSTER_MAX} players before season start`,
+        `Team ${team.abbrev} roster must be ${ROSTER_MAX} players before season start`
       )
     }
   }

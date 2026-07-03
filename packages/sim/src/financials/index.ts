@@ -12,17 +12,26 @@ import { attachRookieContract } from "./freeAgency"
 import {
   generateInitialContractsForLeague,
   applyInitialContractsToPlayers,
+  normalizeInitialContractsForLeague,
 } from "./contracts/createContract"
 import {
   initializeLeagueFinancials,
   initializeTeamFinancials,
 } from "./spendingProfiles"
 import { getSeasonFinancials } from "./capMath"
-import { assignInitialTeamStrategy, updateAllTeamStrategies } from "./teamStrategy"
+import {
+  assignInitialTeamStrategy,
+  updateAllTeamStrategies,
+} from "./teamStrategy"
 
 export * from "./capMath"
 export * from "./birdRights"
-export { getPlayerContract, getTeamPayroll, getCurrentSalary, getYearsRemaining } from "./payroll"
+export {
+  getPlayerContract,
+  getTeamPayroll,
+  getCurrentSalary,
+  getYearsRemaining,
+} from "./payroll"
 export * from "./spendingProfiles"
 export * from "./assessSeasonFinances"
 export * from "./freeAgency"
@@ -34,7 +43,7 @@ export { applyAiCapBehavior } from "./ai/capCuts"
 
 export function processOffseasonFinancials(
   league: LeagueRecord,
-  _rng: Rng,
+  _rng: Rng
 ): LeagueRecord {
   let current = updateAllTeamStrategies(league)
   current = assessLeagueSeasonFinances(current, current.seasonState)
@@ -45,15 +54,17 @@ export function processOffseasonFinancials(
 export function prepareNewSeasonFinancials(
   league: LeagueRecord,
   newSeason: number,
-  rng: Rng,
+  rng: Rng
 ): LeagueRecord {
   let current = rollFinancialYear(league, newSeason)
-  const { contracts, expiredPlayerIds } = advanceContractYears(current.contracts)
+  const { contracts, expiredPlayerIds } = advanceContractYears(
+    current.contracts
+  )
   const synced = syncPlayersAfterContractChanges(
     current.seasonState.teams,
     current.freeAgentPool,
     contracts,
-    expiredPlayerIds,
+    expiredPlayerIds
   )
 
   current = {
@@ -73,20 +84,27 @@ export function prepareNewSeasonFinancials(
 
 export function initializeFinancialsForLeague(
   league: LeagueRecord,
-  rng: Rng,
+  rng: Rng
 ): LeagueRecord {
   const leagueFinancials = initializeLeagueFinancials(rng)
   const seasonFinancials = getSeasonFinancials(leagueFinancials, 1)
   const teamFinancials = initializeTeamFinancials(
     league.seasonState.teams,
     rng,
-    seasonFinancials,
+    seasonFinancials
   )
-  const { contracts } = generateInitialContractsForLeague(
+  const initialContracts = generateInitialContractsForLeague(
     league.seasonState.teams,
     1,
     seasonFinancials,
-    rng,
+    rng
+  )
+  const contracts = normalizeInitialContractsForLeague(
+    league.seasonState.teams,
+    initialContracts.contracts,
+    teamFinancials,
+    seasonFinancials,
+    rng
   )
 
   const teams = league.seasonState.teams.map((team) => {
@@ -101,12 +119,7 @@ export function initializeFinancialsForLeague(
     }
     return {
       ...teamFinance,
-      strategy: assignInitialTeamStrategy(
-        team,
-        contracts,
-        seasonFinancials,
-        1,
-      ),
+      strategy: assignInitialTeamStrategy(team, contracts, seasonFinancials, 1),
     }
   })
 
@@ -128,7 +141,7 @@ export function attachRookieContractToLeague(
   playerId: string,
   pickNumber: number,
   round: number,
-  teamId: string,
+  teamId: string
 ): LeagueRecord {
   const player = league.seasonState.teams
     .flatMap((team) => team.players)
@@ -142,7 +155,7 @@ export function attachRookieContractToLeague(
 }
 
 export function attachRookieContractsForDraftSelections(
-  league: LeagueRecord,
+  league: LeagueRecord
 ): LeagueRecord {
   const selections = league.seasonState.draftState?.selections ?? []
   let current = league
@@ -153,8 +166,7 @@ export function attachRookieContractsForDraftSelections(
       .find((entry) => entry.id === selection.playerId)
     const hasActiveContract = current.contracts.some(
       (contract) =>
-        contract.playerId === selection.playerId &&
-        contract.status === "active",
+        contract.playerId === selection.playerId && contract.status === "active"
     )
 
     if (!player || player.activeContractId || hasActiveContract) {
@@ -166,7 +178,7 @@ export function attachRookieContractsForDraftSelections(
       selection.playerId,
       selection.overallPick,
       selection.round,
-      selection.teamId,
+      selection.teamId
     )
   }
 

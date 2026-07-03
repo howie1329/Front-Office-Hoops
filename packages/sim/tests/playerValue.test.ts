@@ -1,0 +1,82 @@
+import { describe, expect, it } from "vitest"
+
+import type { Player } from "@workspace/shared/types"
+
+import {
+  calculateContractValue,
+  calculatePlayerValue,
+} from "../src/playerValue"
+
+function makePlayer(overrides: Partial<Player> = {}): Player {
+  return {
+    id: "p_value",
+    teamId: "t_value",
+    firstName: "Value",
+    lastName: "Player",
+    age: 24,
+    peakAge: 29,
+    heightInches: 78,
+    weightLbs: 210,
+    position: "SG",
+    ratings: {
+      overall: 60,
+      potential: 70,
+      shooting: 60,
+      inside: 60,
+      passing: 60,
+      rebounding: 60,
+      defense: 60,
+      stamina: 60,
+      usage: 16,
+    },
+    tags: [],
+    status: "active",
+    injury: null,
+    draftInfo: null,
+    activeContractId: null,
+    seasonsWithTeam: 2,
+    yearsOfService: 2,
+    ...overrides,
+  }
+}
+
+describe("player value", () => {
+  it("values young upside over a similar low-upside player", () => {
+    const upside = makePlayer({
+      age: 21,
+      ratings: { ...makePlayer().ratings, potential: 82 },
+    })
+    const capped = makePlayer({
+      age: 21,
+      ratings: { ...makePlayer().ratings, potential: 62 },
+    })
+
+    expect(calculatePlayerValue(upside)).toBeGreaterThan(
+      calculatePlayerValue(capped)
+    )
+  })
+
+  it("keeps prime high-overall players above low-overall projects", () => {
+    const prime = makePlayer({
+      age: 27,
+      ratings: { ...makePlayer().ratings, overall: 78, potential: 80 },
+    })
+    const project = makePlayer({
+      age: 19,
+      ratings: { ...makePlayer().ratings, overall: 48, potential: 78 },
+    })
+
+    expect(calculatePlayerValue(prime)).toBeGreaterThan(
+      calculatePlayerValue(project)
+    )
+  })
+
+  it("discounts older role players in contract value", () => {
+    const primeRole = makePlayer({ age: 27 })
+    const oldRole = makePlayer({ age: 34 })
+
+    expect(calculateContractValue(primeRole)).toBeGreaterThan(
+      calculateContractValue(oldRole)
+    )
+  })
+})

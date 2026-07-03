@@ -15,6 +15,7 @@ import {
   attachRookieContractsForDraftSelections,
   calculateSeasonFinancials,
   generateInitialContract,
+  getTeamPayroll,
 } from "../../src/financials"
 import { simulatePlayoffs } from "../../src/simulatePlayoffs"
 
@@ -51,16 +52,21 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
   }
 }
 
-function completeSeasonToOffseason(league = createLeague({
-  name: "Contract Draft Test",
-  baseSeed: "contract-draft",
-  rng: createRng("contract-draft"),
-  useMiniLeague: true,
-})) {
+function completeSeasonToOffseason(
+  league = createLeague({
+    name: "Contract Draft Test",
+    baseSeed: "contract-draft",
+    rng: createRng("contract-draft"),
+    useMiniLeague: true,
+  })
+) {
   let state = simulateSeason(league.seasonState)
   state = beginPlayoffs(state)
   state = simulatePlayoffs(state)
-  state = beginOffseason(state, createRng(`${state.baseSeed}:offseason:${state.season}`))
+  state = beginOffseason(
+    state,
+    createRng(`${state.baseSeed}:offseason:${state.season}`)
+  )
   return { league, state }
 }
 
@@ -73,13 +79,13 @@ describe("contracts", () => {
       "t_test",
       1,
       seasonFinancials,
-      createRng("young-contract"),
+      createRng("young-contract")
     )
 
     expect(contract.contractType).toBe("minimum")
     expect(contract.signingException).toBe("minimum")
     expect(contract.yearlySalaries[0]).toBeLessThanOrEqual(
-      seasonFinancials.minimumSalaries.tier1 * 1.25,
+      seasonFinancials.minimumSalaries.tier1 * 1.25
     )
   })
 
@@ -99,11 +105,45 @@ describe("contracts", () => {
       .flatMap((team) => team.players)
       .find((player) => player.id === selection?.playerId)
     const contract = updated.contracts.find(
-      (entry) => entry.playerId === selection?.playerId,
+      (entry) => entry.playerId === selection?.playerId
     )
 
     expect(draftedPlayer?.activeContractId).toBe(contract?.id)
     expect(contract?.contractType).toBe("rookie_scale")
     expect(contract?.yearlySalaries[0]).toBeLessThan(15)
+  })
+
+  it("normalizes opening contracts into plausible payroll and salary tiers", () => {
+    const league = createLeague({
+      name: "Normalized Contracts",
+      baseSeed: "normalized-contracts",
+      rng: createRng("normalized-contracts"),
+      useMiniLeague: true,
+    })
+    const team = league.seasonState.teams[0]!
+    const contracts = league.contracts.filter(
+      (contract) => contract.teamId === team.id
+    )
+    const playerContracts = team.players
+      .map((player) => ({
+        player,
+        contract: contracts.find(
+          (contract) => contract.playerId === player.id
+        )!,
+      }))
+      .sort((a, b) => b.player.ratings.overall - a.player.ratings.overall)
+    const topSalary = playerContracts[0]!.contract.yearlySalaries[0]!
+    const bottomSalary =
+      playerContracts[playerContracts.length - 1]!.contract.yearlySalaries[0]!
+    const lengths = new Set(
+      contracts.map((contract) => contract.yearlySalaries.length)
+    )
+    const seasonFinancials = league.leagueFinancials.bySeason[1]!
+    const payroll = getTeamPayroll(team.id, league.contracts)
+
+    expect(topSalary).toBeGreaterThan(bottomSalary)
+    expect(lengths.size).toBeGreaterThan(1)
+    expect(payroll).toBeGreaterThan(seasonFinancials.minimumTeamSalary * 0.7)
+    expect(payroll).toBeLessThan(seasonFinancials.luxuryTaxLine * 1.2)
   })
 })

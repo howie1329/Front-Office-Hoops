@@ -1,20 +1,33 @@
 import type { Contract } from "@workspace/shared/contractTypes"
 import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
-import { DEBT_Austerity_THRESHOLD, TOLERANCE_CASH_FLOOR } from "@workspace/shared/financialConstants"
+import {
+  DEBT_Austerity_THRESHOLD,
+  TOLERANCE_CASH_FLOOR,
+} from "@workspace/shared/financialConstants"
 
 import { getSeasonFinancials } from "../capMath"
 import { getTeamPayroll, getPlayerContract } from "../payroll"
 import { releasePlayer } from "../../roster/rosterManagement"
 import { waiveContract } from "../contracts/createContract"
+import { calculateRosterKeepValue } from "../../playerValue"
+import { getScarceRolePenalty } from "../../roster/rosterBalance"
 
-export function computeCapCutScore(player: Player, salary: number): number {
-  return salary * 2 + (90 - player.ratings.overall) + Math.max(0, player.age - 25)
+export function computeCapCutScore(
+  player: Player,
+  salary: number,
+  roster: Player[] = []
+): number {
+  return (
+    salary * 2 +
+    (90 - calculateRosterKeepValue(player, "buying")) -
+    getScarceRolePenalty(roster, player)
+  )
 }
 
 export function shouldCutForCap(
   teamFinance: LeagueRecord["teamFinancials"][number],
   payroll: number,
-  taxLine: number,
+  taxLine: number
 ): boolean {
   const tolerance = teamFinance.spendingProfile.taxTolerance
   const mode = teamFinance.strategy.mode
@@ -49,12 +62,12 @@ export function shouldCutForCap(
 
 export function selectCapCutCandidate(
   team: { players: Player[] },
-  contracts: Contract[],
+  contracts: Contract[]
 ): Player | undefined {
   const scored = team.players.map((player) => {
     const contract = getPlayerContract(contracts, player)
     const salary = contract?.yearlySalaries[0] ?? 0
-    return { player, score: computeCapCutScore(player, salary) }
+    return { player, score: computeCapCutScore(player, salary, team.players) }
   })
 
   return scored.sort((a, b) => b.score - a.score)[0]?.player
@@ -62,11 +75,11 @@ export function selectCapCutCandidate(
 
 export function applyAiCapBehavior(
   league: LeagueRecord,
-  _rng: Rng,
+  _rng: Rng
 ): LeagueRecord {
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
-    league.seasonState.season,
+    league.seasonState.season
   )
 
   let current = league
@@ -78,7 +91,7 @@ export function applyAiCapBehavior(
       shouldCutForCap(teamFinance, payroll, seasonFinancials.luxuryTaxLine)
     ) {
       const team = current.seasonState.teams.find(
-        (entry) => entry.id === teamFinance.teamId,
+        (entry) => entry.id === teamFinance.teamId
       )
       if (!team || team.players.length <= 8) {
         break
@@ -96,7 +109,7 @@ export function applyAiCapBehavior(
       if (teamFinance.strategy.mode === "contending") {
         const contract = getPlayerContract(current.contracts, cutCandidate)
         const salary = contract?.yearlySalaries[0] ?? 0
-        const score = computeCapCutScore(cutCandidate, salary)
+        const score = computeCapCutScore(cutCandidate, salary, team.players)
         if (score < 80 || cutCandidate.ratings.overall >= 75) {
           break
         }
@@ -106,7 +119,7 @@ export function applyAiCapBehavior(
       const releaseResult = releasePlayer(
         current.seasonState.teams,
         current.freeAgentPool,
-        { teamId: teamFinance.teamId, playerId: cutCandidate.id },
+        { teamId: teamFinance.teamId, playerId: cutCandidate.id }
       )
 
       current = {
@@ -118,7 +131,7 @@ export function applyAiCapBehavior(
         freeAgentPool: releaseResult.freeAgentPool,
         contracts: contract
           ? current.contracts.map((entry) =>
-              entry.id === contract.id ? waiveContract(entry) : entry,
+              entry.id === contract.id ? waiveContract(entry) : entry
             )
           : current.contracts,
       }
