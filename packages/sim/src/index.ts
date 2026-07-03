@@ -7,7 +7,11 @@ export {
 export { simulateTeamMatchup } from "./simulateTeamMatchup"
 export { generatePlayers, generateTeamWithRoster } from "./generatePlayers"
 export { generateLeagueRosters, generateTeams } from "./generateTeams"
-export { selectRotation } from "./selectRotation"
+export {
+  createAutoRotationPlan,
+  createGameRotation,
+  selectRotation,
+} from "./selectRotation"
 export { allocatePlayerStats } from "./allocatePlayerStats"
 export { distributeQuarterScores } from "./distributeQuarterScores"
 export { SAMPLE_ROSTERS, getRosterByTeamId } from "./sampleRosters"
@@ -36,13 +40,32 @@ export {
 } from "./offseason/phases"
 export { completeReSigningPhase } from "./offseason/reSigning"
 export { startNextSeason } from "./startNextSeason"
-export type { StartNextSeasonInput, StartNextSeasonResult } from "./startNextSeason"
+export type {
+  StartNextSeasonInput,
+  StartNextSeasonResult,
+} from "./startNextSeason"
 export { applyOffseasonProgression } from "./development/applyOffseasonProgression"
-export { isDraftRequired, getDraftPickCount, getDraftClassSize } from "./draft/isDraftRequired"
-export { prepareDraft, getCurrentDraftPick, isUserOnClock } from "./draft/prepareDraft"
+export {
+  isDraftRequired,
+  getDraftPickCount,
+  getDraftClassSize,
+} from "./draft/isDraftRequired"
+export {
+  prepareDraft,
+  getCurrentDraftPick,
+  isUserOnClock,
+} from "./draft/prepareDraft"
 export { makeDraftPick } from "./draft/makeDraftPick"
-export { simAiPick, simToUserPick, simDraftUntilComplete } from "./draft/simAiPick"
-export { releasePlayer, applyAiRosterTrimming, getTeamRosterSize } from "./roster/rosterManagement"
+export {
+  simAiPick,
+  simToUserPick,
+  simDraftUntilComplete,
+} from "./draft/simAiPick"
+export {
+  releasePlayer,
+  applyAiRosterTrimming,
+  getTeamRosterSize,
+} from "./roster/rosterManagement"
 export { deriveUserPlayoffResult } from "./deriveUserPlayoffResult"
 export { normalizeLeagueRecord, normalizeSeasonState } from "./normalizeLeague"
 export { createInitialSeason } from "./createInitialSeason"

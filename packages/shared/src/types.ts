@@ -1,4 +1,8 @@
-import type { PlayerGameStats, QuarterScores, TeamWithRoster } from "./playerTypes"
+import type {
+  PlayerGameStats,
+  QuarterScores,
+  TeamWithRoster,
+} from "./playerTypes"
 
 export type { Team } from "./teamTypes"
 
@@ -13,6 +17,33 @@ export type TeamMatchupMeta = {
   awayPossessions: number
   homeOffRtg: number
   awayOffRtg: number
+  homeRotationQuality?: RotationQuality
+  awayRotationQuality?: RotationQuality
+  homeTeamStats?: TeamGameStats
+  awayTeamStats?: TeamGameStats
+}
+
+export type RotationQuality = {
+  top2: number
+  starters: number
+  bench: number
+  fullRotation: number
+}
+
+export type TeamGameStats = {
+  possessions: number
+  fgm: number
+  fga: number
+  tpm: number
+  tpa: number
+  ftm: number
+  fta: number
+  orb: number
+  drb: number
+  ast: number
+  stl: number
+  blk: number
+  tov: number
 }
 
 export type TeamMatchupResult = {
@@ -43,7 +74,12 @@ export type {
   PlayerStatus,
   PlayerTag,
   QuarterScores,
+  GameRotation,
+  GameRotationEntry,
   RotationEntry,
+  RotationPlan,
+  RotationPlanEntry,
+  RotationRole,
   SkillKey,
   TeamWithRoster,
 } from "./playerTypes"
