@@ -36,21 +36,22 @@ function runToDraftOffseason(
     useMiniLeague: true,
   }),
 ) {
-  let state = completeSeasonToOffseason(league.seasonState)
-  const seasonTwo = startNextSeason({
-    seasonState: state,
-    userTeamId: league.userTeamId,
-    freeAgentPool: league.freeAgentPool,
-    rng: createRng(`${state.baseSeed}:season:${state.season + 1}`),
-  })
-  state = completeSeasonToOffseason(seasonTwo.seasonState)
+  const state = completeSeasonToOffseason(league.seasonState)
   return { league, state }
 }
 
 describe("draft", () => {
-  it("does not require a draft before season 2", () => {
-    expect(isDraftRequired(1)).toBe(false)
+  it("requires a draft after every completed season", () => {
+    expect(isDraftRequired(1)).toBe(true)
     expect(isDraftRequired(2)).toBe(true)
+  })
+
+  it("prepares a draft in the first offseason", () => {
+    const { state } = runToDraftOffseason()
+    const prepared = prepareDraft(state)
+
+    expect(prepared.draftState?.year).toBe(2)
+    expect(prepared.draftState?.order).toHaveLength(12)
   })
 
   it("generates a deterministic rookie class", () => {
@@ -140,7 +141,7 @@ describe("draft", () => {
       rng: createRng("draft-start"),
     })
 
-    expect(next.seasonState.season).toBe(3)
+    expect(next.seasonState.season).toBe(2)
     expect(trimmed.teams.every((team) => team.players.length === ROSTER_MAX)).toBe(true)
   })
 
