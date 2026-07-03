@@ -25,6 +25,7 @@ type SeasonPhaseCardProps = {
   canStartNextSeason: boolean
   rosterOverLimit: boolean
   cutsNeeded: number
+  error: string | null
   onBeginPlayoffs: () => void
   onBeginOffseason: () => void
   onCompleteReSignings: () => void
@@ -61,6 +62,7 @@ export function SeasonPhaseCard({
   canStartNextSeason,
   rosterOverLimit,
   cutsNeeded,
+  error,
   onBeginPlayoffs,
   onBeginOffseason,
   onCompleteReSignings,
@@ -103,6 +105,11 @@ export function SeasonPhaseCard({
           <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             Roster over limit — release {cutsNeeded} player
             {cutsNeeded === 1 ? "" : "s"} to start the next season.
+          </p>
+        ) : null}
+        {error ? (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
           </p>
         ) : null}
 

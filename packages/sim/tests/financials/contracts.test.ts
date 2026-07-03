@@ -146,4 +146,19 @@ describe("contracts", () => {
     expect(payroll).toBeGreaterThan(seasonFinancials.minimumTeamSalary * 0.7)
     expect(payroll).toBeLessThan(seasonFinancials.luxuryTaxLine * 1.2)
   })
+
+  it("keeps full-league opening payrolls below runaway levels", () => {
+    const league = createLeague({
+      name: "Full League Payroll",
+      baseSeed: "full-league-payroll",
+      rng: createRng("full-league-payroll"),
+    })
+    const seasonFinancials = league.leagueFinancials.bySeason[1]!
+
+    for (const team of league.seasonState.teams) {
+      const payroll = getTeamPayroll(team.id, league.contracts)
+
+      expect(payroll).toBeLessThanOrEqual(seasonFinancials.salaryCap * 1.82)
+    }
+  })
 })

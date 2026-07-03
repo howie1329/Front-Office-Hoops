@@ -68,6 +68,12 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const userRosterSize = myTeam?.players.length ?? 0
     const rosterOverLimit = userRosterSize > ROSTER_MAX
     const cutsNeeded = Math.max(0, userRosterSize - ROSTER_MAX)
+    const aiRosterNeeds = Boolean(
+      seasonState?.teams.some(
+        (team) =>
+          team.id !== leagueState.userTeamId && team.players.length < ROSTER_MAX,
+      ),
+    )
     const userOnClock = seasonState
       ? isUserOnClock(seasonState, leagueState.userTeamId)
       : false
@@ -98,7 +104,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         Boolean(championTeamId),
       canProceedToFreeAgency:
         offseasonPhase === "draft" && Boolean(draftState?.completed),
-      canSimAiFreeAgency: offseasonPhase === "free_agency",
+      canSimAiFreeAgency: offseasonPhase === "free_agency" && aiRosterNeeds,
       isUserOnClock: userOnClock,
       rosterOverLimit,
       cutsNeeded,

@@ -213,6 +213,42 @@ function teamPayrollTargetMultiplier(
   return quality * market * tolerance
 }
 
+function openingPayrollCeiling(
+  team: { overall: number },
+  teamFinance: TeamFinancials,
+  seasonFinancials: SeasonFinancials
+): number {
+  const quality =
+    team.overall >= 82
+      ? 1.48
+      : team.overall >= 78
+        ? 1.35
+        : team.overall >= 72
+          ? 1.18
+          : 1.02
+  const tolerance =
+    teamFinance.spendingProfile.taxTolerance === "all_in"
+      ? 1.12
+      : teamFinance.spendingProfile.taxTolerance === "competitive"
+        ? 1.05
+        : teamFinance.spendingProfile.taxTolerance === "tax_averse"
+          ? 0.92
+          : 1
+  const market =
+    teamFinance.spendingProfile.marketTier === "large"
+      ? 1.04
+      : teamFinance.spendingProfile.marketTier === "small"
+        ? 0.96
+        : 1
+
+  return roundMoney(
+    Math.min(
+      seasonFinancials.salaryCap * 1.82,
+      seasonFinancials.salaryCap * quality * tolerance * market
+    )
+  )
+}
+
 function withUpdatedSalaryAndYears(
   contract: Contract,
   firstYearSalary: number,
@@ -323,6 +359,38 @@ export function normalizeInitialContractsForLeague(
         return withUpdatedSalaryAndYears(
           contract,
           Math.min(maxSalary, roundMoney(contract.yearlySalaries[0]! * scale)),
+          contract.yearlySalaries.length
+        )
+      })
+    }
+
+    const ceiling = openingPayrollCeiling(team, teamFinance, seasonFinancials)
+    const payrollAfterFloor = getTeamPayroll(team.id, normalized)
+    if (payrollAfterFloor > ceiling) {
+      const scale = ceiling / payrollAfterFloor
+      normalized = normalized.map((contract) => {
+        if (
+          contract.teamId !== team.id ||
+          contract.contractType === "minimum"
+        ) {
+          return contract
+        }
+        const player = team.players.find(
+          (entry) => entry.id === contract.playerId
+        )
+        if (!player) {
+          return contract
+        }
+        const minSalary = calculateMinSalary(
+          seasonFinancials,
+          player.yearsOfService
+        )
+        return withUpdatedSalaryAndYears(
+          contract,
+          Math.max(
+            minSalary,
+            roundMoney(contract.yearlySalaries[0]! * scale)
+          ),
           contract.yearlySalaries.length
         )
       })

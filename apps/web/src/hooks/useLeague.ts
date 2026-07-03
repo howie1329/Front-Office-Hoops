@@ -525,34 +525,45 @@ export function useLeague() {
       return
     }
 
-    await flushPendingSave()
+    try {
+      setError(null)
+      await flushPendingSave()
 
-    const result = startNextSeason({
-      seasonState: current.seasonState,
-      userTeamId: current.userTeamId,
-      freeAgentPool: current.freeAgentPool ?? [],
-      rng: createRng(
-        `${current.seasonState.baseSeed}:season:${current.seasonState.season + 1}`,
-      ),
-      league: {
-        contracts: current.contracts ?? [],
-        leagueFinancials: current.leagueFinancials,
-        teamFinancials: current.teamFinancials ?? [],
-        spendingProfileEvents: current.spendingProfileEvents ?? [],
-      },
-    })
+      const result = startNextSeason({
+        seasonState: current.seasonState,
+        userTeamId: current.userTeamId,
+        freeAgentPool: current.freeAgentPool ?? [],
+        rng: createRng(
+          `${current.seasonState.baseSeed}:season:${current.seasonState.season + 1}`,
+        ),
+        league: {
+          contracts: current.contracts ?? [],
+          leagueFinancials: current.leagueFinancials,
+          teamFinancials: current.teamFinancials ?? [],
+          spendingProfileEvents: current.spendingProfileEvents ?? [],
+        },
+      })
 
-    const updated = normalizeLeagueRecord({
-      ...current,
-      seasonState: result.seasonState,
-      seasonHistory: [...(current.seasonHistory ?? []), result.historyEntry],
-      freeAgentPool: result.freeAgentPool,
-      contracts: result.contracts,
-      leagueFinancials: result.leagueFinancials,
-      teamFinancials: result.teamFinancials,
-    })
+      const updated = normalizeLeagueRecord({
+        ...current,
+        seasonState: result.seasonState,
+        seasonHistory: [...(current.seasonHistory ?? []), result.historyEntry],
+        freeAgentPool: result.freeAgentPool,
+        contracts: result.contracts,
+        leagueFinancials: result.leagueFinancials,
+        teamFinancials: result.teamFinancials,
+      })
 
-    return persistLeague(updated)
+      return persistLeague(updated)
+    } catch (startError: unknown) {
+      setSaveStatus("error")
+      setError(
+        startError instanceof Error
+          ? startError.message
+          : "Failed to start next season",
+      )
+      return undefined
+    }
   }, [flushPendingSave, persistLeague])
 
   const signFreeAgentAction = useCallback(

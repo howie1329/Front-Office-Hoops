@@ -352,10 +352,14 @@ export function processAiFreeAgency(
         scoreFn,
       )
       if (!fa) {
-        break
+        current = ensureFaPoolMinimum(current, rng)
+        if (current.freeAgentPool.length === 0) {
+          break
+        }
+        continue
       }
 
-      const offer = buildExternalFaOffer(fa, teamFinance, seasonFinancials, rng)
+      let offer = buildExternalFaOffer(fa, teamFinance, seasonFinancials, rng)
 
       if (
         !canAffordOffer(
@@ -365,13 +369,41 @@ export function processAiFreeAgency(
           seasonFinancials,
         )
       ) {
-        break
+        offer = {
+          years: 1,
+          firstYearSalary: calculateMinSalary(
+            seasonFinancials,
+            fa.yearsOfService
+          ),
+        }
       }
 
       try {
         current = signFreeAgent(current, teamFinance.teamId, fa.id, offer)
       } catch {
-        break
+        const fallback = [...current.freeAgentPool].sort(
+          (a, b) => a.ratings.overall - b.ratings.overall
+        )[0]
+        if (!fallback || fallback.id === fa.id) {
+          break
+        }
+        const minimumOffer = {
+          years: 1,
+          firstYearSalary: calculateMinSalary(
+            seasonFinancials,
+            fallback.yearsOfService
+          ),
+        }
+        try {
+          current = signFreeAgent(
+            current,
+            teamFinance.teamId,
+            fallback.id,
+            minimumOffer
+          )
+        } catch {
+          break
+        }
       }
     }
   }

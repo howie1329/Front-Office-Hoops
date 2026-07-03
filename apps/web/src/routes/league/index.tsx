@@ -96,6 +96,7 @@ function LeagueDashboardPage() {
         canStartNextSeason={canStartNextSeason}
         rosterOverLimit={rosterOverLimit}
         cutsNeeded={cutsNeeded}
+        error={error}
         onBeginPlayoffs={beginPlayoffs}
         onBeginOffseason={beginOffseason}
         onCompleteReSignings={completeReSignings}

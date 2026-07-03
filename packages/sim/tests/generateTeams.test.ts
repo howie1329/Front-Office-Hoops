@@ -46,6 +46,22 @@ describe("generateTeams", () => {
 
     expect(second.map((team) => team.id)).toEqual(first.map((team) => team.id))
   })
+
+  it("creates plausible league-wide talent scarcity", () => {
+    const teams = generateLeagueRosters(createRng("teams-talent-scarcity"))
+    const teamOveralls = teams.map((team) => team.overall)
+
+    expect(Math.max(...teamOveralls)).toBeGreaterThanOrEqual(77)
+    expect(Math.min(...teamOveralls)).toBeLessThanOrEqual(65)
+
+    for (const team of teams) {
+      const ratings = team.players.map((player) => player.ratings.overall)
+
+      expect(team.players).toHaveLength(12)
+      expect(ratings.filter((overall) => overall >= 85).length).toBeLessThanOrEqual(3)
+      expect(ratings.filter((overall) => overall >= 88).length).toBeLessThanOrEqual(2)
+    }
+  })
 })
 
 describe("createSchedule NBA", () => {
