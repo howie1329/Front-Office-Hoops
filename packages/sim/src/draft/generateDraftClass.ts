@@ -127,6 +127,7 @@ export function generateDraftClass(
       rng,
       usedNames,
       potentialGap: { min: potentialGap, max: potentialGap },
+      archetypeContext: "draft",
       usageIndex: 0,
     })
 
@@ -139,6 +140,7 @@ export function generateDraftClass(
       heightInches: profile.heightInches,
       weightLbs: profile.weightLbs,
       position: profile.position,
+      archetype: profile.archetype,
       ratings: {
         ...profile.ratings,
         potential: Math.min(RATING_MAX, profile.ratings.potential),

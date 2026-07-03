@@ -55,6 +55,7 @@ function createTestPlayer(overrides: Partial<Player> = {}): Player {
     seasonsWithTeam: 0,
     yearsOfService: 0,
     ...overrides,
+    archetype: overrides.archetype ?? "scoring_guard",
   }
 }
 

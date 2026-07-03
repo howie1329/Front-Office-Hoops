@@ -10,19 +10,28 @@ import { getSeasonFinancials } from "../capMath"
 import { getTeamPayroll, getPlayerContract } from "../payroll"
 import { releasePlayer } from "../../roster/rosterManagement"
 import { waiveContract } from "../contracts/createContract"
-import { calculateRosterKeepValue } from "../../playerValue"
+import {
+  calculateRosterKeepValue,
+  getContractAssetValueBreakdown,
+} from "../../playerValue"
 import { getScarceRolePenalty } from "../../roster/rosterBalance"
+import { buildFairSalary } from "./offers"
 
 export function computeCapCutScore(
   player: Player,
   salary: number,
   roster: Player[] = [],
-  mode: TeamMode = "buying"
+  mode: TeamMode = "buying",
+  assetValue?: number
 ): number {
+  const assetPenalty =
+    assetValue === undefined ? 0 : Math.max(-20, assetValue - 55)
+
   return (
     salary * 2 +
     (90 - calculateRosterKeepValue(player, mode)) -
-    getScarceRolePenalty(roster, player)
+    getScarceRolePenalty(roster, player) -
+    assetPenalty
   )
 }
 
@@ -65,14 +74,24 @@ export function shouldCutForCap(
 export function selectCapCutCandidate(
   team: { players: Player[] },
   contracts: Contract[],
-  mode: TeamMode = "buying"
+  mode: TeamMode = "buying",
+  seasonFinancials?: Parameters<typeof buildFairSalary>[1]
 ): Player | undefined {
   const scored = team.players.map((player) => {
     const contract = getPlayerContract(contracts, player)
     const salary = contract?.yearlySalaries[0] ?? 0
+    const assetValue = seasonFinancials
+      ? getContractAssetValueBreakdown({
+          player,
+          contract,
+          expectedSalary: buildFairSalary(player, seasonFinancials),
+          mode,
+        }).total
+      : undefined
+
     return {
       player,
-      score: computeCapCutScore(player, salary, team.players, mode),
+      score: computeCapCutScore(player, salary, team.players, mode, assetValue),
     }
   })
 
@@ -104,7 +123,12 @@ export function applyAiCapBehavior(
       }
 
       const mode = teamFinance.strategy.mode
-      const cutCandidate = selectCapCutCandidate(team, current.contracts, mode)
+      const cutCandidate = selectCapCutCandidate(
+        team,
+        current.contracts,
+        mode,
+        seasonFinancials
+      )
 
       if (!cutCandidate) {
         break
@@ -113,7 +137,12 @@ export function applyAiCapBehavior(
       if (mode === "contending") {
         const contract = getPlayerContract(current.contracts, cutCandidate)
         const salary = contract?.yearlySalaries[0] ?? 0
-        const score = computeCapCutScore(cutCandidate, salary, team.players, mode)
+        const score = computeCapCutScore(
+          cutCandidate,
+          salary,
+          team.players,
+          mode
+        )
         if (score < 80 || cutCandidate.ratings.overall >= 75) {
           break
         }

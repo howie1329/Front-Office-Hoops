@@ -46,6 +46,13 @@ export type {
 } from "./startNextSeason"
 export { applyOffseasonProgression } from "./development/applyOffseasonProgression"
 export {
+  ARCHETYPES_BY_POSITION,
+  ARCHETYPE_SKILL_BIAS,
+  ARCHETYPE_USAGE_BONUS,
+  isValidArchetypeForPosition,
+  pickArchetype,
+} from "./playerGeneration/archetypes"
+export {
   isDraftRequired,
   getDraftPickCount,
   getDraftClassSize,

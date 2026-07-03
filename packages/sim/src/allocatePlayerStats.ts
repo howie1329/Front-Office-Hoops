@@ -254,7 +254,7 @@ export function allocatePlayerStats(
     (_, index) => (twoPa[index] ?? 0) + (tpa[index] ?? 0)
   )
 
-  return rotation.map((entry, index) => ({
+  const stats = rotation.map((entry, index) => ({
     playerId: entry.player.id,
     teamId,
     starter: entry.starter ?? starterIds.has(entry.player.id),
@@ -272,4 +272,19 @@ export function allocatePlayerStats(
     blk: distributed.blk[index] ?? 0,
     tov: distributed.tov[index] ?? 0,
   }))
+
+  const pointDelta =
+    teamStats.points - stats.reduce((sum, line) => sum + line.pts, 0)
+  const adjustmentTarget = stats
+    .map((line, index) => ({ line, index }))
+    .sort((a, b) => b.line.minutes - a.line.minutes)[0]
+
+  if (adjustmentTarget && pointDelta !== 0) {
+    const line = stats[adjustmentTarget.index]!
+    line.pts += pointDelta
+    line.ftm = Math.max(0, line.ftm + pointDelta)
+    line.fta = Math.max(line.fta, line.ftm)
+  }
+
+  return stats
 }

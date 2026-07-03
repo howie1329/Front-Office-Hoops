@@ -5,6 +5,8 @@ import type { Player } from "@workspace/shared/types"
 import {
   calculateContractValue,
   calculatePlayerValue,
+  getContractAssetValueBreakdown,
+  getPlayerValueBreakdown,
 } from "../src/playerValue"
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
@@ -37,6 +39,7 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     seasonsWithTeam: 2,
     yearsOfService: 2,
     ...overrides,
+    archetype: overrides.archetype ?? "scoring_guard",
   }
 }
 
@@ -78,5 +81,77 @@ describe("player value", () => {
     expect(calculateContractValue(primeRole)).toBeGreaterThan(
       calculateContractValue(oldRole)
     )
+  })
+
+  it("rewards scarce archetypes when matching skills are strong", () => {
+    const specialist = makePlayer({
+      position: "SF",
+      archetype: "three_and_d_wing",
+      ratings: {
+        ...makePlayer().ratings,
+        shooting: 70,
+        defense: 70,
+      },
+    })
+    const mismatched = makePlayer({
+      position: "SF",
+      archetype: "three_and_d_wing",
+      ratings: {
+        ...makePlayer().ratings,
+        shooting: 54,
+        defense: 56,
+      },
+    })
+
+    expect(getPlayerValueBreakdown(specialist).archetypeValue).toBeGreaterThan(
+      getPlayerValueBreakdown(mismatched).archetypeValue
+    )
+    expect(calculatePlayerValue(specialist)).toBeGreaterThan(
+      calculatePlayerValue(mismatched)
+    )
+  })
+
+  it("values bargain contracts as stronger assets than long overpays", () => {
+    const player = makePlayer({
+      ratings: { ...makePlayer().ratings, overall: 76, potential: 80 },
+    })
+    const bargain = getContractAssetValueBreakdown({
+      player,
+      expectedSalary: 24,
+      contract: {
+        id: "c_bargain",
+        playerId: player.id,
+        teamId: "t_value",
+        startSeason: 1,
+        endSeason: 3,
+        yearlySalaries: [12, 13, 14],
+        contractType: "standard",
+        signingException: "cap_room",
+        status: "active",
+        signedSeason: 1,
+      },
+      mode: "buying",
+    })
+    const overpay = getContractAssetValueBreakdown({
+      player,
+      expectedSalary: 24,
+      contract: {
+        id: "c_overpay",
+        playerId: player.id,
+        teamId: "t_value",
+        startSeason: 1,
+        endSeason: 4,
+        yearlySalaries: [38, 40, 42, 44],
+        contractType: "standard",
+        signingException: "cap_room",
+        status: "active",
+        signedSeason: 1,
+      },
+      mode: "buying",
+    })
+
+    expect(bargain.surplusValue).toBeGreaterThan(0)
+    expect(overpay.surplusValue).toBeLessThan(0)
+    expect(bargain.total).toBeGreaterThan(overpay.total)
   })
 })

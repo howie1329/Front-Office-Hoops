@@ -1,4 +1,8 @@
-import type { PlayerPosition, PlayerRatings } from "./playerTypes"
+import type {
+  PlayerArchetype,
+  PlayerPosition,
+  PlayerRatings,
+} from "./playerTypes"
 
 export type DraftInfo = {
   year: number
@@ -16,6 +20,7 @@ export type DraftProspect = {
   heightInches: number
   weightLbs: number
   position: PlayerPosition
+  archetype: PlayerArchetype
   ratings: PlayerRatings
   tags: string[]
 }

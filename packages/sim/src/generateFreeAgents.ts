@@ -30,6 +30,7 @@ export function generateFreeAgents(
         rebounding: -1,
         defense: -1,
       },
+      archetypeContext: "free_agent",
       usageIndex: index,
     })
 
@@ -43,6 +44,7 @@ export function generateFreeAgents(
       heightInches: profile.heightInches,
       weightLbs: profile.weightLbs,
       position: profile.position,
+      archetype: profile.archetype,
       ratings: profile.ratings,
       tags: profile.tags,
       status: "free_agent",

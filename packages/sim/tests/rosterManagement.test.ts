@@ -41,10 +41,13 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     seasonsWithTeam: 2,
     yearsOfService: 2,
     ...overrides,
+    archetype: overrides.archetype ?? "scoring_guard",
   }
 }
 
-function ratings(overrides: Partial<Player["ratings"]> = {}): Player["ratings"] {
+function ratings(
+  overrides: Partial<Player["ratings"]> = {}
+): Player["ratings"] {
   return {
     ...makePlayer().ratings,
     ...overrides,
@@ -127,12 +130,36 @@ describe("roster management", () => {
 
   it("changes cut preference by team mode", () => {
     const protectedCore = [
-      makePlayer({ id: "pg", position: "PG", ratings: ratings({ overall: 82, potential: 82 }) }),
-      makePlayer({ id: "sf", position: "SF", ratings: ratings({ overall: 82, potential: 82 }) }),
-      makePlayer({ id: "pf", position: "PF", ratings: ratings({ overall: 82, potential: 82 }) }),
-      makePlayer({ id: "c", position: "C", ratings: ratings({ overall: 82, potential: 82 }) }),
-      makePlayer({ id: "sg", position: "SG", ratings: ratings({ overall: 82, potential: 82 }) }),
-      makePlayer({ id: "bench", position: "PG", ratings: ratings({ overall: 80, potential: 80 }) }),
+      makePlayer({
+        id: "pg",
+        position: "PG",
+        ratings: ratings({ overall: 82, potential: 82 }),
+      }),
+      makePlayer({
+        id: "sf",
+        position: "SF",
+        ratings: ratings({ overall: 82, potential: 82 }),
+      }),
+      makePlayer({
+        id: "pf",
+        position: "PF",
+        ratings: ratings({ overall: 82, potential: 82 }),
+      }),
+      makePlayer({
+        id: "c",
+        position: "C",
+        ratings: ratings({ overall: 82, potential: 82 }),
+      }),
+      makePlayer({
+        id: "sg",
+        position: "SG",
+        ratings: ratings({ overall: 82, potential: 82 }),
+      }),
+      makePlayer({
+        id: "bench",
+        position: "PG",
+        ratings: ratings({ overall: 80, potential: 80 }),
+      }),
     ]
     const oldContributor = makePlayer({
       id: "old",

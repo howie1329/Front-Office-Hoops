@@ -15,6 +15,20 @@ export type PlayerPosition = "PG" | "SG" | "SF" | "PF" | "C"
 
 export type PlayerTag = string
 
+export type PlayerArchetype =
+  | "lead_guard"
+  | "scoring_guard"
+  | "three_and_d_wing"
+  | "slasher"
+  | "point_forward"
+  | "stretch_big"
+  | "rim_protector"
+  | "post_scorer"
+  | "rebounding_big"
+  | "defensive_specialist"
+  | "bench_scorer"
+  | "raw_athlete"
+
 export type PlayerStatus = "active" | "injured" | "inactive" | "free_agent"
 
 export type SkillKey =
@@ -42,6 +56,7 @@ export type Player = {
   heightInches: number
   weightLbs: number
   position: PlayerPosition
+  archetype: PlayerArchetype
   ratings: PlayerRatings
   tags: PlayerTag[]
   status: PlayerStatus

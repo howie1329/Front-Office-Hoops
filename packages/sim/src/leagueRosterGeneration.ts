@@ -141,7 +141,7 @@ const ARCHETYPE_SLOTS: Record<GenerationArchetype, SlotSpec[]> = {
 function buildArchetypeList(rng: Rng): GenerationArchetype[] {
   const archetypes = Object.entries(ARCHETYPE_COUNTS).flatMap(
     ([archetype, count]) =>
-      Array.from({ length: count }, () => archetype as GenerationArchetype),
+      Array.from({ length: count }, () => archetype as GenerationArchetype)
   )
 
   for (let index = archetypes.length - 1; index > 0; index--) {
@@ -169,7 +169,11 @@ function generateAge(kind: SlotSpec["age"], rng: Rng): number {
   }
 }
 
-function potentialForSlot(age: number, archetype: GenerationArchetype, rng: Rng) {
+function potentialForSlot(
+  age: number,
+  archetype: GenerationArchetype,
+  rng: Rng
+) {
   if (archetype === "rebuilding" && age <= 24) {
     return { min: 8, max: 18 }
   }
@@ -192,7 +196,7 @@ function finalizeRoster(players: Player[]): Player[] {
 function generateRosterForTeam(
   team: Team,
   archetype: GenerationArchetype,
-  rng: Rng,
+  rng: Rng
 ): Player[] {
   const usedNames = new Set<string>()
   const players: Player[] = []
@@ -222,6 +226,7 @@ function generateRosterForTeam(
       heightInches: profile.heightInches,
       weightLbs: profile.weightLbs,
       position: profile.position,
+      archetype: profile.archetype,
       ratings: profile.ratings,
       tags: profile.tags,
       status: "active",
@@ -238,7 +243,7 @@ function generateRosterForTeam(
 
 export function generateLeagueRostersFromArchetypes(
   teams: Team[],
-  rng: Rng,
+  rng: Rng
 ): TeamWithRoster[] {
   const archetypes = buildArchetypeList(rng)
 

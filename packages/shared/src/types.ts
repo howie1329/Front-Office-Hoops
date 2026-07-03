@@ -68,6 +68,7 @@ export type Rng = {
 export type {
   ID,
   Player,
+  PlayerArchetype,
   PlayerGameStats,
   PlayerPosition,
   PlayerRatings,

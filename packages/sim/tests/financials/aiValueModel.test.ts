@@ -6,7 +6,10 @@ import type { Player } from "@workspace/shared/types"
 import { calculateSeasonFinancials } from "../../src/financials"
 import { buildFairSalary } from "../../src/financials/ai/offers"
 import { selectCapCutCandidate } from "../../src/financials/ai/capCuts"
-import { calculateMaxSalary, calculateMinSalary } from "../../src/financials/capMath"
+import {
+  calculateMaxSalary,
+  calculateMinSalary,
+} from "../../src/financials/capMath"
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
   const id = overrides.id ?? "p_test"
@@ -39,6 +42,7 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     seasonsWithTeam: 2,
     yearsOfService: 2,
     ...overrides,
+    archetype: overrides.archetype ?? "scoring_guard",
   }
 }
 

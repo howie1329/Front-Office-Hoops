@@ -49,6 +49,7 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     seasonsWithTeam: 1,
     yearsOfService: 1,
     ...overrides,
+    archetype: overrides.archetype ?? "scoring_guard",
   }
 }
 
@@ -221,7 +222,7 @@ describe("contracts", () => {
         (player) =>
           player.age <= 22 &&
           player.ratings.overall >= 70 &&
-          player.ratings.potential >= 80,
+          player.ratings.potential >= 80
       )
 
     expect(youngStarters.length).toBeGreaterThan(0)

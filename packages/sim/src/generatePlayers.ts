@@ -111,6 +111,7 @@ export function generatePlayers(team: Team, rng: Rng): Player[] {
       heightInches: profile.heightInches,
       weightLbs: profile.weightLbs,
       position: profile.position,
+      archetype: profile.archetype,
       ratings: profile.ratings,
       tags: profile.tags,
       status: "active",

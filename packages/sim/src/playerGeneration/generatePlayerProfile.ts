@@ -5,6 +5,7 @@ import {
   VETERAN_TAG,
 } from "@workspace/shared/constants"
 import type {
+  PlayerArchetype,
   PlayerPosition,
   PlayerRatings,
   Rng,
@@ -13,6 +14,11 @@ import type {
 import { generatePeakAge } from "../development/generatePeakAge"
 import { FIRST_NAMES, LAST_NAMES } from "../namePools"
 import { clampRating, deriveOverall, deriveUsage } from "../playerRatings"
+import {
+  ARCHETYPE_SKILL_BIAS,
+  ARCHETYPE_USAGE_BONUS,
+  pickArchetype,
+} from "./archetypes"
 
 export type SkillBias = Partial<
   Record<
@@ -29,6 +35,7 @@ export type GeneratedPlayerProfile = {
   heightInches: number
   weightLbs: number
   position: PlayerPosition
+  archetype: PlayerArchetype
   ratings: PlayerRatings
   tags: string[]
   yearsOfService: number
@@ -43,6 +50,8 @@ export type GeneratePlayerProfileInput = {
   potentialGap: { min: number; max: number }
   skillVariance?: { min: number; max: number }
   skillBias?: SkillBias
+  archetype?: PlayerArchetype
+  archetypeContext?: "draft" | "free_agent"
   usageIndex?: number
 }
 
@@ -160,15 +169,27 @@ export function generatePlayerProfile({
   potentialGap,
   skillVariance = { min: -4, max: 4 },
   skillBias,
+  archetype,
+  archetypeContext,
   usageIndex = 0,
 }: GeneratePlayerProfileInput): GeneratedPlayerProfile {
   const { firstName, lastName } = pickUniqueName(rng, usedNames)
+  const selectedArchetype =
+    archetype ??
+    pickArchetype(position, rng, {
+      draft: archetypeContext === "draft",
+      freeAgent: archetypeContext === "free_agent",
+    })
+  const combinedSkillBias = addBias(
+    ARCHETYPE_SKILL_BIAS[selectedArchetype],
+    skillBias
+  )
   const skillRatings = generateSkillRatings(
     position,
     targetOverall,
     rng,
     skillVariance,
-    skillBias
+    combinedSkillBias
   )
   const overall = deriveOverall(skillRatings)
   const potential = clampRating(
@@ -185,11 +206,16 @@ export function generatePlayerProfile({
     heightInches: rng.int(heightRange.min, heightRange.max),
     weightLbs: rng.int(185, 250),
     position,
+    archetype: selectedArchetype,
     ratings: {
       ...skillRatings,
       overall: Math.max(RATING_MIN, Math.min(RATING_MAX, overall)),
       potential,
-      usage: deriveUsage(overall, usageIndex),
+      usage: Math.max(
+        1,
+        deriveUsage(overall, usageIndex) +
+          ARCHETYPE_USAGE_BONUS[selectedArchetype]
+      ),
     },
     tags: deriveTags(age),
     yearsOfService: Math.max(0, age - 19),
