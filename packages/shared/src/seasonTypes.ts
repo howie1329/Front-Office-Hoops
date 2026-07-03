@@ -17,6 +17,7 @@ export type ScheduleGame = {
 }
 
 export type SeasonPhase = "regular" | "playoffs" | "complete" | "offseason"
+export type OffseasonPhase = "re_signing" | "draft" | "free_agency"
 
 export type PlayoffRound = 1 | 2 | 3 | 4
 
@@ -119,6 +120,7 @@ export type SeasonState = {
   currentDay: number
   baseSeed: string
   phase: SeasonPhase
+  offseasonPhase?: OffseasonPhase
   playoffBracket?: PlayoffBracket
   draftState?: DraftState
 }

@@ -26,6 +26,10 @@ type FreeAgencyPanelProps = {
   league: LeagueRecord
   teamId: string
   freeAgents: Player[]
+  title?: string
+  description?: string
+  emptyMessage?: string
+  mode?: "re_sign" | "external"
   onSign: (playerId: string, offer: FreeAgentOffer) => void
 }
 
@@ -33,6 +37,10 @@ export function FreeAgencyPanel({
   league,
   teamId,
   freeAgents,
+  title = "Free agency",
+  description = "Sign available free agents during the offseason.",
+  emptyMessage = "No free agents are currently available.",
+  mode = "external",
   onSign,
 }: FreeAgencyPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -56,10 +64,8 @@ export function FreeAgencyPanel({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Free agency</CardTitle>
-        <CardDescription>
-          Sign available free agents during the offseason.
-        </CardDescription>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <Table>
@@ -73,6 +79,13 @@ export function FreeAgencyPanel({
             </TableRow>
           </TableHeader>
           <TableBody>
+            {sorted.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-sm text-muted-foreground">
+                  {emptyMessage}
+                </TableCell>
+              </TableRow>
+            ) : null}
             {sorted.slice(0, 20).map((player) => (
               <TableRow key={player.id}>
                 <TableCell>
@@ -90,7 +103,7 @@ export function FreeAgencyPanel({
                       setSalary(Math.max(2, Math.round(player.ratings.overall / 8)))
                     }}
                   >
-                    Offer
+                    {mode === "re_sign" ? "Re-sign" : "Offer"}
                   </Button>
                 </TableCell>
               </TableRow>
@@ -132,7 +145,8 @@ export function FreeAgencyPanel({
               disabled={!validation?.ok}
               onClick={() => onSign(selected.id, offer)}
             >
-              Sign for {formatMoney(salary)} × {years} yr
+              {mode === "re_sign" ? "Re-sign" : "Sign"} for {formatMoney(salary)} ×{" "}
+              {years} yr
             </Button>
           </div>
         ) : null}

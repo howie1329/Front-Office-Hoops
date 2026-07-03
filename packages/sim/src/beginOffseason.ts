@@ -19,5 +19,6 @@ export function beginOffseason(state: SeasonState, rng: Rng): SeasonState {
     ...state,
     teams,
     phase: "offseason",
+    offseasonPhase: "re_signing",
   }
 }

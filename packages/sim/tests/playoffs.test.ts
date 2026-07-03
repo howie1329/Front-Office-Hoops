@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  advanceToDraftPhase,
+  advanceToFreeAgencyPhase,
   createLeague,
   createRng,
   prepareDraft,
@@ -77,7 +79,7 @@ describe("playoffs", () => {
     const userTeamId = state.teams[0]!.id
     state = beginOffseason(state, createRng("mini-playoff-offseason"))
     expect(state.phase).toBe("offseason")
-    const prepared = prepareDraft(state)
+    const prepared = prepareDraft(advanceToDraftPhase(state))
     const completed = simDraftUntilComplete(prepared, [])
     const trimmed = applyAiRosterTrimming(
       completed.seasonState.teams,
@@ -86,7 +88,10 @@ describe("playoffs", () => {
     )
 
     const next = startNextSeason({
-      seasonState: { ...completed.seasonState, teams: trimmed.teams },
+      seasonState: {
+        ...advanceToFreeAgencyPhase(completed.seasonState),
+        teams: trimmed.teams,
+      },
       userTeamId,
       freeAgentPool: trimmed.freeAgentPool,
       rng: createRng("mini-playoff-next"),

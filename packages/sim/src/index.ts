@@ -29,10 +29,16 @@ export { isRegularSeasonComplete } from "./isRegularSeasonComplete"
 export { finalizeSeason } from "./finalizeSeason"
 export { archiveSeason } from "./archiveSeason"
 export { beginOffseason } from "./beginOffseason"
+export {
+  advanceToDraftPhase,
+  advanceToFreeAgencyPhase,
+  completeFreeAgencyPhase,
+} from "./offseason/phases"
+export { completeReSigningPhase } from "./offseason/reSigning"
 export { startNextSeason } from "./startNextSeason"
 export type { StartNextSeasonInput, StartNextSeasonResult } from "./startNextSeason"
 export { applyOffseasonProgression } from "./development/applyOffseasonProgression"
-export { isDraftRequired, getDraftPickCount } from "./draft/isDraftRequired"
+export { isDraftRequired, getDraftPickCount, getDraftClassSize } from "./draft/isDraftRequired"
 export { prepareDraft, getCurrentDraftPick, isUserOnClock } from "./draft/prepareDraft"
 export { makeDraftPick } from "./draft/makeDraftPick"
 export { simAiPick, simToUserPick, simDraftUntilComplete } from "./draft/simAiPick"
@@ -50,6 +56,9 @@ export {
   attachRookieContractsForDraftSelections,
   signFreeAgent,
   canSignPlayer,
+  ensureFaPoolMinimum,
+  getTeamExpiredFreeAgents,
+  getExternalFreeAgents,
   getTeamPayroll,
   getPlayerContract,
   getSeasonFinancials,

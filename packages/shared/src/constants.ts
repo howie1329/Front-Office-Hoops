@@ -55,7 +55,11 @@ export const SKILL_KEYS = [
 ] as const
 
 export const DRAFT_ROUNDS = 2
+export const DRAFT_CLASS_MULTIPLIER = 1.5
+export const FA_POOL_MIN_RATIO = 1.25
+export const ROSTER_MIN = 6
 export const ROSTER_MAX = PLAYERS_PER_TEAM
+export const PRIMARY_POSITIONS = ["PG", "SG", "SF", "PF", "C"] as const
 
 export const ROOKIE_AGE_MIN = 19
 export const ROOKIE_AGE_MAX = 22

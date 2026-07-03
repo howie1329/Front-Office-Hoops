@@ -1,5 +1,5 @@
 import { RATING_MAX, RATING_MIN, ROTATION_SIZE } from "@workspace/shared/constants"
-import type { Player, PlayerRatings, RotationEntry } from "@workspace/shared/types"
+import type { Player, PlayerRatings } from "@workspace/shared/types"
 
 import { selectRotation } from "./selectRotation"
 

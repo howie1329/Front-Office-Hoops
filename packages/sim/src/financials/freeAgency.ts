@@ -1,6 +1,6 @@
 import type { FreeAgentOffer } from "@workspace/shared/contractTypes"
 import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
-import { ROSTER_MAX } from "@workspace/shared/constants"
+import { FA_POOL_MIN_RATIO, ROSTER_MAX } from "@workspace/shared/constants"
 
 import { getSeasonFinancials, calculateMaxSalary, calculateMinSalary } from "./capMath"
 import {
@@ -24,10 +24,38 @@ import {
   scoreFreeAgentForTeam,
   selectFreeAgentTarget,
 } from "./ai/freeAgentScoring"
+import { generateFreeAgents } from "../generateFreeAgents"
 
 export type SignValidationResult =
   | { ok: true; signingException: FreeAgentOffer["signingException"] }
   | { ok: false; reason: string }
+
+export function getMinimumFreeAgentPoolSize(teamCount: number): number {
+  return Math.ceil(teamCount * FA_POOL_MIN_RATIO)
+}
+
+export function ensureFaPoolMinimum(
+  league: LeagueRecord,
+  rng: Rng,
+): LeagueRecord {
+  const minimum = getMinimumFreeAgentPoolSize(league.seasonState.teams.length)
+  const missing = Math.max(0, minimum - league.freeAgentPool.length)
+
+  if (missing === 0) {
+    return league
+  }
+
+  const generated = generateFreeAgents(
+    missing,
+    rng,
+    `${league.seasonState.season}_${league.freeAgentPool.length}`,
+  )
+
+  return {
+    ...league,
+    freeAgentPool: [...league.freeAgentPool, ...generated],
+  }
+}
 
 function playerWasOnTeam(
   league: LeagueRecord,
@@ -40,6 +68,33 @@ function playerWasOnTeam(
       contract.teamId === teamId &&
       contract.status === "expired",
   )
+}
+
+export function getTeamExpiredFreeAgents(
+  league: LeagueRecord,
+  teamId: string,
+): Player[] {
+  const expiredPlayerIds = new Set(
+    league.contracts
+      .filter(
+        (contract) =>
+          contract.status === "expired" && contract.teamId === teamId,
+      )
+      .map((contract) => contract.playerId),
+  )
+
+  return league.freeAgentPool.filter((player) => expiredPlayerIds.has(player.id))
+}
+
+export function getExternalFreeAgents(
+  league: LeagueRecord,
+  teamId: string,
+): Player[] {
+  const ownExpiredIds = new Set(
+    getTeamExpiredFreeAgents(league, teamId).map((player) => player.id),
+  )
+
+  return league.freeAgentPool.filter((player) => !ownExpiredIds.has(player.id))
 }
 
 export function canSignPlayer(

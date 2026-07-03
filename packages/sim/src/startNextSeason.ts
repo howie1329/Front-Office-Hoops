@@ -40,6 +40,10 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
     throw new Error("Season must be in the offseason before starting the next season")
   }
 
+  if (seasonState.offseasonPhase !== "free_agency") {
+    throw new Error("Season must reach free agency before starting the next season")
+  }
+
   if (isDraftRequired(seasonState.season)) {
     if (!seasonState.draftState?.completed) {
       throw new Error("Draft must be completed before starting the next season")
@@ -97,7 +101,7 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
         ...financialBundle,
         id: "",
         name: "",
-        saveVersion: 6,
+        saveVersion: 7,
         createdAt: "",
         updatedAt: "",
         userTeamId,

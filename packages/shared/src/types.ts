@@ -65,6 +65,7 @@ export type {
   ScheduleConfig,
   ScheduleGame,
   ScheduleGameStatus,
+  OffseasonPhase,
   SeasonHistoryEntry,
   SeasonPhase,
   SeasonState,

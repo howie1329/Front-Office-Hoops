@@ -20,10 +20,15 @@ type LeagueContextValue = ReturnType<typeof useLeague> & {
   isPlayoffs: boolean
   isSeasonComplete: boolean
   isOffseason: boolean
+  offseasonPhase: "re_signing" | "draft" | "free_agency" | null
   championTeamId: string | null
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
+  canSimAiReSignings: boolean
+  canProceedToDraft: boolean
   canPrepareDraft: boolean
+  canProceedToFreeAgency: boolean
+  canSimAiFreeAgency: boolean
   isUserOnClock: boolean
   rosterOverLimit: boolean
   cutsNeeded: number
@@ -51,6 +56,9 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const isPlayoffs = phase === "playoffs"
     const isSeasonComplete = phase === "complete"
     const isOffseason = phase === "offseason"
+    const offseasonPhase = isOffseason
+      ? (seasonState?.offseasonPhase ?? "re_signing")
+      : null
     const championTeamId =
       seasonState?.playoffBracket?.championTeamId ?? null
     const completedSeason = seasonState?.season ?? 1
@@ -77,16 +85,25 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       isPlayoffs,
       isSeasonComplete,
       isOffseason,
+      offseasonPhase,
       championTeamId,
       canBeginPlayoffs: phase === "regular" && isRegularComplete,
       canBeginOffseason: isSeasonComplete && Boolean(championTeamId),
+      canSimAiReSignings: offseasonPhase === "re_signing",
+      canProceedToDraft: false,
       canPrepareDraft:
-        isOffseason && draftRequired && !draftState && Boolean(championTeamId),
+        offseasonPhase === "draft" &&
+        draftRequired &&
+        !draftState &&
+        Boolean(championTeamId),
+      canProceedToFreeAgency:
+        offseasonPhase === "draft" && Boolean(draftState?.completed),
+      canSimAiFreeAgency: offseasonPhase === "free_agency",
       isUserOnClock: userOnClock,
       rosterOverLimit,
       cutsNeeded,
       canStartNextSeason:
-        isOffseason &&
+        offseasonPhase === "free_agency" &&
         draftComplete &&
         !rosterOverLimit &&
         userRosterSize === ROSTER_MAX,

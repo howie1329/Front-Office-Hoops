@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
+  advanceToDraftPhase,
+  advanceToFreeAgencyPhase,
   beginOffseason,
   beginPlayoffs,
+  completeFreeAgencyPhase,
+  completeReSigningPhase,
   createLeague,
   createRng,
+  ensureFaPoolMinimum,
   makeDraftPick,
   normalizeLeagueRecord,
   prepareDraft,
@@ -480,6 +485,40 @@ export function useLeague() {
     updateSeasonState((state) => simulatePlayoffs(state))
   }, [updateSeasonState])
 
+  const completeReSigningsAction = useCallback(() => {
+    updateLeagueRecord((record) =>
+      completeReSigningPhase(
+        record,
+        createRng(`${record.seasonState.baseSeed}:ai-re-sign:${record.seasonState.season}`),
+      ),
+    )
+  }, [updateLeagueRecord])
+
+  const advanceToDraftAction = useCallback(() => {
+    updateSeasonState((state) => advanceToDraftPhase(state))
+  }, [updateSeasonState])
+
+  const advanceToFreeAgencyAction = useCallback(() => {
+    updateLeagueRecord((record) =>
+      ensureFaPoolMinimum(
+        {
+          ...record,
+          seasonState: advanceToFreeAgencyPhase(record.seasonState),
+        },
+        createRng(`${record.seasonState.baseSeed}:fa-pool:${record.seasonState.season}`),
+      ),
+    )
+  }, [updateLeagueRecord])
+
+  const completeFreeAgencyAction = useCallback(() => {
+    updateLeagueRecord((record) =>
+      completeFreeAgencyPhase(
+        record,
+        createRng(`${record.seasonState.baseSeed}:ai-fa:${record.seasonState.season}`),
+      ),
+    )
+  }, [updateLeagueRecord])
+
   const startNextSeasonAction = useCallback(async () => {
     const current = leagueRef.current
     if (!current) {
@@ -549,6 +588,10 @@ export function useLeague() {
     loadLeagueList,
     beginPlayoffs: beginPlayoffsAction,
     beginOffseason: beginOffseasonAction,
+    completeReSignings: completeReSigningsAction,
+    advanceToDraft: advanceToDraftAction,
+    advanceToFreeAgency: advanceToFreeAgencyAction,
+    completeFreeAgency: completeFreeAgencyAction,
     prepareDraft: prepareDraftAction,
     makeDraftPick: makeDraftPickAction,
     simAiPick: simAiPickAction,

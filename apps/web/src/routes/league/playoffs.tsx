@@ -22,13 +22,21 @@ function LeaguePlayoffsPage() {
     championTeamId,
     canBeginPlayoffs,
     canBeginOffseason,
+    canSimAiReSignings,
+    canProceedToDraft,
     canPrepareDraft,
+    canProceedToFreeAgency,
+    canSimAiFreeAgency,
     canStartNextSeason,
     rosterOverLimit,
     cutsNeeded,
     beginPlayoffs,
     beginOffseason,
+    completeReSignings,
+    advanceToDraft,
     prepareDraft,
+    advanceToFreeAgency,
+    completeFreeAgency,
     simulatePlayoffs,
     startNextSeason,
     updateSeasonState,
@@ -45,13 +53,21 @@ function LeaguePlayoffsPage() {
         championTeamId={championTeamId}
         canBeginPlayoffs={canBeginPlayoffs}
         canBeginOffseason={canBeginOffseason}
+        canSimAiReSignings={canSimAiReSignings}
+        canProceedToDraft={canProceedToDraft}
         canPrepareDraft={canPrepareDraft}
+        canProceedToFreeAgency={canProceedToFreeAgency}
+        canSimAiFreeAgency={canSimAiFreeAgency}
         canStartNextSeason={canStartNextSeason}
         rosterOverLimit={rosterOverLimit}
         cutsNeeded={cutsNeeded}
         onBeginPlayoffs={beginPlayoffs}
         onBeginOffseason={beginOffseason}
+        onCompleteReSignings={completeReSignings}
+        onAdvanceToDraft={advanceToDraft}
         onPrepareDraft={prepareDraft}
+        onAdvanceToFreeAgency={advanceToFreeAgency}
+        onCompleteFreeAgency={completeFreeAgency}
         onStartNextSeason={() => void startNextSeason()}
       />
 

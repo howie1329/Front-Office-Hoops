@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest"
 import { ROSTER_MAX } from "@workspace/shared/constants"
 
 import {
+  advanceToDraftPhase,
+  advanceToFreeAgencyPhase,
   createLeague,
   createRng,
+  getDraftClassSize,
   isDraftRequired,
   prepareDraft,
   releasePlayer,
@@ -36,7 +39,7 @@ function runToDraftOffseason(
     useMiniLeague: true,
   }),
 ) {
-  const state = completeSeasonToOffseason(league.seasonState)
+  const state = advanceToDraftPhase(completeSeasonToOffseason(league.seasonState))
   return { league, state }
 }
 
@@ -59,12 +62,36 @@ describe("draft", () => {
     const second = generateDraftClass(6, 3, "class-seed", createRng("class-seed-a"))
 
     expect(second).toEqual(first)
-    expect(first).toHaveLength(12)
+    expect(getDraftClassSize(6)).toBe(18)
+    expect(first).toHaveLength(18)
     for (const prospect of first) {
       expect(prospect.age).toBeGreaterThanOrEqual(19)
       expect(prospect.age).toBeLessThanOrEqual(22)
       expect(prospect.ratings.potential).toBeGreaterThan(prospect.ratings.overall)
     }
+  })
+
+  it("creates tiered draft classes with lottery talent and deep undrafted range", () => {
+    const prospects = generateDraftClass(30, 2, "tiered-class", createRng("tiered-class"))
+    const average = (values: number[]) =>
+      values.reduce((sum, value) => sum + value, 0) / values.length
+    const lotteryAverage = average(
+      prospects.slice(0, 14).map((prospect) => prospect.ratings.overall),
+    )
+    const deepAverage = average(
+      prospects.slice(60).map((prospect) => prospect.ratings.overall),
+    )
+
+    expect(prospects).toHaveLength(90)
+    expect(lotteryAverage).toBeGreaterThan(deepAverage + 6)
+    expect(prospects.some((prospect) => prospect.ratings.overall >= 62)).toBe(true)
+    expect(prospects.some((prospect) => prospect.ratings.overall <= 50)).toBe(true)
+    expect(
+      prospects.some(
+        (prospect) =>
+          prospect.ratings.potential - prospect.ratings.overall <= 6,
+      ),
+    ).toBe(true)
   })
 
   it("creates a two-round snake draft order", () => {
@@ -95,6 +122,7 @@ describe("draft", () => {
       expect(team.players.length).toBe(ROSTER_MAX + 2)
     }
     expect(completed.seasonState.draftState?.completed).toBe(true)
+    expect(completed.freeAgentPool).toHaveLength(6)
   })
 
   it("blocks season start when the user roster is over the limit", () => {
@@ -105,7 +133,7 @@ describe("draft", () => {
 
     expect(() =>
       startNextSeason({
-        seasonState: completed.seasonState,
+        seasonState: advanceToFreeAgencyPhase(completed.seasonState),
         userTeamId,
         freeAgentPool: completed.freeAgentPool,
         rng: createRng("draft-block"),
@@ -135,7 +163,10 @@ describe("draft", () => {
 
     const trimmed = applyAiRosterTrimming(teams, pool, userTeamId)
     const next = startNextSeason({
-      seasonState: { ...completed.seasonState, teams: trimmed.teams },
+      seasonState: {
+        ...advanceToFreeAgencyPhase(completed.seasonState),
+        teams: trimmed.teams,
+      },
       userTeamId,
       freeAgentPool: trimmed.freeAgentPool,
       rng: createRng("draft-start"),
@@ -159,7 +190,7 @@ describe("draft", () => {
       [],
     )
 
-    expect(result.freeAgentPool).toHaveLength(12)
+    expect(result.freeAgentPool).toHaveLength(getDraftClassSize(6))
     expect(result.freeAgentPool.every((player) => player.status === "free_agent")).toBe(
       true,
     )

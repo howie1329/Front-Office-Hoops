@@ -143,6 +143,20 @@ Each offseason, `beginOffseason` applies `applyOffseasonProgression`:
 
 `normalizeLeagueRecord` handles save version upgrades when loading persisted data.
 
+## Offseason loop
+
+Offseason is phased after a champion is crowned:
+
+```
+complete → beginOffseason → re_signing → draft → free_agency → startNextSeason
+```
+
+- **Begin offseason** applies player development, assesses season finances, and expires one-year contracts into the free-agent pool.
+- **Re-signing** lets the user negotiate with their own expired players first, then AI teams run re-signing.
+- **Draft** is required after every completed season, including Season 1. Drafted players receive rookie-scale/minimum contracts.
+- **Free agency** opens after the draft; undrafted prospects join the FA pool and the pool is topped up to at least 1.25× team count if thin.
+- Teams must start the next season with 12 players. Releases cannot drop a team below 6 players or remove the last player at any primary position.
+
 ## Procedural generation
 
 ### Teams (`generateTeams`)
@@ -157,6 +171,19 @@ Each offseason, `beginOffseason` applies `applyOffseasonProgression`:
 - Ratings: overall, potential, shooting, inside, passing, rebounding, defense, stamina, usage
 - Physical attributes: age, height, weight
 - Names from configurable name pools
+
+Generated rosters use depth tiers (stars, starters, rotation, bench) so ratings are not bunched around team overall.
+
+### Draft classes
+
+Draft classes are 1.5× the two-round pick count (90 prospects for 30 teams). Prospect generation is tiered:
+
+- Lottery: higher current OVR and high potential
+- Mid-first: solid current OVR with above-average upside
+- Second round: lower current OVR and mixed ceiling
+- Undrafted range: lower OVR with wider potential variance
+
+Unselected prospects are converted to free agents when the draft completes.
 
 ### Sample data
 

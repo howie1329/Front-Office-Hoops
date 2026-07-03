@@ -11,7 +11,7 @@ describe("financials integration", () => {
       useMiniLeague: true,
     })
 
-    expect(league.saveVersion).toBe(6)
+    expect(league.saveVersion).toBe(7)
     expect(league.contracts.length).toBeGreaterThan(0)
     expect(league.teamFinancials.length).toBe(6)
     expect(league.seasonState.teams[0]?.players[0]?.activeContractId).toBeTruthy()

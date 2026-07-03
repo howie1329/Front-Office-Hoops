@@ -2,7 +2,7 @@ import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
 import type { LeagueRecord, Rng, TeamWithRoster } from "@workspace/shared/types"
 
 import { createInitialSeason } from "./createInitialSeason"
-import { initializeFinancialsForLeague } from "./financials"
+import { ensureFaPoolMinimum, initializeFinancialsForLeague } from "./financials"
 import { generateLeagueRosters } from "./generateTeams"
 import { SAMPLE_ROSTERS } from "./sampleRosters"
 
@@ -43,5 +43,8 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     spendingProfileEvents: [],
   }
 
-  return initializeFinancialsForLeague(baseRecord, input.rng)
+  return ensureFaPoolMinimum(
+    initializeFinancialsForLeague(baseRecord, input.rng),
+    input.rng,
+  )
 }

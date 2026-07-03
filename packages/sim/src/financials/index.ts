@@ -7,9 +7,8 @@ import {
   syncPlayersAfterContractChanges,
 } from "./assessSeasonFinances"
 import { applyAiCapBehavior } from "./ai/capCuts"
-import { processAiReSignings } from "./ai/reSignings"
 import { expireOneYearContracts } from "./contracts/processContracts"
-import { attachRookieContract, processAiFreeAgency } from "./freeAgency"
+import { attachRookieContract } from "./freeAgency"
 import {
   generateInitialContractsForLeague,
   applyInitialContractsToPlayers,
@@ -35,13 +34,11 @@ export { applyAiCapBehavior } from "./ai/capCuts"
 
 export function processOffseasonFinancials(
   league: LeagueRecord,
-  rng: Rng,
+  _rng: Rng,
 ): LeagueRecord {
   let current = updateAllTeamStrategies(league)
   current = assessLeagueSeasonFinances(current, current.seasonState)
   current = expireOneYearContracts(current)
-  current = processAiReSignings(current, rng)
-  current = processAiFreeAgency(current, rng)
   return current
 }
 

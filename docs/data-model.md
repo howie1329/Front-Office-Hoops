@@ -29,7 +29,7 @@ Top-level metadata for a save slot.
 |-------|------|-------------|
 | `id` | `string` | Unique league ID (`league_<uuid>`) |
 | `name` | `string` | Display name |
-| `saveVersion` | `2` | Schema version for migrations |
+| `saveVersion` | `7` | Schema version for migrations |
 | `createdAt` | ISO string | Creation timestamp |
 | `updatedAt` | ISO string | Last save timestamp |
 | `userTeamId` | `string \| null` | Player-controlled team |
@@ -62,7 +62,9 @@ Lightweight listing for save slot UI (no full season state).
 | `currentDay` | `number` | Simulation cursor |
 | `baseSeed` | `string` | League RNG seed |
 | `phase` | `SeasonPhase` | `regular` \| `playoffs` \| `complete` \| `offseason` |
+| `offseasonPhase` | `OffseasonPhase?` | During offseason: `re_signing` \| `draft` \| `free_agency` |
 | `playoffBracket` | `PlayoffBracket?` | Present during/after playoffs |
+| `draftState` | `DraftState?` | Draft board, order, selections, and remaining prospects |
 
 ### `SeasonHistoryEntry`
 
@@ -79,7 +81,8 @@ Archived season snapshot:
 regular → playoffs → complete → offseason
 ```
 
-Offseason applies player development before the next season begins.
+Offseason applies player development, expires contracts, then advances through
+`re_signing → draft → free_agency` before the next season begins.
 
 ## Teams and players
 
@@ -185,7 +188,7 @@ Each row is a full `LeagueRecord` JSON document.
 
 ### Save versioning
 
-`SAVE_VERSION` (currently `2`) in `packages/shared/src/leagueTypes.ts`. `normalizeLeagueRecord` in `@workspace/sim` upgrades older saves on load.
+`SAVE_VERSION` (currently `7`) in `packages/shared/src/leagueTypes.ts`. `normalizeLeagueRecord` in `@workspace/sim` upgrades older saves on load.
 
 ### Auto-save behavior
 

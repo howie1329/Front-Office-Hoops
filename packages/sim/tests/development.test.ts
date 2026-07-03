@@ -8,6 +8,8 @@ import { applyOffseasonProgression } from "../src/development/applyOffseasonProg
 import { collectModifiers } from "../src/development/collectModifiers"
 import { progressPlayer } from "../src/development/progressPlayer"
 import {
+  advanceToDraftPhase,
+  advanceToFreeAgencyPhase,
   createLeague,
   createRng,
   prepareDraft,
@@ -395,7 +397,7 @@ describe("offseason phase", () => {
     ).toThrow("offseason")
 
     state = beginOffseason(state, createRng("offseason-guard:offseason:1"))
-    const prepared = prepareDraft(state)
+    const prepared = prepareDraft(advanceToDraftPhase(state))
     const completed = simDraftUntilComplete(prepared, [])
     const trimmed = applyAiRosterTrimming(
       completed.seasonState.teams,
@@ -403,7 +405,10 @@ describe("offseason phase", () => {
       null,
     )
     const next = startNextSeason({
-      seasonState: { ...completed.seasonState, teams: trimmed.teams },
+      seasonState: {
+        ...advanceToFreeAgencyPhase(completed.seasonState),
+        teams: trimmed.teams,
+      },
       userTeamId: league.userTeamId,
       freeAgentPool: trimmed.freeAgentPool,
       rng: createRng("offseason-guard-next"),
@@ -435,7 +440,7 @@ describe("offseason phase", () => {
 
     const normalized = normalizeLeagueRecord(legacyRecord as unknown as LeagueRecord)
 
-    expect(normalized.saveVersion).toBe(6)
+    expect(normalized.saveVersion).toBe(7)
     for (const team of normalized.seasonState.teams) {
       for (const player of team.players) {
         expect(player.peakAge).toBeGreaterThanOrEqual(26)
