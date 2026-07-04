@@ -34,13 +34,13 @@ Gameplay truth comes from a **deterministic, testable TypeScript engine** (`@wor
 
 ## Player experience goals
 
-| Phase | Experience |
-|-------|------------|
-| **Onboard** | Create a league, pick your team, understand the dashboard |
-| **Regular season** | Simulate days or weeks, track standings, review box scores |
-| **Playoffs** | Bracket progression, series results, champion crowned |
-| **Offseason** | *(planned)* Draft, free agency, trades, roster moves |
-| **Multi-season** | Season history, legacy tracking, evolving narratives |
+| Phase              | Experience                                                   |
+| ------------------ | ------------------------------------------------------------ |
+| **Onboard**        | Create a league, pick your team, understand the dashboard    |
+| **Regular season** | Simulate days or weeks, track standings, review box scores   |
+| **Playoffs**       | Bracket progression, series results, champion crowned        |
+| **Offseason**      | Re-signing, draft, free agency, roster moves; trades planned |
+| **Multi-season**   | Season history, legacy tracking, evolving narratives         |
 
 ## Non-goals (for now)
 
@@ -51,12 +51,12 @@ Gameplay truth comes from a **deterministic, testable TypeScript engine** (`@wor
 
 ## Inspiration vs. differentiation
 
-| Inspired by | Our direction |
-|-------------|---------------|
-| Browser-based GM sim loop | Same accessibility; modern React stack |
-| Multi-season franchise mode | Season history + local saves already in place |
-| Deep roster/stat tracking | Player ratings, box scores, season stats implemented |
-| Text-forward presentation | shadcn/ui + Tailwind for a polished, responsive UI |
-| — | AI-generated narrative layer (planned) |
-| — | Optional cloud sync and accounts (planned) |
-| — | Mobile-first interaction patterns |
+| Inspired by                 | Our direction                                                             |
+| --------------------------- | ------------------------------------------------------------------------- |
+| Browser-based GM sim loop   | Same accessibility; modern React stack                                    |
+| Multi-season franchise mode | Season history, offseason loop, development, local saves                  |
+| Deep roster/stat tracking   | Player archetypes, ratings, injuries, contracts, box scores, season stats |
+| Text-forward presentation   | shadcn/ui + Tailwind for a polished, responsive UI                        |
+| —                           | AI-generated narrative layer (planned)                                    |
+| —                           | Optional cloud sync and accounts (planned)                                |
+| —                           | Mobile-first interaction patterns                                         |

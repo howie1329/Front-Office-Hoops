@@ -108,7 +108,7 @@ Vitest with comprehensive unit tests. When changing simulation behavior:
 
 1. Write or update tests first when fixing bugs
 2. Run `npm run test --workspace=@workspace/sim`
-3. Verify edge cases: ties, empty schedules, playoff advancement, stat allocation sums
+3. Verify edge cases: ties, empty schedules, playoff advancement, stat allocation sums, rotations, injuries, contracts/financial AI, archetypes/value
 
 ### DB layer (`packages/db`)
 

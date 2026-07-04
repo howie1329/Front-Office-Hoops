@@ -57,7 +57,9 @@ Key dependencies: `@tanstack/react-start`, `@tanstack/react-router`, Tailwind CS
 - Season loop (`simulateDay`, `simulateWeek`, `simulateSeason`)
 - Playoffs (`beginPlayoffs`, `simulatePlayoffs`, bracket logic)
 - League lifecycle (`createLeague`, `startNextSeason`, `archiveSeason`)
-- Procedural generation (`generateTeams`, `generatePlayers`)
+- Procedural generation (`generateTeams`, `generatePlayers`, player archetypes, draft classes, free agents)
+- Aggregate game simulation, rotations, injuries, player/contract value, financial AI
+- Contracts, cap/tax math, re-signing, draft, free agency, team strategy
 - Seeded RNG (`createRng`) for reproducibility
 
 All exports are functions that take immutable-ish state + an `Rng` and return updated state. Vitest tests cover core behavior.
@@ -67,6 +69,8 @@ All exports are functions that take immutable-ish state + an `Rng` and return up
 Shared **types and constants** consumed by `sim`, `db`, and `web`.
 
 - Domain types: `Player`, `Team`, `Game`, `SeasonState`, `LeagueRecord`
+- Player identity and availability: archetypes, statuses, injuries
+- Contracts, draft, and financial types
 - League constants: team counts, season lengths, playoff formats
 - `SAVE_VERSION` for the current save schema marker
 
