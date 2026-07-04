@@ -88,6 +88,8 @@ export type {
 
 export type {
   DraftInfo,
+  DraftPickAsset,
+  DraftPickProtection,
   DraftPick,
   DraftProspect,
   DraftSelection,
@@ -120,6 +122,16 @@ export type {
   FreeAgentOffer,
   SigningException,
 } from "./contractTypes"
+
+export type {
+  TradeEvaluation,
+  TradeHistoryEntry,
+  TradeHistoryTeamEntry,
+  TradeProposal,
+  TradeResult,
+  TradeSide,
+  TradeValidationResult,
+} from "./tradeTypes"
 
 export type {
   BirdRightsType,

@@ -1,4 +1,11 @@
-import type { Rng, SeasonHistoryEntry, SeasonState, Player, LeagueRecord } from "@workspace/shared/types"
+import type {
+  DraftPickAsset,
+  LeagueRecord,
+  Player,
+  Rng,
+  SeasonHistoryEntry,
+  SeasonState,
+} from "@workspace/shared/types"
 import type {
   Contract,
   LeagueFinancials,
@@ -7,10 +14,14 @@ import type {
 
 import { archiveSeason } from "./archiveSeason"
 import { createInitialSeason } from "./createInitialSeason"
+import { ensureDraftPickAssets } from "./draft/generateDraftOrder"
 import { isDraftRequired } from "./draft/isDraftRequired"
 import { finalizeSeason } from "./finalizeSeason"
 import { prepareNewSeasonFinancials } from "./financials"
-import { applyAiRosterTrimming, validateRostersForSeasonStart } from "./roster/rosterManagement"
+import {
+  applyAiRosterTrimming,
+  validateRostersForSeasonStart,
+} from "./roster/rosterManagement"
 
 export type StartNextSeasonInput = {
   seasonState: SeasonState
@@ -19,8 +30,12 @@ export type StartNextSeasonInput = {
   rng: Rng
   league?: Pick<
     LeagueRecord,
-    "contracts" | "leagueFinancials" | "teamFinancials" | "spendingProfileEvents"
-  >
+    | "contracts"
+    | "leagueFinancials"
+    | "teamFinancials"
+    | "spendingProfileEvents"
+  > &
+    Partial<Pick<LeagueRecord, "draftPickAssets">>
 }
 
 export type StartNextSeasonResult = {
@@ -30,18 +45,25 @@ export type StartNextSeasonResult = {
   contracts: Contract[]
   leagueFinancials: LeagueFinancials
   teamFinancials: TeamFinancials[]
+  draftPickAssets: DraftPickAsset[]
 }
 
-export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonResult {
+export function startNextSeason(
+  input: StartNextSeasonInput
+): StartNextSeasonResult {
   const { seasonState, userTeamId, rng, league } = input
   let { freeAgentPool } = input
 
   if (seasonState.phase !== "offseason") {
-    throw new Error("Season must be in the offseason before starting the next season")
+    throw new Error(
+      "Season must be in the offseason before starting the next season"
+    )
   }
 
   if (seasonState.offseasonPhase !== "free_agency") {
-    throw new Error("Season must reach free agency before starting the next season")
+    throw new Error(
+      "Season must reach free agency before starting the next season"
+    )
   }
 
   if (isDraftRequired(seasonState.season)) {
@@ -52,10 +74,11 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
 
   if (userTeamId) {
     const userSize =
-      seasonState.teams.find((team) => team.id === userTeamId)?.players.length ?? 0
+      seasonState.teams.find((team) => team.id === userTeamId)?.players
+        .length ?? 0
     if (userSize > 12) {
       throw new Error(
-        "Roster over limit — release players before starting the next season",
+        "Roster over limit — release players before starting the next season"
       )
     }
   }
@@ -69,7 +92,7 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
         entry.teamId,
         entry.strategy.mode,
       ]) ?? []
-    ),
+    )
   )
   freeAgentPool = trimmed.freeAgentPool
 
@@ -86,6 +109,7 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
     },
     teamFinancials: league?.teamFinancials ?? [],
     spendingProfileEvents: league?.spendingProfileEvents ?? [],
+    draftPickAssets: league?.draftPickAssets ?? [],
     freeAgentPool,
     seasonState: {
       ...seasonState,
@@ -97,6 +121,7 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
     | "leagueFinancials"
     | "teamFinancials"
     | "spendingProfileEvents"
+    | "draftPickAssets"
     | "freeAgentPool"
     | "seasonState"
   >
@@ -112,9 +137,11 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
         updatedAt: "",
         userTeamId,
         seasonHistory: [],
+        draftPickAssets: financialBundle.draftPickAssets,
+        tradeHistory: [],
       },
       newSeason,
-      rng,
+      rng
     )
     freeAgentPool = financialBundle.freeAgentPool
   }
@@ -130,7 +157,12 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
     financialBundle.seasonState.teams,
     finalized.baseSeed,
     rng,
-    newSeason,
+    newSeason
+  )
+  const draftPickAssets = ensureDraftPickAssets(
+    financialBundle.draftPickAssets,
+    nextSeasonState.teams.map((team) => team.id),
+    nextSeasonState.season + 1
   )
 
   return {
@@ -140,5 +172,6 @@ export function startNextSeason(input: StartNextSeasonInput): StartNextSeasonRes
     contracts: financialBundle.contracts,
     leagueFinancials: financialBundle.leagueFinancials,
     teamFinancials: financialBundle.teamFinancials,
+    draftPickAssets,
   }
 }

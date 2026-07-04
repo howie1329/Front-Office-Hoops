@@ -11,6 +11,8 @@ export type DraftInfo = {
   originalTeamId: string
 }
 
+export type DraftPickProtection = null
+
 export type DraftProspect = {
   id: string
   firstName: string
@@ -26,11 +28,22 @@ export type DraftProspect = {
 }
 
 export type DraftPick = {
+  assetId?: string
   overallPick: number
   round: 1 | 2
   pickInRound: number
   teamId: string
+  originalTeamId: string
   playerId: string | null
+}
+
+export type DraftPickAsset = {
+  id: string
+  originalTeamId: string
+  currentTeamId: string
+  season: number
+  round: 1 | 2
+  protection: DraftPickProtection
 }
 
 export type DraftSelection = {

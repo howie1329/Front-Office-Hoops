@@ -106,3 +106,10 @@ export {
 } from "./financials"
 export { waivePlayerContract } from "./financials/contracts/processContracts"
 export type { SignValidationResult } from "./financials/freeAgency"
+export {
+  evaluateTrade,
+  executeTrade,
+  proposeTrade,
+  validateTrade,
+  wouldAiAcceptTrade,
+} from "./trades"

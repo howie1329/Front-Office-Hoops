@@ -2,9 +2,13 @@ import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
 import type { LeagueRecord, Rng, TeamWithRoster } from "@workspace/shared/types"
 
 import { createInitialSeason } from "./createInitialSeason"
-import { ensureFaPoolMinimum, initializeFinancialsForLeague } from "./financials"
+import {
+  ensureFaPoolMinimum,
+  initializeFinancialsForLeague,
+} from "./financials"
 import { generateLeagueRosters } from "./generateTeams"
 import { SAMPLE_ROSTERS } from "./sampleRosters"
+import { generateInitialDraftPickAssets } from "./draft/generateDraftOrder"
 
 export type CreateLeagueInput = {
   name: string
@@ -41,10 +45,15 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     leagueFinancials: { baseCap: 141, growthRate: 0.05, bySeason: {} },
     teamFinancials: [],
     spendingProfileEvents: [],
+    draftPickAssets: generateInitialDraftPickAssets(
+      teams.map((team) => team.id),
+      2
+    ),
+    tradeHistory: [],
   }
 
   return ensureFaPoolMinimum(
     initializeFinancialsForLeague(baseRecord, input.rng),
-    input.rng,
+    input.rng
   )
 }

@@ -2,13 +2,20 @@ import { Link } from "@tanstack/react-router"
 
 import { Button } from "@workspace/ui/components/button"
 
-const tabs = [
+type LeagueTab = {
+  to: string
+  label: string
+  exact?: boolean
+}
+
+const tabs: LeagueTab[] = [
   { to: "/league", label: "Dashboard", exact: true },
   { to: "/league/standings", label: "Standings" },
   { to: "/league/schedule", label: "Schedule" },
   { to: "/league/playoffs", label: "Playoffs" },
   { to: "/league/draft", label: "Draft" },
   { to: "/league/team", label: "My Team" },
+  { to: "/league/trades", label: "Trades" },
   { to: "/league/stats", label: "Stats" },
   { to: "/league/history", label: "History" },
   { to: "/league/saves", label: "Saves" },
@@ -32,7 +39,7 @@ export function LeagueNav({ leagueName }: { leagueName?: string }) {
           <Button key={tab.to} variant="outline" size="sm" asChild>
             <Link
               to={tab.to}
-              activeOptions={"exact" in tab && tab.exact ? { exact: true } : undefined}
+              activeOptions={tab.exact ? { exact: true } : undefined}
             >
               {tab.label}
             </Link>

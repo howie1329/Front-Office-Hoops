@@ -1,7 +1,13 @@
 import type { Contract } from "./contractTypes"
-import type { LeagueFinancials, SpendingProfileEvent, TeamFinancials } from "./financialTypes"
+import type {
+  LeagueFinancials,
+  SpendingProfileEvent,
+  TeamFinancials,
+} from "./financialTypes"
 import type { Player } from "./playerTypes"
+import type { DraftPickAsset } from "./draftTypes"
 import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
+import type { TradeHistoryEntry } from "./tradeTypes"
 
 export const SAVE_VERSION = 7 as const
 
@@ -22,6 +28,8 @@ export type LeagueRecord = League & {
   leagueFinancials: LeagueFinancials
   teamFinancials: TeamFinancials[]
   spendingProfileEvents: SpendingProfileEvent[]
+  draftPickAssets: DraftPickAsset[]
+  tradeHistory: TradeHistoryEntry[]
 }
 
 export type LeagueSummary = Pick<

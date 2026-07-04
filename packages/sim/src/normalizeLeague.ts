@@ -3,6 +3,7 @@ import type { LeagueRecord, Player, SeasonState } from "@workspace/shared/types"
 import { VETERAN_MIN_AGE, VETERAN_TAG } from "@workspace/shared/constants"
 
 import { derivePeakAgeFallback } from "./development/generatePeakAge"
+import { ensureDraftPickAssets } from "./draft/generateDraftOrder"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
 
 function normalizePlayer(player: Player): Player {
@@ -68,6 +69,12 @@ export function normalizeLeagueRecord(record: LeagueRecord): LeagueRecord {
     ...record,
     seasonHistory: record.seasonHistory ?? [],
     freeAgentPool: record.freeAgentPool ?? [],
+    draftPickAssets: ensureDraftPickAssets(
+      record.draftPickAssets ?? [],
+      normalizedState.teams.map((team) => team.id),
+      normalizedState.season + 1
+    ),
+    tradeHistory: record.tradeHistory ?? [],
     seasonState: normalizedState,
     saveVersion: SAVE_VERSION,
   }
