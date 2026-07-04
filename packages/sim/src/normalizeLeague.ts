@@ -23,6 +23,9 @@ function normalizePlayer(player: Player): Player {
     ...player,
     peakAge,
     tags: nextTags,
+    status:
+      player.status === "injured" && !player.injury ? "active" : player.status,
+    injury: player.injury ?? null,
   }
 }
 

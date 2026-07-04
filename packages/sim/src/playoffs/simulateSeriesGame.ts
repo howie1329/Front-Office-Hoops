@@ -2,6 +2,8 @@ import type { PlayoffSeries, SeasonState } from "@workspace/shared/types"
 
 import { derivePlayerSeasonStats } from "../derivePlayerSeasonStats"
 import { deriveStandings } from "../deriveStandings"
+import { applyPostGameInjuries } from "../injuries"
+import { createRng } from "../rng"
 import { simulateGame } from "../simulateGame"
 import {
   getPlayoffFormat,
@@ -17,7 +19,7 @@ function getTeamById(state: SeasonState, teamId: string) {
 
 function finalizeSeriesIfComplete(
   series: PlayoffSeries,
-  teamCount: number,
+  teamCount: number
 ): PlayoffSeries {
   const format = getPlayoffFormat(teamCount)
 
@@ -34,9 +36,11 @@ function finalizeSeriesIfComplete(
 
 export function simulateSeriesGame(
   state: SeasonState,
-  scheduledGameId: string,
+  scheduledGameId: string
 ): SeasonState {
-  const scheduledGame = state.schedule.find((game) => game.id === scheduledGameId)
+  const scheduledGame = state.schedule.find(
+    (game) => game.id === scheduledGameId
+  )
 
   if (!scheduledGame?.seriesId) {
     return state
@@ -48,7 +52,7 @@ export function simulateSeriesGame(
   }
 
   const seriesIndex = bracket.series.findIndex(
-    (series) => series.id === scheduledGame.seriesId,
+    (series) => series.id === scheduledGame.seriesId
   )
 
   if (seriesIndex < 0) {
@@ -97,7 +101,7 @@ export function simulateSeriesGame(
   const newSchedule = state.schedule.map((entry) =>
     entry.id === scheduledGame.id
       ? { ...entry, status: "final" as const, gameId: game.id }
-      : entry,
+      : entry
   )
 
   const newSeries = [...bracket.series]
@@ -105,6 +109,16 @@ export function simulateSeriesGame(
 
   let nextState: SeasonState = {
     ...state,
+    teams: applyPostGameInjuries(
+      state.teams,
+      {
+        homeTeamId: home.id,
+        awayTeamId: away.id,
+        homePlayerStats: game.result.homePlayerStats,
+        awayPlayerStats: game.result.awayPlayerStats,
+      },
+      createRng(`${state.baseSeed}:injuries:${game.id}`)
+    ),
     schedule: newSchedule,
     games: [...state.games, game],
     playoffBracket: {
@@ -127,11 +141,15 @@ export function simulateSeriesGame(
 
   return {
     ...nextState,
-    standings: deriveStandings(nextState.teams, nextState.games, nextState.season),
+    standings: deriveStandings(
+      nextState.teams,
+      nextState.games,
+      nextState.season
+    ),
     playerSeasonStats: derivePlayerSeasonStats(
       nextState.teams,
       nextState.games,
-      nextState.season,
+      nextState.season
     ),
   }
 }

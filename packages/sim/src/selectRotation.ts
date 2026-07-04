@@ -105,9 +105,14 @@ function normalizeMinutes(entries: RotationPlanEntry[]): RotationPlanEntry[] {
 }
 
 export function createAutoRotationPlan(team: TeamWithRoster): RotationPlan {
-  const activePlayers = team.players
-    .filter((player) => player.status === "active")
-    .sort((a, b) => b.ratings.overall - a.ratings.overall)
+  const eligiblePlayers = team.players.filter(
+    (player) => player.status === "active"
+  )
+  const activePlayers = (
+    eligiblePlayers.length >= 5
+      ? eligiblePlayers
+      : team.players.filter((player) => player.status !== "free_agent")
+  ).sort((a, b) => b.ratings.overall - a.ratings.overall)
 
   const entries = activePlayers
     .slice(0, ROTATION_SIZE + 2)

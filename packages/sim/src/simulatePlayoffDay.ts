@@ -2,6 +2,7 @@ import type { SeasonState } from "@workspace/shared/types"
 
 import { derivePlayerSeasonStats } from "./derivePlayerSeasonStats"
 import { deriveStandings } from "./deriveStandings"
+import { advanceInjuriesForDay } from "./injuries"
 import {
   advancePlayoffWinners,
   ensureActiveSeriesScheduled,
@@ -10,26 +11,30 @@ import { simulateSeriesGame } from "./playoffs/simulateSeriesGame"
 
 export function simulatePlayoffDay(
   state: SeasonState,
-  day: number = state.currentDay,
+  day: number = state.currentDay
 ): SeasonState {
   const playoffGames = state.schedule.filter(
-    (game) =>
-      game.seriesId &&
-      game.day === day &&
-      game.status === "scheduled",
+    (game) => game.seriesId && game.day === day && game.status === "scheduled"
   )
 
-  let nextState = state
+  let nextState = {
+    ...state,
+    teams: advanceInjuriesForDay(state.teams),
+  }
 
   if (playoffGames.length === 0) {
     return {
       ...nextState,
       currentDay: day + 1,
-      standings: deriveStandings(nextState.teams, nextState.games, nextState.season),
+      standings: deriveStandings(
+        nextState.teams,
+        nextState.games,
+        nextState.season
+      ),
       playerSeasonStats: derivePlayerSeasonStats(
         nextState.teams,
         nextState.games,
-        nextState.season,
+        nextState.season
       ),
     }
   }
@@ -43,11 +48,15 @@ export function simulatePlayoffDay(
   return {
     ...nextState,
     currentDay: day + 1,
-    standings: deriveStandings(nextState.teams, nextState.games, nextState.season),
+    standings: deriveStandings(
+      nextState.teams,
+      nextState.games,
+      nextState.season
+    ),
     playerSeasonStats: derivePlayerSeasonStats(
       nextState.teams,
       nextState.games,
-      nextState.season,
+      nextState.season
     ),
   }
 }

@@ -70,6 +70,7 @@ export type {
   Player,
   PlayerArchetype,
   PlayerGameStats,
+  PlayerInjury,
   PlayerPosition,
   PlayerRatings,
   PlayerStatus,

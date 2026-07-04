@@ -53,6 +53,13 @@ export {
   pickArchetype,
 } from "./playerGeneration/archetypes"
 export {
+  advanceInjuriesForDay,
+  applyPostGameInjuries,
+  applyPostGameInjuriesToTeam,
+  calculateInjuryRisk,
+  rollInjury,
+} from "./injuries"
+export {
   isDraftRequired,
   getDraftPickCount,
   getDraftClassSize,

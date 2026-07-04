@@ -31,6 +31,12 @@ export type PlayerArchetype =
 
 export type PlayerStatus = "active" | "injured" | "inactive" | "free_agent"
 
+export type PlayerInjury = {
+  type: "minor" | "moderate" | "major"
+  gamesRemaining: number
+  description: string
+}
+
 export type SkillKey =
   "shooting" | "inside" | "passing" | "rebounding" | "defense" | "stamina"
 
@@ -60,7 +66,7 @@ export type Player = {
   ratings: PlayerRatings
   tags: PlayerTag[]
   status: PlayerStatus
-  injury: null
+  injury: PlayerInjury | null
   draftInfo: DraftInfo | null
   activeContractId: string | null
   seasonsWithTeam: number
