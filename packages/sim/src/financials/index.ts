@@ -58,7 +58,8 @@ export function prepareNewSeasonFinancials(
 ): LeagueRecord {
   let current = rollFinancialYear(league, newSeason)
   const { contracts, expiredPlayerIds } = advanceContractYears(
-    current.contracts
+    current.contracts,
+    newSeason
   )
   const synced = syncPlayersAfterContractChanges(
     current.seasonState.teams,

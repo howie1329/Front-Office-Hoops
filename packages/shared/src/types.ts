@@ -144,7 +144,11 @@ export type {
 
 export type { SeasonAward, SeasonAwardType } from "./awardTypes"
 
-export type { PlayerCareerSnapshot } from "./playerProfileTypes"
+export type {
+  PlayerCareerSnapshot,
+  PlayerSeasonProfile,
+  PlayerSeasonProfileRole,
+} from "./playerProfileTypes"
 
 export type {
   TradeEvaluation,

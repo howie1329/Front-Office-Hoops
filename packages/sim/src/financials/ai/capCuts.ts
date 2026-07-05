@@ -75,25 +75,28 @@ export function selectCapCutCandidate(
   team: { players: Player[] },
   contracts: Contract[],
   mode: TeamMode = "buying",
-  seasonFinancials?: Parameters<typeof buildFairSalary>[1]
+  seasonFinancials?: Parameters<typeof buildFairSalary>[1],
+  excludedPlayerIds: Set<string> = new Set()
 ): Player | undefined {
-  const scored = team.players.map((player) => {
-    const contract = getPlayerContract(contracts, player)
-    const salary = contract?.yearlySalaries[0] ?? 0
-    const assetValue = seasonFinancials
-      ? getContractAssetValueBreakdown({
-          player,
-          contract,
-          expectedSalary: buildFairSalary(player, seasonFinancials),
-          mode,
-        }).total
-      : undefined
+  const scored = team.players
+    .filter((player) => !excludedPlayerIds.has(player.id))
+    .map((player) => {
+      const contract = getPlayerContract(contracts, player)
+      const salary = contract?.yearlySalaries[0] ?? 0
+      const assetValue = seasonFinancials
+        ? getContractAssetValueBreakdown({
+            player,
+            contract,
+            expectedSalary: buildFairSalary(player, seasonFinancials),
+            mode,
+          }).total
+        : undefined
 
-    return {
-      player,
-      score: computeCapCutScore(player, salary, team.players, mode, assetValue),
-    }
-  })
+      return {
+        player,
+        score: computeCapCutScore(player, salary, team.players, mode, assetValue),
+      }
+    })
 
   return scored.sort((a, b) => b.score - a.score)[0]?.player
 }
@@ -111,6 +114,7 @@ export function applyAiCapBehavior(
 
   for (const teamFinance of current.teamFinancials) {
     let payroll = getTeamPayroll(teamFinance.teamId, current.contracts)
+    const skippedCutIds = new Set<string>()
 
     while (
       shouldCutForCap(teamFinance, payroll, seasonFinancials.luxuryTaxLine)
@@ -127,7 +131,8 @@ export function applyAiCapBehavior(
         team,
         current.contracts,
         mode,
-        seasonFinancials
+        seasonFinancials,
+        skippedCutIds
       )
 
       if (!cutCandidate) {
@@ -149,11 +154,17 @@ export function applyAiCapBehavior(
       }
 
       const contract = getPlayerContract(current.contracts, cutCandidate)
-      const releaseResult = releasePlayer(
-        current.seasonState.teams,
-        current.freeAgentPool,
-        { teamId: teamFinance.teamId, playerId: cutCandidate.id }
-      )
+      let releaseResult: ReturnType<typeof releasePlayer>
+      try {
+        releaseResult = releasePlayer(
+          current.seasonState.teams,
+          current.freeAgentPool,
+          { teamId: teamFinance.teamId, playerId: cutCandidate.id }
+        )
+      } catch {
+        skippedCutIds.add(cutCandidate.id)
+        continue
+      }
 
       current = {
         ...current,

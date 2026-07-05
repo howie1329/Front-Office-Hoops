@@ -1,4 +1,9 @@
-import type { PlayerSeasonStats, Rng, TeamWithRoster } from "@workspace/shared/types"
+import type {
+  PlayerSeasonProfile,
+  PlayerSeasonStats,
+  Rng,
+  TeamWithRoster,
+} from "@workspace/shared/types"
 
 import { deriveTeamOverall, recalculatePlayerRatings } from "../playerRatings"
 import { progressPlayer } from "./progressPlayer"
@@ -9,10 +14,18 @@ export function applyOffseasonProgression(
   playerSeasonStats: PlayerSeasonStats[],
   baseSeed: string,
   _rng: Rng,
+  playerSeasonProfiles: PlayerSeasonProfile[] = [],
 ): TeamWithRoster[] {
   return teams.map((team) => {
     const progressedPlayers = team.players.map((player) =>
-      progressPlayer(player, team, season, playerSeasonStats, baseSeed),
+      progressPlayer(
+        player,
+        team,
+        season,
+        playerSeasonStats,
+        baseSeed,
+        playerSeasonProfiles,
+      ),
     )
     const players = progressedPlayers.map((player) => ({
       ...player,

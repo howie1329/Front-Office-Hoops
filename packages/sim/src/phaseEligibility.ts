@@ -75,7 +75,6 @@ export function getPhaseEligibility(
   const completedSeason = seasonState.season
   const draftRequired = isDraftRequired(completedSeason)
   const draftState = seasonState.draftState
-  const draftComplete = !draftRequired || Boolean(draftState?.completed)
   const userRosterSize = getUserRosterSize(league)
   const rosterOverLimit = userRosterSize > ROSTER_MAX
 

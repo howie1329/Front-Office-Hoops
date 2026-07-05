@@ -8,12 +8,15 @@ import type { Player } from "./playerTypes"
 import type { DraftPickAsset } from "./draftTypes"
 import type { LeagueLogEntry } from "./logTypes"
 import type { Owner, OwnerGoal } from "./ownerTypes"
-import type { PlayerCareerSnapshot } from "./playerProfileTypes"
+import type {
+  PlayerCareerSnapshot,
+  PlayerSeasonProfile,
+} from "./playerProfileTypes"
 import type { SeasonAward } from "./awardTypes"
 import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
 import type { TradeHistoryEntry } from "./tradeTypes"
 
-export const SAVE_VERSION = 8 as const
+export const SAVE_VERSION = 9 as const
 
 export type League = {
   id: string
@@ -39,6 +42,7 @@ export type LeagueRecord = League & {
   ownerGoals: OwnerGoal[]
   seasonAwards: SeasonAward[]
   playerCareerSnapshots: PlayerCareerSnapshot[]
+  playerSeasonProfiles: PlayerSeasonProfile[]
 }
 
 export type LeagueSummary = Pick<

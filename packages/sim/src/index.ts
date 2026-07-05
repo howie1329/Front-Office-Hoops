@@ -144,3 +144,4 @@ export {
   initializeOwners,
 } from "./owners"
 export { archivePlayerCareerSnapshots } from "./playerProfiles"
+export { derivePlayerSeasonProfiles } from "./playerSeasonProfiles"

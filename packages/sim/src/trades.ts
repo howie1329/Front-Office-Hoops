@@ -124,8 +124,8 @@ function validatePlayerContracts(
   players: Player[]
 ): TradeValidationResult {
   for (const player of players) {
-    if (player.status === "free_agent") {
-      return { ok: false, reason: "Free agents cannot be traded" }
+    if (player.status !== "active") {
+      return { ok: false, reason: "Only active players can be traded" }
     }
 
     const contract = getPlayerContract(league.contracts, player)
@@ -621,6 +621,7 @@ export function executeTrade(
   )
 
   const tradeHistoryEntry = createTradeHistoryEntry(league, proposal, context)
+  const [fromHistory, toHistory] = tradeHistoryEntry.teams
   const logEntry = createLeagueLogEntry({
     league,
     type: "trade",
@@ -631,6 +632,12 @@ export function executeTrade(
       toPlayerIds: context.toPlayers.map((player) => player.id),
       fromPickIds: context.fromPicks.map((pick) => pick.id),
       toPickIds: context.toPicks.map((pick) => pick.id),
+      fromOutgoingSalary: fromHistory?.outgoingSalary ?? 0,
+      fromIncomingSalary: fromHistory?.incomingSalary ?? 0,
+      toOutgoingSalary: toHistory?.outgoingSalary ?? 0,
+      toIncomingSalary: toHistory?.incomingSalary ?? 0,
+      fromNetValue: fromHistory?.netValue ?? 0,
+      toNetValue: toHistory?.netValue ?? 0,
     },
   })
 

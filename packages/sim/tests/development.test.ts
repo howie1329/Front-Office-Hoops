@@ -5,12 +5,18 @@ import {
   RATING_MIN,
   VETERAN_TAG,
 } from "@workspace/shared/constants"
-import type { Player, TeamWithRoster } from "@workspace/shared/types"
+import type {
+  Player,
+  PlayerSeasonProfile,
+  PlayerSeasonStats,
+  TeamWithRoster,
+} from "@workspace/shared/types"
 
 import { beginOffseason } from "../src/beginOffseason"
 import { applyOffseasonProgression } from "../src/development/applyOffseasonProgression"
 import { collectModifiers } from "../src/development/collectModifiers"
 import { progressPlayer } from "../src/development/progressPlayer"
+import { derivePlayerSeasonProfiles } from "../src/playerSeasonProfiles"
 import {
   advanceToDraftPhase,
   advanceToFreeAgencyPhase,
@@ -73,6 +79,54 @@ function createTestTeam(players: Player[]): TeamWithRoster {
     overall: 60,
     pace: 100,
     players,
+  }
+}
+
+function createSeasonStats(
+  player: Player,
+  overrides: Partial<PlayerSeasonStats> = {}
+): PlayerSeasonStats {
+  return {
+    id: `pss_1_${player.id}`,
+    playerId: player.id,
+    teamId: player.teamId ?? "team_test",
+    season: 1,
+    gp: 0,
+    gs: 0,
+    min: 0,
+    pts: 0,
+    reb: 0,
+    ast: 0,
+    stl: 0,
+    blk: 0,
+    tov: 0,
+    fgm: 0,
+    fga: 0,
+    tpm: 0,
+    tpa: 0,
+    ftm: 0,
+    fta: 0,
+    ...overrides,
+  }
+}
+
+function createSeasonProfile(
+  player: Player,
+  overrides: Partial<PlayerSeasonProfile> = {}
+): PlayerSeasonProfile {
+  return {
+    id: `psp_1_${player.id}`,
+    playerId: player.id,
+    teamId: player.teamId ?? "team_test",
+    season: 1,
+    gp: 0,
+    gs: 0,
+    totalMinutes: 0,
+    mpg: 0,
+    primaryRole: "inactive",
+    gamesMissed: 10,
+    usageRateEstimate: 0,
+    ...overrides,
   }
 }
 
@@ -352,6 +406,113 @@ describe("player development", () => {
     const progressed = progressPlayer(player, team, 1, [], "veteran-tag-seed")
 
     expect(progressed.tags).toContain(VETERAN_TAG)
+  })
+
+  it("derives role profiles for starters, bench players, missed games, and inactive roster players", () => {
+    const starter = createTestPlayer({ id: "p_starter" })
+    const bench = createTestPlayer({ id: "p_bench" })
+    const inactive = createTestPlayer({ id: "p_inactive" })
+    const team = createTestTeam([starter, bench, inactive])
+    const profiles = derivePlayerSeasonProfiles(
+      [team],
+      [
+        createSeasonStats(starter, {
+          gp: 10,
+          gs: 10,
+          min: 330,
+          fga: 120,
+          fta: 40,
+          tov: 20,
+        }),
+        createSeasonStats(bench, {
+          gp: 6,
+          min: 72,
+          fga: 20,
+          fta: 8,
+          tov: 4,
+        }),
+      ],
+      5,
+      1
+    )
+
+    expect(
+      profiles.find((entry) => entry.playerId === starter.id)
+    ).toMatchObject({
+      primaryRole: "star",
+      mpg: 33,
+      gamesMissed: 0,
+    })
+    expect(profiles.find((entry) => entry.playerId === bench.id)).toMatchObject({
+      primaryRole: "rotation",
+      mpg: 12,
+      gamesMissed: 4,
+    })
+    expect(
+      profiles.find((entry) => entry.playerId === inactive.id)
+    ).toMatchObject({
+      primaryRole: "inactive",
+      gp: 0,
+      gamesMissed: 10,
+    })
+  })
+
+  it("uses role profiles to boost young players with meaningful minutes", () => {
+    const player = createTestPlayer({
+      id: "p_opportunity",
+      age: 20,
+      peakAge: 30,
+    })
+    const team = createTestTeam([player])
+
+    const withoutProfile = progressPlayer(
+      player,
+      team,
+      1,
+      [],
+      "role-opportunity-seed"
+    )
+    const withProfile = progressPlayer(
+      player,
+      team,
+      1,
+      [],
+      "role-opportunity-seed",
+      [
+        createSeasonProfile(player, {
+          gp: 40,
+          gs: 20,
+          totalMinutes: 960,
+          mpg: 24,
+          primaryRole: "starter",
+          gamesMissed: 0,
+        }),
+      ]
+    )
+
+    expect(sumSkills(withProfile)).toBeGreaterThan(sumSkills(withoutProfile))
+  })
+
+  it("uses role profiles to slow buried young player growth", () => {
+    const player = createTestPlayer({
+      id: "p_buried",
+      age: 20,
+      peakAge: 30,
+    })
+    const team = createTestTeam([player])
+
+    const neutral = progressPlayer(player, team, 1, [], "role-buried-seed")
+    const buried = progressPlayer(player, team, 1, [], "role-buried-seed", [
+      createSeasonProfile(player, {
+        gp: 5,
+        totalMinutes: 25,
+        mpg: 5,
+        primaryRole: "bench",
+        gamesMissed: 35,
+      }),
+    ])
+
+    expect(sumSkills(buried)).toBeLessThan(sumSkills(neutral))
   })
 })
 

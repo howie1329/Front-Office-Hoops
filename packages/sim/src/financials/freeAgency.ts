@@ -1,6 +1,10 @@
 import type { FreeAgentOffer } from "@workspace/shared/contractTypes"
 import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
-import { FA_POOL_MIN_RATIO, ROSTER_MAX } from "@workspace/shared/constants"
+import {
+  FA_POOL_MIN_RATIO,
+  ROSTER_MAX,
+  ROSTER_MIN,
+} from "@workspace/shared/constants"
 
 import {
   getSeasonFinancials,
@@ -209,7 +213,10 @@ export function signFreeAgent(
     throw new Error(validation.reason)
   }
 
-  const season = league.seasonState.season
+  const season =
+    league.seasonState.phase === "offseason"
+      ? league.seasonState.season + 1
+      : league.seasonState.season
   const signingException =
     offer.signingException ?? validation.signingException!
   const player = findPlayer(league, playerId)
@@ -337,6 +344,7 @@ export function processAiFreeAgency(
     if (!team) {
       continue
     }
+    const skippedFreeAgentIds = new Set<string>()
 
     while (true) {
       const rosterSize =
@@ -370,12 +378,29 @@ export function processAiFreeAgency(
       }
 
       const fa = selectFreeAgentTarget(
-        current.freeAgentPool,
+        current.freeAgentPool.filter(
+          (player) => !skippedFreeAgentIds.has(player.id)
+        ),
         currentTeam,
         teamFinance.strategy.mode,
         scoreFn
       )
       if (!fa) {
+        if (rosterSize < ROSTER_MIN) {
+          current = {
+            ...current,
+            freeAgentPool: [
+              ...current.freeAgentPool,
+              ...generateFreeAgents(
+                ROSTER_MIN - rosterSize,
+                rng,
+                `${current.seasonState.season}_${teamFinance.teamId}_${current.freeAgentPool.length}`
+              ),
+            ],
+          }
+          skippedFreeAgentIds.clear()
+          continue
+        }
         current = ensureFaPoolMinimum(current, rng)
         if (current.freeAgentPool.length === 0) {
           break
@@ -405,27 +430,35 @@ export function processAiFreeAgency(
       try {
         current = signFreeAgent(current, teamFinance.teamId, fa.id, offer)
       } catch {
-        const fallback = [...current.freeAgentPool].sort(
-          (a, b) => a.ratings.overall - b.ratings.overall
-        )[0]
-        if (!fallback || fallback.id === fa.id) {
-          break
+        skippedFreeAgentIds.add(fa.id)
+        const fallbacks = [...current.freeAgentPool]
+          .filter((player) => !skippedFreeAgentIds.has(player.id))
+          .sort((a, b) => a.ratings.overall - b.ratings.overall)
+        let signedFallback = false
+
+        for (const fallback of fallbacks) {
+          const minimumOffer = {
+            years: 1,
+            firstYearSalary: calculateMinSalary(
+              seasonFinancials,
+              fallback.yearsOfService
+            ),
+          }
+          try {
+            current = signFreeAgent(
+              current,
+              teamFinance.teamId,
+              fallback.id,
+              minimumOffer
+            )
+            signedFallback = true
+            break
+          } catch {
+            skippedFreeAgentIds.add(fallback.id)
+          }
         }
-        const minimumOffer = {
-          years: 1,
-          firstYearSalary: calculateMinSalary(
-            seasonFinancials,
-            fallback.yearsOfService
-          ),
-        }
-        try {
-          current = signFreeAgent(
-            current,
-            teamFinance.teamId,
-            fallback.id,
-            minimumOffer
-          )
-        } catch {
+
+        if (!signedFallback) {
           break
         }
       }
@@ -442,7 +475,10 @@ export function attachRookieContract(
   round: number,
   teamId: string
 ): LeagueRecord {
-  const season = league.seasonState.season
+  const season =
+    league.seasonState.phase === "offseason"
+      ? league.seasonState.season + 1
+      : league.seasonState.season
   const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
 
   const contract = createRookieScaleContract(

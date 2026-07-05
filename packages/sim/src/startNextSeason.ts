@@ -1,4 +1,5 @@
 import { ROSTER_MAX } from "@workspace/shared/constants"
+import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
 import type {
   DraftPickAsset,
   LeagueRecord,
@@ -138,7 +139,7 @@ export function startNextSeason(
         ...financialBundle,
         id: "",
         name: "",
-        saveVersion: 8,
+        saveVersion: SAVE_VERSION,
         createdAt: "",
         updatedAt: "",
         userTeamId,
@@ -150,6 +151,7 @@ export function startNextSeason(
         ownerGoals: [],
         seasonAwards: [],
         playerCareerSnapshots: [],
+        playerSeasonProfiles: [],
       },
       newSeason,
       rng

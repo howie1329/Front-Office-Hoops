@@ -1,6 +1,7 @@
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
 import { archivePlayerCareerSnapshots } from "../playerProfiles"
+import { derivePlayerSeasonProfiles } from "../playerSeasonProfiles"
 import { assignSeasonAwards } from "../awards"
 import { beginOffseason } from "../beginOffseason"
 import { beginPlayoffs } from "../beginPlayoffs"
@@ -18,13 +19,10 @@ import {
   ensureFaPoolMinimum,
   processOffseasonFinancials,
 } from "../financials"
-import { executeTrade } from "../trades"
+import { executeTrade, wouldAiAcceptTrade } from "../trades"
 import { signFreeAgent } from "../financials/freeAgency"
 import { normalizeLeagueRecord } from "../normalizeLeague"
-import {
-  assertPhaseEligibility,
-  getPhaseEligibility,
-} from "../phaseEligibility"
+import { assertPhaseEligibility } from "../phaseEligibility"
 import {
   applyDraftSelections,
   releasePlayerFromTeam,
@@ -110,9 +108,28 @@ export function applyLeagueCommand(
       const completedLeague = archivePlayerCareerSnapshots(
         evaluateOwnerGoals(assignSeasonAwards(league))
       )
-      const nextState = beginOffseason(completedLeague.seasonState, resolvedRng)
+      const profiles = derivePlayerSeasonProfiles(
+        completedLeague.seasonState.teams,
+        completedLeague.seasonState.playerSeasonStats,
+        completedLeague.seasonState.games.length,
+        completedLeague.seasonState.season
+      )
+      const nextState = beginOffseason(
+        completedLeague.seasonState,
+        resolvedRng,
+        profiles
+      )
       return processOffseasonFinancials(
-        { ...completedLeague, seasonState: nextState },
+        {
+          ...completedLeague,
+          seasonState: nextState,
+          playerSeasonProfiles: [
+            ...completedLeague.playerSeasonProfiles.filter(
+              (entry) => entry.season !== completedLeague.seasonState.season
+            ),
+            ...profiles,
+          ],
+        },
         resolvedRng
       )
     }
@@ -195,6 +212,29 @@ export function applyLeagueCommand(
     }
 
     case "executeTrade":
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before trading")
+      }
+      if (
+        command.proposal.from.teamId !== league.userTeamId &&
+        command.proposal.to.teamId !== league.userTeamId
+      ) {
+        throw new Error("User team must be included in the trade")
+      }
+      {
+        const aiTeamId =
+          command.proposal.from.teamId === league.userTeamId
+            ? command.proposal.to.teamId
+            : command.proposal.from.teamId
+        const acceptance = wouldAiAcceptTrade(
+          league,
+          command.proposal,
+          aiTeamId
+        )
+        if (!acceptance.ok) {
+          throw new Error(acceptance.reason)
+        }
+      }
       return executeTrade(league, command.proposal)
 
     case "startNextSeason": {

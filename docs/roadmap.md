@@ -47,13 +47,13 @@ Current implementation status and planned work. This reflects the codebase as of
 | Playoffs — series sim        | ✅     | Best-of-3 and best-of-7                                                                                     |
 | Season archive + history     | ✅     | `archiveSeason`, history table                                                                              |
 | Multi-season progression     | ✅     | `startNextSeason`                                                                                           |
-| Player development / aging   | ✅     | Offseason progression with peak age, per-skill growth/regression                                            |
+| Player development / aging   | ✅     | Offseason progression with peak age, role/minutes history, per-skill growth/regression                      |
 | Player archetypes            | ✅     | Position-valid archetypes shape generated ratings, usage, and value                                         |
 | Player value / asset value   | ✅     | Archetype-aware player value plus contract surplus/liability breakdowns                                     |
 | Draft + rookie generation    | ✅     | 2-round draft, archetyped rookie class, rookie-scale contracts, undrafted FA conversion                     |
 | Injuries                     | ✅     | Age/stamina/minutes risk, severity/duration, daily recovery, rotation exclusion                             |
 | Fatigue / minutes management | 🟡     | Stamina affects rotation targets and injury risk; no in-game fatigue substitutions                          |
-| Trades                       | ⬜     | —                                                                                                           |
+| Trades                       | 🟡     | Engine validation/execution, AI acceptance, salary matching, picks, history/logs; UI pending                |
 | Free agency                  | ✅     | Re-signing phase, FA pool, user/AI signing validation, cap exceptions                                       |
 | Draft                        | ✅     | Draft board/order/picks/selections and rookie conversion                                                    |
 | Coaching / tactics           | ⬜     | —                                                                                                           |

@@ -18,3 +18,25 @@ export type PlayerCareerSnapshot = {
   blk: number
   awards: string[]
 }
+
+export type PlayerSeasonProfileRole =
+  | "star"
+  | "starter"
+  | "sixth_man"
+  | "rotation"
+  | "bench"
+  | "inactive"
+
+export type PlayerSeasonProfile = {
+  id: string
+  playerId: string
+  teamId: string
+  season: number
+  gp: number
+  gs: number
+  totalMinutes: number
+  mpg: number
+  primaryRole: PlayerSeasonProfileRole
+  gamesMissed: number
+  usageRateEstimate: number
+}

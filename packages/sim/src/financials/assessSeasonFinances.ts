@@ -130,13 +130,19 @@ export function rollFinancialYear(
   }
 }
 
-export function advanceContractYears(contracts: Contract[]): {
+export function advanceContractYears(
+  contracts: Contract[],
+  newSeason: number,
+): {
   contracts: Contract[]
   expiredPlayerIds: string[]
 } {
   const expiredPlayerIds: string[] = []
   const nextContracts = contracts.map((contract) => {
     if (contract.status !== "active") {
+      return contract
+    }
+    if (contract.signedSeason >= newSeason) {
       return contract
     }
 
