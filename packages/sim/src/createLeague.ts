@@ -9,6 +9,7 @@ import {
 import { generateLeagueRosters } from "./generateTeams"
 import { SAMPLE_ROSTERS } from "./sampleRosters"
 import { generateInitialDraftPickAssets } from "./draft/generateDraftOrder"
+import { generateOwnerGoals, initializeOwners } from "./owners"
 
 export type CreateLeagueInput = {
   name: string
@@ -30,6 +31,7 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     (input.useMiniLeague ? SAMPLE_ROSTERS : generateLeagueRosters(input.rng))
   const now = new Date().toISOString()
   const seasonState = createInitialSeason(teams, input.baseSeed, input.rng)
+  const owners = initializeOwners(teams, input.rng)
 
   const baseRecord: LeagueRecord = {
     id: input.id ?? createLeagueId(),
@@ -50,10 +52,19 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
       2
     ),
     tradeHistory: [],
+    leagueLog: [],
+    owners,
+    ownerGoals: [],
+    seasonAwards: [],
+    playerCareerSnapshots: [],
   }
 
-  return ensureFaPoolMinimum(
+  const withFinancials = ensureFaPoolMinimum(
     initializeFinancialsForLeague(baseRecord, input.rng),
     input.rng
   )
+  return {
+    ...withFinancials,
+    ownerGoals: generateOwnerGoals(withFinancials),
+  }
 }

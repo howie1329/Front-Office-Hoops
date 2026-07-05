@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router"
+
 import type { Contract, TeamWithRoster } from "@workspace/shared/types"
 import { getCurrentSalary, getYearsRemaining } from "@workspace/sim"
 
@@ -26,9 +28,12 @@ type RosterCardProps = {
   onReleasePlayer?: (playerId: string) => void
 }
 
-function getContractForPlayer(contracts: Contract[] | undefined, playerId: string) {
+function getContractForPlayer(
+  contracts: Contract[] | undefined,
+  playerId: string
+) {
   return contracts?.find(
-    (contract) => contract.playerId === playerId && contract.status === "active",
+    (contract) => contract.playerId === playerId && contract.status === "active"
   )
 }
 
@@ -68,14 +73,22 @@ export function RosterCard({
               return (
                 <TableRow key={player.id}>
                   <TableCell>
-                    {player.firstName} {player.lastName}
+                    <Link
+                      to="/league/players/$playerId"
+                      params={{ playerId: player.id }}
+                      className="font-medium hover:underline"
+                    >
+                      {player.firstName} {player.lastName}
+                    </Link>
                   </TableCell>
                   <TableCell>{player.position}</TableCell>
                   <TableCell>{player.age}</TableCell>
                   <TableCell>{player.ratings.overall}</TableCell>
                   <TableCell>{player.ratings.potential}</TableCell>
                   {contracts ? (
-                    <TableCell>{formatMoney(getCurrentSalary(contract))}</TableCell>
+                    <TableCell>
+                      {formatMoney(getCurrentSalary(contract))}
+                    </TableCell>
                   ) : null}
                   {contracts ? (
                     <TableCell>{getYearsRemaining(contract)}</TableCell>

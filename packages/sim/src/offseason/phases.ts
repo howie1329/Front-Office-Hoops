@@ -2,6 +2,7 @@ import type { SeasonState } from "@workspace/shared/types"
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
 import { processAiFreeAgency } from "../financials"
+import { getCurrentCalendar } from "../calendar"
 
 export function advanceToDraftPhase(state: SeasonState): SeasonState {
   if (state.phase !== "offseason") {
@@ -14,6 +15,10 @@ export function advanceToDraftPhase(state: SeasonState): SeasonState {
 
   return {
     ...state,
+    currentDay: Math.max(
+      state.currentDay,
+      getCurrentCalendar(state).milestones.draftDay
+    ),
     offseasonPhase: "draft",
   }
 }
@@ -33,13 +38,17 @@ export function advanceToFreeAgencyPhase(state: SeasonState): SeasonState {
 
   return {
     ...state,
+    currentDay: Math.max(
+      state.currentDay,
+      getCurrentCalendar(state).milestones.freeAgencyStartDay
+    ),
     offseasonPhase: "free_agency",
   }
 }
 
 export function completeFreeAgencyPhase(
   league: LeagueRecord,
-  rng: Rng,
+  rng: Rng
 ): LeagueRecord {
   if (league.seasonState.phase !== "offseason") {
     throw new Error("Free agency can only be completed during the offseason")

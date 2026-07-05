@@ -8,6 +8,7 @@ import {
   ensureActiveSeriesScheduled,
 } from "./playoffs/advanceWinners"
 import { simulateSeriesGame } from "./playoffs/simulateSeriesGame"
+import { getCurrentCalendar } from "./calendar"
 
 export function simulatePlayoffDay(
   state: SeasonState,
@@ -45,9 +46,17 @@ export function simulatePlayoffDay(
     nextState = ensureActiveSeriesScheduled(nextState)
   }
 
+  const nextDay =
+    nextState.phase === "complete"
+      ? Math.max(
+          day + 1,
+          getCurrentCalendar(nextState).milestones.offseasonStartDay
+        )
+      : day + 1
+
   return {
     ...nextState,
-    currentDay: day + 1,
+    currentDay: nextDay,
     standings: deriveStandings(
       nextState.teams,
       nextState.games,

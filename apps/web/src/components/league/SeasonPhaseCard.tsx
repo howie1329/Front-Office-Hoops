@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 
 import type { SeasonState } from "@workspace/shared/types"
+import { getCurrentCalendar } from "@workspace/sim"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -72,9 +73,8 @@ export function SeasonPhaseCard({
   onCompleteFreeAgency,
   onStartNextSeason,
 }: SeasonPhaseCardProps) {
-  const championName = championTeamId
-    ? teamName(state, championTeamId)
-    : null
+  const championName = championTeamId ? teamName(state, championTeamId) : null
+  const calendar = getCurrentCalendar(state)
 
   return (
     <Card>
@@ -90,7 +90,8 @@ export function SeasonPhaseCard({
               : state.phase === "offseason" &&
                   (state.offseasonPhase ?? "re_signing") === "re_signing"
                 ? "Re-sign your own expiring players, then let AI teams handle their re-signings."
-                : state.phase === "offseason" && state.offseasonPhase === "draft"
+                : state.phase === "offseason" &&
+                    state.offseasonPhase === "draft"
                   ? "Prepare and run the draft before free agency opens."
                   : state.phase === "offseason" &&
                       state.offseasonPhase === "free_agency"
@@ -101,6 +102,28 @@ export function SeasonPhaseCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <div className="grid gap-2 text-sm sm:grid-cols-3">
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Date</span>
+            <span>{calendar.date.label}</span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Trade deadline</span>
+            <span>
+              {
+                getCurrentCalendar({
+                  ...state,
+                  currentDay: calendar.milestones.tradeDeadlineDay,
+                }).date.label
+              }
+            </span>
+          </div>
+          <div className="flex justify-between gap-4">
+            <span className="text-muted-foreground">Day</span>
+            <span>{state.currentDay}</span>
+          </div>
+        </div>
+
         {rosterOverLimit ? (
           <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             Roster over limit — release {cutsNeeded} player
@@ -142,14 +165,18 @@ export function SeasonPhaseCard({
             <Button onClick={onPrepareDraft}>Prepare draft</Button>
           ) : null}
 
-          {state.phase === "offseason" && state.draftState && !state.draftState.completed ? (
+          {state.phase === "offseason" &&
+          state.draftState &&
+          !state.draftState.completed ? (
             <Button variant="secondary" asChild>
               <Link to="/league/draft">Go to draft</Link>
             </Button>
           ) : null}
 
           {canProceedToFreeAgency ? (
-            <Button onClick={onAdvanceToFreeAgency}>Proceed to free agency</Button>
+            <Button onClick={onAdvanceToFreeAgency}>
+              Proceed to free agency
+            </Button>
           ) : null}
 
           {canSimAiFreeAgency ? (

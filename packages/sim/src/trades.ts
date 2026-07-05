@@ -22,6 +22,8 @@ import {
   getYearsRemaining,
 } from "./financials/payroll"
 import { buildFairSalary } from "./financials/ai/offers"
+import { canTradeOnDate } from "./calendar"
+import { createLeagueLogEntry } from "./leagueLog"
 
 const SALARY_MATCH_MULTIPLIER = 1.25
 const SALARY_MATCH_BUFFER = 0.1
@@ -242,6 +244,10 @@ export function validateTrade(
   league: LeagueRecord,
   proposal: TradeProposal
 ): TradeValidationResult {
+  if (!canTradeOnDate(league.seasonState)) {
+    return { ok: false, reason: "Trades are closed until the offseason" }
+  }
+
   const context = getContext(league, proposal)
   if ("ok" in context) {
     return context
@@ -623,6 +629,18 @@ export function executeTrade(
   )
 
   const tradeHistoryEntry = createTradeHistoryEntry(league, proposal, context)
+  const logEntry = createLeagueLogEntry({
+    league,
+    type: "trade",
+    payload: {
+      fromTeamId: context.fromTeam.id,
+      toTeamId: context.toTeam.id,
+      fromPlayerIds: context.fromPlayers.map((player) => player.id),
+      toPlayerIds: context.toPlayers.map((player) => player.id),
+      fromPickIds: context.fromPicks.map((pick) => pick.id),
+      toPickIds: context.toPicks.map((pick) => pick.id),
+    },
+  })
 
   return {
     ...league,
@@ -635,6 +653,7 @@ export function executeTrade(
       return tradePick(tradedFrom, toPickIds, context.fromTeam.id)
     }),
     tradeHistory: [...league.tradeHistory, tradeHistoryEntry],
+    leagueLog: [...league.leagueLog, logEntry],
     seasonState: {
       ...league.seasonState,
       teams: league.seasonState.teams.map((team) => {

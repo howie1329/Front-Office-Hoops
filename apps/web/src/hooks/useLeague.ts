@@ -3,14 +3,19 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import {
   advanceToDraftPhase,
   advanceToFreeAgencyPhase,
+  archivePlayerCareerSnapshots,
+  assignSeasonAwards,
   beginOffseason,
   beginPlayoffs,
   completeFreeAgencyPhase,
   completeReSigningPhase,
   createLeague,
+  createLeagueLogEntry,
   createRng,
   ensureFaPoolMinimum,
+  evaluateOwnerGoals,
   executeTrade,
+  generateOwnerGoals,
   makeDraftPick,
   normalizeLeagueRecord,
   prepareDraft,
@@ -43,6 +48,46 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error"
 
 const SAVE_DEBOUNCE_MS = 300
 
+function withDraftSelectionLogs(
+  before: LeagueRecord,
+  after: LeagueRecord
+): LeagueRecord {
+  const priorSelections = new Set(
+    before.seasonState.draftState?.selections.map(
+      (selection) => selection.playerId
+    ) ?? []
+  )
+  const nextSelections =
+    after.seasonState.draftState?.selections.filter(
+      (selection) => !priorSelections.has(selection.playerId)
+    ) ?? []
+
+  if (nextSelections.length === 0) {
+    return after
+  }
+
+  return {
+    ...after,
+    leagueLog: [
+      ...after.leagueLog,
+      ...nextSelections.map((selection, index) =>
+        createLeagueLogEntry({
+          league: after,
+          type: "draft_selection",
+          teamId: selection.teamId,
+          playerId: selection.playerId,
+          payload: {
+            round: selection.round,
+            overallPick: selection.overallPick,
+            prospectId: selection.prospectId,
+          },
+          sequence: index + 1,
+        })
+      ),
+    ],
+  }
+}
+
 async function resolveActiveLeagueRecord(): Promise<{
   record: LeagueRecord | null
   saves: LeagueSummary[]
@@ -57,7 +102,7 @@ async function resolveActiveLeagueRecord(): Promise<{
   const activeId = getActiveLeagueId()
   const record =
     (activeId ? await getLeague(activeId) : undefined) ??
-    (await getLeague(saves[0]!.id))
+    (await getLeague(saves[0].id))
 
   if (!record) {
     return { record: null, saves }
@@ -249,7 +294,7 @@ export function useLeague() {
         return
       }
 
-      const nextRecord = await getLeague(nextSaves[0]!.id)
+      const nextRecord = await getLeague(nextSaves[0].id)
       if (nextRecord) {
         await activateLeagueRecord(normalizeLeagueRecord(nextRecord))
       } else {
@@ -397,7 +442,7 @@ export function useLeague() {
         const result = makeDraftPick(
           record.seasonState,
           prospectId,
-          record.freeAgentPool ?? []
+          record.freeAgentPool
         )
         const updated: LeagueRecord = {
           ...record,
@@ -405,7 +450,10 @@ export function useLeague() {
           freeAgentPool: result.freeAgentPool,
         }
 
-        return attachRookieContractsForDraftSelections(updated)
+        return withDraftSelectionLogs(
+          record,
+          attachRookieContractsForDraftSelections(updated)
+        )
       })
     },
     [updateLeagueRecord]
@@ -413,14 +461,17 @@ export function useLeague() {
 
   const simAiPickAction = useCallback(() => {
     updateLeagueRecord((record) => {
-      const result = simAiPick(record.seasonState, record.freeAgentPool ?? [])
+      const result = simAiPick(record.seasonState, record.freeAgentPool)
       const updated: LeagueRecord = {
         ...record,
         seasonState: result.seasonState,
         freeAgentPool: result.freeAgentPool,
       }
 
-      return attachRookieContractsForDraftSelections(updated)
+      return withDraftSelectionLogs(
+        record,
+        attachRookieContractsForDraftSelections(updated)
+      )
     })
   }, [updateLeagueRecord])
 
@@ -429,7 +480,7 @@ export function useLeague() {
       const result = simToUserPick(
         record.seasonState,
         record.userTeamId,
-        record.freeAgentPool ?? []
+        record.freeAgentPool
       )
       const updated: LeagueRecord = {
         ...record,
@@ -437,7 +488,10 @@ export function useLeague() {
         freeAgentPool: result.freeAgentPool,
       }
 
-      return attachRookieContractsForDraftSelections(updated)
+      return withDraftSelectionLogs(
+        record,
+        attachRookieContractsForDraftSelections(updated)
+      )
     })
   }, [updateLeagueRecord])
 
@@ -447,19 +501,30 @@ export function useLeague() {
       if (!current?.userTeamId) {
         return
       }
+      const userTeamId = current.userTeamId
 
       updateLeagueRecord((record) => {
         const updated = waivePlayerContract(record, playerId)
         const result = releasePlayer(
           updated.seasonState.teams,
-          updated.freeAgentPool ?? [],
+          updated.freeAgentPool,
           {
-            teamId: current.userTeamId!,
+            teamId: userTeamId,
             playerId,
           }
         )
         return {
           ...updated,
+          leagueLog: [
+            ...updated.leagueLog,
+            createLeagueLogEntry({
+              league: updated,
+              type: "release",
+              teamId: current.userTeamId!,
+              playerId,
+              payload: {},
+            }),
+          ],
           seasonState: {
             ...updated.seasonState,
             teams: result.teams,
@@ -484,9 +549,12 @@ export function useLeague() {
     const rng = createRng(
       `${current.seasonState.baseSeed}:offseason:${current.seasonState.season}`
     )
-    const nextState = beginOffseason(current.seasonState, rng)
+    const completedLeague = archivePlayerCareerSnapshots(
+      evaluateOwnerGoals(assignSeasonAwards(current))
+    )
+    const nextState = beginOffseason(completedLeague.seasonState, rng)
     const updated = processOffseasonFinancials(
-      { ...current, seasonState: nextState },
+      { ...completedLeague, seasonState: nextState },
       rng
     )
 
@@ -550,15 +618,15 @@ export function useLeague() {
       const result = startNextSeason({
         seasonState: current.seasonState,
         userTeamId: current.userTeamId,
-        freeAgentPool: current.freeAgentPool ?? [],
+        freeAgentPool: current.freeAgentPool,
         rng: createRng(
           `${current.seasonState.baseSeed}:season:${current.seasonState.season + 1}`
         ),
         league: {
-          contracts: current.contracts ?? [],
+          contracts: current.contracts,
           leagueFinancials: current.leagueFinancials,
-          teamFinancials: current.teamFinancials ?? [],
-          spendingProfileEvents: current.spendingProfileEvents ?? [],
+          teamFinancials: current.teamFinancials,
+          spendingProfileEvents: current.spendingProfileEvents,
           draftPickAssets: current.draftPickAssets,
         },
       })
@@ -566,7 +634,7 @@ export function useLeague() {
       const updated = normalizeLeagueRecord({
         ...current,
         seasonState: result.seasonState,
-        seasonHistory: [...(current.seasonHistory ?? []), result.historyEntry],
+        seasonHistory: [...current.seasonHistory, result.historyEntry],
         freeAgentPool: result.freeAgentPool,
         contracts: result.contracts,
         leagueFinancials: result.leagueFinancials,
@@ -574,7 +642,17 @@ export function useLeague() {
         draftPickAssets: result.draftPickAssets,
       })
 
-      return persistLeague(updated)
+      const withGoals = {
+        ...updated,
+        ownerGoals: [
+          ...updated.ownerGoals.filter(
+            (goal) => goal.season !== updated.seasonState.season
+          ),
+          ...generateOwnerGoals(updated),
+        ],
+      }
+
+      return persistLeague(withGoals)
     } catch (startError: unknown) {
       setSaveStatus("error")
       setError(

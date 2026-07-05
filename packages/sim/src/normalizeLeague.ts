@@ -75,6 +75,11 @@ export function normalizeLeagueRecord(record: LeagueRecord): LeagueRecord {
       normalizedState.season + 1
     ),
     tradeHistory: record.tradeHistory ?? [],
+    leagueLog: record.leagueLog ?? [],
+    owners: record.owners ?? [],
+    ownerGoals: record.ownerGoals ?? [],
+    seasonAwards: record.seasonAwards ?? [],
+    playerCareerSnapshots: record.playerCareerSnapshots ?? [],
     seasonState: normalizedState,
     saveVersion: SAVE_VERSION,
   }

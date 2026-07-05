@@ -87,6 +87,12 @@ export type {
 } from "./playerTypes"
 
 export type {
+  LeagueCalendarState,
+  CalendarDate,
+  SeasonMilestones,
+} from "./calendarTypes"
+
+export type {
   DraftInfo,
   DraftPickAsset,
   DraftPickProtection,
@@ -122,6 +128,23 @@ export type {
   FreeAgentOffer,
   SigningException,
 } from "./contractTypes"
+
+export type { LeagueLogEntry, LeagueLogEntryType } from "./logTypes"
+
+export type {
+  Owner,
+  OwnerArchetype,
+  OwnerGoal,
+  OwnerGoalPriority,
+  OwnerGoalStatus,
+  OwnerGoalType,
+  OwnerPatience,
+  OwnerRiskTolerance,
+} from "./ownerTypes"
+
+export type { SeasonAward, SeasonAwardType } from "./awardTypes"
+
+export type { PlayerCareerSnapshot } from "./playerProfileTypes"
 
 export type {
   TradeEvaluation,
