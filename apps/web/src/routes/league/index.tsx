@@ -148,9 +148,9 @@ function LeagueDashboardPage() {
   })
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
       {isMiniLeague ? (
-        <Card>
+        <Card className="shrink-0">
           <CardHeader>
             <CardTitle>6-team save detected</CardTitle>
             <CardDescription>
@@ -161,8 +161,8 @@ function LeagueDashboardPage() {
         </Card>
       ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-        <div className="flex min-w-0 flex-col gap-4">
+      <div className="-m-px grid min-h-0 flex-1 gap-4 overflow-y-auto p-px xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] xl:overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-col gap-4 xl:overflow-y-auto xl:p-px">
           <AttentionCard items={urgentItems} phase={phase} />
 
           <div className="grid gap-4 lg:grid-cols-2">
@@ -197,7 +197,7 @@ function LeagueDashboardPage() {
           ) : null}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex min-h-0 min-w-0 flex-col gap-4 xl:overflow-y-auto xl:p-px">
           <SeasonPhaseCard
             state={seasonState}
             championTeamId={championTeamId}

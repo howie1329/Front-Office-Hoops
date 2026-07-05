@@ -64,9 +64,11 @@ function LeagueLayout() {
   }
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
+    <div className="flex h-svh w-full flex-col gap-4 overflow-hidden p-4 sm:p-6">
       <LeagueNav leagueName={league?.name} />
-      <Outlet />
+      <div className="min-h-0 flex-1">
+        <Outlet />
+      </div>
     </div>
   )
 }
