@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { simulateDay, simulateSeason, simulateWeek } from "@workspace/sim"
 
 import { GameLog } from "@/components/league/GameLog"
 import { SchedulePanel } from "@/components/league/SchedulePanel"
@@ -48,7 +47,9 @@ function LeagueDashboardPage() {
     completeFreeAgency,
     simulatePlayoffs,
     startNextSeason,
-    updateSeasonState,
+    simDay,
+    simWeek,
+    simSeason,
   } = useLeagueContext()
 
   if (!seasonState) {
@@ -56,18 +57,6 @@ function LeagueDashboardPage() {
   }
 
   const isMiniLeague = seasonState.teams.length < LEAGUE_TEAM_COUNT
-
-  function handleSimDay() {
-    updateSeasonState((current) => simulateDay(current))
-  }
-
-  function handleSimWeek() {
-    updateSeasonState((current) => simulateWeek(current))
-  }
-
-  function handleSimSeason() {
-    updateSeasonState((current) => simulateSeason(current))
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,10 +115,10 @@ function LeagueDashboardPage() {
         error={error}
         seed={league?.name ?? ""}
         onSeedChange={() => {}}
-        onSimDay={handleSimDay}
-        onSimWeek={handleSimWeek}
-        onSimSeason={handleSimSeason}
-        onSimPlayoffDay={handleSimDay}
+        onSimDay={simDay}
+        onSimWeek={simWeek}
+        onSimSeason={simSeason}
+        onSimPlayoffDay={simDay}
         onSimPlayoffs={simulatePlayoffs}
         title="Simulation"
         description={`Advance ${league?.name ?? "your league"} by day, week, or full season.`}

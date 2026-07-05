@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { simulateDay } from "@workspace/sim"
 
 import { PlayoffBracket } from "@/components/league/PlayoffBracket"
 import { SeasonPhaseCard } from "@/components/league/SeasonPhaseCard"
@@ -39,7 +38,7 @@ function LeaguePlayoffsPage() {
     completeFreeAgency,
     simulatePlayoffs,
     startNextSeason,
-    updateSeasonState,
+    simDay,
   } = useLeagueContext()
 
   if (!seasonState) {
@@ -80,12 +79,10 @@ function LeaguePlayoffsPage() {
         error={error}
         seed={league?.name ?? ""}
         onSeedChange={() => {}}
-        onSimDay={() => updateSeasonState((current) => simulateDay(current))}
+        onSimDay={simDay}
         onSimWeek={() => {}}
         onSimSeason={() => {}}
-        onSimPlayoffDay={() =>
-          updateSeasonState((current) => simulateDay(current))
-        }
+        onSimPlayoffDay={simDay}
         onSimPlayoffs={simulatePlayoffs}
         title="Playoff simulation"
       />

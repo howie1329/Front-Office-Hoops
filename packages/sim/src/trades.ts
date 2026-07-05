@@ -24,6 +24,10 @@ import {
 import { buildFairSalary } from "./financials/ai/offers"
 import { canTradeOnDate } from "./calendar"
 import { createLeagueLogEntry } from "./leagueLog"
+import {
+  findPlayersOnTeam,
+  findTeam,
+} from "./roster/ledger"
 
 const SALARY_MATCH_MULTIPLIER = 1.25
 const SALARY_MATCH_BUFFER = 0.1
@@ -40,18 +44,6 @@ type TradeContext = {
 
 function unique(values: string[]): string[] {
   return [...new Set(values)]
-}
-
-function findTeam(
-  league: LeagueRecord,
-  teamId: string
-): TeamWithRoster | undefined {
-  return league.seasonState.teams.find((team) => team.id === teamId)
-}
-
-function findPlayers(team: TeamWithRoster, playerIds: string[]): Player[] {
-  const ids = new Set(playerIds)
-  return team.players.filter((player) => ids.has(player.id))
 }
 
 function findPicks(
@@ -107,8 +99,8 @@ function getContext(
     return { ok: false, reason: "Trade team not found" }
   }
 
-  const fromPlayers = findPlayers(fromTeam, fromIds)
-  const toPlayers = findPlayers(toTeam, toIds)
+  const fromPlayers = findPlayersOnTeam(fromTeam, fromIds)
+  const toPlayers = findPlayersOnTeam(toTeam, toIds)
   const fromPicks = findPicks(league, fromTeam.id, fromPickIds)
   const toPicks = findPicks(league, toTeam.id, toPickIds)
   if (

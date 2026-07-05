@@ -30,6 +30,12 @@ export { simulatePlayoffDay } from "./simulatePlayoffDay"
 export { simulatePlayoffs } from "./simulatePlayoffs"
 export { beginPlayoffs } from "./beginPlayoffs"
 export { isRegularSeasonComplete } from "./isRegularSeasonComplete"
+export {
+  assertPhaseEligibility,
+  getAllPhaseEligibility,
+  getPhaseEligibility,
+} from "./phaseEligibility"
+export type { EligibilityResult, PhaseAction } from "./phaseEligibility"
 export { finalizeSeason } from "./finalizeSeason"
 export { archiveSeason } from "./archiveSeason"
 export { beginOffseason } from "./beginOffseason"
@@ -80,11 +86,22 @@ export {
   applyAiRosterTrimming,
   getTeamRosterSize,
 } from "./roster/rosterManagement"
+export {
+  applyDraftSelections,
+  findPlayer,
+  findPlayerTeam,
+  findTeam as findLeagueTeam,
+  findPlayersOnTeam,
+  getUserRosterSize,
+  releasePlayerFromTeam,
+} from "./roster/ledger"
 export { deriveUserPlayoffResult } from "./deriveUserPlayoffResult"
 export { normalizeLeagueRecord, normalizeSeasonState } from "./normalizeLeague"
 export { createInitialSeason } from "./createInitialSeason"
 export { createLeague } from "./createLeague"
 export type { CreateLeagueInput } from "./createLeague"
+export { applyLeagueCommand, commandRng } from "./leagueCommands"
+export type { LeagueCommand } from "./leagueCommands"
 export {
   processOffseasonFinancials,
   prepareNewSeasonFinancials,

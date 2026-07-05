@@ -4,8 +4,8 @@ import { createContext, useContext, useMemo } from "react"
 import { ROSTER_MAX } from "@workspace/shared/constants"
 import type { TeamWithRoster } from "@workspace/shared/types"
 import {
+  getAllPhaseEligibility,
   getCurrentCalendar,
-  isDraftRequired,
   isRegularSeasonComplete,
   isUserOnClock,
 } from "@workspace/sim"
@@ -64,23 +64,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       ? (seasonState?.offseasonPhase ?? "re_signing")
       : null
     const championTeamId = seasonState?.playoffBracket?.championTeamId ?? null
-    const completedSeason = seasonState?.season ?? 1
-    const draftRequired = isDraftRequired(completedSeason)
-    const draftState = seasonState?.draftState
-    const draftComplete = !draftRequired || Boolean(draftState?.completed)
     const userRosterSize = myTeam?.players.length ?? 0
     const rosterOverLimit = userRosterSize > ROSTER_MAX
     const cutsNeeded = Math.max(0, userRosterSize - ROSTER_MAX)
-    const aiRosterNeeds = Boolean(
-      seasonState?.teams.some(
-        (team) =>
-          team.id !== leagueState.userTeamId && team.players.length < ROSTER_MAX
-      )
-    )
     const userOnClock = seasonState
       ? isUserOnClock(seasonState, leagueState.userTeamId)
       : false
     const calendar = seasonState ? getCurrentCalendar(seasonState) : null
+    const eligibility =
+      leagueState.league !== null
+        ? getAllPhaseEligibility(leagueState.league)
+        : null
 
     return {
       ...leagueState,
@@ -97,40 +91,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       isOffseason,
       offseasonPhase,
       championTeamId,
-      canBeginPlayoffs:
-        phase === "regular" &&
-        isRegularComplete &&
-        Boolean(
-          seasonState &&
-          calendar &&
-          seasonState.currentDay >= calendar.milestones.playoffsStartDay
-        ),
-      canBeginOffseason:
-        isSeasonComplete &&
-        Boolean(championTeamId) &&
-        Boolean(
-          seasonState &&
-          calendar &&
-          seasonState.currentDay >= calendar.milestones.offseasonStartDay
-        ),
-      canSimAiReSignings: offseasonPhase === "re_signing",
-      canProceedToDraft: offseasonPhase === "re_signing",
-      canPrepareDraft:
-        offseasonPhase === "draft" &&
-        draftRequired &&
-        !draftState &&
-        Boolean(championTeamId),
-      canProceedToFreeAgency:
-        offseasonPhase === "draft" && Boolean(draftState?.completed),
-      canSimAiFreeAgency: offseasonPhase === "free_agency" && aiRosterNeeds,
+      canBeginPlayoffs: eligibility?.beginPlayoffs.allowed ?? false,
+      canBeginOffseason: eligibility?.beginOffseason.allowed ?? false,
+      canSimAiReSignings: eligibility?.simAiReSignings.allowed ?? false,
+      canProceedToDraft: eligibility?.proceedToDraft.allowed ?? false,
+      canPrepareDraft: eligibility?.prepareDraft.allowed ?? false,
+      canProceedToFreeAgency: eligibility?.proceedToFreeAgency.allowed ?? false,
+      canSimAiFreeAgency: eligibility?.simAiFreeAgency.allowed ?? false,
       isUserOnClock: userOnClock,
       rosterOverLimit,
       cutsNeeded,
-      canStartNextSeason:
-        offseasonPhase === "free_agency" &&
-        draftComplete &&
-        !rosterOverLimit &&
-        userRosterSize === ROSTER_MAX,
+      canStartNextSeason: eligibility?.startNextSeason.allowed ?? false,
       calendar,
     }
   }, [leagueState])

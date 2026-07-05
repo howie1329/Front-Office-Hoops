@@ -30,6 +30,7 @@ import {
 } from "./ai/freeAgentScoring"
 import { generateFreeAgents } from "../generateFreeAgents"
 import { createLeagueLogEntry } from "../leagueLog"
+import { findPlayer } from "../roster/ledger"
 
 export type SignValidationResult =
   | { ok: true; signingException: FreeAgentOffer["signingException"] }
@@ -116,9 +117,7 @@ export function canSignPlayer(
     (entry) => entry.teamId === teamId
   )
   const team = league.seasonState.teams.find((entry) => entry.id === teamId)
-  const player =
-    league.freeAgentPool.find((entry) => entry.id === playerId) ??
-    team?.players.find((entry) => entry.id === playerId)
+  const player = findPlayer(league, playerId)
 
   if (!teamFinance || !team || !player) {
     return { ok: false, reason: "Team or player not found" }
@@ -213,11 +212,7 @@ export function signFreeAgent(
   const season = league.seasonState.season
   const signingException =
     offer.signingException ?? validation.signingException!
-  const player =
-    league.freeAgentPool.find((entry) => entry.id === playerId) ??
-    league.seasonState.teams
-      .flatMap((team) => team.players)
-      .find((entry) => entry.id === playerId)
+  const player = findPlayer(league, playerId)
 
   if (!player) {
     throw new Error("Player not found")

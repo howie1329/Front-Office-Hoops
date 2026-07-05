@@ -1,11 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useState } from "react"
 
-import {
-  simulateDay,
-  simulateSeason,
-  simulateWeek,
-} from "@workspace/sim"
 import { GameDetailCard } from "@/components/box-score/GameDetailCard"
 import { GameLog } from "@/components/league/GameLog"
 import { PlayerSeasonStatsTable } from "@/components/league/PlayerSeasonStatsTable"
@@ -33,7 +28,9 @@ function SeasonLabPage() {
     seasonState: state,
     error,
     createNewLeague,
-    updateSeasonState,
+    simDay,
+    simWeek,
+    simSeason,
   } = useLeague()
 
   async function handleNewSeason() {
@@ -47,7 +44,7 @@ function SeasonLabPage() {
       return
     }
 
-    updateSeasonState((current) => simulateDay(current))
+    simDay()
   }
 
   function handleSimWeek() {
@@ -55,7 +52,7 @@ function SeasonLabPage() {
       return
     }
 
-    updateSeasonState((current) => simulateWeek(current))
+    simWeek()
   }
 
   function handleSimSeason() {
@@ -63,7 +60,7 @@ function SeasonLabPage() {
       return
     }
 
-    updateSeasonState((current) => simulateSeason(current))
+    simSeason()
   }
 
   function handleGameClick(gameId: string) {

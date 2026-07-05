@@ -9,7 +9,7 @@ flowchart TB
     subgraph client ["Browser (apps/web)"]
         Routes["TanStack Router routes"]
         Components["React components"]
-        Hooks["useLeague / useLeagueSaves"]
+        Hooks["useLeague"]
         Ctx["LeagueContext"]
     end
 
@@ -20,6 +20,13 @@ flowchart TB
         Shared["@workspace/shared"]
     end
 
+    subgraph simModules ["@workspace/sim modules"]
+        Commands["applyLeagueCommand"]
+        Eligibility["phaseEligibility"]
+        Ledger["roster/ledger"]
+        Engine["game + season atomics"]
+    end
+
     subgraph storage ["Client storage"]
         IDB["IndexedDB via Dexie"]
     end
@@ -27,12 +34,17 @@ flowchart TB
     Routes --> Components
     Components --> Ctx
     Ctx --> Hooks
-    Hooks --> Sim
+    Ctx --> Eligibility
+    Hooks -->|"dispatch(LeagueCommand)"| Commands
     Hooks --> DB
+    Commands --> Ledger
+    Commands --> Engine
+    Commands --> Eligibility
     Components --> UI
     Sim --> Shared
     DB --> Shared
     DB --> IDB
+    Commands --> Sim
 ```
 
 ## Packages
@@ -43,7 +55,7 @@ The TanStack Start application. Responsibilities:
 
 - File-based routing (`src/routes/`)
 - League UI (standings, schedule, roster, playoffs, box scores)
-- React context and hooks that bridge UI ↔ sim ↔ db
+- React context and hooks that bridge UI ↔ sim ↔ db (`useLeague` dispatches `LeagueCommand`s; `LeagueContext` reads `getAllPhaseEligibility`)
 - Developer labs (`/sim-lab`, `/season-lab`)
 
 Key dependencies: `@tanstack/react-start`, `@tanstack/react-router`, Tailwind CSS 4, `@workspace/*` packages.
@@ -52,6 +64,10 @@ Key dependencies: `@tanstack/react-start`, `@tanstack/react-router`, Tailwind CS
 
 **Pure TypeScript simulation engine.** No React, no DOM, no IndexedDB.
 
+- **League commands** (`applyLeagueCommand`) — single entry point for app mutations (sim ticks, lifecycle, trades, FA, draft)
+- **Phase eligibility** (`getPhaseEligibility`) — shared UI/sim gates for offseason and season transitions
+- **Roster ledger** (`roster/ledger`) — multi-slice player reads and composite writes (release, draft selections + contracts + logs)
+- **Roster generation** (`playerGeneration/rosterPipeline`) — unified tier-offset and archetype-slot team generation
 - Game simulation (`simulateTeamMatchup`, `simulateGame`)
 - Schedule generation (`createSchedule`)
 - Season loop (`simulateDay`, `simulateWeek`, `simulateSeason`)
@@ -108,9 +124,14 @@ pnpm dlx shadcn@latest add <component> -c apps/web
 ### Simulation tick
 
 1. User clicks "Simulate day" (or week / playoffs / season)
-2. Hook calls `@workspace/sim` function with current `SeasonState` + `Rng`
-3. Updated `LeagueRecord` is set in React state
-4. Debounced auto-save (300ms) persists to IndexedDB via `saveLeague`
+2. Route or hook calls `dispatch({ type: "simDay" })` (or week/season/playoffs command)
+3. `applyLeagueCommand` runs the sim function and any composed side effects
+4. Updated `LeagueRecord` is set in React state
+5. Debounced auto-save (300ms) persists to IndexedDB via `saveLeague`
+
+### League lifecycle actions
+
+Offseason transitions, draft picks, trades, and free agency use the same command layer. `LeagueContext` exposes `canBeginPlayoffs`, `canStartNextSeason`, etc. by mapping `getAllPhaseEligibility` — the same rules `applyLeagueCommand` enforces before mutating state.
 
 ### Active save tracking
 

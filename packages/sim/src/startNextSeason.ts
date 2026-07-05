@@ -1,3 +1,4 @@
+import { ROSTER_MAX } from "@workspace/shared/constants"
 import type {
   DraftPickAsset,
   LeagueRecord,
@@ -76,9 +77,14 @@ export function startNextSeason(
     const userSize =
       seasonState.teams.find((team) => team.id === userTeamId)?.players
         .length ?? 0
-    if (userSize > 12) {
+    if (userSize > ROSTER_MAX) {
       throw new Error(
-        "Roster over limit — release players before starting the next season"
+        `Roster over limit (${userSize}/${ROSTER_MAX}) — release players before starting the next season`
+      )
+    }
+    if (userSize < ROSTER_MAX) {
+      throw new Error(
+        `Roster under limit (${userSize}/${ROSTER_MAX}) — add or keep players before starting the next season`
       )
     }
   }
