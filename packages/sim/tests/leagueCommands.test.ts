@@ -57,6 +57,54 @@ describe("leagueCommands", () => {
     expect(updated.seasonState.currentDay).toBeGreaterThanOrEqual(
       league.seasonState.currentDay
     )
+    expect(updated.rngNonce).toBe(league.rngNonce + 1)
+    expect(updated.seasonState.games[0]?.rngNonce).toBe(league.rngNonce)
+  })
+
+  it("replays the same saved league command deterministically", () => {
+    const league = createLeague({
+      name: "Replay",
+      baseSeed: "replay",
+      rng: createRng("replay"),
+      useMiniLeague: true,
+    })
+
+    const first = applyLeagueCommand(league, { type: "simDay" })
+    const second = applyLeagueCommand(league, { type: "simDay" })
+
+    expect(second).toEqual(first)
+  })
+
+  it("uses rngNonce to avoid schedule-slot-only game randomness", () => {
+    const league = createLeague({
+      name: "Nonce",
+      baseSeed: "nonce-games",
+      rng: createRng("nonce-games"),
+      useMiniLeague: true,
+    })
+    const first = applyLeagueCommand(league, { type: "simDay" })
+
+    let changed = false
+    for (let nonce = 1; nonce <= 20; nonce += 1) {
+      const next = applyLeagueCommand(
+        { ...league, rngNonce: nonce },
+        { type: "simDay" }
+      )
+      expect(next.seasonState.games[0]?.rngSeed).not.toBe(
+        first.seasonState.games[0]?.rngSeed
+      )
+      if (
+        next.seasonState.games[0]?.result.homeScore !==
+          first.seasonState.games[0]?.result.homeScore ||
+        next.seasonState.games[0]?.result.awayScore !==
+          first.seasonState.games[0]?.result.awayScore
+      ) {
+        changed = true
+        break
+      }
+    }
+
+    expect(changed).toBe(true)
   })
 
   it("blocks disallowed lifecycle commands with eligibility reason", () => {
@@ -70,6 +118,7 @@ describe("leagueCommands", () => {
     expect(() => applyLeagueCommand(league, { type: "beginOffseason" })).toThrow(
       "Season must be complete"
     )
+    expect(league.rngNonce).toBe(0)
     expect(getPhaseEligibility(league, "beginOffseason").allowed).toBe(false)
   })
 

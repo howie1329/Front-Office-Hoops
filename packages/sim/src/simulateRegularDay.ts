@@ -8,7 +8,8 @@ import { simulateGame } from "./simulateGame"
 
 export function simulateRegularDay(
   state: SeasonState,
-  day: number = state.currentDay
+  day: number = state.currentDay,
+  rngNonce = 0
 ): SeasonState {
   const teamsAfterRecovery = advanceInjuriesForDay(state.teams)
   const stateWithRecoveredPlayers = {
@@ -54,6 +55,7 @@ export function simulateRegularDay(
       day: scheduledGame.day,
       gameId,
       baseSeed: state.baseSeed,
+      rngNonce,
     })
 
     newGames.push(game)
@@ -65,7 +67,7 @@ export function simulateRegularDay(
         homePlayerStats: game.result.homePlayerStats,
         awayPlayerStats: game.result.awayPlayerStats,
       },
-      createRng(`${state.baseSeed}:injuries:${game.id}`)
+      createRng(`${state.baseSeed}:injuries:${game.id}:nonce:${rngNonce}`)
     )
 
     const scheduleIndex = newSchedule.findIndex(

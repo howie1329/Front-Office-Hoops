@@ -50,6 +50,21 @@ const PHASE_GATED_TYPES = new Set<LeagueCommand["type"]>([
   "startNextSeason",
 ])
 
+const STOCHASTIC_TYPES = new Set<LeagueCommand["type"]>([
+  "simDay",
+  "simWeek",
+  "simSeason",
+  "simulatePlayoffs",
+  "beginOffseason",
+  "completeReSignings",
+  "prepareDraft",
+  "simAiPick",
+  "simToUserPick",
+  "advanceToFreeAgency",
+  "completeFreeAgency",
+  "startNextSeason",
+])
+
 function assertCommandEligibility(
   league: LeagueRecord,
   command: LeagueCommand
@@ -64,7 +79,7 @@ function assertCommandEligibility(
   )
 }
 
-export function applyLeagueCommand(
+function applyLeagueCommandInternal(
   league: LeagueRecord,
   command: LeagueCommand,
   rng?: Rng
@@ -77,25 +92,29 @@ export function applyLeagueCommand(
     case "simDay":
       return {
         ...league,
-        seasonState: simulateDay(league.seasonState),
+        seasonState: simulateDay(
+          league.seasonState,
+          league.seasonState.currentDay,
+          league.rngNonce
+        ),
       }
 
     case "simWeek":
       return {
         ...league,
-        seasonState: simulateWeek(league.seasonState),
+        seasonState: simulateWeek(league.seasonState, league.rngNonce),
       }
 
     case "simSeason":
       return {
         ...league,
-        seasonState: simulateSeason(league.seasonState),
+        seasonState: simulateSeason(league.seasonState, league.rngNonce),
       }
 
     case "simulatePlayoffs":
       return {
         ...league,
-        seasonState: simulatePlayoffs(league.seasonState),
+        seasonState: simulatePlayoffs(league.seasonState, league.rngNonce),
       }
 
     case "beginPlayoffs":
@@ -148,7 +167,8 @@ export function applyLeagueCommand(
         ...league,
         seasonState: prepareDraft(
           league.seasonState,
-          league.draftPickAssets
+          league.draftPickAssets,
+          league.rngNonce
         ),
       }
 
@@ -278,6 +298,23 @@ export function applyLeagueCommand(
       const _exhaustive: never = command
       return _exhaustive
     }
+  }
+}
+
+export function applyLeagueCommand(
+  league: LeagueRecord,
+  command: LeagueCommand,
+  rng?: Rng
+): LeagueRecord {
+  const updated = applyLeagueCommandInternal(league, command, rng)
+
+  if (!STOCHASTIC_TYPES.has(command.type)) {
+    return updated
+  }
+
+  return {
+    ...updated,
+    rngNonce: (league.rngNonce ?? 0) + 1,
   }
 }
 

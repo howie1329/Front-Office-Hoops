@@ -68,6 +68,8 @@ export type Game = {
   day: number
   homeTeamId: string
   awayTeamId: string
+  rngSeed: string
+  rngNonce: number
   result: TeamMatchupResult
 }
 
@@ -130,4 +132,5 @@ export type SimulateGameContext = {
   day: number
   gameId: string
   baseSeed: string
+  rngNonce?: number
 }

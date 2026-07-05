@@ -143,6 +143,7 @@ export function startNextSeason(
         createdAt: "",
         updatedAt: "",
         userTeamId,
+        rngNonce: 0,
         seasonHistory: [],
         draftPickAssets: financialBundle.draftPickAssets,
         tradeHistory: [],

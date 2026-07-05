@@ -12,7 +12,9 @@ export function simulateGame(
   away: TeamWithRoster,
   context: SimulateGameContext,
 ): Game {
-  const rng = createRng(`${context.baseSeed}:${context.gameId}`)
+  const rngNonce = context.rngNonce ?? 0
+  const rngSeed = `${context.baseSeed}:game:${context.season}:${context.gameId}:nonce:${rngNonce}`
+  const rng = createRng(rngSeed)
   const result = simulateTeamMatchup({ home, away }, rng)
 
   return {
@@ -21,6 +23,8 @@ export function simulateGame(
     day: context.day,
     homeTeamId: home.id,
     awayTeamId: away.id,
+    rngSeed,
+    rngNonce,
     result,
   }
 }

@@ -2,7 +2,7 @@ import type { SeasonState } from "@workspace/shared/types"
 
 import { simulateDay } from "./simulateDay"
 
-export function simulateSeason(state: SeasonState): SeasonState {
+export function simulateSeason(state: SeasonState, rngNonce = 0): SeasonState {
   if (state.phase !== "regular") {
     return state
   }
@@ -16,7 +16,7 @@ export function simulateSeason(state: SeasonState): SeasonState {
     nextState.currentDay <= maxDay + 7 &&
     safety < 500
   ) {
-    nextState = simulateDay(nextState, nextState.currentDay)
+    nextState = simulateDay(nextState, nextState.currentDay, rngNonce)
     safety += 1
   }
 
@@ -30,7 +30,7 @@ export function simulateSeason(state: SeasonState): SeasonState {
       break
     }
 
-    nextState = simulateDay(nextState, nextScheduledDay)
+    nextState = simulateDay(nextState, nextScheduledDay, rngNonce)
     safety += 1
   }
 

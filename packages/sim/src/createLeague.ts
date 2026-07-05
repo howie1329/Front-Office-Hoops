@@ -40,6 +40,7 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     createdAt: now,
     updatedAt: now,
     userTeamId: input.userTeamId ?? null,
+    rngNonce: 0,
     seasonState,
     seasonHistory: [],
     freeAgentPool: [],

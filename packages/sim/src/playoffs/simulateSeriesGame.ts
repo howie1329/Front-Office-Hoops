@@ -36,7 +36,8 @@ function finalizeSeriesIfComplete(
 
 export function simulateSeriesGame(
   state: SeasonState,
-  scheduledGameId: string
+  scheduledGameId: string,
+  rngNonce = 0
 ): SeasonState {
   const scheduledGame = state.schedule.find(
     (game) => game.id === scheduledGameId
@@ -79,6 +80,7 @@ export function simulateSeriesGame(
     day: scheduledGame.day,
     gameId,
     baseSeed: state.baseSeed,
+    rngNonce,
   })
 
   const homeIsHigher = scheduledGame.homeTeamId === series.higherSeedTeamId
@@ -117,7 +119,7 @@ export function simulateSeriesGame(
         homePlayerStats: game.result.homePlayerStats,
         awayPlayerStats: game.result.awayPlayerStats,
       },
-      createRng(`${state.baseSeed}:injuries:${game.id}`)
+      createRng(`${state.baseSeed}:injuries:${game.id}:nonce:${rngNonce}`)
     ),
     schedule: newSchedule,
     games: [...state.games, game],

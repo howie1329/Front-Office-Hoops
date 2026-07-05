@@ -12,7 +12,8 @@ import { getCurrentCalendar } from "./calendar"
 
 export function simulatePlayoffDay(
   state: SeasonState,
-  day: number = state.currentDay
+  day: number = state.currentDay,
+  rngNonce = 0
 ): SeasonState {
   const playoffGames = state.schedule.filter(
     (game) => game.seriesId && game.day === day && game.status === "scheduled"
@@ -41,7 +42,7 @@ export function simulatePlayoffDay(
   }
 
   for (const game of playoffGames) {
-    nextState = simulateSeriesGame(nextState, game.id)
+    nextState = simulateSeriesGame(nextState, game.id, rngNonce)
     nextState = advancePlayoffWinners(nextState)
     nextState = ensureActiveSeriesScheduled(nextState)
   }

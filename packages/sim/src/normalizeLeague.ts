@@ -82,6 +82,7 @@ export function normalizeLeagueRecord(record: LeagueRecord): LeagueRecord {
     playerCareerSnapshots: record.playerCareerSnapshots ?? [],
     playerSeasonProfiles: record.playerSeasonProfiles ?? [],
     seasonState: normalizedState,
+    rngNonce: record.rngNonce ?? 0,
     saveVersion: SAVE_VERSION,
   }
 }

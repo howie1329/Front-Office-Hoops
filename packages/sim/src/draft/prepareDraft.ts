@@ -10,7 +10,8 @@ import { isDraftRequired } from "./isDraftRequired"
 
 export function prepareDraft(
   state: SeasonState,
-  draftPickAssets: DraftPickAsset[] = []
+  draftPickAssets: DraftPickAsset[] = [],
+  rngNonce = 0
 ): SeasonState {
   if (state.phase !== "offseason") {
     throw new Error("Draft can only be prepared during the offseason")
@@ -29,16 +30,19 @@ export function prepareDraft(
     state.teams.length,
     year,
     state.baseSeed,
-    createRng(`${state.baseSeed}:draft-class:${year}`)
+    createRng(`${state.baseSeed}:draft-class:${year}:nonce:${rngNonce}`)
   )
   const order =
     draftPickAssets.length > 0
       ? generateDraftOrderFromAssets(
           state,
           draftPickAssets,
-          createRng(`${state.baseSeed}:draft-order:${year}`)
+          createRng(`${state.baseSeed}:draft-order:${year}:nonce:${rngNonce}`)
         )
-      : generateDraftOrderFromSeed(state, state.baseSeed)
+      : generateDraftOrderFromSeed(
+          state,
+          `${state.baseSeed}:nonce:${rngNonce}`
+        )
 
   return {
     ...state,

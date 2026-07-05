@@ -6,10 +6,11 @@ import { simulateRegularDay } from "./simulateRegularDay"
 export function simulateDay(
   state: SeasonState,
   day: number = state.currentDay,
+  rngNonce = 0,
 ): SeasonState {
   if (state.phase === "playoffs") {
-    return simulatePlayoffDay(state, day)
+    return simulatePlayoffDay(state, day, rngNonce)
   }
 
-  return simulateRegularDay(state, day)
+  return simulateRegularDay(state, day, rngNonce)
 }

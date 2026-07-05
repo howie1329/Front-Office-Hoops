@@ -150,6 +150,6 @@ A pragmatic sequence for future work:
 ## Versioning
 
 - **App version:** `0.0.1` (early prototype)
-- **Save version:** `7` (`SAVE_VERSION` in shared types)
+- **Save version:** `10` (`SAVE_VERSION` in shared types)
 
 Increment `SAVE_VERSION` and add normalization logic whenever persisted shape changes.
