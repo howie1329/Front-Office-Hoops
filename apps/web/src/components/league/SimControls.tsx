@@ -66,7 +66,7 @@ export function SimControls({
             : description}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-3">
         {showNewSeason ? (
           <div className="grid gap-2">
             <Label htmlFor="season-seed">Seed</Label>
@@ -94,7 +94,11 @@ export function SimControls({
               <Button variant="secondary" onClick={onSimWeek} disabled={!state}>
                 Sim week
               </Button>
-              <Button variant="secondary" onClick={onSimSeason} disabled={!state}>
+              <Button
+                variant="secondary"
+                onClick={onSimSeason}
+                disabled={!state}
+              >
                 Sim season
               </Button>
             </>
@@ -131,12 +135,24 @@ export function SimControls({
         ) : null}
 
         {state ? (
-          <p className="text-xs text-muted-foreground">
-            Current day: {state.currentDay} · Games played: {state.games.length} ·
-            Remaining: {remainingGames}
-          </p>
+          <div className="grid gap-2 rounded-md border bg-muted/20 px-3 py-2 text-xs sm:grid-cols-3">
+            <SimMetric label="Day" value={String(state.currentDay)} />
+            <SimMetric label="Played" value={String(state.games.length)} />
+            <SimMetric label="Remaining" value={String(remainingGames)} />
+          </div>
         ) : null}
       </CardContent>
     </Card>
+  )
+}
+
+function SimMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2 sm:block">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium tabular-nums sm:mt-0.5 sm:block">
+        {value}
+      </span>
+    </div>
   )
 }

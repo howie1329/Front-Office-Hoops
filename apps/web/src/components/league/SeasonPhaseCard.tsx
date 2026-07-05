@@ -102,26 +102,18 @@ export function SeasonPhaseCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <div className="grid gap-2 text-sm sm:grid-cols-3">
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Date</span>
-            <span>{calendar.date.label}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Trade deadline</span>
-            <span>
-              {
-                getCurrentCalendar({
-                  ...state,
-                  currentDay: calendar.milestones.tradeDeadlineDay,
-                }).date.label
-              }
-            </span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-muted-foreground">Day</span>
-            <span>{state.currentDay}</span>
-          </div>
+        <div className="grid gap-2 text-sm sm:grid-cols-2">
+          <SeasonMetric label="Date" value={calendar.date.label} />
+          <SeasonMetric label="Day" value={String(state.currentDay)} />
+          <SeasonMetric
+            label="Trade deadline"
+            value={
+              getCurrentCalendar({
+                ...state,
+                currentDay: calendar.milestones.tradeDeadlineDay,
+              }).date.label
+            }
+          />
         </div>
 
         {rosterOverLimit ? (
@@ -199,5 +191,14 @@ export function SeasonPhaseCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function SeasonMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-muted/20 px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-medium">{value}</p>
+    </div>
   )
 }

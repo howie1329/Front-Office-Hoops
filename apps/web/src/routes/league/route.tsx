@@ -156,22 +156,42 @@ type SidebarNavItem = {
   icon: typeof DashboardSquare01Icon
 }
 
-const sidebarNavItems: SidebarNavItem[] = [
+type SidebarNavGroup = {
+  label: string
+  items: SidebarNavItem[]
+}
+
+const sidebarNavGroups: SidebarNavGroup[] = [
   {
-    to: "/league",
-    label: "Dashboard",
-    exact: true,
-    icon: DashboardSquare01Icon,
+    label: "League",
+    items: [
+      {
+        to: "/league",
+        label: "Dashboard",
+        exact: true,
+        icon: DashboardSquare01Icon,
+      },
+      { to: "/league/standings", label: "Standings", icon: RankingIcon },
+      { to: "/league/schedule", label: "Schedule", icon: Calendar03Icon },
+      { to: "/league/playoffs", label: "Playoffs", icon: AwardIcon },
+    ],
   },
-  { to: "/league/standings", label: "Standings", icon: RankingIcon },
-  { to: "/league/schedule", label: "Schedule", icon: Calendar03Icon },
-  { to: "/league/playoffs", label: "Playoffs", icon: AwardIcon },
-  { to: "/league/draft", label: "Draft", icon: DraftingCompassIcon },
-  { to: "/league/team", label: "My Team", icon: UserGroupIcon },
-  { to: "/league/trades", label: "Trades", icon: TradeUpIcon },
-  { to: "/league/stats", label: "Stats", icon: Analytics01Icon },
-  { to: "/league/history", label: "History", icon: HistoryIcon },
-  { to: "/league/saves", label: "Saves", icon: SaveIcon },
+  {
+    label: "Team ops",
+    items: [
+      { to: "/league/team", label: "My Team", icon: UserGroupIcon },
+      { to: "/league/trades", label: "Trades", icon: TradeUpIcon },
+      { to: "/league/draft", label: "Draft", icon: DraftingCompassIcon },
+      { to: "/league/stats", label: "Stats", icon: Analytics01Icon },
+    ],
+  },
+  {
+    label: "Office",
+    items: [
+      { to: "/league/history", label: "History", icon: HistoryIcon },
+      { to: "/league/saves", label: "Saves", icon: SaveIcon },
+    ],
+  },
 ]
 
 type LeagueSidebarProps = {
@@ -200,6 +220,11 @@ function LeagueSidebar({
   const recordLabel = record
     ? `${record.wins}-${record.losses} (${winPct(record.wins, record.losses)})`
     : "-"
+  const phaseName = phaseLabel(phase)
+  const dateLabel =
+    dayLabel && currentDay
+      ? `${dayLabel} · Day ${currentDay}`
+      : (dayLabel ?? "-")
 
   return (
     <Sidebar collapsible="icon">
@@ -213,70 +238,80 @@ function LeagueSidebar({
                   {leagueName ?? "League"}
                 </span>
                 <span className="truncate text-muted-foreground">
-                  Front Office Hoops
+                  {teamAbbrev
+                    ? `${teamAbbrev} front office`
+                    : "Front Office Hoops"}
                 </span>
               </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
+
+        <div className="mx-2 rounded-lg border border-sidebar-border bg-background/70 p-2 text-xs group-data-[collapsible=icon]:hidden">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Record</span>
+            <span className="font-medium tabular-nums">{recordLabel}</span>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <span className="text-muted-foreground">Phase</span>
+            <span className="truncate text-right font-medium">{phaseName}</span>
+          </div>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>League</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {sidebarNavItems.map((item) => {
-                const isActive = item.exact
-                  ? pathname === item.to
-                  : pathname.startsWith(item.to)
+        {sidebarNavGroups.map((group, groupIndex) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const isActive = item.exact
+                    ? pathname === item.to
+                    : pathname.startsWith(item.to)
 
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive}
-                      tooltip={item.label}
-                    >
-                      <Link
-                        to={item.to}
-                        activeOptions={item.exact ? { exact: true } : undefined}
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.label}
+                        className="data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground"
                       >
-                        <HugeiconsIcon icon={item.icon} strokeWidth={2} />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
+                        <Link
+                          to={item.to}
+                          activeOptions={
+                            item.exact ? { exact: true } : undefined
+                          }
+                        >
+                          <HugeiconsIcon icon={item.icon} strokeWidth={2} />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+            {groupIndex < sidebarNavGroups.length - 1 ? (
+              <SidebarSeparator className="mt-2" />
+            ) : null}
+          </SidebarGroup>
+        ))}
 
         <SidebarGroup>
           <SidebarGroupLabel>Context</SidebarGroupLabel>
           <SidebarGroupContent>
-            <div className="flex flex-col gap-2 px-2 text-xs group-data-[collapsible=icon]:hidden">
+            <div className="flex flex-col gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-2 text-xs group-data-[collapsible=icon]:hidden">
               <SidebarContextRow
                 label="Team"
                 value={teamName ? `${teamName} · ${teamAbbrev}` : "-"}
               />
-              <SidebarContextRow label="Record" value={recordLabel} />
               <SidebarContextRow
                 label="Overall"
                 value={teamOverall === undefined ? "-" : String(teamOverall)}
               />
-              <SidebarContextRow label="Phase" value={phaseLabel(phase)} />
-              <SidebarContextRow
-                label="Date"
-                value={
-                  dayLabel && currentDay
-                    ? `${dayLabel} · Day ${currentDay}`
-                    : (dayLabel ?? "-")
-                }
-              />
+              <SidebarContextRow label="Date" value={dateLabel} />
             </div>
           </SidebarGroupContent>
         </SidebarGroup>

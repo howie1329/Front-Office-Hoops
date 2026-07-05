@@ -146,6 +146,7 @@ function LeagueDashboardPage() {
     canSimAiFreeAgency,
     canStartNextSeason,
   })
+  const primaryAction = getPrimaryAction(urgentItems, phase)
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
@@ -161,11 +162,24 @@ function LeagueDashboardPage() {
         </Card>
       ) : null}
 
-      <div className="-m-px grid min-h-0 flex-1 gap-4 overflow-y-auto p-px xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)] xl:overflow-hidden">
+      <div className="-m-px grid min-h-0 flex-1 gap-4 overflow-y-auto p-px xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)] xl:overflow-hidden">
         <div className="flex min-h-0 min-w-0 flex-col gap-4 xl:overflow-y-auto xl:p-px">
-          <AttentionCard items={urgentItems} phase={phase} />
+          <OperationsHeader
+            state={seasonState}
+            leagueName={league?.name ?? "League"}
+            teamName={myTeam?.name ?? null}
+            teamAbbrev={myTeam?.abbrev ?? null}
+            rank={dashboard?.rank ?? null}
+            standing={dashboard?.myStanding ?? null}
+            urgentCount={urgentItems.length}
+            primaryAction={primaryAction}
+          />
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          {urgentItems.length > 0 ? (
+            <AttentionCard items={urgentItems} />
+          ) : null}
+
+          <div className="grid gap-4 2xl:grid-cols-[minmax(0,0.95fr)_minmax(300px,0.75fr)]">
             <TeamSnapshotCard
               state={seasonState}
               teamId={myTeam?.id ?? null}
@@ -249,51 +263,117 @@ function LeagueDashboardPage() {
   )
 }
 
-function AttentionCard({
-  items,
-  phase,
+function OperationsHeader({
+  state,
+  leagueName,
+  teamName,
+  teamAbbrev,
+  rank,
+  standing,
+  urgentCount,
+  primaryAction,
 }: {
-  items: UrgentItem[]
-  phase: SeasonPhase
+  state: SeasonState
+  leagueName: string
+  teamName: string | null
+  teamAbbrev: string | null
+  rank: number | null
+  standing: Standing | null
+  urgentCount: number
+  primaryAction: string
 }) {
   return (
-    <Card>
-      <CardHeader>
+    <section className="rounded-lg border bg-muted/20 px-4 py-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="truncate text-base font-medium">{leagueName}</h1>
+            <span className="rounded-sm border bg-background px-1.5 py-0.5 text-[0.625rem] font-medium text-muted-foreground">
+              Season {state.season}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {teamName
+              ? `${teamName}${teamAbbrev ? ` · ${teamAbbrev}` : ""}`
+              : "Pick a team to start operating the league office."}
+          </p>
+        </div>
+
+        <div className="grid gap-2 text-xs sm:grid-cols-4 lg:min-w-[520px]">
+          <HeaderStat
+            label="Record"
+            value={standing ? `${standing.wins}-${standing.losses}` : "-"}
+          />
+          <HeaderStat label="Rank" value={rank ? `#${rank}` : "-"} />
+          <HeaderStat
+            label="Open items"
+            value={urgentCount === 0 ? "Clear" : String(urgentCount)}
+            tone={urgentCount > 0 ? "urgent" : undefined}
+          />
+          <HeaderStat label="Next" value={primaryAction} />
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function HeaderStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone?: "urgent"
+}) {
+  return (
+    <div className="rounded-md border bg-background px-3 py-2">
+      <p className="text-muted-foreground">{label}</p>
+      <p
+        className={
+          tone === "urgent"
+            ? "mt-0.5 truncate font-medium text-destructive"
+            : "mt-0.5 truncate font-medium"
+        }
+      >
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function AttentionCard({ items }: { items: UrgentItem[] }) {
+  return (
+    <Card size="sm">
+      <CardHeader className="border-b">
         <CardTitle>Command center</CardTitle>
         <CardDescription>
-          Urgent front-office work, league gates, and the next useful page.
+          Resolve blockers before advancing the league.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {items.length > 0 ? (
-          <div className="grid gap-2 md:grid-cols-2">
-            {items.map((item) => (
-              <div
-                key={item.label}
-                className="rounded-md border bg-muted/30 px-3 py-2"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium">{item.label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.description}
-                    </p>
-                  </div>
-                  {item.tone === "urgent" ? (
-                    <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[0.625rem] font-medium text-destructive">
-                      Action
-                    </span>
-                  ) : null}
+        <div className="grid gap-2 md:grid-cols-2">
+          {items.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-md border bg-muted/30 px-3 py-2"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.description}
+                  </p>
                 </div>
+                {item.tone === "urgent" ? (
+                  <span className="rounded-sm bg-destructive/10 px-1.5 py-0.5 text-[0.625rem] font-medium text-destructive">
+                    Action
+                  </span>
+                ) : null}
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-            No blockers. Review today, then advance the{" "}
-            {phase === "playoffs" ? "postseason" : "league"} when ready.
-          </p>
-        )}
+            </div>
+          ))}
+        </div>
 
         <div className="flex flex-wrap gap-2">
           <Button size="sm" asChild>
@@ -334,10 +414,16 @@ function TeamSnapshotCard({
   isOverTax: boolean
 }) {
   const team = teamId ? state.teams.find((entry) => entry.id === teamId) : null
+  const record = standing
+    ? `${standing.wins}-${standing.losses} (${winPct(
+        standing.wins,
+        standing.losses
+      )})`
+    : "-"
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="border-b">
         <CardTitle>{team?.name ?? "My team"}</CardTitle>
         <CardDescription>
           {team
@@ -345,45 +431,39 @@ function TeamSnapshotCard({
             : "Pick a team to unlock the front-office view."}
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-2 text-sm">
-        <DashboardMetric
-          label="Record"
-          value={
-            standing
-              ? `${standing.wins}-${standing.losses} (${winPct(
-                  standing.wins,
-                  standing.losses
-                )})`
-              : "-"
-          }
-        />
-        <DashboardMetric
-          label="League rank"
-          value={rank ? `#${rank} of ${state.standings.length}` : "-"}
-        />
-        <DashboardMetric
-          label="Streak"
-          value={standing ? formatStreak(standing.streak) : "-"}
-        />
-        <DashboardMetric
-          label="Next game"
-          value={
-            nextGame
+      <CardContent className="grid gap-3 text-sm">
+        <div className="grid grid-cols-3 gap-2">
+          <CompactMetric label="Record" value={record} />
+          <CompactMetric
+            label="Rank"
+            value={rank ? `#${rank}/${state.standings.length}` : "-"}
+          />
+          <CompactMetric
+            label="Streak"
+            value={standing ? formatStreak(standing.streak) : "-"}
+          />
+        </div>
+        <div className="rounded-md border bg-muted/30 px-3 py-2">
+          <p className="text-xs text-muted-foreground">Next game</p>
+          <p className="mt-0.5 text-sm font-medium">
+            {nextGame
               ? `Day ${nextGame.day}: ${formatScheduledLine(state, nextGame)}`
-              : "Season complete"
-          }
-        />
-        <DashboardMetric
-          label="Payroll"
-          value={payroll === null ? "-" : formatMoney(payroll)}
-        />
-        <DashboardMetric
-          label="Cap space"
-          value={capSpace === null ? "-" : formatMoney(capSpace)}
-          valueClassName={
-            capSpace !== null && capSpace < 0 ? "text-destructive" : ""
-          }
-        />
+              : "Season complete"}
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <DashboardMetric
+            label="Payroll"
+            value={payroll === null ? "-" : formatMoney(payroll)}
+          />
+          <DashboardMetric
+            label="Cap space"
+            value={capSpace === null ? "-" : formatMoney(capSpace)}
+            valueClassName={
+              capSpace !== null && capSpace < 0 ? "text-destructive" : ""
+            }
+          />
+        </div>
         {isOverTax ? (
           <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             Projected over the luxury tax line.
@@ -407,7 +487,7 @@ function ScheduleSnapshotCard({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="border-b">
         <CardTitle>
           {todaysGames.length > 0
             ? `Today · Day ${state.currentDay}`
@@ -422,9 +502,16 @@ function ScheduleSnapshotCard({
       <CardContent className="flex flex-col gap-2 text-sm">
         {games.length > 0 ? (
           games.map((game) => (
-            <div key={game.id} className="flex justify-between gap-4">
-              <span>{formatScheduledLine(state, game)}</span>
-              <span className="text-muted-foreground">Day {game.day}</span>
+            <div
+              key={game.id}
+              className="flex items-center justify-between gap-4 rounded-md border bg-muted/20 px-3 py-2"
+            >
+              <span className="font-medium">
+                {formatScheduledLine(state, game)}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Day {game.day}
+              </span>
             </div>
           ))
         ) : (
@@ -449,7 +536,7 @@ function StandingsSnapshotCard({
 }) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="border-b">
         <CardTitle>Standings neighborhood</CardTitle>
         <CardDescription>
           The teams around your current league position.
@@ -514,7 +601,7 @@ function RecentResultsCard({
 }) {
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="border-b">
         <CardTitle>Recent results</CardTitle>
         <CardDescription>
           Latest completed games around the league.
@@ -542,6 +629,15 @@ function RecentResultsCard({
   )
 }
 
+function CompactMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-muted/30 px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 truncate font-medium">{value}</p>
+    </div>
+  )
+}
+
 function DashboardMetric({
   label,
   value,
@@ -552,11 +648,27 @@ function DashboardMetric({
   valueClassName?: string
 }) {
   return (
-    <div className="flex justify-between gap-4">
+    <div className="flex justify-between gap-4 rounded-md border bg-muted/20 px-3 py-2">
       <span className="text-muted-foreground">{label}</span>
       <span className={valueClassName}>{value}</span>
     </div>
   )
+}
+
+function getPrimaryAction(items: UrgentItem[], phase: SeasonPhase): string {
+  if (items.length > 0) {
+    return items[0]?.label ?? "Review"
+  }
+  if (phase === "playoffs") {
+    return "Sim playoffs"
+  }
+  if (phase === "offseason") {
+    return "Offseason"
+  }
+  if (phase === "complete") {
+    return "Review history"
+  }
+  return "Advance"
 }
 
 type UrgentItem = {
