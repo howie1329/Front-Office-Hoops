@@ -1,10 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
+import type { VariantProps } from "class-variance-authority"
+import { cva } from "class-variance-authority"
 import { Slot } from "radix-ui"
 
-import { useIsMobile } from "@workspace/ui/hooks/use-mobile"
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
@@ -31,6 +31,7 @@ const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+const MOBILE_BREAKPOINT = 768
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed"
@@ -43,6 +44,25 @@ type SidebarContextProps = {
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia(
+      `(max-width: ${MOBILE_BREAKPOINT - 1}px)`
+    )
+    const updateIsMobile = () =>
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+
+    mediaQuery.addEventListener("change", updateIsMobile)
+    updateIsMobile()
+
+    return () => mediaQuery.removeEventListener("change", updateIsMobile)
+  }, [])
+
+  return Boolean(isMobile)
+}
 
 function useSidebar() {
   const context = React.useContext(SidebarContext)
@@ -90,7 +110,9 @@ function SidebarProvider({
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
-    return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open)
+    return isMobile
+      ? setOpenMobile((mobileOpen) => !mobileOpen)
+      : setOpen((sidebarOpen) => !sidebarOpen)
   }, [isMobile, setOpen, setOpenMobile])
 
   // Adds a keyboard shortcut to toggle the sidebar.
