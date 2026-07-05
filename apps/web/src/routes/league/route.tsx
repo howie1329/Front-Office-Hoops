@@ -1,4 +1,9 @@
-import { createFileRoute, Navigate, Outlet, useRouterState } from "@tanstack/react-router"
+import {
+  createFileRoute,
+  Navigate,
+  Outlet,
+  useRouterState,
+} from "@tanstack/react-router"
 
 import { LeagueNav } from "@/components/league/LeagueNav"
 import { LeagueProvider, useLeagueContext } from "@/contexts/LeagueContext"
@@ -16,7 +21,9 @@ function LeagueLayoutRoute() {
 }
 
 function LeagueLayout() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   const { status, needsCreate, needsPickTeam, league } = useLeagueContext()
 
   const isCreate = pathname === "/league/create"
@@ -41,6 +48,14 @@ function LeagueLayout() {
   }
 
   if (isSetupRoute) {
+    if (isPickTeam) {
+      return (
+        <div className="flex min-h-svh w-full flex-col p-6">
+          <Outlet />
+        </div>
+      )
+    }
+
     return (
       <div className="mx-auto flex min-h-svh max-w-5xl flex-col gap-4 p-6">
         <Outlet />

@@ -86,8 +86,8 @@ function LeaguePickTeamPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-col gap-4 xl:h-[calc(100svh-3rem)] xl:min-h-0 xl:overflow-hidden xl:px-px xl:pb-px">
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
         <div className="flex max-w-2xl flex-col gap-2">
           <p className="text-xs font-medium text-muted-foreground">
             Team selection
@@ -107,9 +107,9 @@ function LeaguePickTeamPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
-        <Card>
-          <CardHeader className="gap-3">
+      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(300px,380px)]">
+        <Card className="min-h-0 ring-inset xl:h-[calc(100%-1px)]">
+          <CardHeader className="shrink-0 gap-3">
             <div>
               <CardTitle>30 teams</CardTitle>
               <CardDescription>
@@ -135,7 +135,7 @@ function LeaguePickTeamPage() {
               ))}
             </div>
           </CardHeader>
-          <CardContent className="grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
+          <CardContent className="grid min-h-0 flex-1 auto-rows-min gap-2 overflow-y-auto pb-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {teams.map((team) => {
               const payroll = league
                 ? getTeamPayroll(team.id, league.contracts)
@@ -207,14 +207,14 @@ function LeaguePickTeamPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
+        <Card className="min-h-0 ring-inset xl:h-[calc(100%-1px)]">
+          <CardHeader className="shrink-0">
             <CardTitle>GM assignment</CardTitle>
             <CardDescription>
               Review the selected franchise before entering the league office.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
             {selectedTeam ? (
               <div className="flex flex-col gap-3 rounded-md bg-muted/50 p-3">
                 <div>
