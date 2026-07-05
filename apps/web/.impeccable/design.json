@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-05T08:13:23Z",
+  "title": "Design System: Front Office Hoops",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "White Board",
+        "canonical": "oklch(1 0 0)",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.28 0 0)",
+          "oklch(0.42 0 0)",
+          "oklch(0.56 0 0)",
+          "oklch(0.70 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.94 0 0)",
+          "oklch(1 0 0)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Ink Command",
+        "canonical": "oklch(0.145 0 0)",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.24 0 0)",
+          "oklch(0.34 0 0)",
+          "oklch(0.46 0 0)",
+          "oklch(0.60 0 0)",
+          "oklch(0.74 0 0)",
+          "oklch(0.88 0 0)",
+          "oklch(0.98 0 0)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Roster Sheet",
+        "canonical": "oklch(0.97 0 0)",
+        "tonalRamp": [
+          "oklch(0.18 0 0)",
+          "oklch(0.30 0 0)",
+          "oklch(0.44 0 0)",
+          "oklch(0.58 0 0)",
+          "oklch(0.72 0 0)",
+          "oklch(0.84 0 0)",
+          "oklch(0.92 0 0)",
+          "oklch(0.97 0 0)"
+        ]
+      },
+      "destructive": {
+        "role": "tertiary",
+        "displayName": "Cut Deadline Red",
+        "canonical": "oklch(0.577 0.245 27.325)",
+        "tonalRamp": [
+          "oklch(0.20 0.12 27.325)",
+          "oklch(0.30 0.16 27.325)",
+          "oklch(0.42 0.20 27.325)",
+          "oklch(0.577 0.245 27.325)",
+          "oklch(0.68 0.20 27.325)",
+          "oklch(0.78 0.15 27.325)",
+          "oklch(0.88 0.09 27.325)",
+          "oklch(0.95 0.04 27.325)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "League names and top-level screen labels."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles, panel headers, and compact section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Standard prose, descriptions, and explanatory copy."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, captions, controls, table headers, and status labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay-shadow",
+        "value": "shadow-md",
+        "purpose": "Floating select menus and overlays only."
+      },
+      {
+        "name": "surface-ring",
+        "value": "ring-1 ring-foreground/10",
+        "purpose": "Default card and panel separation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "transition-colors 150ms ease-out",
+        "purpose": "Fast hover, focus, active, and selected-state changes."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Compact command button for the main action in a local context.",
+      "html": "<button class=\"ds-btn-primary\">Continue league</button>",
+      "css": ".ds-btn-primary { height: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid transparent; border-radius: 5.76px; background: var(--primary); color: var(--primary-foreground); padding: 0 8px; font: 500 12px/1.5 'Inter Variable', sans-serif; white-space: nowrap; transition: background-color 150ms ease-out, transform 150ms ease-out, box-shadow 150ms ease-out; } .ds-btn-primary:hover { background: color-mix(in oklch, var(--primary), var(--background) 20%); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring), transparent 70%); }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary route or utility action with border-first emphasis.",
+      "html": "<button class=\"ds-btn-outline\">Standings</button>",
+      "css": ".ds-btn-outline { height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 5.76px; background: transparent; color: var(--foreground); padding: 0 8px; font: 500 12px/1.5 'Inter Variable', sans-serif; white-space: nowrap; transition: background-color 150ms ease-out, color 150ms ease-out, box-shadow 150ms ease-out; } .ds-btn-outline:hover { background: color-mix(in oklch, var(--input), transparent 50%); } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring), transparent 70%); }"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Compact data-entry field for league setup and filters.",
+      "html": "<input class=\"ds-input\" placeholder=\"League name\" />",
+      "css": ".ds-input { height: 28px; width: 100%; min-width: 0; border: 1px solid var(--input); border-radius: 5.76px; background: color-mix(in oklch, var(--input), transparent 80%); color: var(--foreground); padding: 2px 8px; font: 400 14px/1.5 'Inter Variable', sans-serif; transition: border-color 150ms ease-out, box-shadow 150ms ease-out, background-color 150ms ease-out; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring), transparent 70%); } .ds-input:disabled { cursor: not-allowed; opacity: 0.5; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Flat panel for grouped league state and local workflows.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card-header\"><h3>Standings</h3><p>Current league table.</p></div></section>",
+      "css": ".ds-card { display: flex; flex-direction: column; gap: 16px; overflow: hidden; border-radius: 7.2px; background: var(--card); color: var(--card-foreground); padding: 16px; font: 400 12px/1.5 'Inter Variable', sans-serif; box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground), transparent 90%); } .ds-card-header { display: grid; gap: 4px; } .ds-card h3 { margin: 0; font: 500 14px/1.5 'Inter Variable', sans-serif; } .ds-card p { margin: 0; color: var(--muted-foreground); font: 400 12px/1.5 'Inter Variable', sans-serif; }"
+    },
+    {
+      "name": "Data Table",
+      "kind": "custom",
+      "refersTo": "table-default",
+      "description": "Dense comparison surface for standings, stats, schedules, and roster data.",
+      "html": "<div class=\"ds-table-wrap\"><table class=\"ds-table\"><thead><tr><th>Team</th><th>W</th><th>L</th><th>PCT</th></tr></thead><tbody><tr><td>Boston</td><td>52</td><td>30</td><td>.634</td></tr></tbody></table></div>",
+      "css": ".ds-table-wrap { width: 100%; overflow-x: auto; } .ds-table { width: 100%; border-collapse: collapse; caption-side: bottom; color: var(--foreground); font: 400 12px/1.5 'Inter Variable', sans-serif; } .ds-table tr { border-bottom: 1px solid var(--border); transition: background-color 150ms ease-out; } .ds-table tbody tr:hover { background: color-mix(in oklch, var(--muted), transparent 50%); } .ds-table th { height: 40px; padding: 0 8px; text-align: left; vertical-align: middle; font-weight: 500; white-space: nowrap; } .ds-table td { padding: 8px; vertical-align: middle; white-space: nowrap; }"
+    },
+    {
+      "name": "League Navigation",
+      "kind": "nav",
+      "refersTo": "nav-league",
+      "description": "Wrapped outline-button navigation for league sections.",
+      "html": "<nav class=\"ds-league-nav\"><button>Dashboard</button><button>Standings</button><button>Schedule</button><button>Draft</button></nav>",
+      "css": ".ds-league-nav { display: flex; flex-wrap: wrap; gap: 8px; } .ds-league-nav button { height: 24px; border: 1px solid var(--border); border-radius: 5.76px; background: transparent; color: var(--foreground); padding: 0 8px; font: 500 12px/1.5 'Inter Variable', sans-serif; transition: background-color 150ms ease-out, box-shadow 150ms ease-out; } .ds-league-nav button:hover, .ds-league-nav button[aria-current='page'] { background: color-mix(in oklch, var(--input), transparent 50%); } .ds-league-nav button:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--ring), transparent 70%); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The League Office Console",
+    "overview": "Front Office Hoops should feel like a front-office operating surface for serious basketball simulation players: compact, direct, and trustworthy. The interface earns confidence through clear hierarchy, predictable controls, dense tables, and league-state visibility rather than sports-media decoration.\n\nThe current system is a restrained monochrome product UI built on Inter, OKLCH tokens, low-radius controls, tonal surfaces, and border/ring separation. It should stay fast and utilitarian: screens should make the next league decision obvious, keep actions near the data they affect, and preserve enough density for expert users to work quickly.\n\nIt explicitly rejects mobile game store UI, ESPN-style news pages, fantasy-sports betting dashboards, and over-marketed SaaS landing pages. The design should never feel promotional when the user is trying to manage a league.",
+    "keyCharacteristics": [
+      "Compact product density for simulation-first workflows.",
+      "Monochrome operational palette with rare semantic color.",
+      "Inter-only typography tuned for tables, cards, buttons, and labels.",
+      "Flat surfaces separated by borders, rings, and muted state layers.",
+      "Consistent control vocabulary across league navigation, forms, tables, and cards."
+    ],
+    "rules": [
+      {
+        "name": "The One Serious Accent Rule",
+        "body": "Primary color is command ink, not decoration. Do not introduce saturated team-color styling until a screen has a real semantic need for it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Red Means Risk Rule",
+        "body": "Destructive red is reserved for errors, invalid states, and irreversible actions. Never use it as sports-energy accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Broadcast Type Rule",
+        "body": "Do not introduce sports headline fonts, display slabs, or decorative lettering. This is a management product, not a media package.",
+        "section": "typography"
+      },
+      {
+        "name": "The Ledger Surface Rule",
+        "body": "Surfaces are structured like sheets and panels: border first, tonal layer second, shadow only for floating overlays.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep league state scannable before adding visual flourish.",
+      "Do use Inter across headings, labels, buttons, tables, and body copy.",
+      "Do keep surfaces flat at rest and separate them with Ledger Line borders or Surface Rings.",
+      "Do place actions near the league data they advance.",
+      "Do preserve keyboard-visible focus states on every interactive control.",
+      "Do use dense tables when comparison is the job."
+    ],
+    "donts": [
+      "Don't make the app feel like a mobile game store UI.",
+      "Don't make screens feel like an ESPN-style news site.",
+      "Don't borrow fantasy-sports betting dashboard tropes.",
+      "Don't turn product screens into an over-marketed SaaS landing page.",
+      "Don't use decorative sports-media tropes, glossy game-shop energy, or news-feed-first hierarchy.",
+      "Don't introduce display fonts in UI labels, buttons, or data.",
+      "Don't use shadows as decoration on cards; shadow belongs to floating overlays."
+    ]
+  }
+}
