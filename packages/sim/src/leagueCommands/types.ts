@@ -17,6 +17,7 @@ export type LeagueCommand =
   | { type: "releasePlayer"; playerId: string }
   | { type: "signFreeAgent"; playerId: string; offer: FreeAgentOffer }
   | { type: "executeTrade"; proposal: TradeProposal }
+  | { type: "simulateCurrentPlayoffRound" }
   | { type: "simulatePlayoffs" }
   | { type: "startNextSeason" }
 

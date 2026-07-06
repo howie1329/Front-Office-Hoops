@@ -32,13 +32,13 @@ import {
 } from "@workspace/ui/components/card"
 import { Input } from "@workspace/ui/components/input"
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@workspace/ui/components/sheet"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
 import {
   Table,
   TableBody,
@@ -230,7 +230,7 @@ function PlayerProfilePage() {
       </div>
 
       {player && userTeamId ? (
-        <OfferSheet
+        <OfferDialog
           open={offerOpen}
           onOpenChange={setOfferOpen}
           player={player}
@@ -652,7 +652,7 @@ function TimelineCard({
   )
 }
 
-function OfferSheet({
+function OfferDialog({
   open,
   onOpenChange,
   player,
@@ -679,23 +679,24 @@ function OfferSheet({
   onSubmit: () => void
 }) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
             {mode === "re_sign" ? "Re-sign" : "Sign"} {player.firstName}{" "}
             {player.lastName}
-          </SheetTitle>
-          <SheetDescription>
+          </DialogTitle>
+          <DialogDescription>
             Build an offer and validate it against your cap sheet before
             submitting.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="grid gap-4 px-6 py-2">
-          <Metric
-            label="Player"
-            value={`${player.position} · ${player.ratings.overall} OVR`}
-          />
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 overflow-auto p-4">
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Metric label="Position" value={player.position} />
+            <Metric label="Overall" value={player.ratings.overall} />
+            <Metric label="Age" value={player.age} />
+          </div>
           <label className="grid gap-1 text-sm">
             Years
             <Input
@@ -722,18 +723,21 @@ function OfferSheet({
             </p>
           ) : null}
           {validation?.ok ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="rounded-md border bg-muted/25 p-2 text-sm text-muted-foreground">
               Eligible via {validation.signingException?.replaceAll("_", " ")}.
             </p>
           ) : null}
         </div>
-        <SheetFooter>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button disabled={!validation?.ok} onClick={onSubmit}>
             Submit {formatMoney(salary)} × {years} yr offer
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

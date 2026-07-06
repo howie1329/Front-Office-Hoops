@@ -1,6 +1,10 @@
 import { useState } from "react"
 
-import type { FreeAgentOffer, LeagueRecord, Player } from "@workspace/shared/types"
+import type {
+  FreeAgentOffer,
+  LeagueRecord,
+  Player,
+} from "@workspace/shared/types"
 import { canSignPlayer } from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
@@ -12,6 +16,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
 import { Input } from "@workspace/ui/components/input"
 import {
   Table,
@@ -58,99 +70,168 @@ export function FreeAgencyPanel({
       : null
 
   const sorted = [...freeAgents].sort(
-    (a, b) => b.ratings.overall - a.ratings.overall,
+    (a, b) => b.ratings.overall - a.ratings.overall
   )
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Player</TableHead>
-              <TableHead>Pos</TableHead>
-              <TableHead>OVR</TableHead>
-              <TableHead>Age</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-sm text-muted-foreground">
-                  {emptyMessage}
-                </TableCell>
-              </TableRow>
-            ) : null}
-            {sorted.slice(0, 20).map((player) => (
-              <TableRow key={player.id}>
-                <TableCell>
-                  {player.firstName} {player.lastName}
-                </TableCell>
-                <TableCell>{player.position}</TableCell>
-                <TableCell>{player.ratings.overall}</TableCell>
-                <TableCell>{player.age}</TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant={selectedId === player.id ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => {
-                      setSelectedId(player.id)
-                      setSalary(Math.max(2, Math.round(player.ratings.overall / 8)))
-                    }}
-                  >
-                    {mode === "re_sign" ? "Re-sign" : "Offer"}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+  function openOffer(player: Player) {
+    setSelectedId(player.id)
+    setYears(2)
+    setSalary(Math.max(2, Math.round(player.ratings.overall / 8)))
+  }
 
-        {selected ? (
-          <div className="flex flex-col gap-3 rounded-lg border p-4">
-            <p className="text-sm font-medium">
-              Offer for {selected.firstName} {selected.lastName}
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm">
-                Years
-                <Input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={years}
-                  onChange={(event) => setYears(Number(event.target.value))}
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                First-year salary (M)
-                <Input
-                  type="number"
-                  min={1}
-                  step={0.1}
-                  value={salary}
-                  onChange={(event) => setSalary(Number(event.target.value))}
-                />
-              </label>
-            </div>
-            {validation && !validation.ok ? (
-              <p className="text-xs text-destructive">{validation.reason}</p>
-            ) : null}
-            <Button
-              disabled={!validation?.ok}
-              onClick={() => onSign(selected.id, offer)}
-            >
-              {mode === "re_sign" ? "Re-sign" : "Sign"} for {formatMoney(salary)} ×{" "}
-              {years} yr
-            </Button>
+  function closeOffer() {
+    setSelectedId(null)
+  }
+
+  function submitOffer() {
+    if (!selected || !validation?.ok) {
+      return
+    }
+
+    onSign(selected.id, offer)
+    closeOffer()
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </CardHeader>
+        <CardContent className="min-h-0 overflow-hidden">
+          <div className="-m-px max-h-[420px] overflow-auto p-px">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Player</TableHead>
+                  <TableHead>Pos</TableHead>
+                  <TableHead>OVR</TableHead>
+                  <TableHead>Age</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sorted.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-sm text-muted-foreground"
+                    >
+                      {emptyMessage}
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {sorted.slice(0, 20).map((player) => (
+                  <TableRow key={player.id}>
+                    <TableCell>
+                      {player.firstName} {player.lastName}
+                    </TableCell>
+                    <TableCell>{player.position}</TableCell>
+                    <TableCell>{player.ratings.overall}</TableCell>
+                    <TableCell>{player.age}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openOffer(player)}
+                      >
+                        {mode === "re_sign" ? "Re-sign" : "Offer"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={Boolean(selected)}
+        onOpenChange={(open) => !open && closeOffer()}
+      >
+        {selected ? (
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {mode === "re_sign" ? "Re-sign" : "Offer"} {selected.firstName}{" "}
+                {selected.lastName}
+              </DialogTitle>
+              <DialogDescription>
+                Set years and first-year salary, then validate the offer against
+                your cap sheet.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 overflow-auto p-4">
+              <div className="grid gap-2 sm:grid-cols-3">
+                <OfferMetric label="Position" value={selected.position} />
+                <OfferMetric
+                  label="Overall"
+                  value={String(selected.ratings.overall)}
+                />
+                <OfferMetric label="Age" value={String(selected.age)} />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm">
+                  Years
+                  <Input
+                    type="number"
+                    min={1}
+                    max={5}
+                    value={years}
+                    onChange={(event) => setYears(Number(event.target.value))}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  First-year salary (M)
+                  <Input
+                    type="number"
+                    min={1}
+                    step={0.1}
+                    value={salary}
+                    onChange={(event) => setSalary(Number(event.target.value))}
+                  />
+                </label>
+              </div>
+              {validation && !validation.ok ? (
+                <p className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+                  {validation.reason}
+                </p>
+              ) : null}
+              {validation?.ok ? (
+                <p className="rounded-md border bg-muted/25 p-2 text-xs text-muted-foreground">
+                  Offer is valid via{" "}
+                  {validation.signingException?.replaceAll("_", " ") ??
+                    "standard signing"}
+                  .
+                </p>
+              ) : null}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={closeOffer}>
+                Cancel
+              </Button>
+              <Button disabled={!validation?.ok} onClick={submitOffer}>
+                {mode === "re_sign" ? "Re-sign" : "Sign"} for{" "}
+                {formatMoney(salary)} × {years} yr
+              </Button>
+            </DialogFooter>
+          </DialogContent>
         ) : null}
-      </CardContent>
-    </Card>
+      </Dialog>
+    </>
+  )
+}
+
+function OfferMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-muted/20 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-0.5 font-medium tabular-nums">{value}</div>
+    </div>
   )
 }

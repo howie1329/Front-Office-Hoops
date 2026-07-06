@@ -28,6 +28,7 @@ export { simulateWeek } from "./simulateWeek"
 export { simulateSeason } from "./simulateSeason"
 export { simulatePlayoffDay } from "./simulatePlayoffDay"
 export { simulatePlayoffs } from "./simulatePlayoffs"
+export { simulateCurrentPlayoffRound } from "./simulateCurrentPlayoffRound"
 export { beginPlayoffs } from "./beginPlayoffs"
 export { isRegularSeasonComplete } from "./isRegularSeasonComplete"
 export {

@@ -416,6 +416,8 @@ export function useLeague() {
       dispatch({ type: "signFreeAgent", playerId, offer }),
     executeTrade: (proposal: TradeProposal) =>
       dispatch({ type: "executeTrade", proposal }),
+    simulateCurrentPlayoffRound: () =>
+      dispatch({ type: "simulateCurrentPlayoffRound" }),
     simulatePlayoffs: () => dispatch({ type: "simulatePlayoffs" }),
     simDay: () => dispatch({ type: "simDay" }),
     simWeek: () => dispatch({ type: "simWeek" }),

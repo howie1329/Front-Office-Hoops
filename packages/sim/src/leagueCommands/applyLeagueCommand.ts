@@ -15,19 +15,14 @@ import {
   completeFreeAgencyPhase,
 } from "../offseason/phases"
 import { completeReSigningPhase } from "../offseason/reSigning"
-import {
-  ensureFaPoolMinimum,
-  processOffseasonFinancials,
-} from "../financials"
+import { ensureFaPoolMinimum, processOffseasonFinancials } from "../financials"
 import { executeTrade, wouldAiAcceptTrade } from "../trades"
 import { signFreeAgent } from "../financials/freeAgency"
 import { normalizeLeagueRecord } from "../normalizeLeague"
 import { assertPhaseEligibility } from "../phaseEligibility"
-import {
-  applyDraftSelections,
-  releasePlayerFromTeam,
-} from "../roster/ledger"
+import { applyDraftSelections, releasePlayerFromTeam } from "../roster/ledger"
 import { simulateDay } from "../simulateDay"
+import { simulateCurrentPlayoffRound } from "../simulateCurrentPlayoffRound"
 import { simulatePlayoffs } from "../simulatePlayoffs"
 import { simulateSeason } from "../simulateSeason"
 import { simulateWeek } from "../simulateWeek"
@@ -55,6 +50,7 @@ const STOCHASTIC_TYPES = new Set<LeagueCommand["type"]>([
   "simWeek",
   "simSeason",
   "simulatePlayoffs",
+  "simulateCurrentPlayoffRound",
   "beginOffseason",
   "completeReSignings",
   "prepareDraft",
@@ -115,6 +111,15 @@ function applyLeagueCommandInternal(
       return {
         ...league,
         seasonState: simulatePlayoffs(league.seasonState, league.rngNonce),
+      }
+
+    case "simulateCurrentPlayoffRound":
+      return {
+        ...league,
+        seasonState: simulateCurrentPlayoffRound(
+          league.seasonState,
+          league.rngNonce
+        ),
       }
 
     case "beginPlayoffs":
@@ -220,7 +225,9 @@ function applyLeagueCommandInternal(
 
     case "signFreeAgent": {
       if (!league.userTeamId) {
-        throw new Error("User team must be selected before signing a free agent")
+        throw new Error(
+          "User team must be selected before signing a free agent"
+        )
       }
 
       return signFreeAgent(
