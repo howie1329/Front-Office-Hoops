@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
+
 import { createLeague, createRng } from "../../src"
 
 describe("financials integration", () => {
@@ -11,10 +13,12 @@ describe("financials integration", () => {
       useMiniLeague: true,
     })
 
-    expect(league.saveVersion).toBe(7)
+    expect(league.saveVersion).toBe(SAVE_VERSION)
     expect(league.contracts.length).toBeGreaterThan(0)
     expect(league.teamFinancials.length).toBe(6)
-    expect(league.seasonState.teams[0]?.players[0]?.activeContractId).toBeTruthy()
+    expect(
+      league.seasonState.teams[0]?.players[0]?.activeContractId
+    ).toBeTruthy()
     expect(league.teamFinancials[0]?.strategy.mode).toBeDefined()
   })
 })

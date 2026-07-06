@@ -2,16 +2,18 @@ import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
 import type { LeagueRecord, Player, SeasonState } from "@workspace/shared/types"
 import { VETERAN_MIN_AGE, VETERAN_TAG } from "@workspace/shared/constants"
 
-import { migratePeakAge } from "./development/generatePeakAge"
+import { derivePeakAgeFallback } from "./development/generatePeakAge"
+import { ensureDraftPickAssets } from "./draft/generateDraftOrder"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
-import { migrateV4ToV5 } from "./financials/migrateV4ToV5"
-import { migrateV5ToV6 } from "./financials/migrateV5ToV6"
-import { migrateV6ToV7 } from "./migrateV6ToV7"
 
 function normalizePlayer(player: Player): Player {
   const peakAge =
     player.peakAge ??
-    migratePeakAge(player.age, player.ratings.overall, player.ratings.potential)
+    derivePeakAgeFallback(
+      player.age,
+      player.ratings.overall,
+      player.ratings.potential
+    )
   const tags = player.tags ?? []
   const nextTags =
     player.age >= VETERAN_MIN_AGE && !tags.includes(VETERAN_TAG)
@@ -22,6 +24,9 @@ function normalizePlayer(player: Player): Player {
     ...player,
     peakAge,
     tags: nextTags,
+    status:
+      player.status === "injured" && !player.injury ? "active" : player.status,
+    injury: player.injury ?? null,
   }
 }
 
@@ -59,30 +64,25 @@ export function normalizeSeasonState(state: SeasonState): SeasonState {
 
 export function normalizeLeagueRecord(record: LeagueRecord): LeagueRecord {
   const normalizedState = normalizeSeasonState(record.seasonState)
-  const saveVersion = record.saveVersion ?? 2
 
-  let normalized: LeagueRecord = {
+  return {
     ...record,
     seasonHistory: record.seasonHistory ?? [],
     freeAgentPool: record.freeAgentPool ?? [],
+    draftPickAssets: ensureDraftPickAssets(
+      record.draftPickAssets ?? [],
+      normalizedState.teams.map((team) => team.id),
+      normalizedState.season + 1
+    ),
+    tradeHistory: record.tradeHistory ?? [],
+    leagueLog: record.leagueLog ?? [],
+    owners: record.owners ?? [],
+    ownerGoals: record.ownerGoals ?? [],
+    seasonAwards: record.seasonAwards ?? [],
+    playerCareerSnapshots: record.playerCareerSnapshots ?? [],
+    playerSeasonProfiles: record.playerSeasonProfiles ?? [],
     seasonState: normalizedState,
-    saveVersion,
-  }
-
-  if (saveVersion < 5) {
-    normalized = migrateV4ToV5(normalized)
-  }
-
-  if (saveVersion < 6) {
-    normalized = migrateV5ToV6(normalized)
-  }
-
-  if (saveVersion < 7) {
-    normalized = migrateV6ToV7(normalized)
-  }
-
-  return {
-    ...normalized,
+    rngNonce: record.rngNonce ?? 0,
     saveVersion: SAVE_VERSION,
   }
 }

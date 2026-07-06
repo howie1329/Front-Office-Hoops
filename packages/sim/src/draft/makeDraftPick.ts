@@ -1,4 +1,8 @@
-import type { Player, SeasonState, TeamWithRoster } from "@workspace/shared/types"
+import type {
+  Player,
+  SeasonState,
+  TeamWithRoster,
+} from "@workspace/shared/types"
 
 import { deriveTeamOverall, recalculatePlayerRatings } from "../playerRatings"
 import { completeDraftIfNeeded } from "./completeDraft"
@@ -8,7 +12,7 @@ import { getCurrentDraftPick } from "./prepareDraft"
 function addPlayerToTeam(
   teams: TeamWithRoster[],
   teamId: string,
-  player: Player,
+  player: Player
 ): TeamWithRoster[] {
   return teams.map((team) => {
     if (team.id !== teamId) {
@@ -32,7 +36,7 @@ function addPlayerToTeam(
 export function makeDraftPick(
   state: SeasonState,
   prospectId: string,
-  freeAgentPool: Player[] = [],
+  freeAgentPool: Player[] = []
 ): { seasonState: SeasonState; freeAgentPool: Player[] } {
   const draftState = state.draftState
   if (!draftState || draftState.completed) {
@@ -53,12 +57,14 @@ export function makeDraftPick(
     year: draftState.year,
     round: currentPick.round,
     overallPick: currentPick.overallPick,
-    originalTeamId: currentPick.teamId,
+    originalTeamId: currentPick.originalTeamId,
   }
   const player = convertProspectToPlayer(prospect, currentPick, draftInfo)
   const teams = addPlayerToTeam(state.teams, currentPick.teamId, player)
   const order = draftState.order.map((pick, index) =>
-    index === draftState.currentPickIndex ? { ...pick, playerId: player.id } : pick,
+    index === draftState.currentPickIndex
+      ? { ...pick, playerId: player.id }
+      : pick
   )
   const selections = [
     ...draftState.selections,
@@ -76,7 +82,9 @@ export function makeDraftPick(
     teams,
     draftState: {
       ...draftState,
-      prospects: draftState.prospects.filter((entry) => entry.id !== prospect.id),
+      prospects: draftState.prospects.filter(
+        (entry) => entry.id !== prospect.id
+      ),
       order,
       selections,
       currentPickIndex: draftState.currentPickIndex + 1,

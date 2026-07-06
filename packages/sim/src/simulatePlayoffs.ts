@@ -2,7 +2,7 @@ import type { SeasonState } from "@workspace/shared/types"
 
 import { simulatePlayoffDay } from "./simulatePlayoffDay"
 
-export function simulatePlayoffs(state: SeasonState): SeasonState {
+export function simulatePlayoffs(state: SeasonState, rngNonce = 0): SeasonState {
   if (state.phase !== "playoffs") {
     throw new Error("Can only simulate playoffs during the playoffs phase")
   }
@@ -28,7 +28,11 @@ export function simulatePlayoffs(state: SeasonState): SeasonState {
       break
     }
 
-    nextState = simulatePlayoffDay(nextState, Math.max(nextState.currentDay, nextDay))
+    nextState = simulatePlayoffDay(
+      nextState,
+      Math.max(nextState.currentDay, nextDay),
+      rngNonce
+    )
     safety += 1
   }
 

@@ -5,8 +5,7 @@ import {
 } from "@workspace/shared/constants"
 import type { Rng, Team, TeamWithRoster } from "@workspace/shared/types"
 
-import { generateTeamWithRoster } from "./generatePlayers"
-import { createRng } from "./rng"
+import { generateLeagueRostersFromArchetypes } from "./leagueRosterGeneration"
 import { CITIES, CONFERENCES, NICKNAMES } from "./teamPools"
 
 function slugify(value: string): string {
@@ -104,7 +103,5 @@ export function generateTeams(rng: Rng, count = LEAGUE_TEAM_COUNT): Team[] {
 }
 
 export function generateLeagueRosters(rng: Rng): TeamWithRoster[] {
-  return generateTeams(rng).map((team) =>
-    generateTeamWithRoster(team, createRng(`roster:${team.id}`)),
-  )
+  return generateLeagueRostersFromArchetypes(generateTeams(rng), rng)
 }

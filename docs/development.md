@@ -23,14 +23,14 @@ The web app runs at **http://localhost:3000** by default.
 
 Run from the repository root:
 
-| Script | Description |
-|--------|-------------|
-| `npm run dev` | Start development servers (Turborepo) |
-| `npm run build` | Production build all workspaces |
-| `npm run lint` | ESLint across workspaces |
-| `npm run format` | Prettier format |
-| `npm run typecheck` | TypeScript check all packages |
-| `npm run test` | Vitest in packages that define tests |
+| Script              | Description                           |
+| ------------------- | ------------------------------------- |
+| `npm run dev`       | Start development servers (Turborepo) |
+| `npm run build`     | Production build all workspaces       |
+| `npm run lint`      | ESLint across workspaces              |
+| `npm run format`    | Prettier format                       |
+| `npm run typecheck` | TypeScript check all packages         |
+| `npm run test`      | Vitest in packages that define tests  |
 
 ### Workspace-specific commands
 
@@ -108,7 +108,7 @@ Vitest with comprehensive unit tests. When changing simulation behavior:
 
 1. Write or update tests first when fixing bugs
 2. Run `npm run test --workspace=@workspace/sim`
-3. Verify edge cases: ties, empty schedules, playoff advancement, stat allocation sums
+3. Verify edge cases: ties, empty schedules, playoff advancement, stat allocation sums, rotations, injuries, contracts/financial AI, archetypes/value
 
 ### DB layer (`packages/db`)
 
@@ -129,9 +129,9 @@ No automated browser tests yet. Manual verification paths:
 
 ## Developer routes
 
-| Route | Purpose |
-|-------|---------|
-| `/sim-lab` | Test single-game simulation |
+| Route         | Purpose                                     |
+| ------------- | ------------------------------------------- |
+| `/sim-lab`    | Test single-game simulation                 |
 | `/season-lab` | Test season-level simulation with UI tables |
 
 Use these when iterating on engine changes before wiring into the main league flow.
@@ -142,7 +142,7 @@ Typical workflow:
 
 1. **Types** — extend `packages/shared` if new data shapes are needed
 2. **Engine** — implement logic in `packages/sim` with tests
-3. **Persistence** — update `SAVE_VERSION` and `normalizeLeagueRecord` if schema changes
+3. **Persistence** — update `SAVE_VERSION` when the current save shape changes
 4. **Hook** — expose new actions in `useLeague`
 5. **Context** — derive any computed state in `LeagueContext`
 6. **UI** — build route/component in `apps/web`
@@ -151,22 +151,22 @@ Typical workflow:
 
 - Database is only available in the browser
 - `getDb()` throws during SSR — always use dynamic imports for `@workspace/db` in code that may run on server
-- Dexie schema changes require a new `version()` migration in `packages/db/src/db.ts`
+- During pre-user development, old save migrations are intentionally not maintained; clear local saves after schema changes
 
 ## Environment variables
 
 No required env vars for local development today. Future additions:
 
-| Variable | Purpose |
-|----------|---------|
-| `CONVEX_URL` | Convex deployment URL |
-| `AI_GATEWAY_API_KEY` or provider keys | Vercel AI SDK |
+| Variable                              | Purpose               |
+| ------------------------------------- | --------------------- |
+| `CONVEX_URL`                          | Convex deployment URL |
+| `AI_GATEWAY_API_KEY` or provider keys | Vercel AI SDK         |
 
 ## Troubleshooting
 
-| Issue | Fix |
-|-------|-----|
-| IndexedDB errors in dev | Ensure you're in browser context, not SSR |
-| Stale league state | Clear site data or delete save from `/league/saves` |
-| Type errors after shared changes | Run `npm run typecheck` and rebuild |
-| shadcn component not found | Verify import path matches `packages/ui/src/components/` |
+| Issue                            | Fix                                                      |
+| -------------------------------- | -------------------------------------------------------- |
+| IndexedDB errors in dev          | Ensure you're in browser context, not SSR                |
+| Stale league state               | Clear site data or delete save from `/league/saves`      |
+| Type errors after shared changes | Run `npm run typecheck` and rebuild                      |
+| shadcn component not found       | Verify import path matches `packages/ui/src/components/` |

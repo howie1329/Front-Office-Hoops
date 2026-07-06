@@ -1,29 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
-  advanceToDraftPhase,
-  advanceToFreeAgencyPhase,
-  beginOffseason,
-  beginPlayoffs,
-  completeFreeAgencyPhase,
-  completeReSigningPhase,
+  applyLeagueCommand,
   createLeague,
   createRng,
-  ensureFaPoolMinimum,
-  makeDraftPick,
   normalizeLeagueRecord,
-  prepareDraft,
-  processOffseasonFinancials,
-  releasePlayer,
-  signFreeAgent,
-  attachRookieContractsForDraftSelections,
-  simAiPick,
-  simToUserPick,
-  simulatePlayoffs,
-  startNextSeason,
-  waivePlayerContract,
 } from "@workspace/sim"
-import type { FreeAgentOffer, LeagueRecord, LeagueSummary, SeasonState } from "@workspace/shared/types"
+import type { LeagueCommand } from "@workspace/sim"
+import type {
+  FreeAgentOffer,
+  LeagueRecord,
+  LeagueSummary,
+  TradeProposal,
+} from "@workspace/shared/types"
 
 import {
   clearActiveLeagueId,
@@ -50,7 +39,7 @@ async function resolveActiveLeagueRecord(): Promise<{
   const activeId = getActiveLeagueId()
   const record =
     (activeId ? await getLeague(activeId) : undefined) ??
-    (await getLeague(saves[0]!.id))
+    (await getLeague(saves[0].id))
 
   if (!record) {
     return { record: null, saves }
@@ -90,26 +79,31 @@ export function useLeague() {
     return nextSaves
   }, [])
 
-  const persistLeague = useCallback(async (record: LeagueRecord) => {
-    const { saveLeague } = await import("@workspace/db")
-    setSaveStatus("saving")
+  const persistLeague = useCallback(
+    async (record: LeagueRecord) => {
+      const { saveLeague } = await import("@workspace/db")
+      setSaveStatus("saving")
 
-    try {
-      const saved = await saveLeague(record)
-      setLeague(saved)
-      leagueRef.current = saved
-      setSaveStatus("saved")
-      setError(null)
-      await loadLeagueList()
-      return saved
-    } catch (saveError: unknown) {
-      setSaveStatus("error")
-      setError(
-        saveError instanceof Error ? saveError.message : "Failed to save league",
-      )
-      throw saveError
-    }
-  }, [loadLeagueList])
+      try {
+        const saved = await saveLeague(record)
+        setLeague(saved)
+        leagueRef.current = saved
+        setSaveStatus("saved")
+        setError(null)
+        await loadLeagueList()
+        return saved
+      } catch (saveError: unknown) {
+        setSaveStatus("error")
+        setError(
+          saveError instanceof Error
+            ? saveError.message
+            : "Failed to save league"
+        )
+        throw saveError
+      }
+    },
+    [loadLeagueList]
+  )
 
   const flushPendingSave = useCallback(async () => {
     if (saveTimeoutRef.current) {
@@ -155,7 +149,7 @@ export function useLeague() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Failed to load league",
+            : "Failed to load league"
         )
         setStatus("error")
       })
@@ -181,7 +175,7 @@ export function useLeague() {
         void persistLeague(record)
       }, SAVE_DEBOUNCE_MS)
     },
-    [persistLeague],
+    [persistLeague]
   )
 
   const activateLeagueRecord = useCallback(
@@ -195,7 +189,7 @@ export function useLeague() {
       await loadLeagueList()
       return record
     },
-    [loadLeagueList],
+    [loadLeagueList]
   )
 
   const switchLeague = useCallback(
@@ -211,7 +205,7 @@ export function useLeague() {
 
       return activateLeagueRecord(normalizeLeagueRecord(record))
     },
-    [activateLeagueRecord, flushPendingSave],
+    [activateLeagueRecord, flushPendingSave]
   )
 
   const deleteLeagueById = useCallback(
@@ -237,7 +231,7 @@ export function useLeague() {
         return
       }
 
-      const nextRecord = await getLeague(nextSaves[0]!.id)
+      const nextRecord = await getLeague(nextSaves[0].id)
       if (nextRecord) {
         await activateLeagueRecord(normalizeLeagueRecord(nextRecord))
       } else {
@@ -248,7 +242,7 @@ export function useLeague() {
         setStatus("empty")
       }
     },
-    [activeLeagueId, activateLeagueRecord, flushPendingSave, loadLeagueList],
+    [activeLeagueId, activateLeagueRecord, flushPendingSave, loadLeagueList]
   )
 
   const createNewLeague = useCallback(
@@ -282,12 +276,12 @@ export function useLeague() {
         setError(
           createError instanceof Error
             ? createError.message
-            : "Failed to create league",
+            : "Failed to create league"
         )
         throw createError
       }
     },
-    [flushPendingSave, loadLeagueList],
+    [flushPendingSave, loadLeagueList]
   )
 
   const createProductLeague = useCallback(
@@ -320,12 +314,12 @@ export function useLeague() {
         setError(
           createError instanceof Error
             ? createError.message
-            : "Failed to create league",
+            : "Failed to create league"
         )
         throw createError
       }
     },
-    [flushPendingSave, loadLeagueList],
+    [flushPendingSave, loadLeagueList]
   )
 
   const setUserTeamId = useCallback(
@@ -342,182 +336,28 @@ export function useLeague() {
 
       return persistLeague(updated)
     },
-    [persistLeague],
+    [persistLeague]
   )
 
-  const updateSeasonState = useCallback(
-    (updater: (state: SeasonState) => SeasonState) => {
+  const dispatch = useCallback(
+    (command: LeagueCommand) => {
       const current = leagueRef.current
       if (!current) {
         return
       }
 
-      scheduleSave({
-        ...current,
-        seasonState: updater(current.seasonState),
-      })
-    },
-    [scheduleSave],
-  )
-
-  const updateLeagueRecord = useCallback(
-    (updater: (record: LeagueRecord) => LeagueRecord) => {
-      const current = leagueRef.current
-      if (!current) {
-        return
-      }
-
-      scheduleSave(updater(current))
-    },
-    [scheduleSave],
-  )
-
-  const prepareDraftAction = useCallback(() => {
-    updateLeagueRecord((record) => ({
-      ...record,
-      seasonState: prepareDraft(record.seasonState),
-    }))
-  }, [updateLeagueRecord])
-
-  const makeDraftPickAction = useCallback(
-    (prospectId: string) => {
-      updateLeagueRecord((record) => {
-        const result = makeDraftPick(
-          record.seasonState,
-          prospectId,
-          record.freeAgentPool ?? [],
+      try {
+        scheduleSave(applyLeagueCommand(current, command))
+      } catch (commandError: unknown) {
+        setError(
+          commandError instanceof Error
+            ? commandError.message
+            : "Failed to apply league command"
         )
-        const updated: LeagueRecord = {
-          ...record,
-          seasonState: result.seasonState,
-          freeAgentPool: result.freeAgentPool,
-        }
-
-        return attachRookieContractsForDraftSelections(updated)
-      })
+      }
     },
-    [updateLeagueRecord],
+    [scheduleSave]
   )
-
-  const simAiPickAction = useCallback(() => {
-    updateLeagueRecord((record) => {
-      const result = simAiPick(record.seasonState, record.freeAgentPool ?? [])
-      const updated: LeagueRecord = {
-        ...record,
-        seasonState: result.seasonState,
-        freeAgentPool: result.freeAgentPool,
-      }
-
-      return attachRookieContractsForDraftSelections(updated)
-    })
-  }, [updateLeagueRecord])
-
-  const simToUserPickAction = useCallback(() => {
-    updateLeagueRecord((record) => {
-      const result = simToUserPick(
-        record.seasonState,
-        record.userTeamId,
-        record.freeAgentPool ?? [],
-      )
-      const updated: LeagueRecord = {
-        ...record,
-        seasonState: result.seasonState,
-        freeAgentPool: result.freeAgentPool,
-      }
-
-      return attachRookieContractsForDraftSelections(updated)
-    })
-  }, [updateLeagueRecord])
-
-  const releasePlayerAction = useCallback(
-    (playerId: string) => {
-      const current = leagueRef.current
-      if (!current?.userTeamId) {
-        return
-      }
-
-      updateLeagueRecord((record) => {
-        const updated = waivePlayerContract(record, playerId)
-        const result = releasePlayer(
-          updated.seasonState.teams,
-          updated.freeAgentPool ?? [],
-          {
-            teamId: current.userTeamId!,
-            playerId,
-          },
-        )
-        return {
-          ...updated,
-          seasonState: {
-            ...updated.seasonState,
-            teams: result.teams,
-          },
-          freeAgentPool: result.freeAgentPool,
-        }
-      })
-    },
-    [updateLeagueRecord],
-  )
-
-  const beginPlayoffsAction = useCallback(() => {
-    updateSeasonState((state) => beginPlayoffs(state))
-  }, [updateSeasonState])
-
-  const beginOffseasonAction = useCallback(() => {
-    const current = leagueRef.current
-    if (!current) {
-      return
-    }
-
-    const rng = createRng(
-      `${current.seasonState.baseSeed}:offseason:${current.seasonState.season}`,
-    )
-    const nextState = beginOffseason(current.seasonState, rng)
-    const updated = processOffseasonFinancials(
-      { ...current, seasonState: nextState },
-      rng,
-    )
-
-    scheduleSave(updated)
-  }, [scheduleSave])
-
-  const simulatePlayoffsAction = useCallback(() => {
-    updateSeasonState((state) => simulatePlayoffs(state))
-  }, [updateSeasonState])
-
-  const completeReSigningsAction = useCallback(() => {
-    updateLeagueRecord((record) =>
-      completeReSigningPhase(
-        record,
-        createRng(`${record.seasonState.baseSeed}:ai-re-sign:${record.seasonState.season}`),
-      ),
-    )
-  }, [updateLeagueRecord])
-
-  const advanceToDraftAction = useCallback(() => {
-    updateSeasonState((state) => advanceToDraftPhase(state))
-  }, [updateSeasonState])
-
-  const advanceToFreeAgencyAction = useCallback(() => {
-    updateLeagueRecord((record) =>
-      ensureFaPoolMinimum(
-        {
-          ...record,
-          seasonState: advanceToFreeAgencyPhase(record.seasonState),
-        },
-        createRng(`${record.seasonState.baseSeed}:fa-pool:${record.seasonState.season}`),
-      ),
-    )
-  }, [updateLeagueRecord])
-
-  const completeFreeAgencyAction = useCallback(() => {
-    updateLeagueRecord((record) =>
-      completeFreeAgencyPhase(
-        record,
-        createRng(`${record.seasonState.baseSeed}:ai-fa:${record.seasonState.season}`),
-      ),
-    )
-  }, [updateLeagueRecord])
 
   const startNextSeasonAction = useCallback(async () => {
     const current = leagueRef.current
@@ -525,49 +365,21 @@ export function useLeague() {
       return
     }
 
-    await flushPendingSave()
-
-    const result = startNextSeason({
-      seasonState: current.seasonState,
-      userTeamId: current.userTeamId,
-      freeAgentPool: current.freeAgentPool ?? [],
-      rng: createRng(
-        `${current.seasonState.baseSeed}:season:${current.seasonState.season + 1}`,
-      ),
-      league: {
-        contracts: current.contracts ?? [],
-        leagueFinancials: current.leagueFinancials,
-        teamFinancials: current.teamFinancials ?? [],
-        spendingProfileEvents: current.spendingProfileEvents ?? [],
-      },
-    })
-
-    const updated = normalizeLeagueRecord({
-      ...current,
-      seasonState: result.seasonState,
-      seasonHistory: [...(current.seasonHistory ?? []), result.historyEntry],
-      freeAgentPool: result.freeAgentPool,
-      contracts: result.contracts,
-      leagueFinancials: result.leagueFinancials,
-      teamFinancials: result.teamFinancials,
-    })
-
-    return persistLeague(updated)
-  }, [flushPendingSave, persistLeague])
-
-  const signFreeAgentAction = useCallback(
-    (playerId: string, offer: FreeAgentOffer) => {
-      const current = leagueRef.current
-      if (!current?.userTeamId) {
-        return
-      }
-
-      updateLeagueRecord((record) =>
-        signFreeAgent(record, record.userTeamId!, playerId, offer),
+    try {
+      setError(null)
+      await flushPendingSave()
+      const updated = applyLeagueCommand(current, { type: "startNextSeason" })
+      return persistLeague(updated)
+    } catch (startError: unknown) {
+      setSaveStatus("error")
+      setError(
+        startError instanceof Error
+          ? startError.message
+          : "Failed to start next season"
       )
-    },
-    [updateLeagueRecord],
-  )
+      return undefined
+    }
+  }, [flushPendingSave, persistLeague])
 
   return {
     status,
@@ -586,21 +398,31 @@ export function useLeague() {
     switchLeague,
     deleteLeague: deleteLeagueById,
     loadLeagueList,
-    beginPlayoffs: beginPlayoffsAction,
-    beginOffseason: beginOffseasonAction,
-    completeReSignings: completeReSigningsAction,
-    advanceToDraft: advanceToDraftAction,
-    advanceToFreeAgency: advanceToFreeAgencyAction,
-    completeFreeAgency: completeFreeAgencyAction,
-    prepareDraft: prepareDraftAction,
-    makeDraftPick: makeDraftPickAction,
-    simAiPick: simAiPickAction,
-    simToUserPick: simToUserPickAction,
-    releasePlayer: releasePlayerAction,
-    signFreeAgent: signFreeAgentAction,
-    simulatePlayoffs: simulatePlayoffsAction,
+    dispatch,
+    beginPlayoffs: () => dispatch({ type: "beginPlayoffs" }),
+    beginOffseason: () => dispatch({ type: "beginOffseason" }),
+    completeReSignings: () => dispatch({ type: "completeReSignings" }),
+    advanceToDraft: () => dispatch({ type: "advanceToDraft" }),
+    advanceToFreeAgency: () => dispatch({ type: "advanceToFreeAgency" }),
+    completeFreeAgency: () => dispatch({ type: "completeFreeAgency" }),
+    prepareDraft: () => dispatch({ type: "prepareDraft" }),
+    makeDraftPick: (prospectId: string) =>
+      dispatch({ type: "makeDraftPick", prospectId }),
+    simAiPick: () => dispatch({ type: "simAiPick" }),
+    simToUserPick: () => dispatch({ type: "simToUserPick" }),
+    releasePlayer: (playerId: string) =>
+      dispatch({ type: "releasePlayer", playerId }),
+    signFreeAgent: (playerId: string, offer: FreeAgentOffer) =>
+      dispatch({ type: "signFreeAgent", playerId, offer }),
+    executeTrade: (proposal: TradeProposal) =>
+      dispatch({ type: "executeTrade", proposal }),
+    simulateCurrentPlayoffRound: () =>
+      dispatch({ type: "simulateCurrentPlayoffRound" }),
+    simulatePlayoffs: () => dispatch({ type: "simulatePlayoffs" }),
+    simDay: () => dispatch({ type: "simDay" }),
+    simWeek: () => dispatch({ type: "simWeek" }),
+    simSeason: () => dispatch({ type: "simSeason" }),
     startNextSeason: startNextSeasonAction,
-    updateSeasonState,
     persistLeague,
   }
 }
@@ -627,7 +449,7 @@ export function useSavedLeagueSummary() {
               updatedAt: record.updatedAt,
               userTeamId: record.userTeamId,
               teamCount: record.seasonState.teams.length,
-            },
+            }
           )
         }
       })

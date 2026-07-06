@@ -1,4 +1,8 @@
-import type { PlayerPosition, PlayerRatings } from "./playerTypes"
+import type {
+  PlayerArchetype,
+  PlayerPosition,
+  PlayerRatings,
+} from "./playerTypes"
 
 export type DraftInfo = {
   year: number
@@ -6,6 +10,8 @@ export type DraftInfo = {
   overallPick: number
   originalTeamId: string
 }
+
+export type DraftPickProtection = null
 
 export type DraftProspect = {
   id: string
@@ -16,16 +22,28 @@ export type DraftProspect = {
   heightInches: number
   weightLbs: number
   position: PlayerPosition
+  archetype: PlayerArchetype
   ratings: PlayerRatings
   tags: string[]
 }
 
 export type DraftPick = {
+  assetId?: string
   overallPick: number
   round: 1 | 2
   pickInRound: number
   teamId: string
+  originalTeamId: string
   playerId: string | null
+}
+
+export type DraftPickAsset = {
+  id: string
+  originalTeamId: string
+  currentTeamId: string
+  season: number
+  round: 1 | 2
+  protection: DraftPickProtection
 }
 
 export type DraftSelection = {

@@ -1,4 +1,8 @@
-import type { PlayerGameStats, QuarterScores, TeamWithRoster } from "./playerTypes"
+import type {
+  PlayerGameStats,
+  QuarterScores,
+  TeamWithRoster,
+} from "./playerTypes"
 
 export type { Team } from "./teamTypes"
 
@@ -13,6 +17,33 @@ export type TeamMatchupMeta = {
   awayPossessions: number
   homeOffRtg: number
   awayOffRtg: number
+  homeRotationQuality?: RotationQuality
+  awayRotationQuality?: RotationQuality
+  homeTeamStats?: TeamGameStats
+  awayTeamStats?: TeamGameStats
+}
+
+export type RotationQuality = {
+  top2: number
+  starters: number
+  bench: number
+  fullRotation: number
+}
+
+export type TeamGameStats = {
+  possessions: number
+  fgm: number
+  fga: number
+  tpm: number
+  tpa: number
+  ftm: number
+  fta: number
+  orb: number
+  drb: number
+  ast: number
+  stl: number
+  blk: number
+  tov: number
 }
 
 export type TeamMatchupResult = {
@@ -37,19 +68,34 @@ export type Rng = {
 export type {
   ID,
   Player,
+  PlayerArchetype,
   PlayerGameStats,
+  PlayerInjury,
   PlayerPosition,
   PlayerRatings,
   PlayerStatus,
   PlayerTag,
   QuarterScores,
+  GameRotation,
+  GameRotationEntry,
   RotationEntry,
+  RotationPlan,
+  RotationPlanEntry,
+  RotationRole,
   SkillKey,
   TeamWithRoster,
 } from "./playerTypes"
 
 export type {
+  LeagueCalendarState,
+  CalendarDate,
+  SeasonMilestones,
+} from "./calendarTypes"
+
+export type {
   DraftInfo,
+  DraftPickAsset,
+  DraftPickProtection,
   DraftPick,
   DraftProspect,
   DraftSelection,
@@ -82,6 +128,37 @@ export type {
   FreeAgentOffer,
   SigningException,
 } from "./contractTypes"
+
+export type { LeagueLogEntry, LeagueLogEntryType } from "./logTypes"
+
+export type {
+  Owner,
+  OwnerArchetype,
+  OwnerGoal,
+  OwnerGoalPriority,
+  OwnerGoalStatus,
+  OwnerGoalType,
+  OwnerPatience,
+  OwnerRiskTolerance,
+} from "./ownerTypes"
+
+export type { SeasonAward, SeasonAwardType } from "./awardTypes"
+
+export type {
+  PlayerCareerSnapshot,
+  PlayerSeasonProfile,
+  PlayerSeasonProfileRole,
+} from "./playerProfileTypes"
+
+export type {
+  TradeEvaluation,
+  TradeHistoryEntry,
+  TradeHistoryTeamEntry,
+  TradeProposal,
+  TradeResult,
+  TradeSide,
+  TradeValidationResult,
+} from "./tradeTypes"
 
 export type {
   BirdRightsType,

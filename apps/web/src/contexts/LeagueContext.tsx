@@ -1,14 +1,17 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react"
+import type { ReactNode } from "react"
+import { createContext, useContext, useMemo } from "react"
 
 import { ROSTER_MAX } from "@workspace/shared/constants"
 import type { TeamWithRoster } from "@workspace/shared/types"
 import {
-  isDraftRequired,
+  getAllPhaseEligibility,
+  getCurrentCalendar,
   isRegularSeasonComplete,
   isUserOnClock,
 } from "@workspace/sim"
 
-import { useLeague, type LeagueStatus, type SaveStatus } from "@/hooks/useLeague"
+import type { LeagueStatus, SaveStatus } from "@/hooks/useLeague"
+import { useLeague } from "@/hooks/useLeague"
 
 type LeagueContextValue = ReturnType<typeof useLeague> & {
   needsCreate: boolean
@@ -33,6 +36,7 @@ type LeagueContextValue = ReturnType<typeof useLeague> & {
   rosterOverLimit: boolean
   cutsNeeded: number
   canStartNextSeason: boolean
+  calendar: ReturnType<typeof getCurrentCalendar> | null
 }
 
 const LeagueContext = createContext<LeagueContextValue | null>(null)
@@ -45,7 +49,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const myTeam =
       seasonState && leagueState.userTeamId
         ? (seasonState.teams.find(
-            (team) => team.id === leagueState.userTeamId,
+            (team) => team.id === leagueState.userTeamId
           ) ?? null)
         : null
 
@@ -59,18 +63,18 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const offseasonPhase = isOffseason
       ? (seasonState?.offseasonPhase ?? "re_signing")
       : null
-    const championTeamId =
-      seasonState?.playoffBracket?.championTeamId ?? null
-    const completedSeason = seasonState?.season ?? 1
-    const draftRequired = isDraftRequired(completedSeason)
-    const draftState = seasonState?.draftState
-    const draftComplete = !draftRequired || Boolean(draftState?.completed)
+    const championTeamId = seasonState?.playoffBracket?.championTeamId ?? null
     const userRosterSize = myTeam?.players.length ?? 0
     const rosterOverLimit = userRosterSize > ROSTER_MAX
     const cutsNeeded = Math.max(0, userRosterSize - ROSTER_MAX)
     const userOnClock = seasonState
       ? isUserOnClock(seasonState, leagueState.userTeamId)
       : false
+    const calendar = seasonState ? getCurrentCalendar(seasonState) : null
+    const eligibility =
+      leagueState.league !== null
+        ? getAllPhaseEligibility(leagueState.league)
+        : null
 
     return {
       ...leagueState,
@@ -87,26 +91,18 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       isOffseason,
       offseasonPhase,
       championTeamId,
-      canBeginPlayoffs: phase === "regular" && isRegularComplete,
-      canBeginOffseason: isSeasonComplete && Boolean(championTeamId),
-      canSimAiReSignings: offseasonPhase === "re_signing",
-      canProceedToDraft: false,
-      canPrepareDraft:
-        offseasonPhase === "draft" &&
-        draftRequired &&
-        !draftState &&
-        Boolean(championTeamId),
-      canProceedToFreeAgency:
-        offseasonPhase === "draft" && Boolean(draftState?.completed),
-      canSimAiFreeAgency: offseasonPhase === "free_agency",
+      canBeginPlayoffs: eligibility?.beginPlayoffs.allowed ?? false,
+      canBeginOffseason: eligibility?.beginOffseason.allowed ?? false,
+      canSimAiReSignings: eligibility?.simAiReSignings.allowed ?? false,
+      canProceedToDraft: eligibility?.proceedToDraft.allowed ?? false,
+      canPrepareDraft: eligibility?.prepareDraft.allowed ?? false,
+      canProceedToFreeAgency: eligibility?.proceedToFreeAgency.allowed ?? false,
+      canSimAiFreeAgency: eligibility?.simAiFreeAgency.allowed ?? false,
       isUserOnClock: userOnClock,
       rosterOverLimit,
       cutsNeeded,
-      canStartNextSeason:
-        offseasonPhase === "free_agency" &&
-        draftComplete &&
-        !rosterOverLimit &&
-        userRosterSize === ROSTER_MAX,
+      canStartNextSeason: eligibility?.startNextSeason.allowed ?? false,
+      calendar,
     }
   }, [leagueState])
 

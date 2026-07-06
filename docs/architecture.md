@@ -9,7 +9,7 @@ flowchart TB
     subgraph client ["Browser (apps/web)"]
         Routes["TanStack Router routes"]
         Components["React components"]
-        Hooks["useLeague / useLeagueSaves"]
+        Hooks["useLeague"]
         Ctx["LeagueContext"]
     end
 
@@ -20,6 +20,13 @@ flowchart TB
         Shared["@workspace/shared"]
     end
 
+    subgraph simModules ["@workspace/sim modules"]
+        Commands["applyLeagueCommand"]
+        Eligibility["phaseEligibility"]
+        Ledger["roster/ledger"]
+        Engine["game + season atomics"]
+    end
+
     subgraph storage ["Client storage"]
         IDB["IndexedDB via Dexie"]
     end
@@ -27,12 +34,17 @@ flowchart TB
     Routes --> Components
     Components --> Ctx
     Ctx --> Hooks
-    Hooks --> Sim
+    Ctx --> Eligibility
+    Hooks -->|"dispatch(LeagueCommand)"| Commands
     Hooks --> DB
+    Commands --> Ledger
+    Commands --> Engine
+    Commands --> Eligibility
     Components --> UI
     Sim --> Shared
     DB --> Shared
     DB --> IDB
+    Commands --> Sim
 ```
 
 ## Packages
@@ -43,7 +55,7 @@ The TanStack Start application. Responsibilities:
 
 - File-based routing (`src/routes/`)
 - League UI (standings, schedule, roster, playoffs, box scores)
-- React context and hooks that bridge UI ↔ sim ↔ db
+- React context and hooks that bridge UI ↔ sim ↔ db (`useLeague` dispatches `LeagueCommand`s; `LeagueContext` reads `getAllPhaseEligibility`)
 - Developer labs (`/sim-lab`, `/season-lab`)
 
 Key dependencies: `@tanstack/react-start`, `@tanstack/react-router`, Tailwind CSS 4, `@workspace/*` packages.
@@ -52,12 +64,18 @@ Key dependencies: `@tanstack/react-start`, `@tanstack/react-router`, Tailwind CS
 
 **Pure TypeScript simulation engine.** No React, no DOM, no IndexedDB.
 
+- **League commands** (`applyLeagueCommand`) — single entry point for app mutations (sim ticks, lifecycle, trades, FA, draft)
+- **Phase eligibility** (`getPhaseEligibility`) — shared UI/sim gates for offseason and season transitions
+- **Roster ledger** (`roster/ledger`) — multi-slice player reads and composite writes (release, draft selections + contracts + logs)
+- **Roster generation** (`playerGeneration/rosterPipeline`) — unified tier-offset and archetype-slot team generation
 - Game simulation (`simulateTeamMatchup`, `simulateGame`)
 - Schedule generation (`createSchedule`)
 - Season loop (`simulateDay`, `simulateWeek`, `simulateSeason`)
 - Playoffs (`beginPlayoffs`, `simulatePlayoffs`, bracket logic)
 - League lifecycle (`createLeague`, `startNextSeason`, `archiveSeason`)
-- Procedural generation (`generateTeams`, `generatePlayers`)
+- Procedural generation (`generateTeams`, `generatePlayers`, player archetypes, draft classes, free agents)
+- Aggregate game simulation, rotations, injuries, player/contract value, financial AI
+- Contracts, cap/tax math, re-signing, draft, free agency, team strategy
 - Seeded RNG (`createRng`) for reproducibility
 
 All exports are functions that take immutable-ish state + an `Rng` and return updated state. Vitest tests cover core behavior.
@@ -67,8 +85,10 @@ All exports are functions that take immutable-ish state + an `Rng` and return up
 Shared **types and constants** consumed by `sim`, `db`, and `web`.
 
 - Domain types: `Player`, `Team`, `Game`, `SeasonState`, `LeagueRecord`
+- Player identity and availability: archetypes, statuses, injuries
+- Contracts, draft, and financial types
 - League constants: team counts, season lengths, playoff formats
-- `SAVE_VERSION` for migration compatibility
+- `SAVE_VERSION` for the current save schema marker
 
 ### `packages/db`
 
@@ -98,15 +118,20 @@ pnpm dlx shadcn@latest add <component> -c apps/web
 
 1. `useLeague` mounts → dynamic import `@workspace/db`
 2. `listLeagues()` reads IndexedDB, resolves active save from `localStorage`
-3. `normalizeLeagueRecord()` migrates/validates save version
+3. `normalizeLeagueRecord()` normalizes current-shape records
 4. State flows into `LeagueProvider` → route components
 
 ### Simulation tick
 
 1. User clicks "Simulate day" (or week / playoffs / season)
-2. Hook calls `@workspace/sim` function with current `SeasonState` + `Rng`
-3. Updated `LeagueRecord` is set in React state
-4. Debounced auto-save (300ms) persists to IndexedDB via `saveLeague`
+2. Route or hook calls `dispatch({ type: "simDay" })` (or week/season/playoffs command)
+3. `applyLeagueCommand` runs the sim function and any composed side effects
+4. Updated `LeagueRecord` is set in React state
+5. Debounced auto-save (300ms) persists to IndexedDB via `saveLeague`
+
+### League lifecycle actions
+
+Offseason transitions, draft picks, trades, and free agency use the same command layer. `LeagueContext` exposes `canBeginPlayoffs`, `canStartNextSeason`, etc. by mapping `getAllPhaseEligibility` — the same rules `applyLeagueCommand` enforces before mutating state.
 
 ### Active save tracking
 
@@ -114,22 +139,22 @@ pnpm dlx shadcn@latest add <component> -c apps/web
 
 ## Routing
 
-| Route | Purpose |
-|-------|---------|
-| `/` | Home — continue/create league, manage saves |
-| `/league` | League dashboard |
-| `/league/create` | New league wizard |
-| `/league/pick-team` | Team selection |
-| `/league/saves` | Save slot management |
-| `/league/standings` | Standings table |
-| `/league/schedule` | Schedule + sim controls |
-| `/league/stats` | Player season stats |
-| `/league/team` | User team roster |
-| `/league/playoffs` | Playoff bracket |
-| `/league/history` | Past seasons |
-| `/league/games/$gameId` | Box score detail |
-| `/sim-lab` | Single-game simulation playground |
-| `/season-lab` | Season simulation playground |
+| Route                   | Purpose                                     |
+| ----------------------- | ------------------------------------------- |
+| `/`                     | Home — continue/create league, manage saves |
+| `/league`               | League dashboard                            |
+| `/league/create`        | New league wizard                           |
+| `/league/pick-team`     | Team selection                              |
+| `/league/saves`         | Save slot management                        |
+| `/league/standings`     | Standings table                             |
+| `/league/schedule`      | Schedule + sim controls                     |
+| `/league/stats`         | Player season stats                         |
+| `/league/team`          | User team roster                            |
+| `/league/playoffs`      | Playoff bracket                             |
+| `/league/history`       | Past seasons                                |
+| `/league/games/$gameId` | Box score detail                            |
+| `/sim-lab`              | Single-game simulation playground           |
+| `/season-lab`           | Season simulation playground                |
 
 ## Planned layers
 
@@ -157,11 +182,11 @@ AI output will be stored as optional narrative attachments on games/seasons, nev
 
 ## Design decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| Client-side sim | Instant feedback, offline play, easy testing |
-| Monorepo | Shared types between engine and UI; independent test runs |
-| Dexie over raw IndexedDB | Ergonomic queries, schema versioning |
-| Seeded RNG | Reproducible games given `baseSeed` + context |
-| Dynamic `import("@workspace/db")` | Avoids IndexedDB access during SSR |
-| `SAVE_VERSION` constant | Forward-compatible save migrations |
+| Decision                          | Rationale                                                 |
+| --------------------------------- | --------------------------------------------------------- |
+| Client-side sim                   | Instant feedback, offline play, easy testing              |
+| Monorepo                          | Shared types between engine and UI; independent test runs |
+| Dexie over raw IndexedDB          | Ergonomic queries, schema versioning                      |
+| Seeded RNG                        | Reproducible games given `baseSeed` + context             |
+| Dynamic `import("@workspace/db")` | Avoids IndexedDB access during SSR                        |
+| `SAVE_VERSION` constant           | Current save schema marker                                |

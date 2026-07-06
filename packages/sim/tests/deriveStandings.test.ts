@@ -21,6 +21,8 @@ function makeGame(
     day,
     homeTeamId,
     awayTeamId,
+    rngSeed: `test:${id}`,
+    rngNonce: 0,
     result: {
       homeTeamId,
       awayTeamId,

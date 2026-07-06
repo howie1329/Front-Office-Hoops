@@ -1,0 +1,330 @@
+import type { LeagueRecord, Rng } from "@workspace/shared/types"
+
+import { archivePlayerCareerSnapshots } from "../playerProfiles"
+import { derivePlayerSeasonProfiles } from "../playerSeasonProfiles"
+import { assignSeasonAwards } from "../awards"
+import { beginOffseason } from "../beginOffseason"
+import { beginPlayoffs } from "../beginPlayoffs"
+import { evaluateOwnerGoals, generateOwnerGoals } from "../owners"
+import { simAiPick, simToUserPick } from "../draft/simAiPick"
+import { makeDraftPick } from "../draft/makeDraftPick"
+import { prepareDraft } from "../draft/prepareDraft"
+import {
+  advanceToDraftPhase,
+  advanceToFreeAgencyPhase,
+  completeFreeAgencyPhase,
+} from "../offseason/phases"
+import { completeReSigningPhase } from "../offseason/reSigning"
+import { ensureFaPoolMinimum, processOffseasonFinancials } from "../financials"
+import { executeTrade, wouldAiAcceptTrade } from "../trades"
+import { signFreeAgent } from "../financials/freeAgency"
+import { normalizeLeagueRecord } from "../normalizeLeague"
+import { assertPhaseEligibility } from "../phaseEligibility"
+import { applyDraftSelections, releasePlayerFromTeam } from "../roster/ledger"
+import { simulateDay } from "../simulateDay"
+import { simulateCurrentPlayoffRound } from "../simulateCurrentPlayoffRound"
+import { simulatePlayoffs } from "../simulatePlayoffs"
+import { simulateSeason } from "../simulateSeason"
+import { simulateWeek } from "../simulateWeek"
+import { startNextSeason } from "../startNextSeason"
+import { commandRng } from "./rngSeeds"
+import {
+  getPhaseActionForCommand,
+  type LeagueCommand,
+  type PhaseGatedCommand,
+} from "./types"
+
+const PHASE_GATED_TYPES = new Set<LeagueCommand["type"]>([
+  "beginPlayoffs",
+  "beginOffseason",
+  "completeReSignings",
+  "advanceToDraft",
+  "prepareDraft",
+  "advanceToFreeAgency",
+  "completeFreeAgency",
+  "startNextSeason",
+])
+
+const STOCHASTIC_TYPES = new Set<LeagueCommand["type"]>([
+  "simDay",
+  "simWeek",
+  "simSeason",
+  "simulatePlayoffs",
+  "simulateCurrentPlayoffRound",
+  "beginOffseason",
+  "completeReSignings",
+  "prepareDraft",
+  "simAiPick",
+  "simToUserPick",
+  "advanceToFreeAgency",
+  "completeFreeAgency",
+  "startNextSeason",
+])
+
+function assertCommandEligibility(
+  league: LeagueRecord,
+  command: LeagueCommand
+): void {
+  if (!PHASE_GATED_TYPES.has(command.type)) {
+    return
+  }
+
+  assertPhaseEligibility(
+    league,
+    getPhaseActionForCommand(command as PhaseGatedCommand)
+  )
+}
+
+function applyLeagueCommandInternal(
+  league: LeagueRecord,
+  command: LeagueCommand,
+  rng?: Rng
+): LeagueRecord {
+  assertCommandEligibility(league, command)
+
+  const resolvedRng = rng ?? commandRng(league, command)
+
+  switch (command.type) {
+    case "simDay":
+      return {
+        ...league,
+        seasonState: simulateDay(
+          league.seasonState,
+          league.seasonState.currentDay,
+          league.rngNonce
+        ),
+      }
+
+    case "simWeek":
+      return {
+        ...league,
+        seasonState: simulateWeek(league.seasonState, league.rngNonce),
+      }
+
+    case "simSeason":
+      return {
+        ...league,
+        seasonState: simulateSeason(league.seasonState, league.rngNonce),
+      }
+
+    case "simulatePlayoffs":
+      return {
+        ...league,
+        seasonState: simulatePlayoffs(league.seasonState, league.rngNonce),
+      }
+
+    case "simulateCurrentPlayoffRound":
+      return {
+        ...league,
+        seasonState: simulateCurrentPlayoffRound(
+          league.seasonState,
+          league.rngNonce
+        ),
+      }
+
+    case "beginPlayoffs":
+      return {
+        ...league,
+        seasonState: beginPlayoffs(league.seasonState),
+      }
+
+    case "beginOffseason": {
+      const completedLeague = archivePlayerCareerSnapshots(
+        evaluateOwnerGoals(assignSeasonAwards(league))
+      )
+      const profiles = derivePlayerSeasonProfiles(
+        completedLeague.seasonState.teams,
+        completedLeague.seasonState.playerSeasonStats,
+        completedLeague.seasonState.games.length,
+        completedLeague.seasonState.season
+      )
+      const nextState = beginOffseason(
+        completedLeague.seasonState,
+        resolvedRng,
+        profiles
+      )
+      return processOffseasonFinancials(
+        {
+          ...completedLeague,
+          seasonState: nextState,
+          playerSeasonProfiles: [
+            ...completedLeague.playerSeasonProfiles.filter(
+              (entry) => entry.season !== completedLeague.seasonState.season
+            ),
+            ...profiles,
+          ],
+        },
+        resolvedRng
+      )
+    }
+
+    case "completeReSignings":
+      return completeReSigningPhase(league, resolvedRng)
+
+    case "advanceToDraft":
+      return {
+        ...league,
+        seasonState: advanceToDraftPhase(league.seasonState),
+      }
+
+    case "prepareDraft":
+      return {
+        ...league,
+        seasonState: prepareDraft(
+          league.seasonState,
+          league.draftPickAssets,
+          league.rngNonce
+        ),
+      }
+
+    case "makeDraftPick": {
+      const result = makeDraftPick(
+        league.seasonState,
+        command.prospectId,
+        league.freeAgentPool
+      )
+      return applyDraftSelections(league, league, result)
+    }
+
+    case "simAiPick": {
+      const result = simAiPick(league.seasonState, league.freeAgentPool)
+      return applyDraftSelections(league, league, result)
+    }
+
+    case "simToUserPick": {
+      const result = simToUserPick(
+        league.seasonState,
+        league.userTeamId,
+        league.freeAgentPool
+      )
+      return applyDraftSelections(league, league, result)
+    }
+
+    case "advanceToFreeAgency":
+      return ensureFaPoolMinimum(
+        {
+          ...league,
+          seasonState: advanceToFreeAgencyPhase(league.seasonState),
+        },
+        resolvedRng
+      )
+
+    case "completeFreeAgency":
+      return completeFreeAgencyPhase(league, resolvedRng)
+
+    case "releasePlayer": {
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before releasing a player")
+      }
+
+      return releasePlayerFromTeam(league, {
+        teamId: league.userTeamId,
+        playerId: command.playerId,
+      })
+    }
+
+    case "signFreeAgent": {
+      if (!league.userTeamId) {
+        throw new Error(
+          "User team must be selected before signing a free agent"
+        )
+      }
+
+      return signFreeAgent(
+        league,
+        league.userTeamId,
+        command.playerId,
+        command.offer
+      )
+    }
+
+    case "executeTrade":
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before trading")
+      }
+      if (
+        command.proposal.from.teamId !== league.userTeamId &&
+        command.proposal.to.teamId !== league.userTeamId
+      ) {
+        throw new Error("User team must be included in the trade")
+      }
+      {
+        const aiTeamId =
+          command.proposal.from.teamId === league.userTeamId
+            ? command.proposal.to.teamId
+            : command.proposal.from.teamId
+        const acceptance = wouldAiAcceptTrade(
+          league,
+          command.proposal,
+          aiTeamId
+        )
+        if (!acceptance.ok) {
+          throw new Error(acceptance.reason)
+        }
+      }
+      return executeTrade(league, command.proposal)
+
+    case "startNextSeason": {
+      const result = startNextSeason({
+        seasonState: league.seasonState,
+        userTeamId: league.userTeamId,
+        freeAgentPool: league.freeAgentPool,
+        rng: resolvedRng,
+        league: {
+          contracts: league.contracts,
+          leagueFinancials: league.leagueFinancials,
+          teamFinancials: league.teamFinancials,
+          spendingProfileEvents: league.spendingProfileEvents,
+          draftPickAssets: league.draftPickAssets,
+        },
+      })
+
+      const updated = normalizeLeagueRecord({
+        ...league,
+        seasonState: result.seasonState,
+        seasonHistory: [...league.seasonHistory, result.historyEntry],
+        freeAgentPool: result.freeAgentPool,
+        contracts: result.contracts,
+        leagueFinancials: result.leagueFinancials,
+        teamFinancials: result.teamFinancials,
+        draftPickAssets: result.draftPickAssets,
+      })
+
+      return {
+        ...updated,
+        ownerGoals: [
+          ...updated.ownerGoals.filter(
+            (goal) => goal.season !== updated.seasonState.season
+          ),
+          ...generateOwnerGoals(updated),
+        ],
+      }
+    }
+
+    default: {
+      const _exhaustive: never = command
+      return _exhaustive
+    }
+  }
+}
+
+export function applyLeagueCommand(
+  league: LeagueRecord,
+  command: LeagueCommand,
+  rng?: Rng
+): LeagueRecord {
+  const updated = applyLeagueCommandInternal(league, command, rng)
+
+  if (!STOCHASTIC_TYPES.has(command.type)) {
+    return updated
+  }
+
+  return {
+    ...updated,
+    rngNonce: (league.rngNonce ?? 0) + 1,
+  }
+}
+
+export { getPhaseEligibility } from "../phaseEligibility"
+export type { LeagueCommand } from "./types"
+export { commandRng } from "./rngSeeds"

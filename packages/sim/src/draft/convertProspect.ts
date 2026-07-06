@@ -1,9 +1,14 @@
-import type { DraftInfo, DraftProspect, DraftPick, Player } from "@workspace/shared/types"
+import type {
+  DraftInfo,
+  DraftProspect,
+  DraftPick,
+  Player,
+} from "@workspace/shared/types"
 
 export function convertProspectToPlayer(
   prospect: DraftProspect,
   pick: DraftPick,
-  draftInfo: DraftInfo,
+  draftInfo: DraftInfo
 ): Player {
   return {
     id: `p_draft_${draftInfo.year}_${draftInfo.overallPick}`,
@@ -15,6 +20,7 @@ export function convertProspectToPlayer(
     heightInches: prospect.heightInches,
     weightLbs: prospect.weightLbs,
     position: prospect.position,
+    archetype: prospect.archetype,
     ratings: { ...prospect.ratings },
     tags: [...prospect.tags],
     status: "active",
@@ -37,6 +43,7 @@ export function convertProspectToFreeAgent(prospect: DraftProspect): Player {
     heightInches: prospect.heightInches,
     weightLbs: prospect.weightLbs,
     position: prospect.position,
+    archetype: prospect.archetype,
     ratings: { ...prospect.ratings },
     tags: [...prospect.tags],
     status: "free_agent",

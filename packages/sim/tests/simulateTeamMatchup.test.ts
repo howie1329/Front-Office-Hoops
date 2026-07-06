@@ -48,11 +48,11 @@ describe("simulateTeamMatchup", () => {
   it("usually changes scores for different seeds", () => {
     const input = { home: baltimore, away: portland }
     const results = ["alpha", "beta", "gamma", "delta"].map((seed) =>
-      simulateTeamMatchup(input, createRng(seed)),
+      simulateTeamMatchup(input, createRng(seed))
     )
 
     const uniqueScores = new Set(
-      results.map((result) => `${result.homeScore}-${result.awayScore}`),
+      results.map((result) => `${result.homeScore}-${result.awayScore}`)
     )
 
     expect(uniqueScores.size).toBeGreaterThan(1)
@@ -66,7 +66,7 @@ describe("simulateTeamMatchup", () => {
     for (let i = 0; i < 100; i++) {
       const result = simulateTeamMatchup(
         { home: strong, away: weak },
-        createRng(`strong-vs-weak-${i}`),
+        createRng(`strong-vs-weak-${i}`)
       )
 
       if (result.winnerId === strong.id) {
@@ -85,7 +85,7 @@ describe("simulateTeamMatchup", () => {
       const away = SAMPLE_ROSTERS[(i + 2) % SAMPLE_ROSTERS.length]!
       const result = simulateTeamMatchup(
         { home, away },
-        createRng(`score-range-${i}`),
+        createRng(`score-range-${i}`)
       )
 
       scores.push(result.homeScore, result.awayScore)
@@ -102,19 +102,21 @@ describe("simulateTeamMatchup", () => {
     for (let i = 0; i < 50; i++) {
       const homeResult = simulateTeamMatchup(
         { home: baltimore, away: portland },
-        createRng(`home-court-home-${i}`),
+        createRng(`home-court-home-${i}`)
       )
       const awayResult = simulateTeamMatchup(
         { home: portland, away: baltimore },
-        createRng(`home-court-away-${i}`),
+        createRng(`home-court-away-${i}`)
       )
 
       homeAsHome.push(homeResult.homeScore)
       homeAsAway.push(awayResult.awayScore)
     }
 
-    const avgHome = homeAsHome.reduce((sum, score) => sum + score, 0) / homeAsHome.length
-    const avgAway = homeAsAway.reduce((sum, score) => sum + score, 0) / homeAsAway.length
+    const avgHome =
+      homeAsHome.reduce((sum, score) => sum + score, 0) / homeAsHome.length
+    const avgAway =
+      homeAsAway.reduce((sum, score) => sum + score, 0) / homeAsAway.length
 
     expect(avgHome).toBeGreaterThan(avgAway)
   })
@@ -125,7 +127,7 @@ describe("simulateTeamMatchup", () => {
       const away = SAMPLE_ROSTERS[(i + 1) % SAMPLE_ROSTERS.length]!
       const result = simulateTeamMatchup(
         { home, away },
-        createRng(`no-ties-${i}`),
+        createRng(`no-ties-${i}`)
       )
 
       expect(result.homeScore).not.toBe(result.awayScore)
@@ -135,28 +137,44 @@ describe("simulateTeamMatchup", () => {
   it("reconciles player points to team scores", () => {
     const result = simulateTeamMatchup(
       { home: memphis, away: reno },
-      createRng("reconcile"),
+      createRng("reconcile")
     )
 
-    expect(result.homePlayerStats.reduce((sum, line) => sum + line.pts, 0)).toBe(
-      result.homeScore,
-    )
-    expect(result.awayPlayerStats.reduce((sum, line) => sum + line.pts, 0)).toBe(
-      result.awayScore,
-    )
+    expect(
+      result.homePlayerStats.reduce((sum, line) => sum + line.pts, 0)
+    ).toBe(result.homeScore)
+    expect(
+      result.awayPlayerStats.reduce((sum, line) => sum + line.pts, 0)
+    ).toBe(result.awayScore)
   })
 
   it("reconciles quarter scores to team scores", () => {
     const result = simulateTeamMatchup(
       { home: memphis, away: reno },
-      createRng("quarters"),
+      createRng("quarters")
     )
 
     expect(result.homeQuarterScores.reduce((sum, pts) => sum + pts, 0)).toBe(
-      result.homeScore,
+      result.homeScore
     )
     expect(result.awayQuarterScores.reduce((sum, pts) => sum + pts, 0)).toBe(
-      result.awayScore,
+      result.awayScore
     )
+  })
+
+  it("exposes reconciled team stat components in metadata", () => {
+    const result = simulateTeamMatchup(
+      { home: memphis, away: reno },
+      createRng("components")
+    )
+
+    expect(result.meta.homeTeamStats).toMatchObject({
+      possessions: result.meta.homePossessions,
+    })
+    expect(result.meta.awayTeamStats).toMatchObject({
+      possessions: result.meta.awayPossessions,
+    })
+    expect(result.meta.homeRotationQuality?.bench).toBeGreaterThan(0)
+    expect(result.meta.awayRotationQuality?.bench).toBeGreaterThan(0)
   })
 })

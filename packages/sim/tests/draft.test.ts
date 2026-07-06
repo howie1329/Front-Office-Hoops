@@ -16,6 +16,7 @@ import {
   startNextSeason,
 } from "../src"
 import { beginOffseason } from "../src/beginOffseason"
+import { aiSelectProspect } from "../src/draft/aiSelectProspect"
 import { beginPlayoffs } from "../src/beginPlayoffs"
 import { finalizeDraftPool } from "../src/draft/completeDraft"
 import { generateDraftClass } from "../src/draft/generateDraftClass"
@@ -23,11 +24,16 @@ import { generateDraftOrderFromSeed } from "../src/draft/generateDraftOrder"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 
-function completeSeasonToOffseason(state: ReturnType<typeof createLeague>["seasonState"]) {
+function completeSeasonToOffseason(
+  state: ReturnType<typeof createLeague>["seasonState"]
+) {
   let next = simulateSeason(state)
   next = beginPlayoffs(next)
   next = simulatePlayoffs(next)
-  next = beginOffseason(next, createRng(`${next.baseSeed}:offseason:${next.season}`))
+  next = beginOffseason(
+    next,
+    createRng(`${next.baseSeed}:offseason:${next.season}`)
+  )
   return next
 }
 
@@ -37,10 +43,31 @@ function runToDraftOffseason(
     baseSeed: "draft-test",
     rng: createRng("draft-test"),
     useMiniLeague: true,
-  }),
+  })
 ) {
-  const state = advanceToDraftPhase(completeSeasonToOffseason(league.seasonState))
+  const state = advanceToDraftPhase(
+    completeSeasonToOffseason(league.seasonState)
+  )
   return { league, state }
+}
+
+function prospectValueProxy(prospect: {
+  age: number
+  ratings: { overall: number; potential: number }
+}) {
+  const ageBonus =
+    prospect.age === 19
+      ? 4
+      : prospect.age === 20
+        ? 2.5
+        : prospect.age === 21
+          ? 1
+          : 0
+  return prospect.ratings.overall + prospect.ratings.potential * 1.15 + ageBonus
+}
+
+function average(values: number[]) {
+  return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
 describe("draft", () => {
@@ -58,8 +85,18 @@ describe("draft", () => {
   })
 
   it("generates a deterministic rookie class", () => {
-    const first = generateDraftClass(6, 3, "class-seed", createRng("class-seed-a"))
-    const second = generateDraftClass(6, 3, "class-seed", createRng("class-seed-a"))
+    const first = generateDraftClass(
+      6,
+      3,
+      "class-seed",
+      createRng("class-seed-a")
+    )
+    const second = generateDraftClass(
+      6,
+      3,
+      "class-seed",
+      createRng("class-seed-a")
+    )
 
     expect(second).toEqual(first)
     expect(getDraftClassSize(6)).toBe(18)
@@ -67,31 +104,87 @@ describe("draft", () => {
     for (const prospect of first) {
       expect(prospect.age).toBeGreaterThanOrEqual(19)
       expect(prospect.age).toBeLessThanOrEqual(22)
-      expect(prospect.ratings.potential).toBeGreaterThan(prospect.ratings.overall)
+      expect(prospect.ratings.potential).toBeGreaterThan(
+        prospect.ratings.overall
+      )
     }
   })
 
-  it("creates tiered draft classes with lottery talent and deep undrafted range", () => {
-    const prospects = generateDraftClass(30, 2, "tiered-class", createRng("tiered-class"))
-    const average = (values: number[]) =>
-      values.reduce((sum, value) => sum + value, 0) / values.length
+  it("creates sorted draft boards with lottery talent and deep undrafted range", () => {
+    const prospects = generateDraftClass(
+      30,
+      2,
+      "tiered-class",
+      createRng("tiered-class")
+    )
     const lotteryAverage = average(
-      prospects.slice(0, 14).map((prospect) => prospect.ratings.overall),
+      prospects.slice(0, 14).map(prospectValueProxy)
     )
-    const deepAverage = average(
-      prospects.slice(60).map((prospect) => prospect.ratings.overall),
+    const middleAverage = average(
+      prospects.slice(14, 60).map(prospectValueProxy)
     )
+    const deepAverage = average(prospects.slice(60).map(prospectValueProxy))
 
     expect(prospects).toHaveLength(90)
-    expect(lotteryAverage).toBeGreaterThan(deepAverage + 6)
-    expect(prospects.some((prospect) => prospect.ratings.overall >= 62)).toBe(true)
-    expect(prospects.some((prospect) => prospect.ratings.overall <= 50)).toBe(true)
+    expect(lotteryAverage).toBeGreaterThan(middleAverage)
+    expect(middleAverage).toBeGreaterThan(deepAverage)
+    expect(prospects.some((prospect) => prospect.ratings.overall >= 62)).toBe(
+      true
+    )
+    expect(prospects.some((prospect) => prospect.ratings.overall <= 50)).toBe(
+      true
+    )
     expect(
       prospects.some(
-        (prospect) =>
-          prospect.ratings.potential - prospect.ratings.overall <= 6,
-      ),
+        (prospect) => prospect.ratings.potential - prospect.ratings.overall <= 6
+      )
     ).toBe(true)
+  })
+
+  it("uses a balanced randomized position bag for draft classes", () => {
+    const prospects = generateDraftClass(
+      30,
+      2,
+      "balanced-positions",
+      createRng("balanced-positions")
+    )
+    const counts = new Map<string, number>()
+
+    for (const prospect of prospects) {
+      counts.set(prospect.position, (counts.get(prospect.position) ?? 0) + 1)
+    }
+
+    const positionCounts = [...counts.values()]
+    expect(positionCounts).toHaveLength(5)
+    expect(
+      Math.max(...positionCounts) - Math.min(...positionCounts)
+    ).toBeLessThanOrEqual(1)
+    expect(
+      prospects.slice(0, 5).map((prospect) => prospect.position)
+    ).not.toEqual(["PG", "SG", "SF", "PF", "C"])
+  })
+
+  it("keeps AI picks anchored to board order with only small need adjustments", () => {
+    const prospects = generateDraftClass(
+      30,
+      2,
+      "ai-board",
+      createRng("ai-board")
+    )
+    const team = createLeague({
+      name: "AI Draft Board",
+      baseSeed: "ai-board-team",
+      rng: createRng("ai-board-team"),
+      useMiniLeague: true,
+    }).seasonState.teams[0]!
+
+    const selected = aiSelectProspect(team, prospects)
+    const selectedIndex = prospects.findIndex(
+      (prospect) => prospect.id === selected.id
+    )
+
+    expect(selectedIndex).toBeGreaterThanOrEqual(0)
+    expect(selectedIndex).toBeLessThanOrEqual(2)
   })
 
   it("creates a two-round snake draft order", () => {
@@ -137,7 +230,7 @@ describe("draft", () => {
         userTeamId,
         freeAgentPool: completed.freeAgentPool,
         rng: createRng("draft-block"),
-      }),
+      })
     ).toThrow("Roster over limit")
   })
 
@@ -150,7 +243,10 @@ describe("draft", () => {
     let teams = completed.seasonState.teams
     let pool = completed.freeAgentPool
 
-    while ((teams.find((team) => team.id === userTeamId)?.players.length ?? 0) > ROSTER_MAX) {
+    while (
+      (teams.find((team) => team.id === userTeamId)?.players.length ?? 0) >
+      ROSTER_MAX
+    ) {
       const team = teams.find((entry) => entry.id === userTeamId)!
       const releaseId = team.players[team.players.length - 1]!.id
       const released = releasePlayer(teams, pool, {
@@ -173,7 +269,9 @@ describe("draft", () => {
     })
 
     expect(next.seasonState.season).toBe(2)
-    expect(trimmed.teams.every((team) => team.players.length === ROSTER_MAX)).toBe(true)
+    expect(
+      trimmed.teams.every((team) => team.players.length === ROSTER_MAX)
+    ).toBe(true)
   })
 
   it("adds undrafted prospects to the free agent pool", () => {
@@ -187,12 +285,12 @@ describe("draft", () => {
         completed: false,
         selections: [],
       },
-      [],
+      []
     )
 
     expect(result.freeAgentPool).toHaveLength(getDraftClassSize(6))
-    expect(result.freeAgentPool.every((player) => player.status === "free_agent")).toBe(
-      true,
-    )
+    expect(
+      result.freeAgentPool.every((player) => player.status === "free_agent")
+    ).toBe(true)
   })
 })

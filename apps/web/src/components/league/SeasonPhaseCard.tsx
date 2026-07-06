@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 
 import type { SeasonState } from "@workspace/shared/types"
+import { getCurrentCalendar } from "@workspace/sim"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -25,6 +26,7 @@ type SeasonPhaseCardProps = {
   canStartNextSeason: boolean
   rosterOverLimit: boolean
   cutsNeeded: number
+  error: string | null
   onBeginPlayoffs: () => void
   onBeginOffseason: () => void
   onCompleteReSignings: () => void
@@ -61,6 +63,7 @@ export function SeasonPhaseCard({
   canStartNextSeason,
   rosterOverLimit,
   cutsNeeded,
+  error,
   onBeginPlayoffs,
   onBeginOffseason,
   onCompleteReSignings,
@@ -70,9 +73,8 @@ export function SeasonPhaseCard({
   onCompleteFreeAgency,
   onStartNextSeason,
 }: SeasonPhaseCardProps) {
-  const championName = championTeamId
-    ? teamName(state, championTeamId)
-    : null
+  const championName = championTeamId ? teamName(state, championTeamId) : null
+  const calendar = getCurrentCalendar(state)
 
   return (
     <Card>
@@ -88,7 +90,8 @@ export function SeasonPhaseCard({
               : state.phase === "offseason" &&
                   (state.offseasonPhase ?? "re_signing") === "re_signing"
                 ? "Re-sign your own expiring players, then let AI teams handle their re-signings."
-                : state.phase === "offseason" && state.offseasonPhase === "draft"
+                : state.phase === "offseason" &&
+                    state.offseasonPhase === "draft"
                   ? "Prepare and run the draft before free agency opens."
                   : state.phase === "offseason" &&
                       state.offseasonPhase === "free_agency"
@@ -99,10 +102,29 @@ export function SeasonPhaseCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <div className="grid gap-2 text-sm sm:grid-cols-2">
+          <SeasonMetric label="Date" value={calendar.date.label} />
+          <SeasonMetric label="Day" value={String(state.currentDay)} />
+          <SeasonMetric
+            label="Trade deadline"
+            value={
+              getCurrentCalendar({
+                ...state,
+                currentDay: calendar.milestones.tradeDeadlineDay,
+              }).date.label
+            }
+          />
+        </div>
+
         {rosterOverLimit ? (
           <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             Roster over limit — release {cutsNeeded} player
             {cutsNeeded === 1 ? "" : "s"} to start the next season.
+          </p>
+        ) : null}
+        {error ? (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {error}
           </p>
         ) : null}
 
@@ -135,14 +157,18 @@ export function SeasonPhaseCard({
             <Button onClick={onPrepareDraft}>Prepare draft</Button>
           ) : null}
 
-          {state.phase === "offseason" && state.draftState && !state.draftState.completed ? (
+          {state.phase === "offseason" &&
+          state.draftState &&
+          !state.draftState.completed ? (
             <Button variant="secondary" asChild>
               <Link to="/league/draft">Go to draft</Link>
             </Button>
           ) : null}
 
           {canProceedToFreeAgency ? (
-            <Button onClick={onAdvanceToFreeAgency}>Proceed to free agency</Button>
+            <Button onClick={onAdvanceToFreeAgency}>
+              Proceed to free agency
+            </Button>
           ) : null}
 
           {canSimAiFreeAgency ? (
@@ -165,5 +191,14 @@ export function SeasonPhaseCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function SeasonMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-muted/20 px-3 py-2">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-medium">{value}</p>
+    </div>
   )
 }

@@ -2,15 +2,22 @@ import type { PlayerPosition } from "@workspace/shared/playerTypes"
 import type { TeamMode } from "@workspace/shared/financialTypes"
 import type { Player, TeamWithRoster } from "@workspace/shared/types"
 
+import { calculatePlayerValue } from "../../playerValue"
+import { getPlayerRoleNeedBonus } from "../../roster/rosterBalance"
+
 const POSITIONS: PlayerPosition[] = ["PG", "SG", "SF", "PF", "C"]
 
-export function getPositionNeeds(team: TeamWithRoster): Record<PlayerPosition, number> {
+export function getPositionNeeds(
+  team: TeamWithRoster
+): Record<PlayerPosition, number> {
   const needs = Object.fromEntries(
-    POSITIONS.map((position) => [position, 0]),
+    POSITIONS.map((position) => [position, 0])
   ) as Record<PlayerPosition, number>
 
   for (const position of POSITIONS) {
-    const atPosition = team.players.filter((player) => player.position === position)
+    const atPosition = team.players.filter(
+      (player) => player.position === position
+    )
     if (atPosition.length === 0) {
       needs[position] = 10
       continue
@@ -29,15 +36,16 @@ export function scoreFreeAgentForTeam(
   team: TeamWithRoster,
   mode: TeamMode,
   expectedOffer: number,
-  fairSalary: number,
+  fairSalary: number
 ): number {
   const needs = getPositionNeeds(team)
-  let score = player.ratings.overall
+  let score = calculatePlayerValue(player)
   score += needs[player.position] ?? 0
+  score += getPlayerRoleNeedBonus(team.players, player)
 
   switch (mode) {
     case "selling":
-      score += player.ratings.potential - player.ratings.overall
+      score += (player.ratings.potential - player.ratings.overall) * 0.6
       if (player.age > 28) {
         score -= 8
       }
@@ -70,7 +78,7 @@ export function selectFreeAgentTarget(
   freeAgentPool: Player[],
   _team: TeamWithRoster,
   _mode: TeamMode,
-  scoreFn: (player: Player) => number,
+  scoreFn: (player: Player) => number
 ): Player | undefined {
   if (freeAgentPool.length === 0) {
     return undefined

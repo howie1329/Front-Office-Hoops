@@ -1,123 +1,35 @@
 import {
   RATING_MAX,
+  RATING_MIN,
   ROOKIE_AGE_MAX,
 } from "@workspace/shared/constants"
-import type { DraftProspect, PlayerPosition, Rng } from "@workspace/shared/types"
+import type {
+  DraftProspect,
+  PlayerPosition,
+  Rng,
+} from "@workspace/shared/types"
 
-import { generatePeakAge } from "../development/generatePeakAge"
-import { FIRST_NAMES, LAST_NAMES } from "../namePools"
-import { clampRating, deriveOverall } from "../playerRatings"
-import { getDraftClassSize, getDraftPickCount } from "./isDraftRequired"
+import { generatePlayerProfile } from "../playerGeneration/generatePlayerProfile"
+import { clampRating } from "../playerRatings"
+import { getDraftClassSize } from "./isDraftRequired"
 
 const POSITIONS: PlayerPosition[] = ["PG", "SG", "SF", "PF", "C"]
 
-const POSITION_HEIGHT: Record<PlayerPosition, { min: number; max: number }> = {
-  PG: { min: 72, max: 76 },
-  SG: { min: 74, max: 78 },
-  SF: { min: 76, max: 80 },
-  PF: { min: 78, max: 82 },
-  C: { min: 80, max: 84 },
+type DraftClassStrength = {
+  overallOffset: number
+  potentialOffset: number
 }
 
-function pickName(pool: string[], rng: Rng): string {
-  return pool[rng.int(0, pool.length - 1)]!
-}
-
-function positionSkillBias(
-  position: PlayerPosition,
-  base: number,
-  rng: Rng,
-): {
-  shooting: number
-  inside: number
-  passing: number
-  rebounding: number
-  defense: number
-  stamina: number
-} {
-  const variance = () => rng.int(-4, 4)
-  const skills = {
-    shooting: base + variance(),
-    inside: base + variance(),
-    passing: base + variance(),
-    rebounding: base + variance(),
-    defense: base + variance(),
-    stamina: base + variance(),
+function pickDraftClassStrength(rng: Rng): DraftClassStrength {
+  const roll = rng.next()
+  if (roll < 0.18) {
+    return { overallOffset: -2, potentialOffset: -4 }
+  }
+  if (roll > 0.82) {
+    return { overallOffset: 2, potentialOffset: 4 }
   }
 
-  switch (position) {
-    case "PG":
-      skills.passing += 6
-      skills.rebounding -= 6
-      break
-    case "SG":
-      skills.shooting += 6
-      skills.passing -= 2
-      skills.rebounding -= 4
-      break
-    case "SF":
-      skills.shooting += 4
-      skills.defense += 2
-      skills.passing -= 3
-      skills.rebounding -= 3
-      break
-    case "PF":
-      skills.rebounding += 5
-      skills.inside += 4
-      skills.shooting -= 4
-      skills.passing -= 5
-      break
-    case "C":
-      skills.rebounding += 6
-      skills.inside += 5
-      skills.passing -= 6
-      skills.shooting -= 5
-      break
-  }
-
-  return {
-    shooting: clampRating(skills.shooting),
-    inside: clampRating(skills.inside),
-    passing: clampRating(skills.passing),
-    rebounding: clampRating(skills.rebounding),
-    defense: clampRating(skills.defense),
-    stamina: clampRating(skills.stamina),
-  }
-}
-
-type ProspectTier = {
-  minOverall: number
-  maxOverall: number
-  minPotentialGap: number
-  maxPotentialGap: number
-}
-
-function prospectTier(index: number, pickCount: number): ProspectTier {
-  const lotteryCutoff = Math.ceil((pickCount * 14) / 60)
-  const firstRoundCutoff = Math.ceil((pickCount * 30) / 60)
-
-  if (index < lotteryCutoff) {
-    return { minOverall: 62, maxOverall: 68, minPotentialGap: 12, maxPotentialGap: 22 }
-  }
-
-  if (index < firstRoundCutoff) {
-    return { minOverall: 54, maxOverall: 61, minPotentialGap: 8, maxPotentialGap: 16 }
-  }
-
-  if (index < pickCount) {
-    return { minOverall: 48, maxOverall: 56, minPotentialGap: 4, maxPotentialGap: 12 }
-  }
-
-  return { minOverall: 45, maxOverall: 52, minPotentialGap: 2, maxPotentialGap: 20 }
-}
-
-function pickPotentialGap(tier: ProspectTier, index: number, rng: Rng): number {
-  const isReadyNowRolePlayer = index >= 30 && rng.next() < 0.3
-  if (isReadyNowRolePlayer) {
-    return rng.int(2, 6)
-  }
-
-  return rng.int(tier.minPotentialGap, tier.maxPotentialGap)
+  return { overallOffset: 0, potentialOffset: 0 }
 }
 
 function pickRookieAge(rng: Rng): number {
@@ -131,61 +43,127 @@ function pickRookieAge(rng: Rng): number {
   return rng.int(21, ROOKIE_AGE_MAX)
 }
 
+function buildPositionBag(count: number, rng: Rng): PlayerPosition[] {
+  const positions: PlayerPosition[] = []
+
+  for (let index = 0; index < count; index++) {
+    positions.push(POSITIONS[index % POSITIONS.length]!)
+  }
+
+  for (let index = positions.length - 1; index > 0; index--) {
+    const swapIndex = rng.int(0, index)
+    const current = positions[index]!
+    positions[index] = positions[swapIndex]!
+    positions[swapIndex] = current
+  }
+
+  return positions
+}
+
+function pickTargetOverall(strength: DraftClassStrength, rng: Rng): number {
+  return Math.max(
+    RATING_MIN,
+    Math.min(72, clampRating(rng.normal(55 + strength.overallOffset, 7)))
+  )
+}
+
+function pickPotentialGap(
+  targetOverall: number,
+  strength: DraftClassStrength,
+  rng: Rng
+): number {
+  const readyNowRolePlayer = targetOverall >= 55 && rng.next() < 0.2
+  if (readyNowRolePlayer) {
+    return rng.int(2, 6)
+  }
+
+  const gap = Math.round(rng.normal(10 + strength.potentialOffset, 5))
+  return Math.max(2, Math.min(24, gap))
+}
+
+function ageBonus(age: number): number {
+  switch (age) {
+    case 19:
+      return 4
+    case 20:
+      return 2.5
+    case 21:
+      return 1
+    default:
+      return 0
+  }
+}
+
+function calculateDraftValue(prospect: DraftProspect, noise: number): number {
+  return (
+    prospect.ratings.overall +
+    prospect.ratings.potential * 1.15 +
+    ageBonus(prospect.age) +
+    noise
+  )
+}
+
 export function generateDraftClass(
   teamCount: number,
   year: number,
   _baseSeed: string,
-  rng: Rng,
+  rng: Rng
 ): DraftProspect[] {
-  const pickCount = getDraftPickCount(teamCount)
   const classSize = getDraftClassSize(teamCount)
-  const prospects: DraftProspect[] = []
+  const strength = pickDraftClassStrength(rng)
+  const positions = buildPositionBag(classSize, rng)
+  const prospects: Array<{ prospect: DraftProspect; draftValue: number }> = []
   const usedNames = new Set<string>()
 
   for (let index = 0; index < classSize; index++) {
-    const position = POSITIONS[index % POSITIONS.length]!
+    const position = positions[index]!
     const age = pickRookieAge(rng)
-    const tier = prospectTier(index, pickCount)
-    const baseRating = clampRating(rng.int(tier.minOverall, tier.maxOverall))
-    const skillRatings = positionSkillBias(position, baseRating, rng)
-    const overall = deriveOverall(skillRatings)
-    const potential = clampRating(overall + pickPotentialGap(tier, index, rng))
-    const peakAge = generatePeakAge(age, overall, potential, rng)
-
-    let firstName = pickName(FIRST_NAMES, rng)
-    let lastName = pickName(LAST_NAMES, rng)
-    let displayName = `${firstName} ${lastName}`
-
-    while (usedNames.has(displayName)) {
-      firstName = pickName(FIRST_NAMES, rng)
-      lastName = pickName(LAST_NAMES, rng)
-      displayName = `${firstName} ${lastName}`
-    }
-
-    usedNames.add(displayName)
-
-    const heightRange = POSITION_HEIGHT[position]
-    const heightInches = rng.int(heightRange.min, heightRange.max)
-    const weightLbs = rng.int(185, 250)
-
-    prospects.push({
-      id: `prospect_${year}_${String(index + 1).padStart(3, "0")}`,
-      firstName,
-      lastName,
+    const baseRating = pickTargetOverall(strength, rng)
+    const potentialGap = pickPotentialGap(baseRating, strength, rng)
+    const profile = generatePlayerProfile({
       age,
-      peakAge,
-      heightInches,
-      weightLbs,
+      targetOverall: baseRating,
       position,
+      rng,
+      usedNames,
+      potentialGap: { min: potentialGap, max: potentialGap },
+      archetypeContext: "draft",
+      usageIndex: 0,
+    })
+
+    const prospect = {
+      id: `raw_prospect_${year}_${String(index + 1).padStart(3, "0")}`,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
+      age: profile.age,
+      peakAge: profile.peakAge,
+      heightInches: profile.heightInches,
+      weightLbs: profile.weightLbs,
+      position: profile.position,
+      archetype: profile.archetype,
       ratings: {
-        ...skillRatings,
-        overall,
-        potential: Math.min(RATING_MAX, potential),
+        ...profile.ratings,
+        potential: Math.min(RATING_MAX, profile.ratings.potential),
         usage: 8,
       },
       tags: [],
+    }
+
+    prospects.push({
+      prospect,
+      draftValue: calculateDraftValue(prospect, rng.normal(0, 1.5)),
     })
   }
 
-  return prospects
+  prospects.sort((a, b) => {
+    if (b.draftValue !== a.draftValue) {
+      return b.draftValue - a.draftValue
+    }
+    return a.prospect.id.localeCompare(b.prospect.id)
+  })
+
+  return prospects.map(({ prospect }, index) => ({
+    ...prospect,
+    id: `prospect_${year}_${String(index + 1).padStart(3, "0")}`,
+  }))
 }

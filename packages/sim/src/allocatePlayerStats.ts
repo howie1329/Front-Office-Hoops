@@ -1,166 +1,289 @@
-import type { PlayerGameStats, Rng, RotationEntry } from "@workspace/shared/types"
+import type {
+  PlayerGameStats,
+  Rng,
+  RotationEntry,
+} from "@workspace/shared/types"
 
-function scoringWeight(entry: RotationEntry): number {
-  const { usage, shooting, inside } = entry.player.ratings
-  return entry.minutes * usage * ((shooting + inside) / 2)
+export type TeamStatComponents = {
+  points: number
+  fgm: number
+  fga: number
+  tpm: number
+  tpa: number
+  ftm: number
+  fta: number
+  orb: number
+  drb: number
+  ast: number
+  stl: number
+  blk: number
+  tov: number
 }
 
-function distributePoints(
-  rotation: RotationEntry[],
-  teamScore: number,
-): number[] {
-  const weights = rotation.map(scoringWeight)
-  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
+type StatKey = keyof Omit<TeamStatComponents, "points">
 
-  if (totalWeight === 0 || rotation.length === 0) {
+function weightedDistribute(
+  total: number,
+  weights: number[],
+  rng: Rng
+): number[] {
+  if (weights.length === 0) {
     return []
   }
 
-  const rawPoints = weights.map(
-    (weight) => (weight / totalWeight) * teamScore,
-  )
-  const points = rawPoints.map((value) => Math.floor(value))
-  let remainder = teamScore - points.reduce((sum, value) => sum + value, 0)
+  const safeWeights = weights.map((weight) => Math.max(0.01, weight))
+  const totalWeight = safeWeights.reduce((sum, weight) => sum + weight, 0)
+  const raw = safeWeights.map((weight) => (weight / totalWeight) * total)
+  const values = raw.map((value) => Math.floor(value))
+  let remainder = total - values.reduce((sum, value) => sum + value, 0)
 
-  const order = rawPoints
-    .map((value, index) => ({ index, fraction: value - Math.floor(value) }))
+  const order = raw
+    .map((value, index) => ({
+      index,
+      fraction: value - Math.floor(value) + rng.next() * 0.01,
+    }))
     .sort((a, b) => b.fraction - a.fraction)
 
   let pointer = 0
   while (remainder > 0) {
     const target = order[pointer % order.length]
     if (target) {
-      points[target.index] = (points[target.index] ?? 0) + 1
+      values[target.index] = (values[target.index] ?? 0) + 1
     }
     remainder -= 1
     pointer += 1
   }
 
-  return points
+  return values
 }
 
-function deriveShootingStats(
-  entry: RotationEntry,
-  points: number,
-  rng: Rng,
-): Pick<PlayerGameStats, "fgm" | "fga" | "tpm" | "tpa" | "ftm" | "fta"> {
-  const { shooting, inside } = entry.player.ratings
-  const threePointShare = Math.min(
-    0.55,
-    Math.max(0.15, (shooting - inside + 20) / 100),
-  )
-  const freeThrowPoints = Math.min(
-    points,
-    Math.round(points * rng.normal(0.18, 0.05)),
-  )
-  const fieldPoints = Math.max(0, points - freeThrowPoints)
-  const threePointPoints = Math.min(
-    fieldPoints,
-    Math.round(fieldPoints * threePointShare),
-  )
-  const twoPointPoints = fieldPoints - threePointPoints
+function twoPointWeight(entry: RotationEntry): number {
+  const { inside, shooting, usage } = entry.player.ratings
+  return entry.minutes * usage * (inside * 0.65 + shooting * 0.35)
+}
 
-  const tpm = Math.floor(threePointPoints / 3)
-  const tpa = Math.max(tpm, tpm + rng.int(1, 4))
-  const twoPointMakes = Math.floor(twoPointPoints / 2)
-  const twoPointAttempts = Math.max(twoPointMakes, twoPointMakes + rng.int(1, 4))
+function threePointWeight(entry: RotationEntry): number {
+  const { shooting, inside, usage } = entry.player.ratings
+  const perimeterBias = Math.max(30, shooting + (shooting - inside) * 0.6)
+  return entry.minutes * usage * perimeterBias
+}
+
+function freeThrowWeight(entry: RotationEntry): number {
+  const { inside, usage } = entry.player.ratings
+  return entry.minutes * usage * inside
+}
+
+function reboundWeight(entry: RotationEntry): number {
+  return entry.minutes * entry.player.ratings.rebounding
+}
+
+function assistWeight(entry: RotationEntry): number {
+  return entry.minutes * entry.player.ratings.passing
+}
+
+function blockWeight(entry: RotationEntry): number {
+  const positionBonus =
+    entry.player.position === "C"
+      ? 1.35
+      : entry.player.position === "PF"
+        ? 1.15
+        : 0.8
+  return entry.minutes * entry.player.ratings.defense * positionBonus
+}
+
+function stealWeight(entry: RotationEntry): number {
+  const guardBonus =
+    entry.player.position === "PG" || entry.player.position === "SG" ? 1.2 : 0.9
+  return entry.minutes * entry.player.ratings.defense * guardBonus
+}
+
+function turnoverWeight(entry: RotationEntry): number {
+  const { usage, passing } = entry.player.ratings
+  return entry.minutes * usage * Math.max(35, 95 - passing)
+}
+
+function capMakes(makes: number[], attempts: number[]): number[] {
+  return makes.map((made, index) => Math.min(made, attempts[index] ?? 0))
+}
+
+function buildLegacyComponents(teamScore: number): TeamStatComponents {
+  const tpm = Math.round((teamScore * 0.26) / 3)
+  const ftm = Math.round(teamScore * 0.18)
+  const twoPointMakes = Math.max(0, Math.round((teamScore - tpm * 3 - ftm) / 2))
   const fgm = twoPointMakes + tpm
-  const fga = Math.max(fgm, twoPointAttempts + tpa)
-  const ftm = Math.floor(freeThrowPoints / 1)
-  const fta = Math.max(ftm, ftm + rng.int(0, 2))
 
-  return { fgm, fga, tpm, tpa, ftm, fta }
+  const components = {
+    points: teamScore,
+    fgm,
+    fga: Math.max(fgm, Math.round(fgm / 0.47)),
+    tpm,
+    tpa: Math.max(tpm, Math.round(tpm / 0.36)),
+    ftm,
+    fta: Math.max(ftm, Math.round(ftm / 0.78)),
+    orb: 10,
+    drb: 34,
+    ast: Math.round(fgm * 0.62),
+    stl: 7,
+    blk: 5,
+    tov: 13,
+  }
+  reconcileComponentPoints(components, teamScore)
+
+  return components
 }
 
-function jitterMinutes(minutes: number, rng: Rng): number {
-  return Math.max(1, Math.round(minutes + rng.normal(0, 1)))
+function componentPoints(stats: TeamStatComponents): number {
+  return (stats.fgm - stats.tpm) * 2 + stats.tpm * 3 + stats.ftm
+}
+
+function reconcileComponentPoints(
+  stats: TeamStatComponents,
+  targetPoints: number
+): TeamStatComponents {
+  let delta = targetPoints - componentPoints(stats)
+
+  if (delta > 0) {
+    stats.ftm += delta
+    stats.fta = Math.max(stats.fta, stats.ftm)
+    stats.points = targetPoints
+    return stats
+  }
+
+  while (delta < 0 && stats.ftm > 0) {
+    stats.ftm -= 1
+    delta += 1
+  }
+
+  while (delta < 0 && stats.tpm > 0) {
+    stats.tpm -= 1
+    stats.fgm -= 1
+    delta += 3
+  }
+
+  while (delta < 0 && stats.fgm > stats.tpm) {
+    stats.fgm -= 1
+    delta += 2
+  }
+
+  if (delta > 0) {
+    stats.ftm += delta
+    stats.fta = Math.max(stats.fta, stats.ftm)
+  }
+
+  stats.points = targetPoints
+  return stats
 }
 
 export function allocatePlayerStats(
   rotation: RotationEntry[],
-  teamScore: number,
+  teamStatsOrScore: TeamStatComponents | number,
   teamId: string,
-  rng: Rng,
+  rng: Rng
 ): PlayerGameStats[] {
   if (rotation.length === 0) {
     return []
   }
 
-  const pointsByPlayer = distributePoints(rotation, teamScore)
-  const minutes = rotation.map((entry) => jitterMinutes(entry.minutes, rng))
-  const totalMinutes = minutes.reduce((sum, value) => sum + value, 0)
-  const minuteDelta = 240 - totalMinutes
-  minutes[minutes.length - 1] = Math.max(
-    1,
-    (minutes[minutes.length - 1] ?? 0) + minuteDelta,
+  const teamStats = reconcileComponentPoints(
+    typeof teamStatsOrScore === "number"
+      ? buildLegacyComponents(teamStatsOrScore)
+      : { ...teamStatsOrScore },
+    typeof teamStatsOrScore === "number"
+      ? teamStatsOrScore
+      : teamStatsOrScore.points
   )
 
-  const sortedByMinutes = [...rotation]
-    .map((entry, index) => ({ entry, index, minutes: minutes[index] ?? 0 }))
-    .sort((a, b) => b.minutes - a.minutes)
+  const minutes = rotation.map((entry) => entry.minutes)
   const starterIds = new Set(
-    sortedByMinutes.slice(0, 5).map((item) => item.entry.player.id),
+    [...rotation]
+      .sort((a, b) => b.minutes - a.minutes)
+      .slice(0, 5)
+      .map((entry) => entry.player.id)
   )
 
-  const totalReboundingWeight = rotation.reduce(
-    (sum, entry, index) =>
-      sum + entry.player.ratings.rebounding * (minutes[index] ?? 0),
-    0,
+  const twoPointAttempts = teamStats.fga - teamStats.tpa
+  const twoPointMakes = teamStats.fgm - teamStats.tpm
+
+  const tpa = weightedDistribute(
+    teamStats.tpa,
+    rotation.map(threePointWeight),
+    rng
   )
-  const totalPassingWeight = rotation.reduce(
-    (sum, entry, index) =>
-      sum + entry.player.ratings.passing * (minutes[index] ?? 0),
-    0,
+  const twoPa = weightedDistribute(
+    twoPointAttempts,
+    rotation.map(twoPointWeight),
+    rng
+  )
+  const fta = weightedDistribute(
+    teamStats.fta,
+    rotation.map(freeThrowWeight),
+    rng
+  )
+  const tpm = capMakes(
+    weightedDistribute(teamStats.tpm, rotation.map(threePointWeight), rng),
+    tpa
+  )
+  const twoPm = capMakes(
+    weightedDistribute(twoPointMakes, rotation.map(twoPointWeight), rng),
+    twoPa
+  )
+  const ftm = capMakes(
+    weightedDistribute(teamStats.ftm, rotation.map(freeThrowWeight), rng),
+    fta
   )
 
-  const stats = rotation.map((entry, index) => {
-    const pts = pointsByPlayer[index] ?? 0
-    const playerMinutes = minutes[index] ?? 0
-    const shooting = deriveShootingStats(entry, pts, rng)
+  const distributed: Record<StatKey, number[]> = {
+    fgm: [],
+    fga: [],
+    tpm,
+    tpa,
+    ftm,
+    fta,
+    orb: weightedDistribute(teamStats.orb, rotation.map(reboundWeight), rng),
+    drb: weightedDistribute(teamStats.drb, rotation.map(reboundWeight), rng),
+    ast: weightedDistribute(teamStats.ast, rotation.map(assistWeight), rng),
+    stl: weightedDistribute(teamStats.stl, rotation.map(stealWeight), rng),
+    blk: weightedDistribute(teamStats.blk, rotation.map(blockWeight), rng),
+    tov: weightedDistribute(teamStats.tov, rotation.map(turnoverWeight), rng),
+  }
 
-    const rebWeight = entry.player.ratings.rebounding * playerMinutes
-    const astWeight = entry.player.ratings.passing * playerMinutes
-    const reb =
-      totalReboundingWeight > 0
-        ? Math.max(0, Math.round((rebWeight / totalReboundingWeight) * 44))
-        : 0
-    const ast =
-      totalPassingWeight > 0
-        ? Math.max(0, Math.round((astWeight / totalPassingWeight) * 28))
-        : 0
+  distributed.fgm = rotation.map(
+    (_, index) => (twoPm[index] ?? 0) + (tpm[index] ?? 0)
+  )
+  distributed.fga = rotation.map(
+    (_, index) => (twoPa[index] ?? 0) + (tpa[index] ?? 0)
+  )
 
-    const stl = Math.max(0, Math.round(rng.normal(0.9, 0.6)))
-    const blk = Math.max(
-      0,
-      Math.round(
-        rng.normal(entry.player.position === "C" ? 0.8 : 0.3, 0.4),
-      ),
-    )
-    const tov = Math.max(0, Math.round(rng.normal(1.4, 0.7)))
+  const stats = rotation.map((entry, index) => ({
+    playerId: entry.player.id,
+    teamId,
+    starter: entry.starter ?? starterIds.has(entry.player.id),
+    minutes: minutes[index] ?? 0,
+    pts: (twoPm[index] ?? 0) * 2 + (tpm[index] ?? 0) * 3 + (ftm[index] ?? 0),
+    fgm: distributed.fgm[index] ?? 0,
+    fga: distributed.fga[index] ?? 0,
+    tpm: distributed.tpm[index] ?? 0,
+    tpa: distributed.tpa[index] ?? 0,
+    ftm: distributed.ftm[index] ?? 0,
+    fta: distributed.fta[index] ?? 0,
+    reb: (distributed.orb[index] ?? 0) + (distributed.drb[index] ?? 0),
+    ast: distributed.ast[index] ?? 0,
+    stl: distributed.stl[index] ?? 0,
+    blk: distributed.blk[index] ?? 0,
+    tov: distributed.tov[index] ?? 0,
+  }))
 
-    return {
-      playerId: entry.player.id,
-      teamId,
-      starter: starterIds.has(entry.player.id),
-      minutes: playerMinutes,
-      pts,
-      ...shooting,
-      reb,
-      ast,
-      stl,
-      blk,
-      tov,
-    }
-  })
+  const pointDelta =
+    teamStats.points - stats.reduce((sum, line) => sum + line.pts, 0)
+  const adjustmentTarget = stats
+    .map((line, index) => ({ line, index }))
+    .sort((a, b) => b.line.minutes - a.line.minutes)[0]
 
-  const fgmTotal = stats.reduce((sum, line) => sum + line.fgm, 0)
-  const astTotal = stats.reduce((sum, line) => sum + line.ast, 0)
-
-  if (astTotal > fgmTotal && fgmTotal > 0) {
-    const scale = fgmTotal / astTotal
-    for (const line of stats) {
-      line.ast = Math.max(0, Math.round(line.ast * scale))
-    }
+  if (adjustmentTarget && pointDelta !== 0) {
+    const line = stats[adjustmentTarget.index]!
+    line.pts += pointDelta
+    line.ftm = Math.max(0, line.ftm + pointDelta)
+    line.fta = Math.max(line.fta, line.ftm)
   }
 
   return stats

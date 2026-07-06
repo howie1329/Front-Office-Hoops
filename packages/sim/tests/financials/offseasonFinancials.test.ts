@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest"
 
-import { createLeague, createRng } from "../../src"
+import { completeFreeAgencyPhase, createLeague, createRng } from "../../src"
 import {
   ensureFaPoolMinimum,
   getExternalFreeAgents,
   getTeamExpiredFreeAgents,
   processOffseasonFinancials,
 } from "../../src/financials"
+import { startNextSeason } from "../../src/startNextSeason"
 
 describe("offseason financial flow", () => {
   it("seeds new leagues with a baseline free agent pool", () => {
@@ -83,5 +84,112 @@ describe("offseason financial flow", () => {
         .find((entry) => entry.id === team.id)
         ?.players.some((player) => player.id === expiringPlayer.id),
     ).toBe(false)
+  })
+
+  it("fills short AI rosters during free agency", () => {
+    const league = createLeague({
+      name: "AI FA Fill",
+      baseSeed: "ai-fa-fill",
+      rng: createRng("ai-fa-fill"),
+    })
+    const userTeamId = league.seasonState.teams[0]!.id
+    const shortTeam = league.seasonState.teams[1]!
+    const shortTeamPlayers = shortTeam.players.slice(0, 10)
+    const freeAgentPool = [
+      ...league.freeAgentPool,
+      ...shortTeam.players.slice(10).map((player) => ({
+        ...player,
+        teamId: null,
+        status: "free_agent" as const,
+        activeContractId: null,
+      })),
+    ]
+    const freeAgencyLeague = {
+      ...league,
+      userTeamId,
+      freeAgentPool,
+      seasonState: {
+        ...league.seasonState,
+        phase: "offseason" as const,
+        offseasonPhase: "free_agency" as const,
+        playoffBracket: {
+          series: [],
+          championTeamId: league.seasonState.teams[0]!.id,
+        },
+        draftState: {
+          year: 1,
+          prospects: [],
+          order: [],
+          currentPickIndex: 0,
+          completed: true,
+          selections: [],
+        },
+        teams: league.seasonState.teams.map((team) =>
+          team.id === shortTeam.id
+            ? { ...team, players: shortTeamPlayers }
+            : team,
+        ),
+      },
+    }
+
+    const completed = completeFreeAgencyPhase(
+      freeAgencyLeague,
+      createRng("ai-fa-fill-run"),
+    )
+
+    expect(
+      completed.seasonState.teams.find((team) => team.id === shortTeam.id)
+        ?.players,
+    ).toHaveLength(12)
+  })
+
+  it("can start the next season after completed free agency", () => {
+    const league = createLeague({
+      name: "Start Season Two",
+      baseSeed: "start-season-two",
+      rng: createRng("start-season-two"),
+    })
+    const userTeamId = league.seasonState.teams[0]!.id
+    const freeAgencyLeague = {
+      ...league,
+      userTeamId,
+      seasonState: {
+        ...league.seasonState,
+        phase: "offseason" as const,
+        offseasonPhase: "free_agency" as const,
+        playoffBracket: {
+          series: [],
+          championTeamId: league.seasonState.teams[0]!.id,
+        },
+        draftState: {
+          year: 1,
+          prospects: [],
+          order: [],
+          currentPickIndex: 0,
+          completed: true,
+          selections: [],
+        },
+      },
+    }
+
+    const completed = completeFreeAgencyPhase(
+      freeAgencyLeague,
+      createRng("start-season-two-fa"),
+    )
+    const next = startNextSeason({
+      seasonState: completed.seasonState,
+      userTeamId,
+      freeAgentPool: completed.freeAgentPool,
+      rng: createRng("start-season-two-next"),
+      league: {
+        contracts: completed.contracts,
+        leagueFinancials: completed.leagueFinancials,
+        teamFinancials: completed.teamFinancials,
+        spendingProfileEvents: completed.spendingProfileEvents,
+      },
+    })
+
+    expect(next.seasonState.season).toBe(2)
+    expect(next.seasonState.phase).toBe("regular")
   })
 })

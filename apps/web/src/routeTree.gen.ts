@@ -14,6 +14,7 @@ import { Route as SeasonLabRouteImport } from './routes/season-lab'
 import { Route as LeagueRouteRouteImport } from './routes/league/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeagueIndexRouteImport } from './routes/league/index'
+import { Route as LeagueTradesRouteImport } from './routes/league/trades'
 import { Route as LeagueTeamRouteImport } from './routes/league/team'
 import { Route as LeagueStatsRouteImport } from './routes/league/stats'
 import { Route as LeagueStandingsRouteImport } from './routes/league/standings'
@@ -24,6 +25,7 @@ import { Route as LeaguePickTeamRouteImport } from './routes/league/pick-team'
 import { Route as LeagueHistoryRouteImport } from './routes/league/history'
 import { Route as LeagueDraftRouteImport } from './routes/league/draft'
 import { Route as LeagueCreateRouteImport } from './routes/league/create'
+import { Route as LeaguePlayersPlayerIdRouteImport } from './routes/league/players/$playerId'
 import { Route as LeagueGamesGameIdRouteImport } from './routes/league/games/$gameId'
 
 const SimLabRoute = SimLabRouteImport.update({
@@ -49,6 +51,11 @@ const IndexRoute = IndexRouteImport.update({
 const LeagueIndexRoute = LeagueIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueTradesRoute = LeagueTradesRouteImport.update({
+  id: '/trades',
+  path: '/trades',
   getParentRoute: () => LeagueRouteRoute,
 } as any)
 const LeagueTeamRoute = LeagueTeamRouteImport.update({
@@ -101,6 +108,11 @@ const LeagueCreateRoute = LeagueCreateRouteImport.update({
   path: '/create',
   getParentRoute: () => LeagueRouteRoute,
 } as any)
+const LeaguePlayersPlayerIdRoute = LeaguePlayersPlayerIdRouteImport.update({
+  id: '/players/$playerId',
+  path: '/players/$playerId',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
 const LeagueGamesGameIdRoute = LeagueGamesGameIdRouteImport.update({
   id: '/games/$gameId',
   path: '/games/$gameId',
@@ -122,8 +134,10 @@ export interface FileRoutesByFullPath {
   '/league/standings': typeof LeagueStandingsRoute
   '/league/stats': typeof LeagueStatsRoute
   '/league/team': typeof LeagueTeamRoute
+  '/league/trades': typeof LeagueTradesRoute
   '/league/': typeof LeagueIndexRoute
   '/league/games/$gameId': typeof LeagueGamesGameIdRoute
+  '/league/players/$playerId': typeof LeaguePlayersPlayerIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -139,8 +153,10 @@ export interface FileRoutesByTo {
   '/league/standings': typeof LeagueStandingsRoute
   '/league/stats': typeof LeagueStatsRoute
   '/league/team': typeof LeagueTeamRoute
+  '/league/trades': typeof LeagueTradesRoute
   '/league': typeof LeagueIndexRoute
   '/league/games/$gameId': typeof LeagueGamesGameIdRoute
+  '/league/players/$playerId': typeof LeaguePlayersPlayerIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -158,8 +174,10 @@ export interface FileRoutesById {
   '/league/standings': typeof LeagueStandingsRoute
   '/league/stats': typeof LeagueStatsRoute
   '/league/team': typeof LeagueTeamRoute
+  '/league/trades': typeof LeagueTradesRoute
   '/league/': typeof LeagueIndexRoute
   '/league/games/$gameId': typeof LeagueGamesGameIdRoute
+  '/league/players/$playerId': typeof LeaguePlayersPlayerIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -178,8 +196,10 @@ export interface FileRouteTypes {
     | '/league/standings'
     | '/league/stats'
     | '/league/team'
+    | '/league/trades'
     | '/league/'
     | '/league/games/$gameId'
+    | '/league/players/$playerId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -195,8 +215,10 @@ export interface FileRouteTypes {
     | '/league/standings'
     | '/league/stats'
     | '/league/team'
+    | '/league/trades'
     | '/league'
     | '/league/games/$gameId'
+    | '/league/players/$playerId'
   id:
     | '__root__'
     | '/'
@@ -213,8 +235,10 @@ export interface FileRouteTypes {
     | '/league/standings'
     | '/league/stats'
     | '/league/team'
+    | '/league/trades'
     | '/league/'
     | '/league/games/$gameId'
+    | '/league/players/$playerId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -259,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/league/'
       preLoaderRoute: typeof LeagueIndexRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/trades': {
+      id: '/league/trades'
+      path: '/trades'
+      fullPath: '/league/trades'
+      preLoaderRoute: typeof LeagueTradesRouteImport
       parentRoute: typeof LeagueRouteRoute
     }
     '/league/team': {
@@ -331,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeagueCreateRouteImport
       parentRoute: typeof LeagueRouteRoute
     }
+    '/league/players/$playerId': {
+      id: '/league/players/$playerId'
+      path: '/players/$playerId'
+      fullPath: '/league/players/$playerId'
+      preLoaderRoute: typeof LeaguePlayersPlayerIdRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
     '/league/games/$gameId': {
       id: '/league/games/$gameId'
       path: '/games/$gameId'
@@ -352,8 +390,10 @@ interface LeagueRouteRouteChildren {
   LeagueStandingsRoute: typeof LeagueStandingsRoute
   LeagueStatsRoute: typeof LeagueStatsRoute
   LeagueTeamRoute: typeof LeagueTeamRoute
+  LeagueTradesRoute: typeof LeagueTradesRoute
   LeagueIndexRoute: typeof LeagueIndexRoute
   LeagueGamesGameIdRoute: typeof LeagueGamesGameIdRoute
+  LeaguePlayersPlayerIdRoute: typeof LeaguePlayersPlayerIdRoute
 }
 
 const LeagueRouteRouteChildren: LeagueRouteRouteChildren = {
@@ -367,8 +407,10 @@ const LeagueRouteRouteChildren: LeagueRouteRouteChildren = {
   LeagueStandingsRoute: LeagueStandingsRoute,
   LeagueStatsRoute: LeagueStatsRoute,
   LeagueTeamRoute: LeagueTeamRoute,
+  LeagueTradesRoute: LeagueTradesRoute,
   LeagueIndexRoute: LeagueIndexRoute,
   LeagueGamesGameIdRoute: LeagueGamesGameIdRoute,
+  LeaguePlayersPlayerIdRoute: LeaguePlayersPlayerIdRoute,
 }
 
 const LeagueRouteRouteWithChildren = LeagueRouteRoute._addFileChildren(

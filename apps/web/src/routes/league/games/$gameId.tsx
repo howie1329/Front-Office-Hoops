@@ -46,13 +46,15 @@ function LeagueGameDetailPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden p-px">
+      <div className="flex shrink-0 justify-end">
         <Button variant="outline" size="sm" asChild>
           <Link to="/league/schedule">Back to schedule</Link>
         </Button>
       </div>
-      <GameDetailCard game={game} homeTeam={homeTeam} awayTeam={awayTeam} />
+      <div className="min-h-0 flex-1 overflow-hidden p-px">
+        <GameDetailCard game={game} homeTeam={homeTeam} awayTeam={awayTeam} />
+      </div>
     </div>
   )
 }

@@ -1,8 +1,16 @@
-import type { SeasonState, Rng } from "@workspace/shared/types"
+import type {
+  PlayerSeasonProfile,
+  SeasonState,
+  Rng,
+} from "@workspace/shared/types"
 
 import { applyOffseasonProgression } from "./development/applyOffseasonProgression"
 
-export function beginOffseason(state: SeasonState, rng: Rng): SeasonState {
+export function beginOffseason(
+  state: SeasonState,
+  rng: Rng,
+  playerSeasonProfiles: PlayerSeasonProfile[] = [],
+): SeasonState {
   if (state.phase !== "complete") {
     throw new Error("Offseason can only begin from a completed season")
   }
@@ -13,6 +21,7 @@ export function beginOffseason(state: SeasonState, rng: Rng): SeasonState {
     state.playerSeasonStats,
     state.baseSeed,
     rng,
+    playerSeasonProfiles,
   )
 
   return {

@@ -15,42 +15,47 @@ The simulation engine lives in `packages/sim`. It is **pure TypeScript** — no 
 import { createRng } from "@workspace/sim"
 
 const rng = createRng("my-seed")
-rng.next()              // [0, 1)
-rng.int(1, 10)          // inclusive integer
-rng.normal(0, 1)        // Gaussian sample
+rng.next() // [0, 1)
+rng.int(1, 10) // inclusive integer
+rng.normal(0, 1) // Gaussian sample
 ```
 
 Each game derives a sub-seed from `baseSeed`, season, day, and `gameId` so individual games are reproducible within a league.
 
 ## Game simulation
 
-### Team strength
+### Team strength and components
 
-`teamStrength.ts` estimates offensive and defensive factors from roster ratings:
+`simulateTeamMatchup` uses an aggregate component model rather than play-by-play. It estimates possessions, then generates team-level box-score components:
 
-- `estimateTeamOffFactor` / `estimateTeamDefFactor` — aggregate player ratings
-- `estimateOffRtg` — offensive rating (points per 100 possessions)
+- field goal attempts and makes
+- three-point attempts and makes
+- free throws
+- turnovers
+- offensive and defensive rebounds
+- assists, steals, and blocks
+- final score, quarter scores, and efficiency metadata
 
-Team-level attributes (`overall`, `pace`) and player ratings (`shooting`, `defense`, `usage`, etc.) feed into these estimates.
+Team-level pace and player ratings (`shooting`, `inside`, `passing`, `rebounding`, `defense`, `stamina`, `usage`) feed the component model. Depth matters through rotation quality and bench drag rather than an artificial global bonus.
 
 ### Matchup flow (`simulateTeamMatchup`)
 
 ```
 selectRotation(players)
-    → estimate possessions from pace + noise
-    → compute offRtg for each team (with home court advantage)
-    → score = possessions × offRtg / 100
+    → estimate shared possessions from both teams' pace + noise
+    → generate team stat components
+    → reconcile score and team totals
     → resolve ties with overtime bonus
     → distributeQuarterScores
-    → allocatePlayerStats
+    → allocatePlayerStats from attempts/makes/free throws/rebounds/etc.
     → TeamMatchupResult
 ```
 
-**Home court advantage** defaults to +3 offensive rating (`DEFAULT_HOME_COURT_ADVANTAGE`).
+**Home court advantage** defaults to +3 points (`DEFAULT_HOME_COURT_ADVANTAGE`) and is applied during scoring component generation.
 
-**Rotation**: top 8 players by overall (`ROTATION_SIZE`), minutes sum to 240 team minutes (`TEAM_MINUTES`).
+**Rotation**: `createAutoRotationPlan` assigns roles (`star`, `starter`, `sixth_man`, `rotation`, `bench`) and target minutes. `createGameRotation` converts that plan into game rotation entries. `selectRotation` preserves the legacy player+minutes API and filters to active players, with a last-resort non-free-agent fallback if a roster drops below five active players.
 
-**Player stats**: `allocatePlayerStats` distributes team totals across the rotation weighted by `usage` and position.
+**Player stats**: `allocatePlayerStats` distributes attempts, makes, free throws, rebounds, assists, steals, blocks, and turnovers across the rotation using player skills, usage, position, and minutes. Player points reconcile exactly to team score.
 
 ### Single game wrapper (`simulateGame`)
 
@@ -61,7 +66,7 @@ Wraps `simulateTeamMatchup` with schedule context (`season`, `day`, `gameId`) an
 `createSchedule` builds a round-robin style schedule:
 
 | League size | Games per team | Season days |
-|-------------|----------------|-------------|
+| ----------- | -------------- | ----------- |
 | 6 (mini)    | 10             | 30          |
 | 30 (full)   | 82             | 170         |
 
@@ -71,12 +76,12 @@ Schedule games track `status` (`scheduled` | `final`), link to `gameId` when pla
 
 ### Day / week / season
 
-| Function | Behavior |
-|----------|----------|
-| `simulateRegularDay` | Plays all games scheduled for `currentDay`, updates standings and player stats |
-| `simulateDay` | Dispatches to regular or playoff day based on `phase` |
-| `simulateWeek` | Simulates up to 7 days |
-| `simulateSeason` | Runs until regular season complete or playoffs/season done |
+| Function             | Behavior                                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------------------- |
+| `simulateRegularDay` | Recovers injuries, plays scheduled regular games, applies post-game injuries, updates standings/stats |
+| `simulateDay`        | Dispatches to regular or playoff day based on `phase`                                                 |
+| `simulateWeek`       | Simulates up to 7 days                                                                                |
+| `simulateSeason`     | Runs until regular season complete or playoffs/season done                                            |
 
 ### Standings (`deriveStandings`)
 
@@ -94,17 +99,17 @@ Aggregated from all `PlayerGameStats` across games in the season.
 
 ### Bracket formats
 
-| Teams | Format | Wins to advance |
-|-------|--------|-----------------|
-| 30    | Best-of-7 | 4 |
-| 6     | Best-of-3 | 2 |
+| Teams | Format    | Wins to advance |
+| ----- | --------- | --------------- |
+| 30    | Best-of-7 | 4               |
+| 6     | Best-of-3 | 2               |
 
 `getPlayoffFormat(teamCount)` selects the format. Home-court patterns follow standard NBA series scheduling (2-2-1-1-1 for best-of-7).
 
 ### Key functions
 
 - `beginPlayoffs` — seeds teams, creates bracket and playoff schedule
-- `simulatePlayoffDay` — plays scheduled playoff games, advances series winners
+- `simulatePlayoffDay` — recovers injuries, plays scheduled playoff games, applies post-game injuries, advances series winners
 - `simulatePlayoffs` — runs entire postseason
 - `deriveUserPlayoffResult` — maps user team outcome to enum (`champion`, `first_round`, etc.)
 
@@ -135,13 +140,26 @@ Each offseason, `beginOffseason` applies `applyOffseasonProgression`:
 - Veteran mentorship modifier for developing teammates and post-peak regression
 - Recalculates `overall`, `usage`, and team `overall`
 
+Development currently uses age, peak age, potential headroom, skill deltas, veteran mentorship, and potential drift. It does not yet use season role/minutes, injury history, or performance context.
+
+## Injuries
+
+`injuries.ts` provides a simple availability model:
+
+- `calculateInjuryRisk(player, minutes)` — risk increases with minutes, age, and low stamina
+- `rollInjury(rng)` — creates minor, moderate, or major injuries with game durations
+- `advanceInjuriesForDay(teams)` — decrements injuries and restores recovered players to active
+- `applyPostGameInjuries` — rolls injuries for players who appeared in a game
+
+Injured players have `status: "injured"` and an `injury` object with type, description, and games remaining. New injuries are skipped for teams with fewer than eight active players to avoid roster death spirals.
+
 `createLeague` accepts:
 
 - `name`, `baseSeed`, `rng`
 - Optional `teams` or `useMiniLeague` (6-team sample rosters)
 - Optional `userTeamId`
 
-`normalizeLeagueRecord` handles save version upgrades when loading persisted data.
+`normalizeLeagueRecord` normalizes current-shape records when loading persisted data. Older local saves are not migrated during pre-user development.
 
 ## Offseason loop
 
@@ -168,11 +186,12 @@ complete → beginOffseason → re_signing → draft → free_agency → startNe
 12 players per team (`PLAYERS_PER_TEAM`) with:
 
 - Positions: PG, SG, SF, PF, C
+- Archetypes: lead guards, scoring guards, 3-and-D wings, slashers, point forwards, stretch bigs, rim protectors, post scorers, rebounding bigs, defensive specialists, bench scorers, raw athletes
 - Ratings: overall, potential, shooting, inside, passing, rebounding, defense, stamina, usage
 - Physical attributes: age, height, weight
 - Names from configurable name pools
 
-Generated rosters use depth tiers (stars, starters, rotation, bench) so ratings are not bunched around team overall.
+Generated rosters use depth tiers (stars, starters, rotation, bench) so ratings are not bunched around team overall. Archetypes bias skill distribution and usage, and are also used by player value.
 
 ### Draft classes
 
@@ -183,7 +202,19 @@ Draft classes are 1.5× the two-round pick count (90 prospects for 30 teams). Pr
 - Second round: lower current OVR and mixed ceiling
 - Undrafted range: lower OVR with wider potential variance
 
-Unselected prospects are converted to free agents when the draft completes.
+Draft prospects receive position-valid archetypes. Unselected prospects are converted to free agents when the draft completes.
+
+## Player and contract value
+
+`playerValue` exposes:
+
+- `getPlayerValueBreakdown` — talent, upside, age risk, archetype value, scarcity value
+- `calculatePlayerValue` — total player value for roster/FA decisions
+- `calculateContractValue` — fair-salary-oriented player value
+- `calculateRosterKeepValue` — mode-aware keep value for AI cuts
+- `getContractAssetValueBreakdown` — player value plus contract surplus/liability
+
+Financial AI uses these values for fair salary, re-signing, free-agent scoring, and cap-cut decisions.
 
 ### Sample data
 
@@ -193,14 +224,14 @@ Unselected prospects are converted to free agents when the draft completes.
 
 Key values from `@workspace/shared/constants`:
 
-| Constant | Value | Purpose |
-|----------|-------|---------|
-| `BASE_OFF_RATING` | 108 | League-average offensive rating |
-| `DEFAULT_PACE` | 100 | Possessions per game baseline |
-| `RATING_MIN` / `RATING_MAX` | 40 / 90 | Player rating bounds |
-| `LEAGUE_TEAM_COUNT` | 30 | Full league size |
-| `NBA_GAMES_PER_TEAM` | 82 | Full season length |
-| `PLAYOFF_TEAMS_PER_CONFERENCE` | 8 | NBA playoff field per conference |
+| Constant                       | Value   | Purpose                          |
+| ------------------------------ | ------- | -------------------------------- |
+| `BASE_OFF_RATING`              | 108     | League-average offensive rating  |
+| `DEFAULT_PACE`                 | 100     | Possessions per game baseline    |
+| `RATING_MIN` / `RATING_MAX`    | 40 / 90 | Player rating bounds             |
+| `LEAGUE_TEAM_COUNT`            | 30      | Full league size                 |
+| `NBA_GAMES_PER_TEAM`           | 82      | Full season length               |
+| `PLAYOFF_TEAMS_PER_CONFERENCE` | 8       | NBA playoff field per conference |
 
 ## Testing
 
@@ -210,7 +241,7 @@ Run sim tests:
 npm run test --workspace=@workspace/sim
 ```
 
-Tests cover game outcomes, schedule integrity, standings math, stat allocation, playoff advancement, and full season flows.
+Tests cover game outcomes, schedule integrity, standings math, stat allocation, rotations, archetypes, injuries, player value, financial AI, playoff advancement, and full season flows.
 
 ## Developer labs
 

@@ -1,5 +1,10 @@
 import { VETERAN_MIN_AGE, VETERAN_TAG } from "@workspace/shared/constants"
-import type { Player, PlayerSeasonStats, TeamWithRoster } from "@workspace/shared/types"
+import type {
+  Player,
+  PlayerSeasonProfile,
+  PlayerSeasonStats,
+  TeamWithRoster,
+} from "@workspace/shared/types"
 
 import { createRng } from "../rng"
 import { deriveOverall } from "../playerRatings"
@@ -20,12 +25,23 @@ function findSeasonStats(
   )
 }
 
+function findSeasonProfile(
+  playerSeasonProfiles: PlayerSeasonProfile[],
+  playerId: string,
+  season: number,
+): PlayerSeasonProfile | undefined {
+  return playerSeasonProfiles.find(
+    (entry) => entry.playerId === playerId && entry.season === season,
+  )
+}
+
 export function progressPlayer(
   player: Player,
   team: TeamWithRoster,
   season: number,
   playerSeasonStats: PlayerSeasonStats[],
   baseSeed: string,
+  playerSeasonProfiles: PlayerSeasonProfile[] = [],
 ): Player {
   const agedPlayer = { ...player, age: player.age + 1 }
   const teammates = team.players.filter((teammate) => teammate.id !== player.id)
@@ -35,6 +51,7 @@ export function progressPlayer(
     team,
     season,
     seasonStats: findSeasonStats(playerSeasonStats, player.id, season),
+    seasonProfile: findSeasonProfile(playerSeasonProfiles, player.id, season),
     teammates,
     rng: playerRng,
   }

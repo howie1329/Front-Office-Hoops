@@ -21,7 +21,8 @@ import {
   calculateMinSalary,
   roundMoney,
 } from "../capMath"
-import { estimateSalaryFromOverall } from "../contracts/createContract"
+import { calculateContractValue } from "../../playerValue"
+import { estimateSalaryFromValue } from "../contracts/createContract"
 import { deriveBirdRights, calculateBirdSignCeiling, getBirdMaxYears } from "../birdRights"
 import { getPlayerContract } from "../payroll"
 
@@ -29,8 +30,8 @@ export function buildFairSalary(
   player: Player,
   seasonFinancials: SeasonFinancials,
 ): number {
-  return estimateSalaryFromOverall(
-    player.ratings.overall,
+  return estimateSalaryFromValue(
+    calculateContractValue(player),
     player.yearsOfService,
     seasonFinancials,
   )

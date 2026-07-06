@@ -1,14 +1,11 @@
-import {
-  PEAK_AGE_MAX,
-  PEAK_AGE_MIN,
-} from "@workspace/shared/constants"
+import { PEAK_AGE_MAX, PEAK_AGE_MIN } from "@workspace/shared/constants"
 import type { Rng } from "@workspace/shared/types"
 
 export function generatePeakAge(
   age: number,
   overall: number,
   potential: number,
-  rng: Rng,
+  rng: Rng
 ): number {
   const potentialGap = potential - overall
   let peakAge: number
@@ -32,7 +29,11 @@ export function generatePeakAge(
   return peakAge
 }
 
-export function migratePeakAge(age: number, overall: number, potential: number): number {
+export function derivePeakAgeFallback(
+  age: number,
+  overall: number,
+  potential: number
+): number {
   const potentialGap = potential - overall
   let peakAge = 28 + Math.round(potentialGap / 3)
 

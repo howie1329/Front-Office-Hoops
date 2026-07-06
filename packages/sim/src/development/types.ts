@@ -1,5 +1,6 @@
 import type {
   Player,
+  PlayerSeasonProfile,
   PlayerSeasonStats,
   Rng,
   SkillKey,
@@ -22,6 +23,7 @@ export type DevelopmentContext = {
   team: TeamWithRoster
   season: number
   seasonStats?: PlayerSeasonStats
+  seasonProfile?: PlayerSeasonProfile
   teammates: Player[]
   rng: Rng
 }

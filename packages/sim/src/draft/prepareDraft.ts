@@ -1,11 +1,18 @@
-import type { SeasonState } from "@workspace/shared/types"
+import type { DraftPickAsset, SeasonState } from "@workspace/shared/types"
 
 import { createRng } from "../rng"
 import { generateDraftClass } from "./generateDraftClass"
-import { generateDraftOrderFromSeed } from "./generateDraftOrder"
+import {
+  generateDraftOrderFromAssets,
+  generateDraftOrderFromSeed,
+} from "./generateDraftOrder"
 import { isDraftRequired } from "./isDraftRequired"
 
-export function prepareDraft(state: SeasonState): SeasonState {
+export function prepareDraft(
+  state: SeasonState,
+  draftPickAssets: DraftPickAsset[] = [],
+  rngNonce = 0
+): SeasonState {
   if (state.phase !== "offseason") {
     throw new Error("Draft can only be prepared during the offseason")
   }
@@ -23,9 +30,19 @@ export function prepareDraft(state: SeasonState): SeasonState {
     state.teams.length,
     year,
     state.baseSeed,
-    createRng(`${state.baseSeed}:draft-class:${year}`),
+    createRng(`${state.baseSeed}:draft-class:${year}:nonce:${rngNonce}`)
   )
-  const order = generateDraftOrderFromSeed(state, state.baseSeed)
+  const order =
+    draftPickAssets.length > 0
+      ? generateDraftOrderFromAssets(
+          state,
+          draftPickAssets,
+          createRng(`${state.baseSeed}:draft-order:${year}:nonce:${rngNonce}`)
+        )
+      : generateDraftOrderFromSeed(
+          state,
+          `${state.baseSeed}:nonce:${rngNonce}`
+        )
 
   return {
     ...state,
@@ -49,7 +66,10 @@ export function getCurrentDraftPick(state: SeasonState) {
   return draftState.order[draftState.currentPickIndex] ?? null
 }
 
-export function isUserOnClock(state: SeasonState, userTeamId: string | null): boolean {
+export function isUserOnClock(
+  state: SeasonState,
+  userTeamId: string | null
+): boolean {
   if (!userTeamId) {
     return false
   }

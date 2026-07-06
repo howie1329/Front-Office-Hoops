@@ -2,7 +2,7 @@ import type { DraftProspect, TeamWithRoster } from "@workspace/shared/types"
 
 export function aiSelectProspect(
   team: TeamWithRoster,
-  prospects: DraftProspect[],
+  prospects: DraftProspect[]
 ): DraftProspect {
   if (prospects.length === 0) {
     throw new Error("No prospects available for AI draft selection")
@@ -10,15 +10,18 @@ export function aiSelectProspect(
 
   const positionCounts = new Map<string, number>()
   for (const player of team.players) {
-    positionCounts.set(player.position, (positionCounts.get(player.position) ?? 0) + 1)
+    positionCounts.set(
+      player.position,
+      (positionCounts.get(player.position) ?? 0) + 1
+    )
   }
 
-  const scored = prospects.map((prospect) => {
+  const scored = prospects.map((prospect, index) => {
     const positionCount = positionCounts.get(prospect.position) ?? 0
     const needBonus = positionCount < 2 ? 2 : 0
     return {
       prospect,
-      score: prospect.ratings.potential + needBonus,
+      score: prospects.length - index + needBonus,
     }
   })
 
