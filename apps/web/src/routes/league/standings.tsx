@@ -8,11 +8,11 @@ export const Route = createFileRoute("/league/standings")({
 })
 
 function LeagueStandingsPage() {
-  const { seasonState } = useLeagueContext()
+  const { seasonState, myTeam } = useLeagueContext()
 
   if (!seasonState) {
     return null
   }
 
-  return <StandingsTable state={seasonState} />
+  return <StandingsTable state={seasonState} userTeamId={myTeam?.id ?? null} />
 }
