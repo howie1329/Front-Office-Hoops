@@ -1,12 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router"
 import { useEffect, useMemo, useState } from "react"
 
+import { formatMoney } from "@/components/league/lib/moneyFormat"
+import { teamName } from "@/components/league/lib/teamFormat"
+import { useLeagueContext } from "@/contexts/LeagueContext"
 import type {
   DraftPickAsset,
   Player,
   SeasonState,
+  TradeEvaluation,
   TradeHistoryEntry,
   TradeProposal,
+  TradeValidationResult,
 } from "@workspace/shared/types"
 import {
   evaluateTrade,
@@ -15,10 +20,6 @@ import {
   validateTrade,
   wouldAiAcceptTrade,
 } from "@workspace/sim"
-
-import { teamName } from "@/components/league/lib/teamFormat"
-import { formatMoney } from "@/components/league/lib/moneyFormat"
-import { useLeagueContext } from "@/contexts/LeagueContext"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -68,44 +69,31 @@ export const Route = createFileRoute("/league/trades")({
 
 const NONE = "none"
 
-function playerLabel(player: Player): string {
-  return `${player.firstName} ${player.lastName}`
-}
-
-function pickLabel(pick: DraftPickAsset, seasonState: SeasonState): string {
-  return `${pick.season} ${pick.round === 1 ? "1st" : "2nd"} from ${teamName(
-    seasonState,
-    pick.originalTeamId
-  )}`
-}
-
-function assetCount(entry: TradeHistoryEntry["teams"][number]): number {
-  return entry.sentPlayerIds.length + entry.sentPickIds.length
-}
-
 function LeagueTradesPage() {
   const { league, seasonState, userTeamId, myTeam, executeTrade } =
     useLeagueContext()
   const search = Route.useSearch()
-  const [targetTeamId, setTargetTeamId] = useState<string>(
-    search.targetTeamId ?? ""
+  const [targetTeamId, setTargetTeamId] = useState(search.targetTeamId ?? "")
+  const [outgoingPlayerIds, setOutgoingPlayerIds] = useState<string[]>(
+    search.outgoingPlayerId ? [search.outgoingPlayerId] : []
   )
-  const [outgoingPlayerId, setOutgoingPlayerId] = useState<string>(
-    search.outgoingPlayerId ?? NONE
+  const [incomingPlayerIds, setIncomingPlayerIds] = useState<string[]>(
+    search.incomingPlayerId ? [search.incomingPlayerId] : []
   )
-  const [incomingPlayerId, setIncomingPlayerId] = useState<string>(
-    search.incomingPlayerId ?? NONE
-  )
-  const [outgoingPickId, setOutgoingPickId] = useState<string>(NONE)
-  const [incomingPickId, setIncomingPickId] = useState<string>(NONE)
+  const [outgoingPickIds, setOutgoingPickIds] = useState<string[]>([])
+  const [incomingPickIds, setIncomingPickIds] = useState<string[]>([])
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
     setTargetTeamId(search.targetTeamId ?? "")
-    setOutgoingPlayerId(search.outgoingPlayerId ?? NONE)
-    setIncomingPlayerId(search.incomingPlayerId ?? NONE)
-    setOutgoingPickId(NONE)
-    setIncomingPickId(NONE)
+    setOutgoingPlayerIds(
+      search.outgoingPlayerId ? [search.outgoingPlayerId] : []
+    )
+    setIncomingPlayerIds(
+      search.incomingPlayerId ? [search.incomingPlayerId] : []
+    )
+    setOutgoingPickIds([])
+    setIncomingPickIds([])
     setMessage(null)
   }, [search.incomingPlayerId, search.outgoingPlayerId, search.targetTeamId])
 
@@ -124,20 +112,13 @@ function LeagueTradesPage() {
       return null
     }
 
-    const outgoingPlayerIds =
-      outgoingPlayerId === NONE ? [] : [outgoingPlayerId]
-    const incomingPlayerIds =
-      incomingPlayerId === NONE ? [] : [incomingPlayerId]
-    const outgoingPickIds = outgoingPickId === NONE ? [] : [outgoingPickId]
-    const incomingPickIds = incomingPickId === NONE ? [] : [incomingPickId]
-
-    if (
+    const selectedAssetCount =
       outgoingPlayerIds.length +
-        incomingPlayerIds.length +
-        outgoingPickIds.length +
-        incomingPickIds.length ===
-      0
-    ) {
+      incomingPlayerIds.length +
+      outgoingPickIds.length +
+      incomingPickIds.length
+
+    if (selectedAssetCount === 0) {
       return null
     }
 
@@ -154,10 +135,10 @@ function LeagueTradesPage() {
       },
     }
   }, [
-    incomingPickId,
-    incomingPlayerId,
-    outgoingPickId,
-    outgoingPlayerId,
+    incomingPickIds,
+    incomingPlayerIds,
+    outgoingPickIds,
+    outgoingPlayerIds,
     targetTeamId,
     userTeamId,
   ])
@@ -181,253 +162,683 @@ function LeagueTradesPage() {
     : null
   const evaluations = proposal ? evaluateTrade(league, proposal) : []
   const canExecute = Boolean(validation?.ok && aiResponse?.ok)
+  const outgoingPlayers = myTeam.players.filter((player) =>
+    outgoingPlayerIds.includes(player.id)
+  )
+  const incomingPlayers =
+    targetTeam?.players.filter((player) =>
+      incomingPlayerIds.includes(player.id)
+    ) ?? []
+  const outgoingPicks = userPicks.filter((pick) =>
+    outgoingPickIds.includes(pick.id)
+  )
+  const incomingPicks = targetPicks.filter((pick) =>
+    incomingPickIds.includes(pick.id)
+  )
+  const userEvaluation = evaluations.find(
+    (entry) => entry.teamId === userTeamId
+  )
+  const activeLeague = league
 
   function salary(player: Player): number {
-    return getCurrentSalary(getPlayerContract(league!.contracts, player))
+    return getCurrentSalary(getPlayerContract(activeLeague.contracts, player))
+  }
+
+  function clearTrade() {
+    setOutgoingPlayerIds([])
+    setIncomingPlayerIds([])
+    setOutgoingPickIds([])
+    setIncomingPickIds([])
+    setMessage(null)
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Trade machine</CardTitle>
-          <CardDescription>
-            Build a player and pick offer and send it through cap, roster, and
-            AI value checks.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-3">
-          <label className="flex flex-col gap-2 text-sm">
-            Trade partner
-            <Select
-              value={targetTeamId}
-              onValueChange={(value) => {
-                setTargetTeamId(value)
-                setIncomingPlayerId(NONE)
-                setIncomingPickId(NONE)
-                setMessage(null)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select team" />
-              </SelectTrigger>
-              <SelectContent>
-                {seasonState.teams
-                  .filter((team) => team.id !== userTeamId)
-                  .map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {teamName(seasonState, team.id)}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-          </label>
+    <div className="-m-px flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-px">
+      <TradeWorkspaceHeader
+        seasonState={seasonState}
+        userTeamId={userTeamId}
+        targetTeamId={targetTeamId}
+        validation={validation}
+        aiResponse={aiResponse}
+        canExecute={canExecute}
+        onTargetTeamChange={(value) => {
+          setTargetTeamId(value)
+          setIncomingPlayerIds([])
+          setIncomingPickIds([])
+          setMessage(null)
+        }}
+        onClear={clearTrade}
+        onComplete={() => {
+          if (!proposal) {
+            return
+          }
+          executeTrade(proposal)
+          clearTrade()
+          setMessage("Trade completed.")
+        }}
+      />
 
-          <label className="flex flex-col gap-2 text-sm">
-            You send
-            <Select
-              value={outgoingPlayerId}
-              onValueChange={(value) => {
-                setOutgoingPlayerId(value)
-                setMessage(null)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select player" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>No player</SelectItem>
-                {myTeam.players.map((player) => (
-                  <SelectItem key={player.id} value={player.id}>
-                    {playerLabel(player)} · {player.ratings.overall} OVR ·{" "}
-                    {formatMoney(salary(player))}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
+      <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+          <TradeSideBuilder
+            title="You send"
+            description={teamName(seasonState, userTeamId)}
+            players={myTeam.players}
+            picks={userPicks}
+            selectedPlayerIds={outgoingPlayerIds}
+            selectedPickIds={outgoingPickIds}
+            selectedPlayers={outgoingPlayers}
+            selectedPicks={outgoingPicks}
+            salaryTotal={sumSalary(outgoingPlayers, salary)}
+            value={userEvaluation?.outgoingValue ?? 0}
+            disabled={false}
+            seasonState={seasonState}
+            salary={salary}
+            onAddPlayer={(id) => {
+              setOutgoingPlayerIds((ids) => addUnique(ids, id))
+              setMessage(null)
+            }}
+            onRemovePlayer={(id) => {
+              setOutgoingPlayerIds((ids) => ids.filter((entry) => entry !== id))
+              setMessage(null)
+            }}
+            onAddPick={(id) => {
+              setOutgoingPickIds((ids) => addUnique(ids, id))
+              setMessage(null)
+            }}
+            onRemovePick={(id) => {
+              setOutgoingPickIds((ids) => ids.filter((entry) => entry !== id))
+              setMessage(null)
+            }}
+          />
 
-          <label className="flex flex-col gap-2 text-sm">
-            You receive
-            <Select
-              value={incomingPlayerId}
-              onValueChange={(value) => {
-                setIncomingPlayerId(value)
-                setMessage(null)
-              }}
-              disabled={!targetTeam}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select player" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>No player</SelectItem>
-                {targetTeam?.players.map((player) => (
-                  <SelectItem key={player.id} value={player.id}>
-                    {playerLabel(player)} · {player.ratings.overall} OVR ·{" "}
-                    {formatMoney(salary(player))}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
+          <TradeSideBuilder
+            title="You receive"
+            description={
+              targetTeam
+                ? teamName(seasonState, targetTeam.id)
+                : "Choose partner"
+            }
+            players={targetTeam?.players ?? []}
+            picks={targetPicks}
+            selectedPlayerIds={incomingPlayerIds}
+            selectedPickIds={incomingPickIds}
+            selectedPlayers={incomingPlayers}
+            selectedPicks={incomingPicks}
+            salaryTotal={sumSalary(incomingPlayers, salary)}
+            value={userEvaluation?.incomingValue ?? 0}
+            disabled={!targetTeam}
+            seasonState={seasonState}
+            salary={salary}
+            onAddPlayer={(id) => {
+              setIncomingPlayerIds((ids) => addUnique(ids, id))
+              setMessage(null)
+            }}
+            onRemovePlayer={(id) => {
+              setIncomingPlayerIds((ids) => ids.filter((entry) => entry !== id))
+              setMessage(null)
+            }}
+            onAddPick={(id) => {
+              setIncomingPickIds((ids) => addUnique(ids, id))
+              setMessage(null)
+            }}
+            onRemovePick={(id) => {
+              setIncomingPickIds((ids) => ids.filter((entry) => entry !== id))
+              setMessage(null)
+            }}
+          />
+        </div>
 
-          <label className="flex flex-col gap-2 text-sm">
-            Your pick
-            <Select
-              value={outgoingPickId}
-              onValueChange={(value) => {
-                setOutgoingPickId(value)
-                setMessage(null)
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select pick" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>No pick</SelectItem>
-                {userPicks.map((pick) => (
-                  <SelectItem key={pick.id} value={pick.id}>
-                    {pickLabel(pick, seasonState)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
+        <TradeCheckPanel
+          seasonState={seasonState}
+          userTeamId={userTeamId}
+          targetTeamId={targetTeamId}
+          validation={validation}
+          aiResponse={aiResponse}
+          evaluations={evaluations}
+          outgoingSalary={sumSalary(outgoingPlayers, salary)}
+          incomingSalary={sumSalary(incomingPlayers, salary)}
+          message={message}
+        />
+      </div>
 
-          <label className="flex flex-col gap-2 text-sm">
-            Their pick
-            <Select
-              value={incomingPickId}
-              onValueChange={(value) => {
-                setIncomingPickId(value)
-                setMessage(null)
-              }}
-              disabled={!targetTeam}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select pick" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>No pick</SelectItem>
-                {targetPicks.map((pick) => (
-                  <SelectItem key={pick.id} value={pick.id}>
-                    {pickLabel(pick, seasonState)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-        </CardContent>
-      </Card>
+      <TradeHistoryCard
+        seasonState={seasonState}
+        history={league.tradeHistory}
+      />
+    </div>
+  )
+}
 
-      {proposal ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Trade check</CardTitle>
+function TradeWorkspaceHeader({
+  seasonState,
+  userTeamId,
+  targetTeamId,
+  validation,
+  aiResponse,
+  canExecute,
+  onTargetTeamChange,
+  onClear,
+  onComplete,
+}: {
+  seasonState: SeasonState
+  userTeamId: string
+  targetTeamId: string
+  validation: TradeValidationResult | null
+  aiResponse: TradeValidationResult | null
+  canExecute: boolean
+  onTargetTeamChange: (teamId: string) => void
+  onClear: () => void
+  onComplete: () => void
+}) {
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <CardTitle>Trade workspace</CardTitle>
             <CardDescription>
-              {validation?.ok
-                ? aiResponse?.ok
-                  ? "The other team is willing to accept."
-                  : aiResponse?.reason
-                : validation?.reason}
+              Build multi-player and pick packages, then check value and salary
+              matching before completing the deal.
             </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Team</TableHead>
-                  <TableHead>Incoming value</TableHead>
-                  <TableHead>Outgoing value</TableHead>
-                  <TableHead>Net</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {evaluations.map((entry) => (
-                  <TableRow key={entry.teamId}>
-                    <TableCell>{teamName(seasonState, entry.teamId)}</TableCell>
-                    <TableCell>{entry.incomingValue.toFixed(1)}</TableCell>
-                    <TableCell>{entry.outgoingValue.toFixed(1)}</TableCell>
-                    <TableCell>{entry.netValue.toFixed(1)}</TableCell>
-                  </TableRow>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[520px]">
+            <CheckMetric
+              label="League check"
+              value={
+                validation ? (validation.ok ? "Clear" : "Blocked") : "Idle"
+              }
+              ok={validation?.ok ?? null}
+            />
+            <CheckMetric
+              label="AI response"
+              value={
+                aiResponse ? (aiResponse.ok ? "Accepts" : "Rejects") : "Idle"
+              }
+              ok={aiResponse?.ok ?? null}
+            />
+            <CheckMetric
+              label="Status"
+              value={canExecute ? "Ready" : "Build"}
+              ok={canExecute ? true : null}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3 py-4 lg:grid-cols-[260px_minmax(0,1fr)_auto]">
+        <label className="grid gap-1 text-sm">
+          Trade partner
+          <Select value={targetTeamId} onValueChange={onTargetTeamChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select team" />
+            </SelectTrigger>
+            <SelectContent>
+              {seasonState.teams
+                .filter((team) => team.id !== userTeamId)
+                .map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {teamName(seasonState, team.id)}
+                  </SelectItem>
                 ))}
-              </TableBody>
-            </Table>
+            </SelectContent>
+          </Select>
+        </label>
+        <div className="rounded-md border bg-muted/10 px-3 py-2 text-sm text-muted-foreground">
+          {targetTeamId
+            ? "Add assets on either side. Salary, roster, and value checks update automatically."
+            : "Choose a partner to open their roster and picks."}
+        </div>
+        <div className="flex flex-wrap items-end gap-2 lg:justify-end">
+          <Button variant="outline" onClick={onClear}>
+            Clear trade
+          </Button>
+          <Button disabled={!canExecute} onClick={onComplete}>
+            Complete trade
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
-            {message ? (
-              <p className="text-sm text-muted-foreground">{message}</p>
-            ) : null}
+function TradeSideBuilder({
+  title,
+  description,
+  players,
+  picks,
+  selectedPlayerIds,
+  selectedPickIds,
+  selectedPlayers,
+  selectedPicks,
+  salaryTotal,
+  value,
+  disabled,
+  seasonState,
+  salary,
+  onAddPlayer,
+  onRemovePlayer,
+  onAddPick,
+  onRemovePick,
+}: {
+  title: string
+  description: string
+  players: Player[]
+  picks: DraftPickAsset[]
+  selectedPlayerIds: string[]
+  selectedPickIds: string[]
+  selectedPlayers: Player[]
+  selectedPicks: DraftPickAsset[]
+  salaryTotal: number
+  value: number
+  disabled: boolean
+  seasonState: SeasonState
+  salary: (player: Player) => number
+  onAddPlayer: (playerId: string) => void
+  onRemovePlayer: (playerId: string) => void
+  onAddPick: (pickId: string) => void
+  onRemovePick: (pickId: string) => void
+}) {
+  const availablePlayers = players.filter(
+    (player) => !selectedPlayerIds.includes(player.id)
+  )
+  const availablePicks = picks.filter(
+    (pick) => !selectedPickIds.includes(pick.id)
+  )
+  const selectedAssetCount = selectedPlayers.length + selectedPicks.length
 
-            <Button
-              disabled={!canExecute}
-              onClick={() => {
-                executeTrade(proposal)
-                setOutgoingPlayerId(NONE)
-                setIncomingPlayerId(NONE)
-                setOutgoingPickId(NONE)
-                setIncomingPickId(NONE)
-                setMessage("Trade completed.")
-              }}
-            >
-              Complete trade
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+  return (
+    <Card className="min-h-0">
+      <CardHeader className="border-b">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <div className="text-right text-xs text-muted-foreground">
+            <div>{selectedAssetCount} assets</div>
+            <div>{formatMoney(salaryTotal)}</div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4 py-4">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <AssetSelect
+            label="Add player"
+            placeholder="Player"
+            disabled={disabled || availablePlayers.length === 0}
+            onValueChange={onAddPlayer}
+            options={availablePlayers.map((player) => ({
+              id: player.id,
+              label: `${playerLabel(player)} · ${player.ratings.overall} OVR · ${formatMoney(
+                salary(player)
+              )}`,
+            }))}
+          />
+          <AssetSelect
+            label="Add pick"
+            placeholder="Draft pick"
+            disabled={disabled || availablePicks.length === 0}
+            onValueChange={onAddPick}
+            options={availablePicks.map((pick) => ({
+              id: pick.id,
+              label: pickLabel(pick, seasonState),
+            }))}
+          />
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Trade history</CardTitle>
-          <CardDescription>
-            Completed trades are recorded with assets, salary, and value
-            snapshots.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <MiniMetric label="Salary" value={formatMoney(salaryTotal)} />
+          <MiniMetric label="Value" value={value.toFixed(1)} />
+          <MiniMetric label="Assets" value={String(selectedAssetCount)} />
+        </div>
+
+        <div className="grid gap-2 rounded-md border bg-muted/10 p-2">
+          {selectedAssetCount === 0 ? (
+            <p className="px-2 py-3 text-sm text-muted-foreground">
+              No assets selected.
+            </p>
+          ) : null}
+          {selectedPlayers.map((player) => (
+            <SelectedAssetRow
+              key={player.id}
+              title={playerLabel(player)}
+              subtitle={`${player.position} · ${player.age} yrs`}
+              detail={`${player.ratings.overall} OVR / ${player.ratings.potential} POT`}
+              value={formatMoney(salary(player))}
+              onRemove={() => onRemovePlayer(player.id)}
+            />
+          ))}
+          {selectedPicks.map((pick) => (
+            <SelectedAssetRow
+              key={pick.id}
+              title={pick.round === 1 ? "1st round" : "2nd round"}
+              subtitle={`Season ${pick.season}`}
+              detail={`From ${teamName(seasonState, pick.originalTeamId)}`}
+              value="-"
+              onRemove={() => onRemovePick(pick.id)}
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function SelectedAssetRow({
+  title,
+  subtitle,
+  detail,
+  value,
+  onRemove,
+}: {
+  title: string
+  subtitle: string
+  detail: string
+  value: string
+  onRemove: () => void
+}) {
+  return (
+    <div className="grid gap-3 rounded-md border bg-card px-3 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(96px,auto)_auto] sm:items-center">
+      <div className="min-w-0">
+        <div className="truncate font-medium">{title}</div>
+        <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
+      </div>
+      <div className="min-w-0 text-sm text-muted-foreground sm:text-right">
+        <div className="truncate">{detail}</div>
+        <div className="font-medium text-foreground tabular-nums">{value}</div>
+      </div>
+      <Button variant="ghost" size="sm" onClick={onRemove}>
+        Remove
+      </Button>
+    </div>
+  )
+}
+
+function AssetSelect({
+  label,
+  placeholder,
+  disabled,
+  options,
+  onValueChange,
+}: {
+  label: string
+  placeholder: string
+  disabled: boolean
+  options: Array<{ id: string; label: string }>
+  onValueChange: (id: string) => void
+}) {
+  return (
+    <label className="grid gap-1 text-sm">
+      {label}
+      <Select
+        value={NONE}
+        disabled={disabled}
+        onValueChange={(value) => {
+          if (value !== NONE) {
+            onValueChange(value)
+          }
+        }}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={NONE}>{placeholder}</SelectItem>
+          {options.map((option) => (
+            <SelectItem key={option.id} value={option.id}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </label>
+  )
+}
+
+function TradeCheckPanel({
+  seasonState,
+  userTeamId,
+  targetTeamId,
+  validation,
+  aiResponse,
+  evaluations,
+  outgoingSalary,
+  incomingSalary,
+  message,
+}: {
+  seasonState: SeasonState
+  userTeamId: string
+  targetTeamId: string
+  validation: TradeValidationResult | null
+  aiResponse: TradeValidationResult | null
+  evaluations: TradeEvaluation[]
+  outgoingSalary: number
+  incomingSalary: number
+  message: string | null
+}) {
+  const userEvaluation = evaluations.find(
+    (entry) => entry.teamId === userTeamId
+  )
+  const targetEvaluation = evaluations.find(
+    (entry) => entry.teamId === targetTeamId
+  )
+  const statusText = validation
+    ? validation.ok
+      ? aiResponse?.ok
+        ? "Trade can be completed."
+        : (aiResponse?.reason ?? "Waiting on AI response.")
+      : validation.reason
+    : "Add assets to run trade checks."
+
+  return (
+    <Card className="min-h-[520px]">
+      <CardHeader className="border-b">
+        <CardTitle>Trade check</CardTitle>
+        <CardDescription>{statusText}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 py-4">
+        <div className="grid gap-2">
+          <InfoRow
+            label="Outgoing salary"
+            value={formatMoney(outgoingSalary)}
+          />
+          <InfoRow
+            label="Incoming salary"
+            value={formatMoney(incomingSalary)}
+          />
+          <InfoRow
+            label="Salary difference"
+            value={formatMoney(incomingSalary - outgoingSalary)}
+          />
+        </div>
+
+        <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Season</TableHead>
                 <TableHead>Team</TableHead>
-                <TableHead>Assets sent</TableHead>
-                <TableHead>Salary sent</TableHead>
-                <TableHead>Net value</TableHead>
+                <TableHead className="text-right">In</TableHead>
+                <TableHead className="text-right">Out</TableHead>
+                <TableHead className="text-right">Net</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {league.tradeHistory.length === 0 ? (
+              {evaluations.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="text-sm text-muted-foreground"
-                  >
-                    No trades completed yet.
+                  <TableCell colSpan={4} className="text-muted-foreground">
+                    No value check yet.
                   </TableCell>
                 </TableRow>
               ) : null}
-              {[...league.tradeHistory]
-                .slice(-8)
-                .reverse()
-                .flatMap((entry) =>
-                  entry.teams.map((teamEntry) => (
-                    <TableRow key={`${entry.id}_${teamEntry.teamId}`}>
-                      <TableCell>{entry.season}</TableCell>
-                      <TableCell>
-                        {teamName(seasonState, teamEntry.teamId)}
-                      </TableCell>
-                      <TableCell>{assetCount(teamEntry)}</TableCell>
-                      <TableCell>
-                        {formatMoney(teamEntry.outgoingSalary)}
-                      </TableCell>
-                      <TableCell>{teamEntry.netValue.toFixed(1)}</TableCell>
-                    </TableRow>
-                  ))
-                )}
+              {evaluations.map((entry) => (
+                <TableRow key={entry.teamId}>
+                  <TableCell>{teamName(seasonState, entry.teamId)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {entry.incomingValue.toFixed(1)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {entry.outgoingValue.toFixed(1)}
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {entry.netValue.toFixed(1)}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="grid gap-2">
+          <InfoRow
+            label="Your net value"
+            value={userEvaluation ? userEvaluation.netValue.toFixed(1) : "-"}
+          />
+          <InfoRow
+            label="Their net value"
+            value={
+              targetEvaluation ? targetEvaluation.netValue.toFixed(1) : "-"
+            }
+          />
+        </div>
+
+        {message ? (
+          <p className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+            {message}
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+function TradeHistoryCard({
+  seasonState,
+  history,
+}: {
+  seasonState: SeasonState
+  history: TradeHistoryEntry[]
+}) {
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Trade history</CardTitle>
+        <CardDescription>
+          Completed trades are recorded with assets, salary, and value
+          snapshots.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="overflow-x-auto py-2">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Season</TableHead>
+              <TableHead>Team</TableHead>
+              <TableHead>Assets sent</TableHead>
+              <TableHead>Salary sent</TableHead>
+              <TableHead>Net value</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {history.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="text-sm text-muted-foreground"
+                >
+                  No trades completed yet.
+                </TableCell>
+              </TableRow>
+            ) : null}
+            {[...history]
+              .slice(-8)
+              .reverse()
+              .flatMap((entry) =>
+                entry.teams.map((teamEntry) => (
+                  <TableRow key={`${entry.id}_${teamEntry.teamId}`}>
+                    <TableCell>{entry.season}</TableCell>
+                    <TableCell>
+                      {teamName(seasonState, teamEntry.teamId)}
+                    </TableCell>
+                    <TableCell>{assetCount(teamEntry)}</TableCell>
+                    <TableCell>
+                      {formatMoney(teamEntry.outgoingSalary)}
+                    </TableCell>
+                    <TableCell>{teamEntry.netValue.toFixed(1)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  )
+}
+
+function CheckMetric({
+  label,
+  value,
+  ok,
+}: {
+  label: string
+  value: string
+  ok: boolean | null
+}) {
+  return (
+    <div className="rounded-md border bg-muted/20 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div
+        className={
+          ok === false
+            ? "mt-0.5 text-sm font-medium text-destructive"
+            : "mt-0.5 text-sm font-medium"
+        }
+      >
+        {value}
+      </div>
     </div>
   )
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-muted/10 px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-sm font-medium tabular-nums">{value}</div>
+    </div>
+  )
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex min-h-9 items-center justify-between gap-3 rounded-md border bg-muted/10 px-3 py-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-medium tabular-nums">{value}</span>
+    </div>
+  )
+}
+
+function playerLabel(player: Player): string {
+  return `${player.firstName} ${player.lastName}`
+}
+
+function pickLabel(pick: DraftPickAsset, seasonState: SeasonState): string {
+  return `${pick.season} ${pick.round === 1 ? "1st" : "2nd"} from ${teamName(
+    seasonState,
+    pick.originalTeamId
+  )}`
+}
+
+function assetCount(entry: TradeHistoryEntry["teams"][number]): number {
+  return entry.sentPlayerIds.length + entry.sentPickIds.length
+}
+
+function addUnique(values: string[], value: string): string[] {
+  return values.includes(value) ? values : [...values, value]
+}
+
+function sumSalary(
+  players: Player[],
+  salary: (player: Player) => number
+): number {
+  return players.reduce((total, player) => total + salary(player), 0)
 }
