@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import type {
   DraftPickAsset,
@@ -43,7 +43,26 @@ import {
   TableRow,
 } from "@workspace/ui/components/table"
 
+type TradesSearch = {
+  targetTeamId?: string
+  outgoingPlayerId?: string
+  incomingPlayerId?: string
+}
+
 export const Route = createFileRoute("/league/trades")({
+  validateSearch: (search: Record<string, unknown>): TradesSearch => {
+    const parsed: TradesSearch = {}
+    if (typeof search.targetTeamId === "string") {
+      parsed.targetTeamId = search.targetTeamId
+    }
+    if (typeof search.outgoingPlayerId === "string") {
+      parsed.outgoingPlayerId = search.outgoingPlayerId
+    }
+    if (typeof search.incomingPlayerId === "string") {
+      parsed.incomingPlayerId = search.incomingPlayerId
+    }
+    return parsed
+  },
   component: LeagueTradesPage,
 })
 
@@ -67,12 +86,28 @@ function assetCount(entry: TradeHistoryEntry["teams"][number]): number {
 function LeagueTradesPage() {
   const { league, seasonState, userTeamId, myTeam, executeTrade } =
     useLeagueContext()
-  const [targetTeamId, setTargetTeamId] = useState<string>("")
-  const [outgoingPlayerId, setOutgoingPlayerId] = useState<string>(NONE)
-  const [incomingPlayerId, setIncomingPlayerId] = useState<string>(NONE)
+  const search = Route.useSearch()
+  const [targetTeamId, setTargetTeamId] = useState<string>(
+    search.targetTeamId ?? ""
+  )
+  const [outgoingPlayerId, setOutgoingPlayerId] = useState<string>(
+    search.outgoingPlayerId ?? NONE
+  )
+  const [incomingPlayerId, setIncomingPlayerId] = useState<string>(
+    search.incomingPlayerId ?? NONE
+  )
   const [outgoingPickId, setOutgoingPickId] = useState<string>(NONE)
   const [incomingPickId, setIncomingPickId] = useState<string>(NONE)
   const [message, setMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    setTargetTeamId(search.targetTeamId ?? "")
+    setOutgoingPlayerId(search.outgoingPlayerId ?? NONE)
+    setIncomingPlayerId(search.incomingPlayerId ?? NONE)
+    setOutgoingPickId(NONE)
+    setIncomingPickId(NONE)
+    setMessage(null)
+  }, [search.incomingPlayerId, search.outgoingPlayerId, search.targetTeamId])
 
   const targetTeam = seasonState?.teams.find((team) => team.id === targetTeamId)
   const userPicks =

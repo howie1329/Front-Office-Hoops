@@ -27,12 +27,18 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
     return null
   }
 
-  const { seasonFinancials, payroll, capSpace, taxBill, teamFinance, isOverTax } =
-    financials
+  const {
+    seasonFinancials,
+    payroll,
+    capSpace,
+    taxBill,
+    teamFinance,
+    isOverTax,
+  } = financials
 
   return (
-    <Card>
-      <CardHeader>
+    <Card size="sm">
+      <CardHeader className="border-b">
         <CardTitle>Cap sheet</CardTitle>
         <CardDescription>
           {formatMarketTier(teamFinance.spendingProfile.marketTier)} ·{" "}
@@ -40,50 +46,56 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           {formatTeamMode(teamFinance.strategy.mode)}
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-        <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Salary cap</span>
-          <span>{formatMoney(seasonFinancials.salaryCap)}</span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Payroll</span>
-          <span>{formatMoney(payroll)}</span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Cap space</span>
-          <span className={capSpace < 0 ? "text-destructive" : undefined}>
-            {formatMoney(capSpace)}
-          </span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Tax line</span>
-          <span>{formatMoney(seasonFinancials.luxuryTaxLine)}</span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Projected tax</span>
-          <span className={isOverTax ? "text-destructive" : undefined}>
-            {formatMoney(taxBill)}
-          </span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Cash</span>
-          <span>{formatMoney(teamFinance.cashReserves)}</span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Debt</span>
-          <span className={teamFinance.debt > 0 ? "text-destructive" : undefined}>
-            {formatMoney(teamFinance.debt)}
-          </span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">Team mode</span>
-          <span>{formatTeamMode(teamFinance.strategy.mode)}</span>
-        </div>
-        <div className="flex justify-between gap-4">
-          <span className="text-muted-foreground">MLE remaining</span>
-          <span>{formatMoney(teamFinance.mleRemaining)}</span>
-        </div>
+      <CardContent className="grid gap-2 text-sm">
+        <CapMetric
+          label="Salary cap"
+          value={formatMoney(seasonFinancials.salaryCap)}
+        />
+        <CapMetric label="Payroll" value={formatMoney(payroll)} />
+        <CapMetric
+          label="Cap space"
+          value={formatMoney(capSpace)}
+          tone={capSpace < 0 ? "destructive" : undefined}
+        />
+        <CapMetric
+          label="Tax line"
+          value={formatMoney(seasonFinancials.luxuryTaxLine)}
+        />
+        <CapMetric
+          label="Projected tax"
+          value={formatMoney(taxBill)}
+          tone={isOverTax ? "destructive" : undefined}
+        />
+        <CapMetric label="Cash" value={formatMoney(teamFinance.cashReserves)} />
+        <CapMetric
+          label="Debt"
+          value={formatMoney(teamFinance.debt)}
+          tone={teamFinance.debt > 0 ? "destructive" : undefined}
+        />
+        <CapMetric
+          label="MLE remaining"
+          value={formatMoney(teamFinance.mleRemaining)}
+        />
       </CardContent>
     </Card>
+  )
+}
+
+function CapMetric({
+  label,
+  value,
+  tone,
+}: {
+  label: string
+  value: string
+  tone?: "destructive"
+}) {
+  return (
+    <div className="flex justify-between gap-4 rounded-md border bg-muted/20 px-3 py-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={tone === "destructive" ? "text-destructive" : undefined}>
+        {value}
+      </span>
+    </div>
   )
 }
