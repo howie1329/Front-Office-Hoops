@@ -1,233 +1,268 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
-import type { LeagueSummary } from "@workspace/shared/types"
+import { useState } from "react"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import type { LeagueSummary, SeasonPhase } from "@workspace/shared/types"
 import { LEAGUE_TEAM_COUNT } from "@workspace/shared/constants"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
 
+import { ModeToggle } from "@/components/ModeToggle"
 import { useLeagueSaves } from "@/hooks/useLeagueSaves"
 
 export const Route = createFileRoute("/")({ component: App })
 
-function formatUpdatedAt(iso: string): string {
-  return new Date(iso).toLocaleString()
+const PHASE_LABELS: Record<SeasonPhase, string> = {
+  preseason: "Preseason",
+  regular: "Regular season",
+  playoffs: "Playoffs",
+  complete: "Season complete",
+  offseason: "Offseason",
 }
 
-function formatLeagueType(teamCount: number): string {
-  return teamCount === LEAGUE_TEAM_COUNT
-    ? "30-team league"
-    : `${teamCount}-team lab`
+function formatLastPlayed(iso: string): string {
+  const date = new Date(iso)
+  const now = new Date()
+  const time = date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  })
+
+  const startOfDay = (value: Date) =>
+    new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime()
+  const dayDiff = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000)
+
+  if (dayDiff === 0) {
+    return `Today, ${time}`
+  }
+
+  if (dayDiff === 1) {
+    return `Yesterday, ${time}`
+  }
+
+  const sameYear = date.getFullYear() === now.getFullYear()
+  const day = date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  })
+
+  return sameYear ? `${day}, ${time}` : day
 }
 
-function formatStatus(save: LeagueSummary): string {
-  return save.userTeamId ? "Ready to continue" : "Needs team pick"
+function saveMetadata(save: LeagueSummary): string[] {
+  const parts = [`Season ${save.season}`, PHASE_LABELS[save.phase]]
+
+  if (save.teamCount !== LEAGUE_TEAM_COUNT) {
+    parts.push(`${save.teamCount}-team lab`)
+  }
+
+  if (save.teamName) {
+    parts.push(save.teamName)
+
+    if (save.wins !== null && save.losses !== null) {
+      parts.push(`${save.wins}-${save.losses}`)
+    }
+  } else {
+    parts.push("No team selected")
+  }
+
+  return parts
+}
+
+function MetadataLine({ save }: { save: LeagueSummary }) {
+  return (
+    <p className="text-xs leading-relaxed text-muted-foreground">
+      {saveMetadata(save).map((part, index) => (
+        <span key={part + String(index)}>
+          {index > 0 ? <span aria-hidden="true"> · </span> : null}
+          {part}
+        </span>
+      ))}
+      <span aria-hidden="true"> · </span>
+      <time dateTime={save.updatedAt}>
+        Last played {formatLastPlayed(save.updatedAt)}
+      </time>
+    </p>
+  )
+}
+
+function SkeletonBand({ tall }: { tall?: boolean }) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-4 rounded-lg ring-1 ring-foreground/10 ${
+        tall ? "p-5" : "p-4"
+      }`}
+    >
+      <div className="flex min-w-0 flex-1 animate-pulse flex-col gap-2 motion-reduce:animate-none">
+        <div
+          className={`rounded-sm bg-muted ${tall ? "h-5 w-48" : "h-4 w-40"}`}
+        />
+        <div className="h-3 w-72 max-w-full rounded-sm bg-muted/70" />
+      </div>
+      <div className="h-8 w-24 animate-pulse rounded-md bg-muted motion-reduce:animate-none" />
+    </div>
+  )
 }
 
 function App() {
-  const { saves, activeSave, loading, error } = useLeagueSaves()
+  const { saves, activeSave, loading, error, retry, switchLeague } =
+    useLeagueSaves()
+  const navigate = useNavigate()
+  const [pendingLoadId, setPendingLoadId] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const hasSave = saves.length > 0
-  const isReady = Boolean(activeSave?.userTeamId)
-  const needsPickTeam = Boolean(activeSave && !activeSave.userTeamId)
   const recentSaves = saves
     .filter((save) => save.id !== activeSave?.id)
-    .sort(
-      (first, second) =>
-        new Date(second.updatedAt).getTime() -
-        new Date(first.updatedAt).getTime()
-    )
     .slice(0, 3)
 
+  async function handleLoad(save: LeagueSummary) {
+    setLoadError(null)
+    setPendingLoadId(save.id)
+
+    try {
+      await switchLeague(save.id)
+      void navigate({
+        to: save.userTeamId ? "/league" : "/league/pick-team",
+      })
+    } catch {
+      setLoadError(`Couldn't load "${save.name}". Try again.`)
+    } finally {
+      setPendingLoadId(null)
+    }
+  }
+
   return (
-    <main className="min-h-svh px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-6xl flex-col gap-6">
-        <section className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(0,0.95fr)_minmax(360px,1.05fr)] lg:items-center">
-          <div className="flex min-w-0 flex-col gap-6">
-            <div className="flex max-w-2xl flex-col gap-3">
-              <p className="text-xs font-medium text-muted-foreground">
-                League Office Console
-              </p>
-              <div className="flex flex-col gap-2">
-                <h1 className="text-2xl leading-tight font-medium tracking-normal sm:text-3xl">
-                  Front Office Hoops
-                </h1>
-                <p className="max-w-prose text-sm leading-7 text-muted-foreground">
-                  Simulation-first basketball GM. Create a league, pick your
-                  team, and keep the season moving from one compact front-office
-                  surface.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {!loading && isReady && activeSave ? (
-                <Button size="lg" asChild>
-                  <Link to="/league">Continue league</Link>
-                </Button>
-              ) : null}
-
-              {!loading && needsPickTeam && activeSave ? (
-                <Button size="lg" asChild>
-                  <Link to="/league/pick-team">Finish setup</Link>
-                </Button>
-              ) : null}
-
-              <Button
-                size="lg"
-                variant={hasSave ? "secondary" : "default"}
-                asChild
-              >
-                <Link to="/league/create">Create league</Link>
-              </Button>
-
-              {hasSave ? (
-                <Button size="lg" variant="outline" asChild>
-                  <Link to="/league/saves">Manage saves</Link>
-                </Button>
-              ) : null}
-            </div>
-
-            <div className="grid max-w-2xl gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-              <div className="border-t pt-2">
-                <span className="font-medium text-foreground">Sim seasons</span>
-                <span className="block">
-                  Advance days, weeks, playoffs, and drafts.
-                </span>
-              </div>
-              <div className="border-t pt-2">
-                <span className="font-medium text-foreground">Run a team</span>
-                <span className="block">
-                  Track roster, cap sheet, trades, and free agency.
-                </span>
-              </div>
-              <div className="border-t pt-2">
-                <span className="font-medium text-foreground">
-                  Read the league
-                </span>
-                <span className="block">
-                  Standings, schedule, stats, playoffs, and history.
-                </span>
-              </div>
-            </div>
+    <main className="min-h-svh bg-background px-4 py-10 text-foreground sm:px-6">
+      <div className="mx-auto flex min-h-[calc(100svh-5rem)] w-full max-w-[880px] flex-col">
+        <header className="flex items-start justify-between gap-4 pb-6">
+          <div className="flex min-w-0 flex-col gap-2">
+            <h1 className="text-sm font-semibold tracking-[0.08em] uppercase">
+              Front Office Hoops
+            </h1>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Basketball GM simulation. Your leagues live on this device.
+            </p>
           </div>
+          <ModeToggle />
+        </header>
 
-          <Card>
-            <CardHeader className="gap-2">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <CardTitle>Saved leagues</CardTitle>
-                  <CardDescription>
-                    Continue the active save or manage leagues on this device.
-                  </CardDescription>
-                </div>
-                {!loading && hasSave ? (
-                  <span className="rounded-sm bg-muted px-2 py-1 text-xs font-medium">
-                    {saves.length} save{saves.length === 1 ? "" : "s"}
-                  </span>
-                ) : null}
-              </div>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {loading ? (
-                <p className="text-xs text-muted-foreground">
-                  Checking saved leagues...
+        <div className="border-t border-foreground/10" role="presentation" />
+
+        <section
+          aria-label="Your leagues"
+          className="flex flex-1 flex-col justify-center gap-3 py-8"
+        >
+          {loading ? (
+            <>
+              <SkeletonBand tall />
+              <SkeletonBand />
+              <SkeletonBand />
+            </>
+          ) : null}
+
+          {!loading && error ? (
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg p-5 ring-1 ring-foreground/10">
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Couldn't read your saves</p>
+                <p className="text-xs leading-relaxed text-destructive">
+                  {error}
                 </p>
-              ) : null}
+              </div>
+              <Button size="lg" variant="outline" onClick={() => void retry()}>
+                Try again
+              </Button>
+            </div>
+          ) : null}
 
-              {error ? (
-                <p className="text-xs text-destructive">{error}</p>
-              ) : null}
+          {!loading && !error && !hasSave ? (
+            <div className="flex flex-col gap-4 rounded-lg p-6 ring-1 ring-foreground/10">
+              <div className="flex flex-col gap-1.5">
+                <h2 className="text-lg font-medium text-balance">
+                  Start your first league
+                </h2>
+                <p className="max-w-[60ch] text-sm leading-relaxed text-muted-foreground">
+                  Create a league, pick the team you'll run, and take over the
+                  front office: roster, trades, draft, finances, and the
+                  schedule from preseason to the title.
+                </p>
+              </div>
+              <div>
+                <Button size="lg" asChild>
+                  <Link to="/league/create">Create your first league</Link>
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
-              {!loading && !hasSave ? (
-                <div className="flex flex-col gap-3 rounded-md bg-muted/50 p-3">
-                  <div>
-                    <p className="text-sm font-medium">No leagues yet</p>
-                    <p className="text-xs text-muted-foreground">
-                      Create a league to start the GM flow.
-                    </p>
+          {!loading && !error && activeSave ? (
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-lg bg-card p-5 ring-1 ring-foreground/15">
+              <div className="flex min-w-0 flex-col gap-1">
+                <h2 className="truncate text-xl font-medium tracking-[-0.01em]">
+                  {activeSave.name}
+                </h2>
+                <MetadataLine save={activeSave} />
+              </div>
+              <Button size="lg" asChild>
+                <Link
+                  to={activeSave.userTeamId ? "/league" : "/league/pick-team"}
+                >
+                  {activeSave.userTeamId ? "Continue" : "Finish setup"}
+                </Link>
+              </Button>
+            </div>
+          ) : null}
+
+          {!loading && !error && recentSaves.length > 0 ? (
+            <ul className="flex flex-col gap-3" aria-label="Other saves">
+              {recentSaves.map((save) => (
+                <li
+                  key={save.id}
+                  className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-lg p-4 ring-1 ring-foreground/10 transition-colors duration-150 hover:bg-card motion-reduce:transition-none"
+                >
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <h3 className="truncate text-sm font-medium">
+                      {save.name}
+                    </h3>
+                    <MetadataLine save={save} />
                   </div>
-                  <Button size="sm" asChild>
-                    <Link to="/league/create">Create league</Link>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    disabled={pendingLoadId !== null}
+                    onClick={() => void handleLoad(save)}
+                  >
+                    {pendingLoadId === save.id ? "Loading…" : "Load"}
                   </Button>
-                </div>
-              ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
 
-              {!loading && activeSave ? (
-                <div className="flex flex-col gap-3 rounded-md bg-muted/50 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {activeSave.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Active · {formatLeagueType(activeSave.teamCount)} ·{" "}
-                        {formatStatus(activeSave)}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {formatUpdatedAt(activeSave.updatedAt)}
-                    </span>
-                  </div>
-                  <Button size="sm" asChild>
-                    <Link
-                      to={
-                        activeSave.userTeamId ? "/league" : "/league/pick-team"
-                      }
-                    >
-                      {activeSave.userTeamId
-                        ? "Continue league"
-                        : "Finish setup"}
-                    </Link>
-                  </Button>
-                </div>
-              ) : null}
+          {loadError ? (
+            <p role="alert" className="text-xs text-destructive">
+              {loadError}
+            </p>
+          ) : null}
 
-              {!loading && recentSaves.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-medium">Recent saves</p>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="h-auto px-0"
-                      asChild
-                    >
-                      <Link to="/league/saves">Manage all</Link>
-                    </Button>
-                  </div>
-                  <div className="divide-y rounded-md border">
-                    {recentSaves.map((save) => (
-                      <div
-                        key={save.id}
-                        className="flex items-center justify-between gap-3 p-3 text-xs"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{save.name}</p>
-                          <p className="text-muted-foreground">
-                            {formatLeagueType(save.teamCount)} ·{" "}
-                            {formatStatus(save)}
-                          </p>
-                        </div>
-                        <span className="shrink-0 text-muted-foreground">
-                          {formatUpdatedAt(save.updatedAt)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+          {!loading && !error && hasSave ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button size="lg" variant="outline" asChild>
+                <Link to="/league/create">Create new league</Link>
+              </Button>
+              <Button size="lg" variant="ghost" asChild>
+                <Link to="/league/saves">
+                  Manage saves
+                  {saves.length > recentSaves.length + (activeSave ? 1 : 0)
+                    ? ` (${saves.length})`
+                    : ""}
+                </Link>
+              </Button>
+            </div>
+          ) : null}
         </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-3 border-t py-3 text-xs text-muted-foreground">
+        <footer className="flex items-center justify-between gap-3 border-t border-foreground/10 pt-4 text-xs text-muted-foreground">
           <span>Developer tools</span>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-1">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/sim-lab">Sim Lab</Link>
             </Button>

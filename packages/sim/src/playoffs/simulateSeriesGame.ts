@@ -1,8 +1,4 @@
-import type {
-  PlayoffSeries,
-  SeasonState,
-  TeamFinancials,
-} from "@workspace/shared/types"
+import type { PlayoffSeries, SeasonState } from "@workspace/shared/types"
 
 import { derivePlayerSeasonStats } from "../derivePlayerSeasonStats"
 import { deriveStandings } from "../deriveStandings"

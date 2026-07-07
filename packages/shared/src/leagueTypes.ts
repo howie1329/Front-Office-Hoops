@@ -18,7 +18,11 @@ import type {
   RetirementEntry,
 } from "./developmentTypes"
 import type { SeasonAward } from "./awardTypes"
-import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
+import type {
+  SeasonHistoryEntry,
+  SeasonPhase,
+  SeasonState,
+} from "./seasonTypes"
 import type { PendingTradeOffer, TradeHistoryEntry } from "./tradeTypes"
 
 export const SAVE_VERSION = 14 as const
@@ -68,4 +72,10 @@ export type LeagueSummary = Pick<
   "id" | "name" | "updatedAt" | "userTeamId"
 > & {
   teamCount: number
+  season: number
+  phase: SeasonPhase
+  /** Name of the user's team, or null before a team is picked. */
+  teamName: string | null
+  wins: number | null
+  losses: number | null
 }

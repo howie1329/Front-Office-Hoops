@@ -57,7 +57,12 @@ describe("leagueRepository", () => {
     expect(list[0]).toMatchObject({
       userTeamId: null,
       teamCount: 6,
+      teamName: null,
+      wins: null,
+      losses: null,
     })
+    expect(typeof list[0]?.season).toBe("number")
+    expect(typeof list[0]?.phase).toBe("string")
   })
 
   it("deletes a league by id", async () => {

@@ -396,13 +396,17 @@ export function useLeague() {
       }
 
       try {
-        const result = advanceLeague(current, {
-          target,
-          policy,
-          userTeamId: current.userTeamId,
-          league: current,
-          rngNonce: current.rngNonce,
-        }, createRng(`${current.rngNonce}:${target}`))
+        const result = advanceLeague(
+          current,
+          {
+            target,
+            policy,
+            userTeamId: current.userTeamId,
+            league: current,
+            rngNonce: current.rngNonce,
+          },
+          createRng(`${current.rngNonce}:${target}`)
+        )
         setLastAdvanceResult(result.result)
         scheduleSave(result.league)
         return result.result
@@ -410,12 +414,12 @@ export function useLeague() {
         setError(
           commandError instanceof Error
             ? commandError.message
-            : "Failed to advance league",
+            : "Failed to advance league"
         )
         return null
       }
     },
-    [scheduleSave],
+    [scheduleSave]
   )
 
   return {
@@ -488,6 +492,17 @@ export function useSavedLeagueSummary() {
 
         if (record) {
           const activeSummary = saves.find((save) => save.id === record.id)
+          const userTeam = record.userTeamId
+            ? record.seasonState.teams.find(
+                (team) => team.id === record.userTeamId
+              )
+            : undefined
+          const userStanding = record.userTeamId
+            ? record.seasonState.standings.find(
+                (standing) => standing.teamId === record.userTeamId
+              )
+            : undefined
+
           setSummary(
             activeSummary ?? {
               id: record.id,
@@ -495,6 +510,11 @@ export function useSavedLeagueSummary() {
               updatedAt: record.updatedAt,
               userTeamId: record.userTeamId,
               teamCount: record.seasonState.teams.length,
+              season: record.seasonState.season,
+              phase: record.seasonState.phase,
+              teamName: userTeam?.name ?? null,
+              wins: userStanding?.wins ?? null,
+              losses: userStanding?.losses ?? null,
             }
           )
         }

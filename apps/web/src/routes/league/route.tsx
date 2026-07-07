@@ -22,6 +22,7 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import { winPct } from "@/components/league/lib/teamFormat"
+import { ModeToggle } from "@/components/ModeToggle"
 import { LeagueProvider, useLeagueContext } from "@/contexts/LeagueContext"
 import {
   Sidebar,
@@ -320,12 +321,15 @@ function LeagueSidebar({
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild tooltip="Home">
-              <Link to="/">
-                <HugeiconsIcon icon={Home01Icon} strokeWidth={2} />
-                <span>Home</span>
-              </Link>
-            </SidebarMenuButton>
+            <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
+              <SidebarMenuButton asChild tooltip="Home" className="flex-1">
+                <Link to="/">
+                  <HugeiconsIcon icon={Home01Icon} strokeWidth={2} />
+                  <span>Home</span>
+                </Link>
+              </SidebarMenuButton>
+              <ModeToggle align="start" />
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

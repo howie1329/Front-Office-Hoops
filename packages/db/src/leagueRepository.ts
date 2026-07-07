@@ -5,13 +5,29 @@ import { getDb } from "./db"
 export async function listLeagues(): Promise<LeagueSummary[]> {
   const rows = await getDb().leagues.orderBy("updatedAt").reverse().toArray()
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    updatedAt: row.updatedAt,
-    userTeamId: row.userTeamId,
-    teamCount: row.seasonState.teams.length,
-  }))
+  return rows.map((row) => {
+    const userTeam = row.userTeamId
+      ? row.seasonState.teams.find((team) => team.id === row.userTeamId)
+      : undefined
+    const userStanding = row.userTeamId
+      ? row.seasonState.standings.find(
+          (standing) => standing.teamId === row.userTeamId
+        )
+      : undefined
+
+    return {
+      id: row.id,
+      name: row.name,
+      updatedAt: row.updatedAt,
+      userTeamId: row.userTeamId,
+      teamCount: row.seasonState.teams.length,
+      season: row.seasonState.season,
+      phase: row.seasonState.phase,
+      teamName: userTeam?.name ?? null,
+      wins: userStanding?.wins ?? null,
+      losses: userStanding?.losses ?? null,
+    }
+  })
 }
 
 export async function getLeague(id: string): Promise<LeagueRecord | undefined> {
@@ -19,7 +35,11 @@ export async function getLeague(id: string): Promise<LeagueRecord | undefined> {
 }
 
 export async function getMostRecentLeague(): Promise<LeagueRecord | undefined> {
-  const rows = await getDb().leagues.orderBy("updatedAt").reverse().limit(1).toArray()
+  const rows = await getDb()
+    .leagues.orderBy("updatedAt")
+    .reverse()
+    .limit(1)
+    .toArray()
   return rows[0]
 }
 

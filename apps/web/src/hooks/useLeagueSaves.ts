@@ -59,7 +59,7 @@ export function useLeagueSaves() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Failed to load saves",
+            : "Failed to load saves"
         )
       })
       .finally(() => {
@@ -70,6 +70,21 @@ export function useLeagueSaves() {
 
     return () => {
       cancelled = true
+    }
+  }, [reload])
+
+  const retry = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      await reload()
+    } catch (loadError: unknown) {
+      setError(
+        loadError instanceof Error ? loadError.message : "Failed to load saves"
+      )
+    } finally {
+      setLoading(false)
     }
   }, [reload])
 
@@ -87,7 +102,7 @@ export function useLeagueSaves() {
       await reload()
       return record
     },
-    [reload],
+    [reload]
   )
 
   const deleteLeague = useCallback(
@@ -102,7 +117,7 @@ export function useLeagueSaves() {
       const next = await reload()
       return next
     },
-    [activeId, reload],
+    [activeId, reload]
   )
 
   const activeSave = saves.find((save) => save.id === activeId) ?? null
@@ -114,6 +129,7 @@ export function useLeagueSaves() {
     loading,
     error,
     reload,
+    retry,
     switchLeague,
     deleteLeague,
   }
