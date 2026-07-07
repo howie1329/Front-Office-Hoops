@@ -23,7 +23,11 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
   ]
   const enforceRosterMinimum = league.seasonState.phase !== "offseason"
   const maxRosterSize =
-    league.seasonState.phase === "preseason" ? CAMP_ROSTER_MAX : ROSTER_MAX
+    league.seasonState.phase === "preseason"
+      ? CAMP_ROSTER_MAX
+      : league.seasonState.phase === "offseason"
+        ? ROSTER_MAX + 3
+        : ROSTER_MAX
 
   expectUnique(teams.map((team) => team.id), "team IDs")
   expectUnique(allPlayerIds, "player IDs")

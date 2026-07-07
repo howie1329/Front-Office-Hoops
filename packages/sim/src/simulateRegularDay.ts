@@ -7,6 +7,7 @@ import { advanceInjuriesForDay, applyPostGameInjuries } from "./injuries"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
 import { createRng } from "./rng"
 import { getFatigueInjuryMultiplier, getTeamScheduleFatigue } from "./schedule/fatigue"
+import { applyCampDevelopmentForDay } from "./preseason/campDevelopment"
 import { simulateGameWithContext } from "./simulateGameWithContext"
 
 function gameTypeForEntry(game: ScheduleGame): ScheduleGame["gameType"] {
@@ -155,8 +156,19 @@ export function simulateRegularDay(
     ),
   }
 
+  const withCampDevelopment =
+    state.phase === "preseason"
+      ? {
+          ...withDerived,
+          teams: applyCampDevelopmentForDay(
+            withDerived.teams,
+            createRng(`${state.baseSeed}:camp-dev:${day}:nonce:${rngNonce}`),
+          ),
+        }
+      : withDerived
+
   return {
-    ...withDerived,
-    currentDay: snapDayAfterRegularSeason(withDerived),
+    ...withCampDevelopment,
+    currentDay: snapDayAfterRegularSeason(withCampDevelopment),
   }
 }

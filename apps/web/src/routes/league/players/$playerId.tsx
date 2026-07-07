@@ -40,6 +40,12 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import {
+  DISPLAY_SKILL_KEYS,
+  getTeamScoutingLevel,
+  getViewRatings,
+  skillLabel,
+} from "@/components/league/lib/scouting"
+import {
   Table,
   TableBody,
   TableCell,
@@ -51,15 +57,6 @@ import {
 export const Route = createFileRoute("/league/players/$playerId")({
   component: PlayerProfilePage,
 })
-
-const ratingKeys = [
-  "shooting",
-  "inside",
-  "passing",
-  "rebounding",
-  "defense",
-  "stamina",
-] satisfies Array<keyof PlayerRatings>
 
 function PlayerProfilePage() {
   const { playerId } = Route.useParams()
@@ -168,11 +165,25 @@ function PlayerProfilePage() {
         offseasonPhase,
       })
     : null
+  const teamFinance = userTeamId
+    ? league.teamFinancials.find((entry) => entry.teamId === userTeamId)
+    : undefined
+  const viewRatings =
+    player && teamFinance
+      ? getViewRatings(player.ratings, {
+          isOwnRoster: isMyRosterPlayer,
+          teamScoutingLevel: getTeamScoutingLevel(teamFinance),
+        })
+      : null
+  const scoutingNote = isMyRosterPlayer
+    ? "Exact ratings for your roster."
+    : "Scouted ratings — precision depends on your scouting budget."
 
   return (
     <div className="-m-px flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-px">
       <PlayerHeader
         player={player}
+        viewRatings={viewRatings}
         name={player ? playerName(allPlayers, player.id) : playerId}
         teamLabel={
           playerTeam
@@ -198,7 +209,14 @@ function PlayerProfilePage() {
 
       <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
         <div className="flex min-w-0 flex-col gap-4">
-          {player ? <RatingsCard player={player} decision={decision} /> : null}
+          {player ? (
+            <RatingsCard
+              player={player}
+              viewRatings={viewRatings ?? player.ratings}
+              scoutingNote={scoutingNote}
+              decision={decision}
+            />
+          ) : null}
           <CurrentProductionCard
             currentStats={currentStats}
             season={seasonState.season}
@@ -255,6 +273,7 @@ function PlayerProfilePage() {
 
 type PlayerHeaderProps = {
   player: Player | undefined
+  viewRatings: PlayerRatings | null
   name: string
   teamLabel: string
   contractLabel: string
@@ -269,6 +288,7 @@ type PlayerHeaderProps = {
 
 function PlayerHeader({
   player,
+  viewRatings,
   name,
   teamLabel,
   contractLabel,
@@ -310,10 +330,13 @@ function PlayerHeader({
           </div>
 
           <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[520px]">
-            <Metric label="Overall" value={player?.ratings.overall ?? "-"} />
+            <Metric
+              label="Overall"
+              value={viewRatings?.overall ?? player?.ratings.overall ?? "-"}
+            />
             <Metric
               label="Potential"
-              value={player?.ratings.potential ?? "-"}
+              value={viewRatings?.potential ?? player?.ratings.potential ?? "-"}
             />
             <Metric
               label="Season line"
@@ -356,29 +379,31 @@ function PlayerHeader({
 
 function RatingsCard({
   player,
+  viewRatings,
+  scoutingNote,
   decision,
 }: {
   player: Player
+  viewRatings: PlayerRatings
+  scoutingNote: string
   decision: PlayerDecision | null
 }) {
   return (
     <Card>
       <CardHeader className="border-b">
         <CardTitle>Scouting profile</CardTitle>
-        <CardDescription>
-          Ratings, development window, and roster read.
-        </CardDescription>
+        <CardDescription>{scoutingNote}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 py-4 lg:grid-cols-[1fr_280px]">
         <div className="grid gap-3 sm:grid-cols-2">
-          {ratingKeys.map((key) => (
+          {DISPLAY_SKILL_KEYS.map((key) => (
             <RatingBar
               key={key}
-              label={ratingLabel(key)}
-              value={player.ratings[key]}
+              label={skillLabel(key)}
+              value={viewRatings[key]}
             />
           ))}
-          <RatingBar label="Usage" value={player.ratings.usage} />
+          <RatingBar label="Usage" value={viewRatings.usage} />
           <RatingBar label="Development gap" value={developmentGap(player)} />
         </div>
         <div className="rounded-md border bg-muted/20 p-3">
@@ -593,6 +618,14 @@ function ContractCard({
           value={`${player.seasonsWithTeam} seasons`}
         />
         <InfoRow label="Size" value={playerSize(player)} />
+        <InfoRow
+          label="Wingspan"
+          value={`${player.wingspanInches ?? player.heightInches + 2}"`}
+        />
+        <InfoRow
+          label="Reach"
+          value={String(player.reachRating ?? "—")}
+        />
         <InfoRow label="Peak age" value={String(player.peakAge)} />
       </CardContent>
     </Card>
@@ -892,12 +925,6 @@ function statLine(stats: PlayerSeasonStats): string {
 
 function developmentGap(player: Player): number {
   return Math.max(0, player.ratings.potential - player.ratings.overall)
-}
-
-function ratingLabel(key: keyof PlayerRatings): string {
-  return key
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 function archetypeLabel(value: string): string {

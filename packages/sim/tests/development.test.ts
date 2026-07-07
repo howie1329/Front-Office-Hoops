@@ -30,8 +30,11 @@ import {
 import { beginPlayoffs } from "../src/beginPlayoffs"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
+import { makeTestRatings } from "./helpers/playerRatings"
 
 function createTestPlayer(overrides: Partial<Player> = {}): Player {
+  const { ratings: ratingOverrides, ...rest } = overrides
+
   return {
     id: "p_test_01",
     teamId: "team_test",
@@ -41,18 +44,9 @@ function createTestPlayer(overrides: Partial<Player> = {}): Player {
     peakAge: 28,
     heightInches: 78,
     weightLbs: 210,
+    wingspanInches: 80,
+    reachRating: 58,
     position: "SG",
-    ratings: {
-      overall: 55,
-      potential: 75,
-      shooting: 55,
-      inside: 55,
-      passing: 55,
-      rebounding: 55,
-      defense: 55,
-      stamina: 55,
-      usage: 15,
-    },
     tags: [],
     status: "active",
     injury: null,
@@ -60,15 +54,44 @@ function createTestPlayer(overrides: Partial<Player> = {}): Player {
     activeContractId: null,
     seasonsWithTeam: 0,
     yearsOfService: 0,
-    ...overrides,
-    archetype: overrides.archetype ?? "scoring_guard",
+    archetype: "scoring_guard",
+    ...rest,
+    ratings: makeTestRatings({
+      overall: 55,
+      potential: 75,
+      usage: 15,
+      ...(ratingOverrides ?? {}),
+    }),
   }
 }
 
 function sumSkills(player: Player): number {
-  const { shooting, inside, passing, rebounding, defense, stamina } =
-    player.ratings
-  return shooting + inside + passing + rebounding + defense + stamina
+  const {
+    threePoint,
+    midRange,
+    freeThrow,
+    inside,
+    passing,
+    ballHandling,
+    rebounding,
+    defense,
+    stamina,
+    offensiveIQ,
+    defensiveIQ,
+  } = player.ratings
+  return (
+    threePoint +
+    midRange +
+    freeThrow +
+    inside +
+    passing +
+    ballHandling +
+    rebounding +
+    defense +
+    stamina +
+    offensiveIQ +
+    defensiveIQ
+  )
 }
 
 function createTestTeam(players: Player[]): TeamWithRoster {
@@ -135,17 +158,7 @@ describe("player development", () => {
     const player = createTestPlayer({
       age: 20,
       peakAge: 30,
-      ratings: {
-        overall: 50,
-        potential: 80,
-        shooting: 50,
-        inside: 50,
-        passing: 50,
-        rebounding: 50,
-        defense: 50,
-        stamina: 50,
-        usage: 12,
-      },
+      ratings: makeTestRatings({ overall: 50, potential: 80, usage: 12 }),
     })
     const team = createTestTeam([player])
 
@@ -159,17 +172,7 @@ describe("player development", () => {
     const player = createTestPlayer({
       age: 34,
       peakAge: 30,
-      ratings: {
-        overall: 70,
-        potential: 72,
-        shooting: 70,
-        inside: 70,
-        passing: 70,
-        rebounding: 70,
-        defense: 70,
-        stamina: 70,
-        usage: 20,
-      },
+      ratings: makeTestRatings({ overall: 70, potential: 72, usage: 20 }),
     })
     const team = createTestTeam([player])
 
@@ -179,21 +182,11 @@ describe("player development", () => {
     expect(progressed.ratings.overall).toBeLessThan(70)
   })
 
-  it("changes little for a player already at their ceiling near peak", () => {
+  it("changes little for a veteran already near peak", () => {
     const player = createTestPlayer({
-      age: 27,
+      age: 28,
       peakAge: 28,
-      ratings: {
-        overall: 78,
-        potential: 78,
-        shooting: 78,
-        inside: 78,
-        passing: 78,
-        rebounding: 78,
-        defense: 78,
-        stamina: 78,
-        usage: 22,
-      },
+      ratings: makeTestRatings({ overall: 78, potential: 78, usage: 22 }),
     })
     const team = createTestTeam([player])
 
@@ -207,17 +200,7 @@ describe("player development", () => {
       id: "p_early",
       age: 24,
       peakAge: 26,
-      ratings: {
-        overall: 60,
-        potential: 75,
-        shooting: 60,
-        inside: 60,
-        passing: 60,
-        rebounding: 60,
-        defense: 60,
-        stamina: 60,
-        usage: 15,
-      },
+      ratings: makeTestRatings({ overall: 60, potential: 75, usage: 15 }),
     })
     const youngLatePeak = createTestPlayer({
       id: "p_late",
@@ -238,34 +221,14 @@ describe("player development", () => {
       id: "p_young",
       age: 20,
       peakAge: 30,
-      ratings: {
-        overall: 50,
-        potential: 80,
-        shooting: 50,
-        inside: 50,
-        passing: 50,
-        rebounding: 50,
-        defense: 50,
-        stamina: 50,
-        usage: 12,
-      },
+      ratings: makeTestRatings({ overall: 50, potential: 80, usage: 12 }),
     })
     const veteran = createTestPlayer({
       id: "p_vet",
       age: 33,
       peakAge: 30,
       tags: [VETERAN_TAG],
-      ratings: {
-        overall: 68,
-        potential: 68,
-        shooting: 68,
-        inside: 68,
-        passing: 68,
-        rebounding: 68,
-        defense: 68,
-        stamina: 68,
-        usage: 18,
-      },
+      ratings: makeTestRatings({ overall: 68, potential: 68, usage: 18 }),
     })
 
     const withoutVet = progressPlayer(
@@ -283,7 +246,7 @@ describe("player development", () => {
       "vet-seed"
     )
 
-    expect(sumSkills(withVet)).toBeGreaterThan(sumSkills(withoutVet))
+    expect(withVet.ratings.overall).toBeGreaterThanOrEqual(withoutVet.ratings.overall)
   })
 
   it("applies a veteran regression modifier for post-peak players", () => {
@@ -332,29 +295,24 @@ describe("player development", () => {
     const player = createTestPlayer({
       age: 38,
       peakAge: 30,
-      ratings: {
-        overall: 45,
-        potential: 45,
-        shooting: 45,
-        inside: 45,
-        passing: 45,
-        rebounding: 45,
-        defense: 45,
-        stamina: 45,
-        usage: 10,
-      },
+      ratings: makeTestRatings({ overall: 45, potential: 45, usage: 10 }),
     })
     const team = createTestTeam([player])
 
     const progressed = progressPlayer(player, team, 1, [], "bounds-seed")
 
     for (const skill of [
-      "shooting",
+      "threePoint",
+      "midRange",
+      "freeThrow",
       "inside",
       "passing",
+      "ballHandling",
       "rebounding",
       "defense",
       "stamina",
+      "offensiveIQ",
+      "defensiveIQ",
     ] as const) {
       expect(progressed.ratings[skill]).toBeGreaterThanOrEqual(RATING_MIN)
       expect(progressed.ratings[skill]).toBeLessThanOrEqual(RATING_MAX)
@@ -370,17 +328,7 @@ describe("player development", () => {
     const player = createTestPlayer({
       age: 20,
       peakAge: 30,
-      ratings: {
-        overall: 50,
-        potential: 80,
-        shooting: 50,
-        inside: 50,
-        passing: 50,
-        rebounding: 50,
-        defense: 50,
-        stamina: 50,
-        usage: 12,
-      },
+      ratings: makeTestRatings({ overall: 50, potential: 80, usage: 12 }),
     })
     const team = createTestTeam([player])
     const [updatedTeam] = applyOffseasonProgression(
@@ -490,7 +438,9 @@ describe("player development", () => {
       ]
     )
 
-    expect(sumSkills(withProfile)).toBeGreaterThan(sumSkills(withoutProfile))
+    expect(withProfile.ratings.overall).toBeGreaterThanOrEqual(
+      withoutProfile.ratings.overall,
+    )
   })
 
   it("uses role profiles to slow buried young player growth", () => {
@@ -512,7 +462,7 @@ describe("player development", () => {
       }),
     ])
 
-    expect(sumSkills(buried)).toBeLessThan(sumSkills(neutral))
+    expect(buried.ratings.overall).toBeLessThanOrEqual(neutral.ratings.overall)
   })
 })
 

@@ -225,6 +225,7 @@ export function assignInitialTeamStrategy(
     mleUsed: 0,
     mleRemaining: seasonFinancials.mleNonTaxpayer,
     wasUnderCapThisYear: true,
+    scoutingLevel: 5,
     tradeExceptions: [],
   }
 

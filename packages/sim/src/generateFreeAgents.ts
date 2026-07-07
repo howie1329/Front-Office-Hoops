@@ -7,7 +7,7 @@ const POSITIONS: PlayerPosition[] = ["PG", "SG", "SF", "PF", "C"]
 export function generateFreeAgents(
   count: number,
   rng: Rng,
-  idPrefix = "generated"
+  idPrefix = "generated",
 ): Player[] {
   const players: Player[] = []
   const usedNames = new Set<string>()
@@ -21,10 +21,10 @@ export function generateFreeAgents(
       position,
       rng,
       usedNames,
-      potentialGap: age <= 26 ? { min: 1, max: 8 } : { min: -4, max: 3 },
       skillVariance: { min: -5, max: 5 },
       skillBias: {
-        shooting: -1,
+        threePoint: -1,
+        midRange: -1,
         inside: -1,
         passing: -1,
         rebounding: -1,
@@ -32,6 +32,7 @@ export function generateFreeAgents(
       },
       archetypeContext: "free_agent",
       usageIndex: index,
+      scoutingLevel: 4,
     })
 
     players.push({
@@ -43,6 +44,8 @@ export function generateFreeAgents(
       peakAge: profile.peakAge,
       heightInches: profile.heightInches,
       weightLbs: profile.weightLbs,
+      wingspanInches: profile.wingspanInches,
+      reachRating: profile.reachRating,
       position: profile.position,
       archetype: profile.archetype,
       ratings: profile.ratings,

@@ -8,7 +8,7 @@ import type {
 export function convertProspectToPlayer(
   prospect: DraftProspect,
   pick: DraftPick,
-  draftInfo: DraftInfo
+  draftInfo: DraftInfo,
 ): Player {
   return {
     id: `p_draft_${draftInfo.year}_${draftInfo.overallPick}`,
@@ -19,6 +19,8 @@ export function convertProspectToPlayer(
     peakAge: prospect.peakAge,
     heightInches: prospect.heightInches,
     weightLbs: prospect.weightLbs,
+    wingspanInches: prospect.wingspanInches,
+    reachRating: prospect.reachRating,
     position: prospect.position,
     archetype: prospect.archetype,
     ratings: { ...prospect.ratings },
@@ -42,6 +44,8 @@ export function convertProspectToFreeAgent(prospect: DraftProspect): Player {
     peakAge: prospect.peakAge,
     heightInches: prospect.heightInches,
     weightLbs: prospect.weightLbs,
+    wingspanInches: prospect.wingspanInches,
+    reachRating: prospect.reachRating,
     position: prospect.position,
     archetype: prospect.archetype,
     ratings: { ...prospect.ratings },

@@ -1,10 +1,12 @@
 import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
 import type { LeagueRecord, Player, SeasonState } from "@workspace/shared/types"
 import { VETERAN_MIN_AGE, VETERAN_TAG } from "@workspace/shared/constants"
+import { emptyFuzz } from "@workspace/shared/skillRatings"
 
 import { derivePeakAgeFallback } from "./development/generatePeakAge"
 import { ensureDraftPickAssets } from "./draft/generateDraftOrder"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
+import { deriveReachRating } from "./playerGeneration/physicalProfile"
 
 function normalizePlayer(player: Player): Player {
   const peakAge =
@@ -12,17 +14,26 @@ function normalizePlayer(player: Player): Player {
     derivePeakAgeFallback(
       player.age,
       player.ratings.overall,
-      player.ratings.potential
+      player.ratings.potential,
     )
   const tags = player.tags ?? []
   const nextTags =
     player.age >= VETERAN_MIN_AGE && !tags.includes(VETERAN_TAG)
       ? [...tags, VETERAN_TAG]
       : tags
+  const wingspanInches = player.wingspanInches ?? player.heightInches + 2
 
   return {
     ...player,
     peakAge,
+    wingspanInches,
+    reachRating:
+      player.reachRating ??
+      deriveReachRating(wingspanInches - 2, wingspanInches),
+    ratings: {
+      ...player.ratings,
+      fuzz: player.ratings.fuzz ?? emptyFuzz(),
+    },
     tags: nextTags,
     status:
       player.status === "injured" && !player.injury ? "active" : player.status,
@@ -77,7 +88,7 @@ export function normalizeLeagueRecord(record: LeagueRecord): LeagueRecord {
   return {
     ...record,
     seasonHistory: record.seasonHistory ?? [],
-    freeAgentPool: record.freeAgentPool ?? [],
+    freeAgentPool: (record.freeAgentPool ?? []).map(normalizePlayer),
     draftPickAssets: ensureDraftPickAssets(
       record.draftPickAssets ?? [],
       normalizedState.teams.map((team) => team.id),

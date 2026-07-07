@@ -18,6 +18,7 @@ import {
   getTeamPayroll,
 } from "../../src/financials"
 import { simulatePlayoffs } from "../../src/simulatePlayoffs"
+import { makeTestRatings } from "../helpers/playerRatings"
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
   return {
@@ -29,18 +30,15 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     peakAge: 29,
     heightInches: 78,
     weightLbs: 210,
+    wingspanInches: 80,
+    reachRating: 58,
     position: "SG",
-    ratings: {
+    ratings: makeTestRatings({
       overall: 78,
       potential: 88,
-      shooting: 78,
-      inside: 78,
-      passing: 78,
-      rebounding: 78,
-      defense: 78,
-      stamina: 78,
       usage: 20,
-    },
+      ...(overrides.ratings ?? {}),
+    }),
     tags: [],
     status: "active",
     injury: null,
@@ -98,17 +96,11 @@ describe("contracts", () => {
     const player = makePlayer({
       age: 20,
       yearsOfService: 1,
-      ratings: {
-        ...makePlayer().ratings,
+      ratings: makeTestRatings({
         overall: 50,
         potential: 58,
-        shooting: 50,
-        inside: 50,
-        passing: 50,
-        rebounding: 50,
-        defense: 50,
-        stamina: 50,
-      },
+        usage: 20,
+      }),
     })
     const contract = generateInitialContract(
       player,

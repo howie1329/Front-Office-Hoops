@@ -76,15 +76,35 @@ function rotationQuality(rotation: RotationEntry[]): RotationQuality {
 
 function averageRatings(rotation: RotationEntry[]) {
   return {
-    shooting: weightedAverage(
+    threePoint: weightedAverage(
       rotation,
-      (entry) => entry.player.ratings.shooting
+      (entry) => entry.player.ratings.threePoint,
+    ),
+    midRange: weightedAverage(
+      rotation,
+      (entry) => entry.player.ratings.midRange,
+    ),
+    freeThrow: weightedAverage(
+      rotation,
+      (entry) => entry.player.ratings.freeThrow,
     ),
     inside: weightedAverage(rotation, (entry) => entry.player.ratings.inside),
     passing: weightedAverage(rotation, (entry) => entry.player.ratings.passing),
+    ballHandling: weightedAverage(
+      rotation,
+      (entry) => entry.player.ratings.ballHandling,
+    ),
+    offensiveIQ: weightedAverage(
+      rotation,
+      (entry) => entry.player.ratings.offensiveIQ,
+    ),
+    defensiveIQ: weightedAverage(
+      rotation,
+      (entry) => entry.player.ratings.defensiveIQ,
+    ),
     rebounding: weightedAverage(
       rotation,
-      (entry) => entry.player.ratings.rebounding
+      (entry) => entry.player.ratings.rebounding,
     ),
     defense: weightedAverage(rotation, (entry) => entry.player.ratings.defense),
     stamina: weightedAverage(rotation, (entry) => entry.player.ratings.stamina),
@@ -116,16 +136,16 @@ function buildScoringComponents({
 
   const tovRate = clamp(
     0.13 -
-      ratingFactor(off.passing) * 0.018 +
+      ratingFactor(off.passing + off.ballHandling * 0.4 + off.offensiveIQ * 0.2) *
+        0.018 +
       defenseFactor * 0.015 +
       rng.normal(0, 0.008),
     0.09,
     0.18
   )
+  const perimeterSkill = off.threePoint + (off.threePoint - off.inside) * 0.35
   const tpaRate = clamp(
-    0.38 +
-      ratingFactor(off.shooting - off.inside + RATING_CENTER) * 0.055 +
-      rng.normal(0, 0.025),
+    0.38 + ratingFactor(perimeterSkill) * 0.055 + rng.normal(0, 0.025),
     0.27,
     0.52
   )
@@ -158,8 +178,8 @@ function buildScoringComponents({
   )
   const threePct = clamp(
     0.355 +
-      ratingFactor(off.shooting) * 0.035 +
-      ratingFactor(off.passing) * 0.008 -
+      ratingFactor(off.threePoint) * 0.035 +
+      ratingFactor(off.offensiveIQ) * 0.012 -
       defenseFactor * 0.018 +
       staminaFactor * 0.006 +
       benchDrag * 0.55 -
@@ -168,7 +188,11 @@ function buildScoringComponents({
     0.28,
     0.45
   )
-  const ftPct = clamp(0.76 + ratingFactor(off.shooting) * 0.025, 0.68, 0.86)
+  const ftPct = clamp(
+    0.76 + ratingFactor(off.freeThrow) * 0.025,
+    0.68,
+    0.86,
+  )
 
   const twoPm = clamp(round(twoPa * twoPct), 0, twoPa)
   const tpm = clamp(round(tpa * threePct), 0, tpa)
@@ -178,10 +202,13 @@ function buildScoringComponents({
 
   const ast = clamp(
     round(
-      fgm * (0.58 + ratingFactor(off.passing) * 0.06 + rng.normal(0, 0.025))
+      fgm *
+        (0.58 +
+          ratingFactor(off.passing + off.ballHandling * 0.35) * 0.06 +
+          rng.normal(0, 0.025)),
     ),
     0,
-    fgm
+    fgm,
   )
   const stl = round(
     possessions * clamp(0.073 + defenseFactor * 0.01, 0.05, 0.1)

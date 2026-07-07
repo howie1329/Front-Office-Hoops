@@ -1,31 +1,41 @@
 import {
   RATING_MAX,
   RATING_MIN,
+  SKILL_KEYS,
   VETERAN_MIN_AGE,
   VETERAN_TAG,
 } from "@workspace/shared/constants"
+import { emptyFuzz } from "@workspace/shared/skillRatings"
 import type {
   PlayerArchetype,
   PlayerPosition,
   PlayerRatings,
+  ProspectType,
   Rng,
+  SkillKey,
 } from "@workspace/shared/types"
 
 import { generatePeakAge } from "../development/generatePeakAge"
 import { FIRST_NAMES, LAST_NAMES } from "../namePools"
 import { clampRating, deriveOverall, deriveUsage } from "../playerRatings"
+import { genFuzz, resolveScoutingLevel } from "../scouting/displayedRatings"
+import { estimatePotential } from "./estimatePotential"
+import {
+  drawCorrelationFactors,
+  iqBaselineForAge,
+  pickProspectType,
+  POSITION_TYPE_FACTORS,
+  skillFactorForKey,
+} from "./correlationBundles"
+import { adjustSkillsToTargetOverall } from "./ovrTargeting"
+import { generatePhysicalProfile } from "./physicalProfile"
 import {
   ARCHETYPE_SKILL_BIAS,
   ARCHETYPE_USAGE_BONUS,
   pickArchetype,
 } from "./archetypes"
 
-export type SkillBias = Partial<
-  Record<
-    Exclude<keyof PlayerRatings, "overall" | "potential" | "usage">,
-    number
-  >
->
+export type SkillBias = Partial<Record<SkillKey, number>>
 
 export type GeneratedPlayerProfile = {
   firstName: string
@@ -34,8 +44,11 @@ export type GeneratedPlayerProfile = {
   peakAge: number
   heightInches: number
   weightLbs: number
+  wingspanInches: number
+  reachRating: number
   position: PlayerPosition
   archetype: PlayerArchetype
+  prospectType: ProspectType
   ratings: PlayerRatings
   tags: string[]
   yearsOfService: number
@@ -47,28 +60,22 @@ export type GeneratePlayerProfileInput = {
   position: PlayerPosition
   rng: Rng
   usedNames?: Set<string>
-  potentialGap: { min: number; max: number }
   skillVariance?: { min: number; max: number }
   skillBias?: SkillBias
   archetype?: PlayerArchetype
-  archetypeContext?: "draft" | "free_agent"
+  archetypeContext?: "draft" | "free_agent" | "camp"
+  prospectType?: ProspectType
   usageIndex?: number
-}
-
-const POSITION_HEIGHT: Record<PlayerPosition, { min: number; max: number }> = {
-  PG: { min: 72, max: 76 },
-  SG: { min: 74, max: 78 },
-  SF: { min: 76, max: 80 },
-  PF: { min: 78, max: 82 },
-  C: { min: 80, max: 84 },
+  scoutingLevel?: number
+  ovrTolerance?: number
 }
 
 export const DEFAULT_POSITION_BIAS: Record<PlayerPosition, SkillBias> = {
-  PG: { passing: 6, rebounding: -6 },
-  SG: { shooting: 6, passing: -2, rebounding: -4 },
-  SF: { shooting: 4, defense: 2, passing: -3, rebounding: -3 },
-  PF: { rebounding: 5, inside: 4, shooting: -4, passing: -5 },
-  C: { rebounding: 6, inside: 5, passing: -6, shooting: -5 },
+  PG: { passing: 6, ballHandling: 5, rebounding: -6 },
+  SG: { threePoint: 6, midRange: 4, passing: -2, rebounding: -4 },
+  SF: { threePoint: 4, defense: 2, passing: -3, rebounding: -3 },
+  PF: { rebounding: 5, inside: 4, threePoint: -4, passing: -5 },
+  C: { rebounding: 6, inside: 5, passing: -6, threePoint: -5, ballHandling: -4 },
 }
 
 function pickName(pool: string[], rng: Rng): string {
@@ -77,7 +84,7 @@ function pickName(pool: string[], rng: Rng): string {
 
 function pickUniqueName(
   rng: Rng,
-  usedNames?: Set<string>
+  usedNames?: Set<string>,
 ): { firstName: string; lastName: string } {
   let firstName = pickName(FIRST_NAMES, rng)
   let lastName = pickName(LAST_NAMES, rng)
@@ -97,44 +104,40 @@ function pickUniqueName(
   return { firstName, lastName }
 }
 
-function addBias(base: SkillBias, override?: SkillBias): SkillBias {
-  if (!override) {
-    return base
-  }
-
-  return {
-    shooting: (base.shooting ?? 0) + (override.shooting ?? 0),
-    inside: (base.inside ?? 0) + (override.inside ?? 0),
-    passing: (base.passing ?? 0) + (override.passing ?? 0),
-    rebounding: (base.rebounding ?? 0) + (override.rebounding ?? 0),
-    defense: (base.defense ?? 0) + (override.defense ?? 0),
-    stamina: (base.stamina ?? 0) + (override.stamina ?? 0),
-  }
-}
-
-function generateSkillRatings(
+function generateCorrelatedSkills(
   position: PlayerPosition,
   targetOverall: number,
+  prospectType: ProspectType,
+  archetype: PlayerArchetype,
+  age: number,
   rng: Rng,
   skillVariance: { min: number; max: number },
-  skillBias?: SkillBias
-): Omit<PlayerRatings, "overall" | "potential" | "usage"> {
-  const bias = addBias(DEFAULT_POSITION_BIAS[position], skillBias)
-  const value = (key: keyof SkillBias) =>
-    clampRating(
-      targetOverall +
-        rng.int(skillVariance.min, skillVariance.max) +
-        (bias[key] ?? 0)
-    )
+  skillBias?: SkillBias,
+): Record<SkillKey, number> {
+  const factors = drawCorrelationFactors(prospectType, rng)
+  const positionFactors = POSITION_TYPE_FACTORS[position]
+  const archetypeBias = ARCHETYPE_SKILL_BIAS[archetype]
+  const positionBias = DEFAULT_POSITION_BIAS[position]
+  const iqBaseline = iqBaselineForAge(age, targetOverall)
 
-  return {
-    shooting: value("shooting"),
-    inside: value("inside"),
-    passing: value("passing"),
-    rebounding: value("rebounding"),
-    defense: value("defense"),
-    stamina: value("stamina"),
-  }
+  const skills = Object.fromEntries(
+    SKILL_KEYS.map((key) => {
+      const isIq = key === "offensiveIQ" || key === "defensiveIQ"
+      const base = isIq ? iqBaseline : targetOverall
+      const factor = skillFactorForKey(key, factors)
+      const typeFactor = positionFactors[key] ?? 1
+      const bias =
+        (positionBias[key] ?? 0) +
+        (archetypeBias[key] ?? 0) +
+        (skillBias?.[key] ?? 0)
+      const noise = rng.int(skillVariance.min, skillVariance.max)
+
+      const value = base * factor * typeFactor + bias + noise
+      return [key, clampRating(value)]
+    }),
+  ) as Record<SkillKey, number>
+
+  return adjustSkillsToTargetOverall(skills, targetOverall, archetype)
 }
 
 function deriveTags(age: number): string[] {
@@ -143,7 +146,7 @@ function deriveTags(age: number): string[] {
 
 export function potentialGapForAge(
   age: number,
-  rng: Rng
+  rng: Rng,
 ): { min: number; max: number } {
   if (age <= 22) {
     return { min: 8, max: 18 }
@@ -166,58 +169,95 @@ export function generatePlayerProfile({
   position,
   rng,
   usedNames,
-  potentialGap,
   skillVariance = { min: -4, max: 4 },
   skillBias,
   archetype,
   archetypeContext,
+  prospectType,
   usageIndex = 0,
+  scoutingLevel,
+  ovrTolerance = 2,
 }: GeneratePlayerProfileInput): GeneratedPlayerProfile {
   const { firstName, lastName } = pickUniqueName(rng, usedNames)
+  const selectedProspectType =
+    prospectType ??
+    pickProspectType(
+      rng,
+      archetypeContext === "camp" ? "camp" : archetypeContext === "draft" ? "draft" : undefined,
+    )
   const selectedArchetype =
     archetype ??
     pickArchetype(position, rng, {
       draft: archetypeContext === "draft",
       freeAgent: archetypeContext === "free_agent",
+      camp: archetypeContext === "camp",
     })
-  const combinedSkillBias = addBias(
-    ARCHETYPE_SKILL_BIAS[selectedArchetype],
-    skillBias
-  )
-  const skillRatings = generateSkillRatings(
+  const physical = generatePhysicalProfile(position, rng)
+  const skillRatings = generateCorrelatedSkills(
     position,
     targetOverall,
+    selectedProspectType,
+    selectedArchetype,
+    age,
     rng,
     skillVariance,
-    combinedSkillBias
+    skillBias,
   )
-  const overall = deriveOverall(skillRatings)
-  const potential = clampRating(
-    overall + rng.int(potentialGap.min, potentialGap.max)
+  const adjustedSkills = adjustSkillsToTargetOverall(
+    skillRatings,
+    targetOverall,
+    selectedArchetype,
+    ovrTolerance,
   )
-  const peakAge = generatePeakAge(age, overall, potential, rng)
-  const heightRange = POSITION_HEIGHT[position]
+  const overall = deriveOverall(adjustedSkills)
+  const peakAge = generatePeakAge(age, overall, overall + 10, rng)
+  const potential = estimatePotential(overall, age, peakAge, rng)
+  const resolvedScouting =
+    scoutingLevel ??
+    resolveScoutingLevel({
+      isDraftProspect: archetypeContext === "draft",
+      isOwnRoster: false,
+    })
+  const fuzz = genFuzz(rng, resolvedScouting)
 
   return {
     firstName,
     lastName,
     age,
     peakAge,
-    heightInches: rng.int(heightRange.min, heightRange.max),
-    weightLbs: rng.int(185, 250),
+    heightInches: physical.heightInches,
+    weightLbs: physical.weightLbs,
+    wingspanInches: physical.wingspanInches,
+    reachRating: physical.reachRating,
     position,
     archetype: selectedArchetype,
+    prospectType: selectedProspectType,
     ratings: {
-      ...skillRatings,
+      ...adjustedSkills,
+      fuzz,
       overall: Math.max(RATING_MIN, Math.min(RATING_MAX, overall)),
       potential,
       usage: Math.max(
         1,
         deriveUsage(overall, usageIndex) +
-          ARCHETYPE_USAGE_BONUS[selectedArchetype]
+          ARCHETYPE_USAGE_BONUS[selectedArchetype],
       ),
     },
     tags: deriveTags(age),
     yearsOfService: Math.max(0, age - 19),
+  }
+}
+
+export function createEmptyRatings(base = 50): PlayerRatings {
+  const skills = Object.fromEntries(
+    SKILL_KEYS.map((key) => [key, base]),
+  ) as Record<SkillKey, number>
+
+  return {
+    ...skills,
+    fuzz: emptyFuzz(),
+    overall: base,
+    potential: base,
+    usage: 10,
   }
 }

@@ -48,18 +48,25 @@ function ageRisk(player: Player): number {
 }
 
 function archetypeValue(player: Player): number {
-  const { shooting, inside, passing, rebounding, defense, stamina, usage } =
-    player.ratings
+  const {
+    threePoint,
+    inside,
+    passing,
+    rebounding,
+    defense,
+    stamina,
+    usage,
+  } = player.ratings
 
   switch (player.archetype) {
     case "lead_guard":
-      return passing >= 68 && shooting >= 62 ? 3 : passing >= 64 ? 1.5 : 0
+      return passing >= 68 && threePoint >= 62 ? 3 : passing >= 64 ? 1.5 : 0
     case "scoring_guard":
-      return shooting >= 68 && usage >= 18 ? 2.5 : shooting >= 64 ? 1 : -0.5
+      return threePoint >= 68 && usage >= 18 ? 2.5 : threePoint >= 64 ? 1 : -0.5
     case "three_and_d_wing":
-      return shooting >= 64 && defense >= 64
+      return threePoint >= 64 && defense >= 64
         ? 4
-        : shooting >= 60 && defense >= 60
+        : threePoint >= 60 && defense >= 60
           ? 2
           : -1
     case "slasher":
@@ -67,9 +74,9 @@ function archetypeValue(player: Player): number {
     case "point_forward":
       return passing >= 64 && rebounding >= 58 ? 3 : passing >= 62 ? 1.5 : 0
     case "stretch_big":
-      return shooting >= 62 && rebounding >= 58
+      return threePoint >= 62 && rebounding >= 58
         ? 3.5
-        : shooting >= 60
+        : threePoint >= 60
           ? 1.5
           : -1
     case "rim_protector":
@@ -147,7 +154,7 @@ export function calculateContractValue(player: Player): number {
 
 export function calculateRosterKeepValue(
   player: Player,
-  mode: TeamMode
+  mode: TeamMode,
 ): number {
   const currentValue = player.ratings.overall
   const upside = Math.max(0, player.ratings.potential - player.ratings.overall)

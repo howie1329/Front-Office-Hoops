@@ -16,7 +16,7 @@ import type { SeasonAward } from "./awardTypes"
 import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
 import type { TradeHistoryEntry } from "./tradeTypes"
 
-export const SAVE_VERSION = 10 as const
+export const SAVE_VERSION = 11 as const
 
 export type League = {
   id: string

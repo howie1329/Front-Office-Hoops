@@ -4,6 +4,14 @@ import type {
   RotationEntry,
 } from "@workspace/shared/types"
 
+import { getArchetypeSimModifier } from "./playerGeneration/archetypes"
+import {
+  physicalBlockModifier,
+  physicalDefenseModifier,
+  physicalInsideModifier,
+  physicalReboundModifier,
+} from "./playerGeneration/physicalProfile"
+
 export type TeamStatComponents = {
   points: number
   fgm: number
@@ -25,7 +33,7 @@ type StatKey = keyof Omit<TeamStatComponents, "points">
 function weightedDistribute(
   total: number,
   weights: number[],
-  rng: Rng
+  rng: Rng,
 ): number[] {
   if (weights.length === 0) {
     return []
@@ -57,28 +65,63 @@ function weightedDistribute(
   return values
 }
 
+function playerPhysical(entry: RotationEntry) {
+  return {
+    heightInches: entry.player.heightInches,
+    weightLbs: entry.player.weightLbs,
+    wingspanInches: entry.player.wingspanInches ?? entry.player.heightInches + 2,
+    reachRating: entry.player.reachRating ?? 55,
+  }
+}
+
 function twoPointWeight(entry: RotationEntry): number {
-  const { inside, shooting, usage } = entry.player.ratings
-  return entry.minutes * usage * (inside * 0.65 + shooting * 0.35)
+  const { inside, midRange, usage, offensiveIQ } = entry.player.ratings
+  const physical = physicalInsideModifier(playerPhysical(entry))
+  const archetype = getArchetypeSimModifier(entry.player.archetype, "twoPa")
+  return (
+    entry.minutes *
+    usage *
+    (inside * 0.55 + midRange * 0.45) *
+    (1 + offensiveIQ * 0.003) *
+    physical *
+    archetype
+  )
 }
 
 function threePointWeight(entry: RotationEntry): number {
-  const { shooting, inside, usage } = entry.player.ratings
-  const perimeterBias = Math.max(30, shooting + (shooting - inside) * 0.6)
-  return entry.minutes * usage * perimeterBias
+  const { threePoint, midRange, usage, offensiveIQ } = entry.player.ratings
+  const perimeterBias = Math.max(30, threePoint + (threePoint - midRange) * 0.6)
+  const archetype = getArchetypeSimModifier(entry.player.archetype, "threePa")
+  return (
+    entry.minutes *
+    usage *
+    perimeterBias *
+    (1 + offensiveIQ * 0.002) *
+    archetype
+  )
 }
 
 function freeThrowWeight(entry: RotationEntry): number {
-  const { inside, usage } = entry.player.ratings
-  return entry.minutes * usage * inside
+  const { inside, freeThrow, usage } = entry.player.ratings
+  const archetype = getArchetypeSimModifier(entry.player.archetype, "fta")
+  return entry.minutes * usage * (inside * 0.45 + freeThrow * 0.55) * archetype
 }
 
 function reboundWeight(entry: RotationEntry): number {
-  return entry.minutes * entry.player.ratings.rebounding
+  const physical = physicalReboundModifier(playerPhysical(entry))
+  const archetype = getArchetypeSimModifier(entry.player.archetype, "reb")
+  return entry.minutes * entry.player.ratings.rebounding * physical * archetype
 }
 
 function assistWeight(entry: RotationEntry): number {
-  return entry.minutes * entry.player.ratings.passing
+  const { passing, ballHandling, offensiveIQ } = entry.player.ratings
+  const archetype = getArchetypeSimModifier(entry.player.archetype, "ast")
+  return (
+    entry.minutes *
+    (passing * 0.55 + ballHandling * 0.45) *
+    (1 + offensiveIQ * 0.004) *
+    archetype
+  )
 }
 
 function blockWeight(entry: RotationEntry): number {
@@ -88,18 +131,36 @@ function blockWeight(entry: RotationEntry): number {
       : entry.player.position === "PF"
         ? 1.15
         : 0.8
-  return entry.minutes * entry.player.ratings.defense * positionBonus
+  const physical = physicalBlockModifier(playerPhysical(entry))
+  const archetype = getArchetypeSimModifier(entry.player.archetype, "blk")
+  return (
+    entry.minutes *
+    entry.player.ratings.defense *
+    positionBonus *
+    physical *
+    archetype
+  )
 }
 
 function stealWeight(entry: RotationEntry): number {
   const guardBonus =
     entry.player.position === "PG" || entry.player.position === "SG" ? 1.2 : 0.9
-  return entry.minutes * entry.player.ratings.defense * guardBonus
+  const physical = physicalDefenseModifier(playerPhysical(entry))
+  const archetype = getArchetypeSimModifier(entry.player.archetype, "stl")
+  return (
+    entry.minutes *
+    entry.player.ratings.defense *
+    guardBonus *
+    physical *
+    archetype
+  )
 }
 
 function turnoverWeight(entry: RotationEntry): number {
-  const { usage, passing } = entry.player.ratings
-  return entry.minutes * usage * Math.max(35, 95 - passing)
+  const { usage, passing, ballHandling, offensiveIQ } = entry.player.ratings
+  const archetype = getArchetypeSimModifier(entry.player.archetype, "tov")
+  const decisionMaking = passing * 0.5 + ballHandling * 0.3 + offensiveIQ * 0.2
+  return entry.minutes * usage * Math.max(35, 95 - decisionMaking) * archetype
 }
 
 function capMakes(makes: number[], attempts: number[]): number[] {
@@ -138,7 +199,7 @@ function componentPoints(stats: TeamStatComponents): number {
 
 function reconcileComponentPoints(
   stats: TeamStatComponents,
-  targetPoints: number
+  targetPoints: number,
 ): TeamStatComponents {
   let delta = targetPoints - componentPoints(stats)
 
@@ -178,7 +239,7 @@ export function allocatePlayerStats(
   rotation: RotationEntry[],
   teamStatsOrScore: TeamStatComponents | number,
   teamId: string,
-  rng: Rng
+  rng: Rng,
 ): PlayerGameStats[] {
   if (rotation.length === 0) {
     return []
@@ -190,7 +251,7 @@ export function allocatePlayerStats(
       : { ...teamStatsOrScore },
     typeof teamStatsOrScore === "number"
       ? teamStatsOrScore
-      : teamStatsOrScore.points
+      : teamStatsOrScore.points,
   )
 
   const minutes = rotation.map((entry) => entry.minutes)
@@ -198,7 +259,7 @@ export function allocatePlayerStats(
     [...rotation]
       .sort((a, b) => b.minutes - a.minutes)
       .slice(0, 5)
-      .map((entry) => entry.player.id)
+      .map((entry) => entry.player.id),
   )
 
   const twoPointAttempts = teamStats.fga - teamStats.tpa
@@ -207,29 +268,29 @@ export function allocatePlayerStats(
   const tpa = weightedDistribute(
     teamStats.tpa,
     rotation.map(threePointWeight),
-    rng
+    rng,
   )
   const twoPa = weightedDistribute(
     twoPointAttempts,
     rotation.map(twoPointWeight),
-    rng
+    rng,
   )
   const fta = weightedDistribute(
     teamStats.fta,
     rotation.map(freeThrowWeight),
-    rng
+    rng,
   )
   const tpm = capMakes(
     weightedDistribute(teamStats.tpm, rotation.map(threePointWeight), rng),
-    tpa
+    tpa,
   )
   const twoPm = capMakes(
     weightedDistribute(twoPointMakes, rotation.map(twoPointWeight), rng),
-    twoPa
+    twoPa,
   )
   const ftm = capMakes(
     weightedDistribute(teamStats.ftm, rotation.map(freeThrowWeight), rng),
-    fta
+    fta,
   )
 
   const distributed: Record<StatKey, number[]> = {
@@ -248,10 +309,10 @@ export function allocatePlayerStats(
   }
 
   distributed.fgm = rotation.map(
-    (_, index) => (twoPm[index] ?? 0) + (tpm[index] ?? 0)
+    (_, index) => (twoPm[index] ?? 0) + (tpm[index] ?? 0),
   )
   distributed.fga = rotation.map(
-    (_, index) => (twoPa[index] ?? 0) + (tpa[index] ?? 0)
+    (_, index) => (twoPa[index] ?? 0) + (tpa[index] ?? 0),
   )
 
   const stats = rotation.map((entry, index) => ({

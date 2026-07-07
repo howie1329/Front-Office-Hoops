@@ -46,7 +46,7 @@ describe("generatePlayers", () => {
     for (const player of players) {
       expect(player.ratings.overall).toBeGreaterThanOrEqual(RATING_MIN)
       expect(player.ratings.overall).toBeLessThanOrEqual(RATING_MAX)
-      expect(player.ratings.shooting).toBeGreaterThanOrEqual(RATING_MIN)
+      expect(player.ratings.threePoint).toBeGreaterThanOrEqual(RATING_MIN)
       expect(player.ratings.defense).toBeLessThanOrEqual(RATING_MAX)
     }
   })

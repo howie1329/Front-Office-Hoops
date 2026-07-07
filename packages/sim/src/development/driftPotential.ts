@@ -1,35 +1,24 @@
 import { RATING_MAX, RATING_MIN } from "@workspace/shared/constants"
 import type { Player, Rng } from "@workspace/shared/types"
 
+import { estimatePotential } from "../playerGeneration/estimatePotential"
 import type { DevelopmentModifier } from "./types"
 
-export function driftPotential(
+export function refreshPotentialProjection(
   player: Player,
-  modifiers: DevelopmentModifier[],
+  _modifiers: DevelopmentModifier[],
   rng: Rng,
 ): number {
-  const { age, peakAge, ratings } = player
-  const { potential } = ratings
-  const driftBias = modifiers.reduce(
-    (sum, modifier) => sum + (modifier.potentialDriftBias ?? 0),
-    0,
+  const next = estimatePotential(
+    player.ratings.overall,
+    player.age,
+    player.peakAge,
+    rng,
   )
 
-  const roll = rng.next() + driftBias
-
-  if (age < peakAge - 2) {
-    if (roll < 0.2) return Math.max(RATING_MIN, potential - 1)
-    if (roll < 0.6) return potential
-    return Math.min(RATING_MAX, potential + 1)
-  }
-
-  if (age > peakAge + 2) {
-    if (roll < 0.4) return Math.max(RATING_MIN, potential - 1)
-    if (roll < 0.8) return potential
-    return Math.min(RATING_MAX, potential + 1)
-  }
-
-  if (roll < 0.35) return Math.max(RATING_MIN, potential - 1)
-  if (roll < 0.7) return potential
-  return Math.min(RATING_MAX, potential + 1)
+  const drift = rng.int(-1, 1)
+  return Math.max(RATING_MIN, Math.min(RATING_MAX, next + drift))
 }
+
+// Backwards-compatible alias while callers migrate.
+export const driftPotential = refreshPotentialProjection

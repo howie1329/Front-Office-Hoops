@@ -53,13 +53,26 @@ export const GROWTH_RATE_SCALE = 0.35
 export const POTENTIAL_OVERSHOOT_ALLOWANCE = 1
 
 export const SKILL_KEYS = [
-  "shooting",
+  "threePoint",
+  "midRange",
+  "freeThrow",
   "inside",
   "passing",
+  "ballHandling",
   "rebounding",
   "defense",
   "stamina",
+  "offensiveIQ",
+  "defensiveIQ",
 ] as const
+
+export const SCOUTING_LEVEL_MIN = 1
+export const SCOUTING_LEVEL_MAX = 10
+export const DEFAULT_SCOUTING_LEVEL = 5
+export const OWN_ROSTER_SCOUTING_LEVEL = 9
+
+export const IQ_SKILL_KEYS = ["offensiveIQ", "defensiveIQ"] as const
+export const SHOOTING_SKILL_KEYS = ["threePoint", "midRange", "freeThrow"] as const
 
 export const DRAFT_ROUNDS = 2
 export const DRAFT_CLASS_MULTIPLIER = 1.5

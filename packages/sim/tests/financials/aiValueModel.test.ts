@@ -10,6 +10,7 @@ import {
   calculateMaxSalary,
   calculateMinSalary,
 } from "../../src/financials/capMath"
+import { makeTestRatings } from "../helpers/playerRatings"
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
   const id = overrides.id ?? "p_test"
@@ -22,18 +23,15 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     peakAge: 29,
     heightInches: 78,
     weightLbs: 210,
+    wingspanInches: 80,
+    reachRating: 58,
     position: "SG",
-    ratings: {
+    ratings: makeTestRatings({
       overall: 70,
       potential: 70,
-      shooting: 70,
-      inside: 70,
-      passing: 70,
-      rebounding: 70,
-      defense: 70,
-      stamina: 70,
       usage: 20,
-    },
+      ...(overrides.ratings ?? {}),
+    }),
     tags: [],
     status: "active",
     injury: null,

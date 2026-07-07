@@ -29,6 +29,8 @@ export type PlayerArchetype =
   | "bench_scorer"
   | "raw_athlete"
 
+export type ProspectType = "tools" | "polish" | "balanced" | "camp_fringe"
+
 export type PlayerStatus = "active" | "injured" | "inactive" | "free_agent"
 
 export type PlayerInjury = {
@@ -38,18 +40,25 @@ export type PlayerInjury = {
 }
 
 export type SkillKey =
-  "shooting" | "inside" | "passing" | "rebounding" | "defense" | "stamina"
+  | "threePoint"
+  | "midRange"
+  | "freeThrow"
+  | "inside"
+  | "passing"
+  | "ballHandling"
+  | "rebounding"
+  | "defense"
+  | "stamina"
+  | "offensiveIQ"
+  | "defensiveIQ"
 
-export type PlayerRatings = {
+export type SkillRatings = Record<SkillKey, number>
+
+export type PlayerRatings = SkillRatings & {
   overall: number
   potential: number
-  shooting: number
-  inside: number
-  passing: number
-  rebounding: number
-  defense: number
-  stamina: number
   usage: number
+  fuzz: Record<SkillKey, number>
 }
 
 export type Player = {
@@ -61,6 +70,8 @@ export type Player = {
   peakAge: number
   heightInches: number
   weightLbs: number
+  wingspanInches: number
+  reachRating: number
   position: PlayerPosition
   archetype: PlayerArchetype
   ratings: PlayerRatings
@@ -97,7 +108,11 @@ export type PlayerGameStats = {
 }
 
 export type RotationRole =
-  "star" | "starter" | "sixth_man" | "rotation" | "bench"
+  | "star"
+  | "starter"
+  | "sixth_man"
+  | "rotation"
+  | "bench"
 
 export type RotationEntry = {
   player: Player

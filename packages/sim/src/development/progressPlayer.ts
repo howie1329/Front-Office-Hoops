@@ -7,12 +7,12 @@ import type {
 } from "@workspace/shared/types"
 
 import { createRng } from "../rng"
-import { deriveOverall } from "../playerRatings"
+import { deriveOverall, getSkillRatings } from "../playerRatings"
 import { applyModifiersToDeltas } from "./applyModifiersToDeltas"
 import { applySkillDeltas } from "./applySkillDeltas"
 import { collectModifiers } from "./collectModifiers"
 import { computeBaseSkillDeltas } from "./computeBaseSkillDeltas"
-import { driftPotential } from "./driftPotential"
+import { refreshPotentialProjection } from "./driftPotential"
 import type { DevelopmentContext } from "./types"
 
 function findSeasonStats(
@@ -59,33 +59,24 @@ export function progressPlayer(
   const baseDeltas = computeBaseSkillDeltas(agedPlayer, playerRng)
   const finalDeltas = applyModifiersToDeltas(baseDeltas, modifiers)
   const withSkills = applySkillDeltas(agedPlayer, finalDeltas)
-  const nextPotential = driftPotential(withSkills, modifiers, playerRng)
+  const nextPotential = refreshPotentialProjection(
+    withSkills,
+    modifiers,
+    playerRng,
+  )
   const tags =
     agedPlayer.age >= VETERAN_MIN_AGE && !player.tags.includes(VETERAN_TAG)
       ? [...player.tags, VETERAN_TAG]
       : player.tags
-  const { shooting, inside, passing, rebounding, defense, stamina } =
-    withSkills.ratings
-  const overall = deriveOverall({
-    shooting,
-    inside,
-    passing,
-    rebounding,
-    defense,
-    stamina,
-  })
+  const skills = getSkillRatings(withSkills.ratings)
+  const overall = deriveOverall(skills)
 
   return {
     ...withSkills,
     tags,
     ratings: {
       ...withSkills.ratings,
-      shooting,
-      inside,
-      passing,
-      rebounding,
-      defense,
-      stamina,
+      ...skills,
       overall,
       potential: nextPotential,
     },

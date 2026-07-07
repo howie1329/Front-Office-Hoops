@@ -33,9 +33,9 @@ describe("player archetypes", () => {
   })
 
   it("defines meaningful skill biases for core scarce archetypes", () => {
-    expect(ARCHETYPE_SKILL_BIAS.three_and_d_wing.shooting).toBeGreaterThan(0)
+    expect(ARCHETYPE_SKILL_BIAS.three_and_d_wing.threePoint).toBeGreaterThan(0)
     expect(ARCHETYPE_SKILL_BIAS.three_and_d_wing.defense).toBeGreaterThan(0)
     expect(ARCHETYPE_SKILL_BIAS.rim_protector.defense).toBeGreaterThan(0)
-    expect(ARCHETYPE_SKILL_BIAS.stretch_big.shooting).toBeGreaterThan(0)
+    expect(ARCHETYPE_SKILL_BIAS.stretch_big.threePoint).toBeGreaterThan(0)
   })
 })

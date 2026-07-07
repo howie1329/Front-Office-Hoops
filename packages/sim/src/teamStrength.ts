@@ -25,23 +25,37 @@ function weightedAverage(
 }
 
 export function estimateTeamOffFactor(rotation: RotationEntry[]): number {
-  const offensiveRating = weightedAverage(
-    rotation,
-    (entry) =>
-      (entry.player.ratings.shooting +
-        entry.player.ratings.inside +
-        entry.player.ratings.passing) /
-      3,
-  )
+  const offensiveRating = weightedAverage(rotation, (entry) => {
+    const {
+      threePoint,
+      midRange,
+      inside,
+      passing,
+      ballHandling,
+      offensiveIQ,
+      freeThrow,
+    } = entry.player.ratings
+
+    return (
+      (threePoint +
+        midRange +
+        inside +
+        passing +
+        ballHandling +
+        offensiveIQ +
+        freeThrow) /
+      7
+    )
+  })
 
   return (offensiveRating - RATING_CENTER) / RATING_CENTER
 }
 
 export function estimateTeamDefFactor(rotation: RotationEntry[]): number {
-  const defensiveRating = weightedAverage(
-    rotation,
-    (entry) => entry.player.ratings.defense,
-  )
+  const defensiveRating = weightedAverage(rotation, (entry) => {
+    const reachBonus = ((entry.player.reachRating ?? 55) - 55) * 0.08
+    return entry.player.ratings.defense + entry.player.ratings.defensiveIQ * 0.35 + reachBonus
+  })
 
   return (defensiveRating - RATING_CENTER) / RATING_CENTER
 }

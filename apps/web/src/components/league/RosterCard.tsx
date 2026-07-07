@@ -4,6 +4,7 @@ import type { Contract, TeamWithRoster } from "@workspace/shared/types"
 import { getCurrentSalary, getYearsRemaining } from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
+import { getViewRatings } from "@/components/league/lib/scouting"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -26,6 +27,8 @@ type RosterCardProps = {
   contracts?: Contract[]
   showRelease?: boolean
   onReleasePlayer?: (playerId: string) => void
+  isOwnRoster?: boolean
+  teamScoutingLevel?: number
 }
 
 function getContractForPlayer(
@@ -42,13 +45,18 @@ export function RosterCard({
   contracts,
   showRelease = false,
   onReleasePlayer,
+  isOwnRoster = false,
+  teamScoutingLevel = 5,
 }: RosterCardProps) {
-  const sortedPlayers = [...roster.players].sort(
-    (a, b) =>
-      b.ratings.overall - a.ratings.overall ||
-      b.ratings.potential - a.ratings.potential ||
+  const sortedPlayers = [...roster.players].sort((a, b) => {
+    const aRatings = getViewRatings(a.ratings, { isOwnRoster, teamScoutingLevel })
+    const bRatings = getViewRatings(b.ratings, { isOwnRoster, teamScoutingLevel })
+    return (
+      bRatings.overall - aRatings.overall ||
+      bRatings.potential - aRatings.potential ||
       a.lastName.localeCompare(b.lastName)
-  )
+    )
+  })
 
   return (
     <Card className="h-full min-h-0">
@@ -73,6 +81,7 @@ export function RosterCard({
               <TableRow>
                 <TableHead>Player</TableHead>
                 <TableHead>Pos</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead className="text-right">Age</TableHead>
                 <TableHead className="text-right">OVR</TableHead>
                 <TableHead className="text-right">POT</TableHead>
@@ -89,6 +98,10 @@ export function RosterCard({
               {sortedPlayers.map((player) => {
                 const contract = getContractForPlayer(contracts, player.id)
                 const yearsRemaining = getYearsRemaining(contract)
+                const viewRatings = getViewRatings(player.ratings, {
+                  isOwnRoster,
+                  teamScoutingLevel,
+                })
                 return (
                   <TableRow key={player.id}>
                     <TableCell>
@@ -102,18 +115,24 @@ export function RosterCard({
                         </Link>
                         <span className="text-xs text-muted-foreground">
                           {contractLabel(yearsRemaining)}
+                          {player.tags?.includes("camp_invite")
+                            ? " · Camp invite"
+                            : ""}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>{player.position}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatArchetype(player.archetype)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {player.age}
                     </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">
-                      {player.ratings.overall}
+                      {viewRatings.overall}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {player.ratings.potential}
+                      {viewRatings.potential}
                     </TableCell>
                     {contracts ? (
                       <TableCell className="text-right tabular-nums">
@@ -155,4 +174,11 @@ function contractLabel(yearsRemaining: number): string {
     return "Expiring"
   }
   return `${yearsRemaining} years remaining`
+}
+
+function formatArchetype(value: string | undefined): string {
+  if (!value) {
+    return "—"
+  }
+  return value.replaceAll("_", " ")
 }

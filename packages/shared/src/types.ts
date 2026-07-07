@@ -79,6 +79,7 @@ export type {
   PlayerRatings,
   PlayerStatus,
   PlayerTag,
+  ProspectType,
   QuarterScores,
   GameRotation,
   GameRotationEntry,

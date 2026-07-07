@@ -4,8 +4,10 @@ import {
   ROSTER_MAX,
   ROSTER_MIN,
 } from "@workspace/shared/constants"
+import type { Contract } from "@workspace/shared/contractTypes"
 import type { Player, TeamWithRoster } from "@workspace/shared/types"
 
+import { waiveContract } from "../financials/contracts/createContract"
 import { deriveTeamOverall } from "../playerRatings"
 import { calculateRosterKeepValue } from "../playerValue"
 import { getScarceRolePenalty } from "./rosterBalance"
@@ -120,10 +122,12 @@ export function applyAiRosterTrimming(
   teams: TeamWithRoster[],
   freeAgentPool: Player[],
   userTeamId: string | null,
-  teamModes: Partial<Record<string, "selling" | "buying" | "contending">> = {}
-): { teams: TeamWithRoster[]; freeAgentPool: Player[] } {
+  teamModes: Partial<Record<string, "selling" | "buying" | "contending">> = {},
+  contracts: Contract[] = [],
+): { teams: TeamWithRoster[]; freeAgentPool: Player[]; contracts: Contract[] } {
   let nextTeams = teams
   let nextPool = freeAgentPool
+  let nextContracts = contracts
 
   for (const team of teams) {
     if (userTeamId && team.id === userTeamId) {
@@ -136,12 +140,21 @@ export function applyAiRosterTrimming(
         roster,
         teamModes[team.id] ?? "buying"
       )
+      const contract = nextContracts.find(
+        (entry) =>
+          entry.playerId === cutCandidate.id && entry.status === "active",
+      )
       const result = releasePlayer(nextTeams, nextPool, {
         teamId: team.id,
         playerId: cutCandidate.id,
       })
       nextTeams = result.teams
       nextPool = result.freeAgentPool
+      if (contract) {
+        nextContracts = nextContracts.map((entry) =>
+          entry.id === contract.id ? waiveContract(entry) : entry,
+        )
+      }
       roster = nextTeams.find((entry) => entry.id === team.id)?.players ?? []
     }
   }
@@ -149,6 +162,7 @@ export function applyAiRosterTrimming(
   return {
     teams: nextTeams,
     freeAgentPool: nextPool,
+    contracts: nextContracts,
   }
 }
 

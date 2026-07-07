@@ -151,6 +151,29 @@ export function generateInitialContract(
   }
 }
 
+export function createNonGuaranteedContract(
+  player: Player,
+  teamId: string,
+  season: number,
+  seasonFinancials: SeasonFinancials,
+): Contract {
+  const yearsOfService = Math.max(0, player.yearsOfService ?? player.age - 19)
+  const minSalary = calculateMinSalary(seasonFinancials, yearsOfService)
+
+  return {
+    id: createContractId(player.id, season),
+    playerId: player.id,
+    teamId,
+    startSeason: season,
+    endSeason: season,
+    yearlySalaries: [minSalary],
+    contractType: "non_guaranteed",
+    signingException: "minimum",
+    status: "active",
+    signedSeason: season,
+  }
+}
+
 export type InitialContractResult = {
   contracts: Contract[]
   players: Player[]

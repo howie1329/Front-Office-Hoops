@@ -143,6 +143,13 @@ export { beginRegularSeason, skipRemainingExhibitions } from "./preseason/beginR
 export { addCampPlayersToTeams } from "./preseason/campPlayers"
 export { isPreseasonComplete, hasRemainingExhibitions } from "./preseason/isPreseasonComplete"
 export {
+  genFuzz,
+  getDisplayedRatings,
+  getDisplayedSkillRating,
+  resolveScoutingLevel,
+} from "./scouting/displayedRatings"
+export { deriveOverall, getSkillRatings } from "./playerRatings"
+export {
   getTeamScheduleFatigue,
   getFatigueEfficiencyPenalty,
   isBackToBack,

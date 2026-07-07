@@ -20,6 +20,7 @@ import { ensureDraftPickAssets } from "./draft/generateDraftOrder"
 import { isDraftRequired } from "./draft/isDraftRequired"
 import { finalizeSeason } from "./finalizeSeason"
 import { prepareNewSeasonFinancials, attachMissingRosterContracts } from "./financials"
+import { purgeCampFringePlayers } from "./preseason/campPlayers"
 import {
   applyAiRosterTrimming,
   validateRostersForSeasonStart,
@@ -99,7 +100,8 @@ export function startNextSeason(
         entry.teamId,
         entry.strategy.mode,
       ]) ?? []
-    )
+    ),
+    league?.contracts ?? [],
   )
   freeAgentPool = trimmed.freeAgentPool
 
@@ -108,7 +110,7 @@ export function startNextSeason(
   const newSeason = seasonState.season + 1
 
   let financialBundle = {
-    contracts: league?.contracts ?? [],
+    contracts: trimmed.contracts,
     leagueFinancials: league?.leagueFinancials ?? {
       baseCap: 141,
       growthRate: 0.05,
@@ -175,6 +177,18 @@ export function startNextSeason(
   )
 
   if (league) {
+    const purged = purgeCampFringePlayers(
+      {
+        seasonState: nextSeasonState,
+        contracts: financialBundle.contracts,
+        freeAgentPool,
+      },
+      newSeason,
+    )
+    nextSeasonState = purged.seasonState
+    financialBundle.contracts = purged.contracts
+    freeAgentPool = purged.freeAgentPool
+
     const withCampContracts = attachMissingRosterContracts(
       {
         seasonState: nextSeasonState,

@@ -16,7 +16,8 @@
     "./leagueTypes": "./src/leagueTypes.ts",
     "./contractTypes": "./src/contractTypes.ts",
     "./financialTypes": "./src/financialTypes.ts",
-    "./financialConstants": "./src/financialConstants.ts"
+    "./financialConstants": "./src/financialConstants.ts",
+    "./skillRatings": "./src/skillRatings.ts"
   },
   "devDependencies": {
     "typescript": "^6"
