@@ -93,6 +93,7 @@ export {
 } from "./draft/simAiPick"
 export {
   releasePlayer,
+  canReleasePlayer,
   applyAiRosterTrimming,
   getTeamRosterSize,
 } from "./roster/rosterManagement"
@@ -129,6 +130,10 @@ export {
   getCapSpace,
   getCurrentSalary,
   getYearsRemaining,
+  canExtendContract,
+  extendContract,
+  getExtensionBounds,
+  getExtensionEligibilityReason,
 } from "./financials"
 export { getTeamDeadCapPayroll } from "./financials/deadCap"
 export type { SignValidationResult } from "./financials/freeAgency"
@@ -163,7 +168,7 @@ export {
   getDisplayedSkillRating,
   resolveScoutingLevel,
 } from "./scouting/displayedRatings"
-export { deriveOverall, getSkillRatings } from "./playerRatings"
+export { deriveOverall, getSkillRatings, deriveTeamOverall, deriveTeamOffense, deriveTeamDefense } from "./playerRatings"
 export {
   getTeamScheduleFatigue,
   getFatigueEfficiencyPenalty,

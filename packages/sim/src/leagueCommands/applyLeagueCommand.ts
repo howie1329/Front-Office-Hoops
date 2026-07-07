@@ -28,6 +28,7 @@ import {
   wouldAiAcceptTrade,
 } from "../trades"
 import { signFreeAgent } from "../financials/freeAgency"
+import { extendContract } from "../financials/contractExtensions"
 import { assertPhaseEligibility } from "../phaseEligibility"
 import { applyDraftSelections, releasePlayerFromTeam } from "../roster/ledger"
 import { simulateCurrentPlayoffRound } from "../simulateCurrentPlayoffRound"
@@ -263,6 +264,21 @@ function applyLeagueCommandInternal(
       }
 
       return signFreeAgent(
+        league,
+        league.userTeamId,
+        command.playerId,
+        command.offer
+      )
+    }
+
+    case "extendContract": {
+      if (!league.userTeamId) {
+        throw new Error(
+          "User team must be selected before extending a contract"
+        )
+      }
+
+      return extendContract(
         league,
         league.userTeamId,
         command.playerId,

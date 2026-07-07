@@ -1,10 +1,4 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table"
 import type { ColumnDef, SortingState } from "@tanstack/react-table"
 import { useEffect, useMemo, useState } from "react"
 
@@ -13,6 +7,13 @@ import {
   formatScheduledLine,
   teamName,
 } from "@/components/league/lib/teamFormat"
+import { nullableNumberSort } from "@/components/league/lib/tableSort"
+import {
+  SortableTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@/components/league/SortableTable"
 import { useLeagueContext } from "@/contexts/LeagueContext"
 import type { LeagueStatus, SaveStatus } from "@/hooks/useLeague"
 import { useTeamFinancials } from "@/hooks/useTeamFinancials"
@@ -43,14 +44,6 @@ import {
 } from "@workspace/ui/components/card"
 import { cn } from "@workspace/ui/lib/utils"
 import { toast } from "sonner"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
 
 export const Route = createFileRoute("/league/")({
   component: LeagueDashboardPage,
@@ -869,71 +862,11 @@ function RosterOverviewTable({ rows }: { rows: RosterRow[] }) {
   )
 }
 
-function SortableTable<TData>({
-  table,
-  emptyLabel,
-  rowClassName,
-}: {
-  table: ReturnType<typeof useReactTable<TData>>
-  emptyLabel: string
-  rowClassName?: (row: { original: TData }) => string
-}) {
-  return (
-    <Table>
-      <TableHeader>
-        {table.getHeaderGroups().map((headerGroup) => (
-          <TableRow key={headerGroup.id}>
-            {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} className="h-8 px-2">
-                {header.isPlaceholder ? null : (
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex items-center gap-1 text-left font-medium",
-                      header.column.getCanSort() && "hover:text-foreground"
-                    )}
-                    onClick={header.column.getToggleSortingHandler()}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                    {header.column.getIsSorted() ? (
-                      <span className="text-[0.625rem] text-muted-foreground">
-                        {header.column.getIsSorted() === "asc" ? "↑" : "↓"}
-                      </span>
-                    ) : null}
-                  </button>
-                )}
-              </TableHead>
-            ))}
-          </TableRow>
-        ))}
-      </TableHeader>
-      <TableBody>
-        {table.getRowModel().rows.length > 0 ? (
-          table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id} className={rowClassName?.(row)}>
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id} className="px-2 py-1.5">
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))
-        ) : (
-          <TableRow>
-            <TableCell
-              colSpan={table.getAllColumns().length}
-              className="text-muted-foreground"
-            >
-              {emptyLabel}
-            </TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
-  )
+function formatAverage(value: number | null): string {
+  if (value === null) {
+    return "—"
+  }
+  return value.toFixed(1)
 }
 
 type UrgentItem = {
@@ -1252,20 +1185,6 @@ function average(total: number | undefined, games: number | undefined): number |
     return null
   }
   return total / games
-}
-
-function formatAverage(value: number | null): string {
-  return value === null ? "-" : value.toFixed(1)
-}
-
-function nullableNumberSort(key: keyof RosterRow) {
-  return (a: { original: RosterRow }, b: { original: RosterRow }) => {
-    const first = a.original[key]
-    const second = b.original[key]
-    const firstValue = typeof first === "number" ? first : -1
-    const secondValue = typeof second === "number" ? second : -1
-    return firstValue - secondValue
-  }
 }
 
 function phaseLabel(phase: SeasonPhase): string {

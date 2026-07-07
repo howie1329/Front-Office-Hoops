@@ -154,6 +154,7 @@ export type {
   ContractStatus,
   ContractType,
   FreeAgentOffer,
+  ExtensionOffer,
   SigningException,
 } from "./contractTypes"
 

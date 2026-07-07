@@ -13,6 +13,7 @@ import type {
   LeagueCommand,
 } from "@workspace/sim"
 import type {
+  ExtensionOffer,
   FreeAgentOffer,
   LeagueRecord,
   LeagueSummary,
@@ -361,6 +362,12 @@ export function useLeague() {
             description: "The transaction has been processed.",
           })
         }
+        if (command.type === "releasePlayer") {
+          toast.success("Player released")
+        }
+        if (command.type === "extendContract") {
+          toast.success("Contract extended")
+        }
       } catch (commandError: unknown) {
         setError(
           commandError instanceof Error
@@ -460,6 +467,8 @@ export function useLeague() {
     simToUserPick: () => dispatch({ type: "simToUserPick" }),
     releasePlayer: (playerId: string) =>
       dispatch({ type: "releasePlayer", playerId }),
+    extendContract: (playerId: string, offer: ExtensionOffer) =>
+      dispatch({ type: "extendContract", playerId, offer }),
     signFreeAgent: (playerId: string, offer: FreeAgentOffer) =>
       dispatch({ type: "signFreeAgent", playerId, offer }),
     executeTrade: (proposal: TradeProposal) =>

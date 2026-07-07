@@ -20,9 +20,11 @@ import { Route as LeagueStatsRouteImport } from './routes/league/stats'
 import { Route as LeagueStandingsRouteImport } from './routes/league/standings'
 import { Route as LeagueScheduleRouteImport } from './routes/league/schedule'
 import { Route as LeagueSavesRouteImport } from './routes/league/saves'
+import { Route as LeagueReSigningRouteImport } from './routes/league/re-signing'
 import { Route as LeaguePlayoffsRouteImport } from './routes/league/playoffs'
 import { Route as LeaguePickTeamRouteImport } from './routes/league/pick-team'
 import { Route as LeagueHistoryRouteImport } from './routes/league/history'
+import { Route as LeagueFreeAgencyRouteImport } from './routes/league/free-agency'
 import { Route as LeagueDraftRouteImport } from './routes/league/draft'
 import { Route as LeagueCreateRouteImport } from './routes/league/create'
 import { Route as LeagueCalendarRouteImport } from './routes/league/calendar'
@@ -84,6 +86,11 @@ const LeagueSavesRoute = LeagueSavesRouteImport.update({
   path: '/saves',
   getParentRoute: () => LeagueRouteRoute,
 } as any)
+const LeagueReSigningRoute = LeagueReSigningRouteImport.update({
+  id: '/re-signing',
+  path: '/re-signing',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
 const LeaguePlayoffsRoute = LeaguePlayoffsRouteImport.update({
   id: '/playoffs',
   path: '/playoffs',
@@ -97,6 +104,11 @@ const LeaguePickTeamRoute = LeaguePickTeamRouteImport.update({
 const LeagueHistoryRoute = LeagueHistoryRouteImport.update({
   id: '/history',
   path: '/history',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueFreeAgencyRoute = LeagueFreeAgencyRouteImport.update({
+  id: '/free-agency',
+  path: '/free-agency',
   getParentRoute: () => LeagueRouteRoute,
 } as any)
 const LeagueDraftRoute = LeagueDraftRouteImport.update({
@@ -133,9 +145,11 @@ export interface FileRoutesByFullPath {
   '/league/calendar': typeof LeagueCalendarRoute
   '/league/create': typeof LeagueCreateRoute
   '/league/draft': typeof LeagueDraftRoute
+  '/league/free-agency': typeof LeagueFreeAgencyRoute
   '/league/history': typeof LeagueHistoryRoute
   '/league/pick-team': typeof LeaguePickTeamRoute
   '/league/playoffs': typeof LeaguePlayoffsRoute
+  '/league/re-signing': typeof LeagueReSigningRoute
   '/league/saves': typeof LeagueSavesRoute
   '/league/schedule': typeof LeagueScheduleRoute
   '/league/standings': typeof LeagueStandingsRoute
@@ -153,9 +167,11 @@ export interface FileRoutesByTo {
   '/league/calendar': typeof LeagueCalendarRoute
   '/league/create': typeof LeagueCreateRoute
   '/league/draft': typeof LeagueDraftRoute
+  '/league/free-agency': typeof LeagueFreeAgencyRoute
   '/league/history': typeof LeagueHistoryRoute
   '/league/pick-team': typeof LeaguePickTeamRoute
   '/league/playoffs': typeof LeaguePlayoffsRoute
+  '/league/re-signing': typeof LeagueReSigningRoute
   '/league/saves': typeof LeagueSavesRoute
   '/league/schedule': typeof LeagueScheduleRoute
   '/league/standings': typeof LeagueStandingsRoute
@@ -175,9 +191,11 @@ export interface FileRoutesById {
   '/league/calendar': typeof LeagueCalendarRoute
   '/league/create': typeof LeagueCreateRoute
   '/league/draft': typeof LeagueDraftRoute
+  '/league/free-agency': typeof LeagueFreeAgencyRoute
   '/league/history': typeof LeagueHistoryRoute
   '/league/pick-team': typeof LeaguePickTeamRoute
   '/league/playoffs': typeof LeaguePlayoffsRoute
+  '/league/re-signing': typeof LeagueReSigningRoute
   '/league/saves': typeof LeagueSavesRoute
   '/league/schedule': typeof LeagueScheduleRoute
   '/league/standings': typeof LeagueStandingsRoute
@@ -198,9 +216,11 @@ export interface FileRouteTypes {
     | '/league/calendar'
     | '/league/create'
     | '/league/draft'
+    | '/league/free-agency'
     | '/league/history'
     | '/league/pick-team'
     | '/league/playoffs'
+    | '/league/re-signing'
     | '/league/saves'
     | '/league/schedule'
     | '/league/standings'
@@ -218,9 +238,11 @@ export interface FileRouteTypes {
     | '/league/calendar'
     | '/league/create'
     | '/league/draft'
+    | '/league/free-agency'
     | '/league/history'
     | '/league/pick-team'
     | '/league/playoffs'
+    | '/league/re-signing'
     | '/league/saves'
     | '/league/schedule'
     | '/league/standings'
@@ -239,9 +261,11 @@ export interface FileRouteTypes {
     | '/league/calendar'
     | '/league/create'
     | '/league/draft'
+    | '/league/free-agency'
     | '/league/history'
     | '/league/pick-team'
     | '/league/playoffs'
+    | '/league/re-signing'
     | '/league/saves'
     | '/league/schedule'
     | '/league/standings'
@@ -339,6 +363,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeagueSavesRouteImport
       parentRoute: typeof LeagueRouteRoute
     }
+    '/league/re-signing': {
+      id: '/league/re-signing'
+      path: '/re-signing'
+      fullPath: '/league/re-signing'
+      preLoaderRoute: typeof LeagueReSigningRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
     '/league/playoffs': {
       id: '/league/playoffs'
       path: '/playoffs'
@@ -358,6 +389,13 @@ declare module '@tanstack/react-router' {
       path: '/history'
       fullPath: '/league/history'
       preLoaderRoute: typeof LeagueHistoryRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/free-agency': {
+      id: '/league/free-agency'
+      path: '/free-agency'
+      fullPath: '/league/free-agency'
+      preLoaderRoute: typeof LeagueFreeAgencyRouteImport
       parentRoute: typeof LeagueRouteRoute
     }
     '/league/draft': {
@@ -402,9 +440,11 @@ interface LeagueRouteRouteChildren {
   LeagueCalendarRoute: typeof LeagueCalendarRoute
   LeagueCreateRoute: typeof LeagueCreateRoute
   LeagueDraftRoute: typeof LeagueDraftRoute
+  LeagueFreeAgencyRoute: typeof LeagueFreeAgencyRoute
   LeagueHistoryRoute: typeof LeagueHistoryRoute
   LeaguePickTeamRoute: typeof LeaguePickTeamRoute
   LeaguePlayoffsRoute: typeof LeaguePlayoffsRoute
+  LeagueReSigningRoute: typeof LeagueReSigningRoute
   LeagueSavesRoute: typeof LeagueSavesRoute
   LeagueScheduleRoute: typeof LeagueScheduleRoute
   LeagueStandingsRoute: typeof LeagueStandingsRoute
@@ -420,9 +460,11 @@ const LeagueRouteRouteChildren: LeagueRouteRouteChildren = {
   LeagueCalendarRoute: LeagueCalendarRoute,
   LeagueCreateRoute: LeagueCreateRoute,
   LeagueDraftRoute: LeagueDraftRoute,
+  LeagueFreeAgencyRoute: LeagueFreeAgencyRoute,
   LeagueHistoryRoute: LeagueHistoryRoute,
   LeaguePickTeamRoute: LeaguePickTeamRoute,
   LeaguePlayoffsRoute: LeaguePlayoffsRoute,
+  LeagueReSigningRoute: LeagueReSigningRoute,
   LeagueSavesRoute: LeagueSavesRoute,
   LeagueScheduleRoute: LeagueScheduleRoute,
   LeagueStandingsRoute: LeagueStandingsRoute,

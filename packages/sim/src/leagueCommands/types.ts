@@ -1,5 +1,9 @@
 import type { AdvanceTarget } from "./advanceTypes"
-import type { FreeAgentOffer, TradeProposal } from "@workspace/shared/types"
+import type {
+  ExtensionOffer,
+  FreeAgentOffer,
+  TradeProposal,
+} from "@workspace/shared/types"
 
 export type { AdvanceTarget } from "./advanceTypes"
 
@@ -22,6 +26,7 @@ export type LeagueCommand =
   | { type: "completeFreeAgency" }
   | { type: "releasePlayer"; playerId: string }
   | { type: "signFreeAgent"; playerId: string; offer: FreeAgentOffer }
+  | { type: "extendContract"; playerId: string; offer: ExtensionOffer }
   | { type: "executeTrade"; proposal: TradeProposal }
   | { type: "acceptTradeOffer"; offerId: string }
   | { type: "rejectTradeOffer"; offerId: string }
