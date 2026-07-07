@@ -118,7 +118,7 @@ pnpm dlx shadcn@latest add <component> -c apps/web
 
 1. `useLeague` mounts → dynamic import `@workspace/db`
 2. `listLeagues()` reads IndexedDB, resolves active save from `localStorage`
-3. `normalizeLeagueRecord()` normalizes current-shape records
+3. Loaded `LeagueRecord` is used as-is (no save migration)
 4. State flows into `LeagueProvider` → route components
 
 ### Simulation tick

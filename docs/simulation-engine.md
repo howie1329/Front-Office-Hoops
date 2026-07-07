@@ -159,7 +159,7 @@ Injured players have `status: "injured"` and an `injury` object with type, descr
 - Optional `teams` or `useMiniLeague` (6-team sample rosters)
 - Optional `userTeamId`
 
-`normalizeLeagueRecord` normalizes current-shape records when loading persisted data. Older local saves are not migrated during pre-user development.
+New leagues are created with the current `SAVE_VERSION`. There is no save migration; clear local IndexedDB saves after schema changes during development.
 
 ## Offseason loop
 

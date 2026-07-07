@@ -11,6 +11,7 @@ import {
   generatePlayerProfile,
 } from "./generatePlayerProfile"
 import { clampRating, deriveTeamOverall, deriveUsage } from "../playerRatings"
+import { seedPlayerMood } from "../playerValue/moodSeed"
 
 export const POSITION_TEMPLATE_MINI: PlayerPosition[] = [
   "PG",
@@ -260,6 +261,8 @@ function buildPlayerFromProfile(
     activeContractId: null,
     seasonsWithTeam: 0,
     yearsOfService: profile.yearsOfService,
+    mood: seedPlayerMood(`p_${team.abbrev.toLowerCase()}_${index + 1}`),
+    performanceDrift: 0,
   }
 }
 

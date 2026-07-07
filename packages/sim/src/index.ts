@@ -23,7 +23,7 @@ export {
   sortPlayerSeasonStats,
 } from "./derivePlayerSeasonStats"
 export { simulateDay } from "./simulateDay"
-export { simulateRegularDay } from "./simulateRegularDay"
+export { simulateRegularDay, simulateLeagueRegularDay } from "./simulateRegularDay"
 export { simulateWeek } from "./simulateWeek"
 export { simulateSeason } from "./simulateSeason"
 export { simulatePlayoffDay } from "./simulatePlayoffDay"
@@ -73,9 +73,11 @@ export {
 } from "./draft/isDraftRequired"
 export {
   prepareDraft,
+  prepareDraftForLeague,
   getCurrentDraftPick,
   isUserOnClock,
 } from "./draft/prepareDraft"
+export { buildDraftClassCache, getPickValueFromCache } from "./draft/pickValues"
 export { makeDraftPick } from "./draft/makeDraftPick"
 export {
   simAiPick,
@@ -97,7 +99,6 @@ export {
   releasePlayerFromTeam,
 } from "./roster/ledger"
 export { deriveUserPlayoffResult } from "./deriveUserPlayoffResult"
-export { normalizeLeagueRecord, normalizeSeasonState } from "./normalizeLeague"
 export { createInitialSeason } from "./createInitialSeason"
 export { createLeague } from "./createLeague"
 export type { CreateLeagueInput } from "./createLeague"
@@ -122,7 +123,7 @@ export {
   getCurrentSalary,
   getYearsRemaining,
 } from "./financials"
-export { waivePlayerContract } from "./financials/contracts/processContracts"
+export { getTeamDeadCapPayroll } from "./financials/deadCap"
 export type { SignValidationResult } from "./financials/freeAgency"
 export {
   evaluateTrade,
@@ -130,9 +131,15 @@ export {
   proposeTrade,
   validateTrade,
   wouldAiAcceptTrade,
+  makeItWork,
+  runAiTradeMarket,
+  expirePendingTradeOffers,
+  acceptTradeOffer,
+  rejectTradeOffer,
 } from "./trades"
+export { getFairSalary, getContractAssetValueBreakdown, calculatePlayerValue } from "./playerValue"
 export { createLeagueLogEntry, appendLeagueLog } from "./leagueLog"
-export { advanceSeason } from "./advance/advanceSeason"
+export { advanceSeason, advanceLeague } from "./advance/advanceSeason"
 export type {
   AdvancePolicy,
   AdvanceResult,

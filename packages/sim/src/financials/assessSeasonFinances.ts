@@ -7,8 +7,10 @@ import {
   getSeasonFinancials,
   roundMoney,
 } from "./capMath"
+import { advanceDeadCapCharges } from "./deadCap"
 import { getTeamPayroll } from "./payroll"
 import { calculateSeasonRevenue } from "./spendingProfiles"
+import { REPEATER_TAX_SEASONS } from "@workspace/shared/financialConstants"
 
 function getTeamWins(teamId: string, seasonState: SeasonState): number {
   const standing = seasonState.standings.find(
@@ -36,11 +38,15 @@ export function assessLeagueSeasonFinances(
   )
 
   const teamFinancials = league.teamFinancials.map((teamFinance) => {
-    const payroll = roundMoney(getTeamPayroll(teamFinance.teamId, league.contracts))
+    const payroll = roundMoney(
+      getTeamPayroll(teamFinance.teamId, league.contracts, teamFinance),
+    )
+    const isRepeater = teamFinance.consecutiveTaxSeasons >= REPEATER_TAX_SEASONS
     const taxBill = calculateLuxuryTax(
       payroll,
       seasonFinancials.luxuryTaxLine,
       seasonFinancials.taxBracketSize,
+      isRepeater,
     )
     const wins = getTeamWins(teamFinance.teamId, seasonState)
     const madePlayoffs = teamMadePlayoffs(teamFinance.teamId, seasonState)
@@ -117,7 +123,10 @@ export function rollFinancialYear(
     ...teamFinance,
     mleUsed: 0,
     mleRemaining: seasonFinancials.mleNonTaxpayer,
+    roomMleUsed: 0,
+    roomMleRemaining: seasonFinancials.mleRoom,
     wasUnderCapThisYear: true,
+    deadCapCharges: advanceDeadCapCharges(teamFinance.deadCapCharges),
     tradeExceptions: teamFinance.tradeExceptions.filter(
       (tpe) => tpe.expiresSeason >= newSeason,
     ),
@@ -152,7 +161,13 @@ export function advanceContractYears(
       return { ...contract, status: "expired" as const, yearlySalaries: [] }
     }
 
-    return { ...contract, yearlySalaries: remaining }
+    return {
+      ...contract,
+      yearlySalaries: remaining,
+      options: contract.options
+        ?.map((option) => ({ ...option, yearIndex: option.yearIndex - 1 }))
+        .filter((option) => option.yearIndex >= 0),
+    }
   })
 
   return { contracts: nextContracts, expiredPlayerIds }

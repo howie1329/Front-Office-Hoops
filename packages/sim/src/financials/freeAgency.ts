@@ -3,7 +3,6 @@ import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
 import {
   FA_POOL_MIN_RATIO,
   ROSTER_MAX,
-  ROSTER_MIN,
 } from "@workspace/shared/constants"
 
 import {
@@ -23,18 +22,10 @@ import {
   waiveContract,
 } from "./contracts/createContract"
 import { deriveTeamOverall } from "../playerRatings"
-import {
-  buildExternalFaOffer,
-  buildFairSalary,
-  canAffordOffer,
-} from "./ai/offers"
-import {
-  scoreFreeAgentForTeam,
-  selectFreeAgentTarget,
-} from "./ai/freeAgentScoring"
 import { generateFreeAgents } from "../generateFreeAgents"
 import { createLeagueLogEntry } from "../leagueLog"
 import { findPlayer } from "../roster/ledger"
+import { runMarketAuction } from "./market/normalizeDemands"
 
 export type SignValidationResult =
   | { ok: true; signingException: FreeAgentOffer["signingException"] }
@@ -186,6 +177,17 @@ export function canSignPlayer(
     return { ok: true, signingException: "cap_room" }
   }
 
+  if (
+    teamFinance.wasUnderCapThisYear &&
+    teamFinance.roomMleRemaining >= offer.firstYearSalary &&
+    teamFinance.mleUsed === 0
+  ) {
+    if (offer.years > 2) {
+      return { ok: false, reason: "Offer exceeds Room MLE max years" }
+    }
+    return { ok: true, signingException: "mle_room" }
+  }
+
   if (offer.firstYearSalary <= minSalary * 1.01) {
     return { ok: true, signingException: "minimum" }
   }
@@ -288,6 +290,16 @@ export function signFreeAgent(
         mleRemaining: Math.max(0, entry.mleRemaining - offer.firstYearSalary),
       }
     }
+    if (signingException === "mle_room") {
+      return {
+        ...entry,
+        roomMleUsed: entry.roomMleUsed + offer.firstYearSalary,
+        roomMleRemaining: Math.max(
+          0,
+          entry.roomMleRemaining - offer.firstYearSalary,
+        ),
+      }
+    }
     return entry
   })
 
@@ -330,142 +342,7 @@ export function processAiFreeAgency(
   league: LeagueRecord,
   rng: Rng
 ): LeagueRecord {
-  let current = league
-  const seasonFinancials = getSeasonFinancials(
-    current.leagueFinancials,
-    current.seasonState.season
-  )
-
-  for (const teamFinance of current.teamFinancials) {
-    const team =
-      current.seasonState.teams.find(
-        (entry) => entry.id === teamFinance.teamId
-      ) ?? null
-    if (!team) {
-      continue
-    }
-    const skippedFreeAgentIds = new Set<string>()
-
-    while (true) {
-      const rosterSize =
-        current.seasonState.teams.find(
-          (entry) => entry.id === teamFinance.teamId
-        )?.players.length ?? 0
-      if (rosterSize >= ROSTER_MAX) {
-        break
-      }
-
-      const currentTeam = current.seasonState.teams.find(
-        (entry) => entry.id === teamFinance.teamId
-      )!
-      const payroll = getTeamPayroll(teamFinance.teamId, current.contracts)
-
-      const scoreFn = (player: Player) => {
-        const offer = buildExternalFaOffer(
-          player,
-          teamFinance,
-          seasonFinancials,
-          rng
-        )
-        const fair = buildFairSalary(player, seasonFinancials)
-        return scoreFreeAgentForTeam(
-          player,
-          currentTeam,
-          teamFinance.strategy.mode,
-          offer.firstYearSalary,
-          fair
-        )
-      }
-
-      const fa = selectFreeAgentTarget(
-        current.freeAgentPool.filter(
-          (player) => !skippedFreeAgentIds.has(player.id)
-        ),
-        currentTeam,
-        teamFinance.strategy.mode,
-        scoreFn
-      )
-      if (!fa) {
-        if (rosterSize < ROSTER_MIN) {
-          current = {
-            ...current,
-            freeAgentPool: [
-              ...current.freeAgentPool,
-              ...generateFreeAgents(
-                ROSTER_MIN - rosterSize,
-                rng,
-                `${current.seasonState.season}_${teamFinance.teamId}_${current.freeAgentPool.length}`
-              ),
-            ],
-          }
-          skippedFreeAgentIds.clear()
-          continue
-        }
-        current = ensureFaPoolMinimum(current, rng)
-        if (current.freeAgentPool.length === 0) {
-          break
-        }
-        continue
-      }
-
-      let offer = buildExternalFaOffer(fa, teamFinance, seasonFinancials, rng)
-
-      if (
-        !canAffordOffer(
-          teamFinance,
-          payroll,
-          offer.firstYearSalary,
-          seasonFinancials
-        )
-      ) {
-        offer = {
-          years: 1,
-          firstYearSalary: calculateMinSalary(
-            seasonFinancials,
-            fa.yearsOfService
-          ),
-        }
-      }
-
-      try {
-        current = signFreeAgent(current, teamFinance.teamId, fa.id, offer)
-      } catch {
-        skippedFreeAgentIds.add(fa.id)
-        const fallbacks = [...current.freeAgentPool]
-          .filter((player) => !skippedFreeAgentIds.has(player.id))
-          .sort((a, b) => a.ratings.overall - b.ratings.overall)
-        let signedFallback = false
-
-        for (const fallback of fallbacks) {
-          const minimumOffer = {
-            years: 1,
-            firstYearSalary: calculateMinSalary(
-              seasonFinancials,
-              fallback.yearsOfService
-            ),
-          }
-          try {
-            current = signFreeAgent(
-              current,
-              teamFinance.teamId,
-              fallback.id,
-              minimumOffer
-            )
-            signedFallback = true
-            break
-          } catch {
-            skippedFreeAgentIds.add(fallback.id)
-          }
-        }
-
-        if (!signedFallback) {
-          break
-        }
-      }
-    }
-  }
-
-  return current
+  return runMarketAuction(league, rng)
 }
 
 export function attachRookieContract(

@@ -4,6 +4,10 @@ import type { Contract, TeamWithRoster } from "@workspace/shared/types"
 import { getCurrentSalary, getYearsRemaining } from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
+import {
+  getNextContractOptionLabel,
+  getTradableRestrictionLabel,
+} from "@/components/league/lib/contractLabels"
 import { getViewRatings } from "@/components/league/lib/scouting"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -29,6 +33,7 @@ type RosterCardProps = {
   onReleasePlayer?: (playerId: string) => void
   isOwnRoster?: boolean
   teamScoutingLevel?: number
+  currentDay?: number | null
 }
 
 function getContractForPlayer(
@@ -47,6 +52,7 @@ export function RosterCard({
   onReleasePlayer,
   isOwnRoster = false,
   teamScoutingLevel = 5,
+  currentDay = null,
 }: RosterCardProps) {
   const sortedPlayers = [...roster.players].sort((a, b) => {
     const aRatings = getViewRatings(a.ratings, { isOwnRoster, teamScoutingLevel })
@@ -98,6 +104,14 @@ export function RosterCard({
               {sortedPlayers.map((player) => {
                 const contract = getContractForPlayer(contracts, player.id)
                 const yearsRemaining = getYearsRemaining(contract)
+                const optionLabel = getNextContractOptionLabel(
+                  contract,
+                  yearsRemaining,
+                )
+                const tradableLabel = getTradableRestrictionLabel(
+                  contract,
+                  currentDay,
+                )
                 const viewRatings = getViewRatings(player.ratings, {
                   isOwnRoster,
                   teamScoutingLevel,
@@ -115,6 +129,8 @@ export function RosterCard({
                         </Link>
                         <span className="text-xs text-muted-foreground">
                           {contractLabel(yearsRemaining)}
+                          {optionLabel ? ` · ${optionLabel}` : ""}
+                          {tradableLabel ? ` · ${tradableLabel}` : ""}
                           {player.tags?.includes("camp_invite")
                             ? " · Camp invite"
                             : ""}

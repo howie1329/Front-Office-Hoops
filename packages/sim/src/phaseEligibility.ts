@@ -1,4 +1,4 @@
-import { CAMP_ROSTER_MAX, ROSTER_MAX } from "@workspace/shared/constants"
+import { CAMP_ROSTER_MAX, ROSTER_MAX, ROSTER_MIN } from "@workspace/shared/constants"
 import type { LeagueRecord, SeasonMilestones, SeasonState } from "@workspace/shared/types"
 
 import { getCurrentCalendar } from "./calendar"
@@ -89,16 +89,16 @@ export function getPhaseEligibility(
           reason: "Preseason exhibition games are not complete",
         }
       }
-      if (userRosterSize > ROSTER_MAX) {
+      if (userRosterSize > CAMP_ROSTER_MAX) {
         return {
           allowed: false,
-          reason: `Cut roster to ${ROSTER_MAX} players before starting the regular season`,
+          reason: `Cut roster to ${CAMP_ROSTER_MAX} players before starting the regular season`,
         }
       }
-      if (league.userTeamId && userRosterSize < ROSTER_MAX) {
+      if (userRosterSize < ROSTER_MIN) {
         return {
           allowed: false,
-          reason: `Roster must have ${ROSTER_MAX} players before starting the regular season`,
+          reason: `Roster must have at least ${ROSTER_MIN} players before starting the regular season`,
         }
       }
       if (

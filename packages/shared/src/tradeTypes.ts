@@ -42,3 +42,16 @@ export type TradeHistoryEntry = {
   createdAt: string
   teams: TradeHistoryTeamEntry[]
 }
+
+export type PendingTradeOfferStatus = "pending" | "accepted" | "rejected" | "expired"
+
+export type PendingTradeOffer = {
+  id: string
+  fromTeamId: string
+  toTeamId: string
+  proposal: TradeProposal
+  createdDay: number
+  expiresDay: number
+  status: PendingTradeOfferStatus
+  initiatorTeamId: string
+}

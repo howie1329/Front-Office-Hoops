@@ -84,6 +84,7 @@ function LeagueTeamPage() {
             onReleasePlayer={releasePlayer}
             isOwnRoster
             teamScoutingLevel={financials?.teamFinance?.scoutingLevel}
+            currentDay={seasonState?.currentDay ?? null}
           />
         </div>
 

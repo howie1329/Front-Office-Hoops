@@ -53,11 +53,11 @@ Current implementation status and planned work. This reflects the codebase as of
 | Draft + rookie generation    | ✅     | 2-round draft, archetyped rookie class, rookie-scale contracts, undrafted FA conversion                     |
 | Injuries                     | ✅     | Age/stamina/minutes risk, severity/duration, daily recovery, rotation exclusion                             |
 | Fatigue / minutes management | 🟡     | Stamina affects rotation targets and injury risk; no in-game fatigue substitutions                          |
-| Trades                       | 🟡     | Engine validation/execution, AI acceptance, salary matching, picks, history/logs; UI pending                |
-| Free agency                  | ✅     | Re-signing phase, FA pool, user/AI signing validation, cap exceptions                                       |
+| Trades                       | ✅     | Validation/execution, BBGM-like AI acceptance, TPE, pick values, AI market, trade workspace UI |
+| Free agency                  | ✅     | Re-signing phase, FA pool, archetype market auction, player mood, cap exceptions                 |
 | Draft                        | ✅     | Draft board/order/picks/selections and rookie conversion                                                    |
 | Coaching / tactics           | ⬜     | —                                                                                                           |
-| Financials / salary cap      | ✅     | Contracts, cap/tax, Bird rights, MLE/minimum/rookie scale, team strategy, cap cuts                          |
+| Financials / salary cap      | ✅     | Contracts, cap/tax, repeater tax, dead cap, Room MLE, TPE, options, Bird rights, team strategy              |
 
 ---
 
@@ -78,9 +78,9 @@ Current implementation status and planned work. This reflects the codebase as of
 | Playoff bracket          | ✅     | Series progress                                                           |
 | Season history           | ✅     | Past champions and records                                                |
 | Mobile-responsive layout | 🟡     | Functional; polish ongoing                                                |
-| Trade UI                 | ⬜     | —                                                                         |
-| Draft UI                 | 🟡     | Basic draft route exists; polish and richer prospect presentation pending |
-| Free agency UI           | 🟡     | Panel exists; richer negotiation/market UX pending                        |
+| Trade UI                 | ✅     | Trade workspace, value breakdown, AI accept bar, pending offers inbox                                       |
+| Draft UI                 | 🟡     | Basic draft route exists; polish and richer prospect presentation pending                                   |
+| Free agency UI           | 🟡     | Panel exists; mood hints on player page; richer negotiation UX pending                                      |
 | Settings / preferences   | ⬜     | —                                                                         |
 
 ---
@@ -150,6 +150,6 @@ A pragmatic sequence for future work:
 ## Versioning
 
 - **App version:** `0.0.1` (early prototype)
-- **Save version:** `10` (`SAVE_VERSION` in shared types)
+- **Save version:** `12` (`SAVE_VERSION` in shared types)
 
-Increment `SAVE_VERSION` and add normalization logic whenever persisted shape changes.
+Bump `SAVE_VERSION` when the persisted schema changes. No migration layer — clear local saves after breaking changes.

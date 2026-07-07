@@ -39,6 +39,13 @@ export type PlayerInjury = {
   description: string
 }
 
+export type PlayerMood = {
+  money: number
+  winning: number
+  loyalty: number
+  fame: number
+}
+
 export type SkillKey =
   | "threePoint"
   | "midRange"
@@ -82,6 +89,8 @@ export type Player = {
   activeContractId: string | null
   seasonsWithTeam: number
   yearsOfService: number
+  mood: PlayerMood
+  performanceDrift: number
 }
 
 export type TeamWithRoster = Team & {

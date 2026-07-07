@@ -1,6 +1,7 @@
 import type { Player, PlayerPosition, Rng } from "@workspace/shared/types"
 
 import { generatePlayerProfile } from "./playerGeneration/generatePlayerProfile"
+import { seedPlayerMood } from "./playerValue/moodSeed"
 
 const POSITIONS: PlayerPosition[] = ["PG", "SG", "SF", "PF", "C"]
 
@@ -56,6 +57,8 @@ export function generateFreeAgents(
       activeContractId: null,
       seasonsWithTeam: 0,
       yearsOfService: profile.yearsOfService,
+      mood: seedPlayerMood(`p_fa_${idPrefix}_${index + 1}`),
+      performanceDrift: 0,
     })
   }
 

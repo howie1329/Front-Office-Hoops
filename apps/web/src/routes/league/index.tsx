@@ -80,6 +80,19 @@ function LeagueDashboardPage() {
 
   const financials = useTeamFinancials(league, myTeam?.id ?? null)
 
+  const pendingTradeOfferCount = useMemo(() => {
+    if (!league || !myTeam?.id) {
+      return 0
+    }
+    return (
+      league.pendingTradeOffers?.filter(
+        (offer) =>
+          offer.status === "pending" &&
+          (offer.toTeamId === myTeam.id || offer.fromTeamId === myTeam.id),
+      ).length ?? 0
+    )
+  }, [league, myTeam?.id])
+
   const dashboard = useMemo(() => {
     if (!seasonState) {
       return null
@@ -139,6 +152,7 @@ function LeagueDashboardPage() {
     error,
     rosterOverLimit,
     cutsNeeded,
+    pendingTradeOfferCount,
     canBeginRegularSeason,
     canBeginPlayoffs,
     canBeginOffseason,
@@ -687,6 +701,7 @@ function getUrgentItems({
   error,
   rosterOverLimit,
   cutsNeeded,
+  pendingTradeOfferCount,
   canBeginRegularSeason,
   canBeginPlayoffs,
   canBeginOffseason,
@@ -701,6 +716,7 @@ function getUrgentItems({
   error: string | null
   rosterOverLimit: boolean
   cutsNeeded: number
+  pendingTradeOfferCount: number
   canBeginRegularSeason: boolean
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
@@ -717,6 +733,15 @@ function getUrgentItems({
     items.push({
       label: "Command failed",
       description: error,
+      tone: "urgent",
+    })
+  }
+  if (pendingTradeOfferCount > 0) {
+    items.push({
+      label: "Pending trade offers",
+      description: `${pendingTradeOfferCount} trade offer${
+        pendingTradeOfferCount === 1 ? "" : "s"
+      } waiting on your decision. Review them on the trades page.`,
       tone: "urgent",
     })
   }

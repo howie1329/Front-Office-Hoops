@@ -149,6 +149,7 @@ export function calculateLuxuryTax(
   payroll: number,
   taxLine: number,
   bracketSize: number,
+  isRepeater = false,
 ): number {
   const overage = Math.max(0, payroll - taxLine)
   if (overage <= 0) {
@@ -163,7 +164,8 @@ export function calculateLuxuryTax(
     const slice = Math.min(remaining, bracketSize)
     const baseRate = LUXURY_TAX_RATES[Math.min(bracketIndex, LUXURY_TAX_RATES.length - 1)]!
     const extraBrackets = Math.max(0, bracketIndex - (LUXURY_TAX_RATES.length - 1))
-    const rate = baseRate + extraBrackets * 0.5
+    const repeaterSurcharge = isRepeater ? 1 : 0
+    const rate = baseRate + extraBrackets * 0.5 + repeaterSurcharge
     totalTax += slice * rate
     remaining -= slice
     bracketIndex += 1

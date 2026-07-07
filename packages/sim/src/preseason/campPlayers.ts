@@ -5,6 +5,7 @@ import { waiveContract } from "../financials/contracts/createContract"
 import { generatePlayerProfile } from "../playerGeneration/generatePlayerProfile"
 import { finalizeRosterUsage } from "../playerGeneration/rosterPipeline"
 import { deriveTeamOverall } from "../playerRatings"
+import { seedPlayerMood } from "../playerValue/moodSeed"
 import { computeAiCutScore, validateRosterFloor } from "../roster/rosterManagement"
 import type { PlayerPosition } from "@workspace/shared/types"
 
@@ -114,6 +115,8 @@ function buildCampPlayer(
     activeContractId: null,
     seasonsWithTeam: 0,
     yearsOfService: profile.yearsOfService,
+    mood: seedPlayerMood(`p_${team.abbrev.toLowerCase()}_camp_s${season}_${index + 1}`),
+    performanceDrift: 0,
   }
 }
 

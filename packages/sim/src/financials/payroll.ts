@@ -1,4 +1,8 @@
 import type { Contract } from "@workspace/shared/contractTypes"
+import type { TeamFinancials } from "@workspace/shared/financialTypes"
+
+import { roundMoney } from "./capMath"
+import { getTeamDeadCapPayroll } from "./deadCap"
 
 export function getActiveContracts(contracts: Contract[]): Contract[] {
   return contracts.filter((contract) => contract.status === "active")
@@ -21,7 +25,7 @@ export function getPlayerContract(
   return getContractById(contracts, player.activeContractId)
 }
 
-export function getTeamPayroll(
+export function getContractPayroll(
   teamId: string,
   contracts: Contract[],
 ): number {
@@ -29,7 +33,21 @@ export function getTeamPayroll(
     (contract) => contract.teamId === teamId,
   )
 
-  return active.reduce((sum, contract) => sum + (contract.yearlySalaries[0] ?? 0), 0)
+  return roundMoney(
+    active.reduce((sum, contract) => sum + (contract.yearlySalaries[0] ?? 0), 0),
+  )
+}
+
+export function getTeamPayroll(
+  teamId: string,
+  contracts: Contract[],
+  teamFinance?: Pick<TeamFinancials, "deadCapCharges">,
+): number {
+  const contractPayroll = getContractPayroll(teamId, contracts)
+  const deadCap = teamFinance
+    ? getTeamDeadCapPayroll(teamFinance.deadCapCharges)
+    : 0
+  return roundMoney(contractPayroll + deadCap)
 }
 
 export function getCurrentSalary(contract: Contract | undefined): number {

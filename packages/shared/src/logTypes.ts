@@ -6,6 +6,7 @@ export type LeagueLogEntryType =
   | "award"
   | "owner_goal"
   | "owner_trust"
+  | "option"
 
 export type LeagueLogEntry = {
   id: string

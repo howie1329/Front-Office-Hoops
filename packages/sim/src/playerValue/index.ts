@@ -1,8 +1,21 @@
 import type { Contract } from "@workspace/shared/contractTypes"
-import type { TeamMode } from "@workspace/shared/financialTypes"
-import type { Player } from "@workspace/shared/types"
+import type { SeasonFinancials, TeamMode } from "@workspace/shared/financialTypes"
+import type { LeagueRecord, Player } from "@workspace/shared/types"
 
+import { estimateSalaryFromValue } from "../financials/contracts/createContract"
 import { getYearsRemaining } from "../financials/payroll"
+import { getArchetypeMarketPremium } from "./archetypeMarket"
+import { applyPerformanceDriftToTalent } from "./performanceDrift"
+
+export type PlayerWorthBreakdown = {
+  talent: number
+  upside: number
+  archetype: number
+  scarcity: number
+  ageRisk: number
+  marketPremium: number
+  total: number
+}
 
 export type PlayerValueBreakdown = {
   talentValue: number
@@ -21,6 +34,11 @@ export type ContractAssetValueBreakdown = {
   surplusValue: number
   riskPenalty: number
   total: number
+}
+
+export type WorthContext = {
+  league?: LeagueRecord
+  includeMarketPremium?: boolean
 }
 
 function upsideValue(player: Player): number {
@@ -117,39 +135,82 @@ function roleScarcityValue(player: Player): number {
   return 0
 }
 
-export function getPlayerValueBreakdown(player: Player): PlayerValueBreakdown {
-  const talentValue = player.ratings.overall
+export function getPlayerWorthBreakdown(
+  player: Player,
+  context: WorthContext = {},
+): PlayerWorthBreakdown {
+  const talent = applyPerformanceDriftToTalent(
+    player.ratings.overall,
+    player.performanceDrift ?? 0,
+  )
   const upside = upsideValue(player)
   const risk = ageRisk(player)
   const archetype = archetypeValue(player)
   const scarcity = roleScarcityValue(player)
+  const marketPremium =
+    context.includeMarketPremium && context.league
+      ? getArchetypeMarketPremium(player, context.league) - 1
+      : 0
+
+  const total =
+    talent + upside + archetype + scarcity - risk + marketPremium * 3
 
   return {
-    talentValue,
-    upsideValue: upside,
+    talent,
+    upside,
+    archetype,
+    scarcity,
     ageRisk: risk,
-    archetypeValue: archetype,
-    roleScarcityValue: scarcity,
-    total: talentValue + upside + archetype + scarcity - risk,
+    marketPremium,
+    total,
+  }
+}
+
+export function getPlayerWorth(
+  player: Player,
+  context: WorthContext = {},
+): number {
+  return getPlayerWorthBreakdown(player, context).total
+}
+
+export function worthToSalary(
+  worth: number,
+  yearsOfService: number,
+  seasonFinancials: SeasonFinancials,
+): number {
+  return estimateSalaryFromValue(worth, yearsOfService, seasonFinancials)
+}
+
+export function getFairSalary(
+  player: Player,
+  seasonFinancials: SeasonFinancials,
+  league?: LeagueRecord,
+): number {
+  const worth = getPlayerWorth(player, {
+    league,
+    includeMarketPremium: Boolean(league),
+  })
+  return worthToSalary(worth, player.yearsOfService, seasonFinancials)
+}
+
+export function getPlayerValueBreakdown(player: Player): PlayerValueBreakdown {
+  const breakdown = getPlayerWorthBreakdown(player)
+  return {
+    talentValue: breakdown.talent,
+    upsideValue: breakdown.upside,
+    ageRisk: breakdown.ageRisk,
+    archetypeValue: breakdown.archetype,
+    roleScarcityValue: breakdown.scarcity,
+    total: breakdown.total,
   }
 }
 
 export function calculatePlayerValue(player: Player): number {
-  return getPlayerValueBreakdown(player).total
+  return getPlayerWorth(player)
 }
 
 export function calculateContractValue(player: Player): number {
-  const breakdown = getPlayerValueBreakdown(player)
-  const currentValue = player.ratings.overall * 0.9
-  const upside = breakdown.upsideValue * 0.45
-  const risk = breakdown.ageRisk * 1.4
-  return (
-    currentValue +
-    upside +
-    breakdown.archetypeValue * 0.8 +
-    breakdown.roleScarcityValue -
-    risk
-  )
+  return getPlayerWorth(player)
 }
 
 export function calculateRosterKeepValue(

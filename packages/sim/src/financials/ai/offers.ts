@@ -14,27 +14,23 @@ import type {
   TeamFinancials,
   TeamMode,
 } from "@workspace/shared/financialTypes"
-import type { Player, Rng } from "@workspace/shared/types"
+import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
 
 import {
   calculateMaxSalary,
   calculateMinSalary,
   roundMoney,
 } from "../capMath"
-import { calculateContractValue } from "../../playerValue"
-import { estimateSalaryFromValue } from "../contracts/createContract"
+import { getFairSalary } from "../../playerValue"
 import { deriveBirdRights, calculateBirdSignCeiling, getBirdMaxYears } from "../birdRights"
 import { getPlayerContract } from "../payroll"
 
 export function buildFairSalary(
   player: Player,
   seasonFinancials: SeasonFinancials,
+  league?: LeagueRecord,
 ): number {
-  return estimateSalaryFromValue(
-    calculateContractValue(player),
-    player.yearsOfService,
-    seasonFinancials,
-  )
+  return getFairSalary(player, seasonFinancials, league)
 }
 
 export function getToleranceMultiplier(tolerance: TaxTolerance): number {

@@ -151,7 +151,7 @@ Typical workflow:
 
 - Database is only available in the browser
 - `getDb()` throws during SSR — always use dynamic imports for `@workspace/db` in code that may run on server
-- During pre-user development, old save migrations are intentionally not maintained; clear local saves after schema changes
+- There is no save migration layer — clear local saves after schema changes
 
 ## Environment variables
 

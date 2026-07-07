@@ -1,12 +1,14 @@
 import { useMemo } from "react"
 
 import type { LeagueRecord } from "@workspace/shared/types"
+import { REPEATER_TAX_SEASONS } from "@workspace/shared/financialConstants"
 import {
   calculateLuxuryTax,
   getCapSpace,
   getCurrentSalary,
   getPlayerContract,
   getSeasonFinancials,
+  getTeamDeadCapPayroll,
   getTeamPayroll,
   getYearsRemaining,
 } from "@workspace/sim"
@@ -22,25 +24,50 @@ export function useTeamFinancials(
 
     const season = league.seasonState.season
     const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
-    const payroll = getTeamPayroll(teamId, league.contracts)
+    const teamFinance = league.teamFinancials.find(
+      (entry) => entry.teamId === teamId,
+    )
+    const contractPayroll = getTeamPayroll(teamId, league.contracts)
+    const deadCapPayroll = teamFinance
+      ? getTeamDeadCapPayroll(teamFinance.deadCapCharges)
+      : 0
+    const payroll = getTeamPayroll(teamId, league.contracts, teamFinance)
     const capSpace = getCapSpace(payroll, seasonFinancials.salaryCap)
+    const isRepeater =
+      (teamFinance?.consecutiveTaxSeasons ?? 0) >= REPEATER_TAX_SEASONS
     const taxBill = calculateLuxuryTax(
       payroll,
       seasonFinancials.luxuryTaxLine,
       seasonFinancials.taxBracketSize,
+      isRepeater,
     )
-    const teamFinance = league.teamFinancials.find(
-      (entry) => entry.teamId === teamId,
-    )
+    const nonRepeaterTaxBill = isRepeater
+      ? calculateLuxuryTax(
+          payroll,
+          seasonFinancials.luxuryTaxLine,
+          seasonFinancials.taxBracketSize,
+          false,
+        )
+      : taxBill
+    const repeaterSurcharge = Math.max(0, taxBill - nonRepeaterTaxBill)
+    const roomMleEligible =
+      teamFinance?.wasUnderCapThisYear === true &&
+      (teamFinance?.mleUsed ?? 0) === 0
 
     return {
       seasonFinancials,
+      contractPayroll,
+      deadCapPayroll,
       payroll,
       capSpace,
       taxBill,
       teamFinance,
       isOverCap: capSpace < 0,
       isOverTax: payroll > seasonFinancials.luxuryTaxLine,
+      isRepeater,
+      repeaterSurcharge,
+      roomMleEligible,
+      activeTpe: teamFinance?.tradeExceptions ?? [],
     }
   }, [league, teamId])
 }

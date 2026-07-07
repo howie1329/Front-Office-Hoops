@@ -30,31 +30,18 @@ import {
 import { beginPlayoffs } from "../src/beginPlayoffs"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
-import { makeTestRatings } from "./helpers/playerRatings"
+import { makeTestPlayer, makeTestRatings } from "./helpers/playerRatings"
 
 function createTestPlayer(overrides: Partial<Player> = {}): Player {
   const { ratings: ratingOverrides, ...rest } = overrides
 
-  return {
+  return makeTestPlayer({
     id: "p_test_01",
     teamId: "team_test",
-    firstName: "Test",
-    lastName: "Player",
     age: 20,
     peakAge: 28,
-    heightInches: 78,
-    weightLbs: 210,
-    wingspanInches: 80,
-    reachRating: 58,
-    position: "SG",
-    tags: [],
-    status: "active",
-    injury: null,
-    draftInfo: null,
-    activeContractId: null,
     seasonsWithTeam: 0,
     yearsOfService: 0,
-    archetype: "scoring_guard",
     ...rest,
     ratings: makeTestRatings({
       overall: 55,
@@ -62,7 +49,7 @@ function createTestPlayer(overrides: Partial<Player> = {}): Player {
       usage: 15,
       ...(ratingOverrides ?? {}),
     }),
-  }
+  })
 }
 
 function sumSkills(player: Player): number {

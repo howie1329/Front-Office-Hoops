@@ -75,6 +75,7 @@ export type {
   PlayerArchetype,
   PlayerGameStats,
   PlayerInjury,
+  PlayerMood,
   PlayerPosition,
   PlayerRatings,
   PlayerStatus,
@@ -165,6 +166,8 @@ export type {
   TradeResult,
   TradeSide,
   TradeValidationResult,
+  PendingTradeOffer,
+  PendingTradeOfferStatus,
 } from "./tradeTypes"
 
 export type {
@@ -184,6 +187,7 @@ export type {
 
 export {
   SAVE_VERSION,
+  type DraftClassCache,
   type League,
   type LeagueRecord,
   type LeagueSummary,

@@ -149,6 +149,8 @@ export function startNextSeason(
         seasonHistory: [],
         draftPickAssets: financialBundle.draftPickAssets,
         tradeHistory: [],
+        pendingTradeOffers: [],
+        draftClassCache: null,
         leagueLog: [],
         owners: [],
         ownerGoals: [],

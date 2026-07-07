@@ -14,9 +14,16 @@ import type {
 } from "./playerProfileTypes"
 import type { SeasonAward } from "./awardTypes"
 import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
-import type { TradeHistoryEntry } from "./tradeTypes"
+import type { PendingTradeOffer, TradeHistoryEntry } from "./tradeTypes"
 
-export const SAVE_VERSION = 11 as const
+export const SAVE_VERSION = 12 as const
+
+export type DraftClassCache = {
+  season: number
+  overallOffset: number
+  potentialOffset: number
+  pickValues: number[]
+}
 
 export type League = {
   id: string
@@ -38,6 +45,8 @@ export type LeagueRecord = League & {
   spendingProfileEvents: SpendingProfileEvent[]
   draftPickAssets: DraftPickAsset[]
   tradeHistory: TradeHistoryEntry[]
+  pendingTradeOffers: PendingTradeOffer[]
+  draftClassCache: DraftClassCache | null
   leagueLog: LeagueLogEntry[]
   owners: Owner[]
   ownerGoals: OwnerGoal[]

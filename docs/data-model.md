@@ -231,7 +231,7 @@ Each row is a full `LeagueRecord` JSON document.
 
 ### Save versioning
 
-`SAVE_VERSION` (currently `10`) in `packages/shared/src/leagueTypes.ts` marks the current save shape. During pre-user development, older local saves are normalized at load time where possible; clear local saves after schema changes if local prototypes drift.
+`SAVE_VERSION` (currently `12`) in `packages/shared/src/leagueTypes.ts` marks the current save shape. There are no legacy saves to migrate — bump the constant when the schema changes and clear local IndexedDB saves during development.
 
 ### Auto-save behavior
 

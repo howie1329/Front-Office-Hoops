@@ -29,11 +29,17 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
 
   const {
     seasonFinancials,
+    contractPayroll,
+    deadCapPayroll,
     payroll,
     capSpace,
     taxBill,
     teamFinance,
     isOverTax,
+    isRepeater,
+    repeaterSurcharge,
+    roomMleEligible,
+    activeTpe,
   } = financials
 
   return (
@@ -44,6 +50,7 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           {formatMarketTier(teamFinance.spendingProfile.marketTier)} ·{" "}
           {formatTolerance(teamFinance.spendingProfile.taxTolerance)} ·{" "}
           {formatTeamMode(teamFinance.strategy.mode)}
+          {isRepeater ? " · Repeater taxpayer" : ""}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2 text-sm">
@@ -51,7 +58,15 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           label="Salary cap"
           value={formatMoney(seasonFinancials.salaryCap)}
         />
-        <CapMetric label="Payroll" value={formatMoney(payroll)} />
+        <CapMetric label="Contract payroll" value={formatMoney(contractPayroll)} />
+        {deadCapPayroll > 0 ? (
+          <CapMetric
+            label="Dead cap"
+            value={formatMoney(deadCapPayroll)}
+            tone="destructive"
+          />
+        ) : null}
+        <CapMetric label="Total payroll" value={formatMoney(payroll)} />
         <CapMetric
           label="Cap space"
           value={formatMoney(capSpace)}
@@ -66,6 +81,13 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           value={formatMoney(taxBill)}
           tone={isOverTax ? "destructive" : undefined}
         />
+        {isRepeater ? (
+          <CapMetric
+            label="Repeater surcharge"
+            value={formatMoney(repeaterSurcharge)}
+            tone="destructive"
+          />
+        ) : null}
         <CapMetric label="Cash" value={formatMoney(teamFinance.cashReserves)} />
         <CapMetric
           label="Debt"
@@ -77,9 +99,38 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           value={formatMoney(teamFinance.mleRemaining)}
         />
         <CapMetric
+          label="Room MLE"
+          value={
+            roomMleEligible
+              ? formatMoney(teamFinance.roomMleRemaining)
+              : "Not eligible"
+          }
+        />
+        {activeTpe.length > 0 ? (
+          <div className="rounded-md border bg-muted/20 px-3 py-2">
+            <p className="mb-1 text-muted-foreground">Trade exceptions</p>
+            <ul className="space-y-1 text-xs">
+              {activeTpe.map((tpe) => (
+                <li key={tpe.id} className="flex justify-between gap-3">
+                  <span>{tpe.originDescription}</span>
+                  <span>
+                    {formatMoney(tpe.amount)} · exp S{tpe.expiresSeason}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <CapMetric
           label="Scouting level"
           value={`${teamFinance.scoutingLevel} / 10`}
         />
+        {teamFinance.consecutiveTaxSeasons > 0 ? (
+          <CapMetric
+            label="Consecutive tax seasons"
+            value={String(teamFinance.consecutiveTaxSeasons)}
+          />
+        ) : null}
       </CardContent>
     </Card>
   )
