@@ -6,7 +6,7 @@ import { createLeague, createRng } from "../../src"
 
 describe("financials integration", () => {
   it("creates a league with contracts and team financials", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Financial Test League",
       baseSeed: "financial-test",
       rng: createRng("financial-test"),

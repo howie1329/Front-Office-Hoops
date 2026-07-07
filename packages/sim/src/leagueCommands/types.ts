@@ -1,9 +1,15 @@
+import type { AdvanceTarget } from "./advanceTypes"
 import type { FreeAgentOffer, TradeProposal } from "@workspace/shared/types"
 
+export type { AdvanceTarget } from "./advanceTypes"
+
 export type LeagueCommand =
+  | { type: "advance"; target: AdvanceTarget }
   | { type: "simDay" }
   | { type: "simWeek" }
   | { type: "simSeason" }
+  | { type: "beginRegularSeason" }
+  | { type: "skipRemainingExhibitions" }
   | { type: "beginPlayoffs" }
   | { type: "beginOffseason" }
   | { type: "completeReSignings" }
@@ -23,6 +29,7 @@ export type LeagueCommand =
 
 export type PhaseGatedCommand = Extract<
   LeagueCommand,
+  | { type: "beginRegularSeason" }
   | { type: "beginPlayoffs" }
   | { type: "beginOffseason" }
   | { type: "completeReSignings" }
@@ -36,6 +43,7 @@ export type PhaseGatedCommand = Extract<
 export function getPhaseActionForCommand(
   command: PhaseGatedCommand
 ):
+  | "beginRegularSeason"
   | "beginPlayoffs"
   | "beginOffseason"
   | "simAiReSignings"
@@ -45,6 +53,8 @@ export function getPhaseActionForCommand(
   | "simAiFreeAgency"
   | "startNextSeason" {
   switch (command.type) {
+    case "beginRegularSeason":
+      return "beginRegularSeason"
     case "beginPlayoffs":
       return "beginPlayoffs"
     case "beginOffseason":

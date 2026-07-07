@@ -132,11 +132,31 @@ export {
   wouldAiAcceptTrade,
 } from "./trades"
 export { createLeagueLogEntry, appendLeagueLog } from "./leagueLog"
+export { advanceSeason } from "./advance/advanceSeason"
+export type {
+  AdvancePolicy,
+  AdvanceResult,
+  AdvanceStopReason,
+  AdvanceTarget,
+} from "./advance/advanceSeason"
+export { beginRegularSeason, skipRemainingExhibitions } from "./preseason/beginRegularSeason"
+export { addCampPlayersToTeams } from "./preseason/campPlayers"
+export { isPreseasonComplete, hasRemainingExhibitions } from "./preseason/isPreseasonComplete"
 export {
-  canTradeOnDate,
+  getTeamScheduleFatigue,
+  getFatigueEfficiencyPenalty,
+  isBackToBack,
+  isThreeInFour,
+} from "./schedule/fatigue"
+export {
   getCalendarDate,
   getCurrentCalendar,
   getSeasonMilestones,
+  getWeekday,
+  getWeekOfSeason,
+  getTradeDeadlineAdvanceStopDay,
+  getMonthEndDay,
+  canTradeOnDate,
 } from "./calendar"
 export { assignSeasonAwards } from "./awards"
 export {

@@ -38,7 +38,7 @@ function completeSeasonToOffseason(
 }
 
 function runToDraftOffseason(
-  league = createLeague({
+  league = createLeague({ skipPreseason: true,
     name: "Draft Test",
     baseSeed: "draft-test",
     rng: createRng("draft-test"),
@@ -171,7 +171,7 @@ describe("draft", () => {
       "ai-board",
       createRng("ai-board")
     )
-    const team = createLeague({
+    const team = createLeague({ skipPreseason: true,
       name: "AI Draft Board",
       baseSeed: "ai-board-team",
       rng: createRng("ai-board-team"),
@@ -188,7 +188,7 @@ describe("draft", () => {
   })
 
   it("creates a two-round snake draft order", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Draft Order",
       baseSeed: "draft-order",
       rng: createRng("draft-order"),

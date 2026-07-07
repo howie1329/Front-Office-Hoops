@@ -172,7 +172,7 @@ const sidebarNavGroups: SidebarNavGroup[] = [
         icon: DashboardSquare01Icon,
       },
       { to: "/league/standings", label: "Standings", icon: RankingIcon },
-      { to: "/league/schedule", label: "Schedule", icon: Calendar03Icon },
+      { to: "/league/calendar", label: "Calendar", icon: Calendar03Icon },
       { to: "/league/playoffs", label: "Playoffs", icon: AwardIcon },
     ],
   },
@@ -201,7 +201,7 @@ type LeagueSidebarProps = {
   teamAbbrev?: string
   teamOverall?: number
   record: { wins: number; losses: number } | null
-  phase: "regular" | "playoffs" | "complete" | "offseason"
+  phase: "preseason" | "regular" | "playoffs" | "complete" | "offseason"
   dayLabel: string | null
   currentDay: number | null
 }
@@ -344,6 +344,9 @@ function SidebarContextRow({ label, value }: { label: string; value: string }) {
 }
 
 function phaseLabel(phase: LeagueSidebarProps["phase"]): string {
+  if (phase === "preseason") {
+    return "Preseason"
+  }
   if (phase === "playoffs") {
     return "Playoffs"
   }

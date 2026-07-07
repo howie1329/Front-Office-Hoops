@@ -16,6 +16,7 @@ import { teamName } from "./lib/teamFormat"
 type SeasonPhaseCardProps = {
   state: SeasonState
   championTeamId: string | null
+  canBeginRegularSeason: boolean
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
   canSimAiReSignings: boolean
@@ -27,6 +28,8 @@ type SeasonPhaseCardProps = {
   rosterOverLimit: boolean
   cutsNeeded: number
   error: string | null
+  onBeginRegularSeason: () => void
+  onSkipRemainingExhibitions: () => void
   onBeginPlayoffs: () => void
   onBeginOffseason: () => void
   onCompleteReSignings: () => void
@@ -38,6 +41,9 @@ type SeasonPhaseCardProps = {
 }
 
 function phaseLabel(phase: SeasonState["phase"]): string {
+  if (phase === "preseason") {
+    return "Preseason"
+  }
   if (phase === "playoffs") {
     return "Playoffs"
   }
@@ -53,6 +59,7 @@ function phaseLabel(phase: SeasonState["phase"]): string {
 export function SeasonPhaseCard({
   state,
   championTeamId,
+  canBeginRegularSeason,
   canBeginPlayoffs,
   canBeginOffseason,
   canSimAiReSignings,
@@ -64,6 +71,8 @@ export function SeasonPhaseCard({
   rosterOverLimit,
   cutsNeeded,
   error,
+  onBeginRegularSeason,
+  onSkipRemainingExhibitions,
   onBeginPlayoffs,
   onBeginOffseason,
   onCompleteReSignings,
@@ -83,22 +92,24 @@ export function SeasonPhaseCard({
           Season {state.season} · {phaseLabel(state.phase)}
         </CardTitle>
         <CardDescription>
-          {state.phase === "regular"
-            ? "Finish the regular season, then begin the playoffs."
-            : state.phase === "playoffs"
-              ? "Sim playoff games from the bracket page."
-              : state.phase === "offseason" &&
-                  (state.offseasonPhase ?? "re_signing") === "re_signing"
-                ? "Re-sign your own expiring players, then let AI teams handle their re-signings."
+          {state.phase === "preseason"
+            ? "Run exhibition games, cut camp invites to 15, then begin the regular season."
+            : state.phase === "regular"
+              ? "Finish the regular season, then begin the playoffs."
+              : state.phase === "playoffs"
+                ? "Sim playoff games from the bracket page."
                 : state.phase === "offseason" &&
-                    state.offseasonPhase === "draft"
-                  ? "Prepare and run the draft before free agency opens."
+                    (state.offseasonPhase ?? "re_signing") === "re_signing"
+                  ? "Re-sign your own expiring players, then let AI teams handle their re-signings."
                   : state.phase === "offseason" &&
-                      state.offseasonPhase === "free_agency"
-                    ? "Sign free agents, trim your roster to 12, then start the next season."
-                    : championName
-                      ? `${championName} won the championship.`
-                      : "Champion crowned."}
+                      state.offseasonPhase === "draft"
+                    ? "Prepare and run the draft before free agency opens."
+                    : state.phase === "offseason" &&
+                        state.offseasonPhase === "free_agency"
+                      ? "Sign free agents, trim your roster to 15, then start the next season."
+                      : championName
+                        ? `${championName} won the championship.`
+                        : "Champion crowned."}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -116,7 +127,13 @@ export function SeasonPhaseCard({
           />
         </div>
 
-        {rosterOverLimit ? (
+        {state.phase === "preseason" && rosterOverLimit ? (
+          <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            Cut {cutsNeeded} camp invite{cutsNeeded === 1 ? "" : "s"} before
+            starting the regular season.
+          </p>
+        ) : null}
+        {state.phase !== "preseason" && rosterOverLimit ? (
           <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             Roster over limit — release {cutsNeeded} player
             {cutsNeeded === 1 ? "" : "s"} to start the next season.
@@ -129,6 +146,22 @@ export function SeasonPhaseCard({
         ) : null}
 
         <div className="flex flex-wrap gap-2">
+          {state.phase === "preseason" ? (
+            <>
+              <Button variant="secondary" onClick={onSkipRemainingExhibitions}>
+                Skip remaining exhibitions
+              </Button>
+              {canBeginRegularSeason ? (
+                <Button onClick={onBeginRegularSeason}>
+                  Begin regular season
+                </Button>
+              ) : null}
+              <Button variant="outline" asChild>
+                <Link to="/league/team">Manage roster</Link>
+              </Button>
+            </>
+          ) : null}
+
           {canBeginPlayoffs ? (
             <Button onClick={onBeginPlayoffs}>Begin playoffs</Button>
           ) : null}

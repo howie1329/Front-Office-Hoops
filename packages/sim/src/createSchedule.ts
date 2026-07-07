@@ -1,15 +1,29 @@
 import {
+  MINI_PRESEASON_GAMES_PER_TEAM,
   NBA_GAMES_PER_TEAM,
   NBA_TOTAL_GAMES,
+  PRESEASON_GAMES_PER_TEAM,
   SIX_TEAM_GAMES_PER_TEAM,
   TEAMS_PER_DIVISION,
 } from "@workspace/shared/constants"
-import type { Rng, ScheduleConfig, ScheduleGame, TeamWithRoster } from "@workspace/shared/types"
+import type {
+  GameType,
+  Rng,
+  ScheduleConfig,
+  ScheduleGame,
+  TeamWithRoster,
+} from "@workspace/shared/types"
 
-type PairMatchup = {
-  homeTeamId: string
-  awayTeamId: string
-}
+import {
+  getRegularSeasonStartDay,
+  getSeasonMilestones,
+  resolvePreseasonLength,
+  resolveRegularSeasonLength,
+} from "./calendar"
+import {
+  assignGamesToDays,
+  type PairMatchup,
+} from "./schedule/assignGamesToDays"
 
 function buildDoubleRoundRobinMatchups(teamIds: string[]): PairMatchup[] {
   const matchups: PairMatchup[] = []
@@ -24,44 +38,6 @@ function buildDoubleRoundRobinMatchups(teamIds: string[]): PairMatchup[] {
   }
 
   return matchups
-}
-
-function shuffleMatchups(matchups: PairMatchup[], rng: Rng): PairMatchup[] {
-  const shuffled = [...matchups]
-
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = rng.int(0, i)
-    const temp = shuffled[i]!
-    shuffled[i] = shuffled[j]!
-    shuffled[j] = temp
-  }
-
-  return shuffled
-}
-
-function assignDays(gameCount: number, seasonLengthDays: number): number[] {
-  const days: number[] = []
-  let day = 1
-  let gamesOnDay = 0
-
-  for (let i = 0; i < gameCount; i++) {
-    days.push(day)
-    gamesOnDay += 1
-
-    const remainingDays = seasonLengthDays - day
-
-    if (remainingDays <= 0) {
-      continue
-    }
-
-    const targetGamesPerDay = Math.ceil((gameCount - i - 1) / remainingDays)
-    if (gamesOnDay >= targetGamesPerDay && day < seasonLengthDays) {
-      day += 1
-      gamesOnDay = 0
-    }
-  }
-
-  return days
 }
 
 function pairKey(teamAId: string, teamBId: string): string {
@@ -86,10 +62,8 @@ function expandHomeAwayGames(
   }
 
   if (gamesBetween === 3) {
-    const primaryHome =
-      teamAId < teamBId ? teamAId : teamBId
-    const secondaryHome =
-      teamAId < teamBId ? teamBId : teamAId
+    const primaryHome = teamAId < teamBId ? teamAId : teamBId
+    const secondaryHome = teamAId < teamBId ? teamBId : teamAId
 
     matchups.push(
       { homeTeamId: primaryHome, awayTeamId: secondaryHome },
@@ -195,27 +169,133 @@ function countTeamGames(matchups: PairMatchup[], teamId: string): number {
   ).length
 }
 
-function createSixTeamDoubleRoundRobin(
-  config: ScheduleConfig,
-  rng: Rng,
-): ScheduleGame[] {
-  const teamIds = config.teams.map((team) => team.id)
-  const matchups = shuffleMatchups(buildDoubleRoundRobinMatchups(teamIds), rng)
-  const days = assignDays(matchups.length, config.seasonLengthDays)
+function shuffleMatchups(matchups: PairMatchup[], rng: Rng): PairMatchup[] {
+  const shuffled = [...matchups]
 
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = rng.int(0, i)
+    const temp = shuffled[i]!
+    shuffled[i] = shuffled[j]!
+    shuffled[j] = temp
+  }
+
+  return shuffled
+}
+
+function buildExhibitionMatchups(
+  teamIds: string[],
+  gamesPerTeam: number,
+): PairMatchup[] {
+  const rotatingTeams = [...teamIds]
+  if (rotatingTeams.length % 2 === 1) {
+    rotatingTeams.push(`bye_${rotatingTeams.length}`)
+  }
+
+  const matchups: PairMatchup[] = []
+
+  for (let round = 0; round < gamesPerTeam; round++) {
+    for (let index = 0; index < rotatingTeams.length / 2; index++) {
+      const first = rotatingTeams[index]!
+      const second = rotatingTeams[rotatingTeams.length - 1 - index]!
+
+      if (first.startsWith("bye_") || second.startsWith("bye_")) {
+        continue
+      }
+
+      matchups.push(
+        round % 2 === 0
+          ? { homeTeamId: first, awayTeamId: second }
+          : { homeTeamId: second, awayTeamId: first },
+      )
+    }
+
+    const anchor = rotatingTeams[0]!
+    const rest = rotatingTeams.slice(1)
+    const last = rest.pop()
+    if (last) {
+      rest.unshift(last)
+    }
+    rotatingTeams.splice(0, rotatingTeams.length, anchor, ...rest)
+  }
+
+  const targetGames = (teamIds.length * gamesPerTeam) / 2
+  if (matchups.length !== targetGames) {
+    throw new Error(
+      `Failed to build exhibition schedule: expected ${targetGames} games, got ${matchups.length}`,
+    )
+  }
+
+  return matchups
+}
+
+function shuffleMatchupsWithDays(
+  matchups: PairMatchup[],
+  days: number[],
+  rng: Rng,
+): { matchups: PairMatchup[]; days: number[] } {
+  const indices = matchups.map((_, index) => index)
+
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = rng.int(0, i)
+    const temp = indices[i]!
+    indices[i] = indices[j]!
+    indices[j] = temp
+  }
+
+  return {
+    matchups: indices.map((index) => matchups[index]!),
+    days: indices.map((index) => days[index]!),
+  }
+}
+
+function toScheduleGames(
+  matchups: PairMatchup[],
+  days: number[],
+  config: ScheduleConfig,
+  gameType: GameType,
+  idPrefix: string,
+): ScheduleGame[] {
   return matchups.map((matchup, index) => ({
-    id: `sg_${config.season}_${String(index + 1).padStart(3, "0")}`,
+    id: `${idPrefix}_${config.season}_${String(index + 1).padStart(4, "0")}`,
     season: config.season,
-    day: days[index] ?? config.seasonLengthDays,
+    day: days[index] ?? days.at(-1) ?? 1,
     homeTeamId: matchup.homeTeamId,
     awayTeamId: matchup.awayTeamId,
     status: "scheduled" as const,
+    gameType,
   }))
+}
+
+function createSixTeamDoubleRoundRobin(
+  config: ScheduleConfig,
+  rng: Rng,
+  gameType: GameType,
+): ScheduleGame[] {
+  const teamIds = config.teams.map((team) => team.id)
+  const matchups = shuffleMatchups(buildDoubleRoundRobinMatchups(teamIds), rng)
+  const regularStartDay = getRegularSeasonStartDay(config.teams.length)
+  const days = assignGamesToDays(matchups, {
+    startDay: gameType === "exhibition" ? 1 : regularStartDay,
+    endDay:
+      (gameType === "exhibition" ? 1 : regularStartDay) +
+      config.seasonLengthDays -
+      1,
+    rng,
+  })
+
+  return toScheduleGames(
+    matchups,
+    days,
+    config,
+    gameType,
+    gameType === "exhibition" ? "ex" : "sg",
+  )
 }
 
 function createThirtyTeamEightyTwoSchedule(
   config: ScheduleConfig,
   rng: Rng,
+  gameType: GameType,
 ): ScheduleGame[] {
   const matchups = shuffleMatchups(buildNbaMatchups(config.teams), rng)
 
@@ -234,31 +314,92 @@ function createThirtyTeamEightyTwoSchedule(
     )
   }
 
-  const days = assignDays(matchups.length, config.seasonLengthDays)
+  const regularStartDay = getRegularSeasonStartDay(config.teams.length)
+  const days = assignGamesToDays(matchups, {
+    startDay: gameType === "exhibition" ? 1 : regularStartDay,
+    endDay:
+      (gameType === "exhibition" ? 1 : regularStartDay) +
+      config.seasonLengthDays -
+      1,
+    rng,
+  })
 
-  return matchups.map((matchup, index) => ({
-    id: `sg_${config.season}_${String(index + 1).padStart(4, "0")}`,
-    season: config.season,
-    day: days[index] ?? config.seasonLengthDays,
-    homeTeamId: matchup.homeTeamId,
-    awayTeamId: matchup.awayTeamId,
-    status: "scheduled" as const,
-  }))
+  return toScheduleGames(
+    matchups,
+    days,
+    config,
+    gameType,
+    gameType === "exhibition" ? "ex" : "sg",
+  )
 }
 
-export function createSchedule(
+export function createPreseasonSchedule(
+  config: ScheduleConfig,
+  rng: Rng,
+): ScheduleGame[] {
+  const teamIds = config.teams.map((team) => team.id)
+  const gamesPerTeam =
+    config.teams.length === 6
+      ? MINI_PRESEASON_GAMES_PER_TEAM
+      : PRESEASON_GAMES_PER_TEAM
+  const matchups = buildExhibitionMatchups(teamIds, gamesPerTeam)
+  const gamesPerRound = teamIds.length / 2
+  const orderedDays = matchups.map(
+    (_, index) => 1 + Math.floor(index / gamesPerRound),
+  )
+  const shuffled = shuffleMatchupsWithDays(matchups, orderedDays, rng)
+
+  return toScheduleGames(
+    shuffled.matchups,
+    shuffled.days,
+    config,
+    "exhibition",
+    "ex",
+  )
+}
+
+export function createRegularSchedule(
   config: ScheduleConfig,
   rng: Rng,
 ): ScheduleGame[] {
   if (config.teams.length === 30 && config.gamesPerTeam === NBA_GAMES_PER_TEAM) {
-    return createThirtyTeamEightyTwoSchedule(config, rng)
+    return createThirtyTeamEightyTwoSchedule(config, rng, "regular")
   }
 
   if (config.teams.length === 6 && config.gamesPerTeam === SIX_TEAM_GAMES_PER_TEAM) {
-    return createSixTeamDoubleRoundRobin(config, rng)
+    return createSixTeamDoubleRoundRobin(config, rng, "regular")
   }
 
   throw new Error(
     `Unsupported schedule config: ${config.teams.length} teams, ${config.gamesPerTeam} games per team`,
   )
 }
+
+export function createSchedule(
+  config: ScheduleConfig,
+  rng: Rng,
+): ScheduleGame[] {
+  const preseasonConfig = {
+    ...config,
+    seasonLengthDays: resolvePreseasonLength(config.teams.length),
+  }
+  const regularConfig = {
+    ...config,
+    seasonLengthDays: resolveRegularSeasonLength(config.teams.length),
+  }
+
+  return [
+    ...createPreseasonSchedule(preseasonConfig, rng),
+    ...createRegularSchedule(regularConfig, rng),
+  ]
+}
+
+export function getScheduleMilestones(teamCount: number) {
+  return getSeasonMilestones(
+    resolveRegularSeasonLength(teamCount),
+    resolvePreseasonLength(teamCount),
+  )
+}
+
+// Re-export for tests
+export { buildDoubleRoundRobinMatchups, countTeamGames }

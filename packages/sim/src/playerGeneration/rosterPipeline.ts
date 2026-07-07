@@ -26,6 +26,9 @@ export const POSITION_TEMPLATE_MINI: PlayerPosition[] = [
   "C",
   "SG",
   "SF",
+  "PF",
+  "C",
+  "PG",
 ]
 
 export const POSITION_TEMPLATE_PRODUCT: PlayerPosition[] = [
@@ -41,6 +44,9 @@ export const POSITION_TEMPLATE_PRODUCT: PlayerPosition[] = [
   "C",
   "SG",
   "SF",
+  "PF",
+  "C",
+  "SG",
 ]
 
 export type GenerationArchetype =
@@ -70,6 +76,9 @@ const ROSTER_TIER_OFFSETS: Array<{ min: number; max: number }> = [
   { min: -20, max: -12 },
   { min: -22, max: -14 },
   { min: -24, max: -16 },
+  { min: -26, max: -18 },
+  { min: -28, max: -20 },
+  { min: -30, max: -22 },
 ]
 
 export const ARCHETYPE_COUNTS: Record<GenerationArchetype, number> = {
@@ -298,7 +307,11 @@ function generateArchetypePlayers(
   const players: Player[] = []
 
   for (let index = 0; index < PLAYERS_PER_TEAM; index++) {
-    const slot = ARCHETYPE_SLOTS[archetype][index]!
+    const slot = ARCHETYPE_SLOTS[archetype][index] ?? {
+      min: 42,
+      max: 52,
+      age: "bench" as const,
+    }
     const age = generateAge(slot.age, rng)
     const position = POSITION_TEMPLATE_PRODUCT[index]!
     const profile = generatePlayerProfile({

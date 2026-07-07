@@ -1,6 +1,6 @@
 import { expect } from "vitest"
 
-import { ROSTER_MAX, ROSTER_MIN } from "@workspace/shared/constants"
+import { CAMP_ROSTER_MAX, ROSTER_MAX, ROSTER_MIN } from "@workspace/shared/constants"
 import type { LeagueRecord, Player } from "@workspace/shared/types"
 
 function expectUnique(values: string[], label: string): void {
@@ -22,6 +22,8 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
     ...league.freeAgentPool.map((player) => player.id),
   ]
   const enforceRosterMinimum = league.seasonState.phase !== "offseason"
+  const maxRosterSize =
+    league.seasonState.phase === "preseason" ? CAMP_ROSTER_MAX : ROSTER_MAX
 
   expectUnique(teams.map((team) => team.id), "team IDs")
   expectUnique(allPlayerIds, "player IDs")
@@ -36,7 +38,7 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
     expect(
       team.players.length,
       `${team.id} roster must be below maximum`,
-    ).toBeLessThanOrEqual(ROSTER_MAX)
+    ).toBeLessThanOrEqual(maxRosterSize)
 
     for (const player of team.players) {
       expect(player.teamId, `${player.id} teamId must match roster`).toBe(team.id)

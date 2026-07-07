@@ -17,7 +17,7 @@ import { simulatePlayoffs } from "../src/simulatePlayoffs"
 import { simulateSeason } from "../src/simulateSeason"
 
 function createDraftReadyLeague() {
-  const league = createLeague({
+  const league = createLeague({ skipPreseason: true,
     name: "Ledger Draft Test",
     baseSeed: "ledger-draft",
     rng: createRng("ledger-draft"),
@@ -40,7 +40,7 @@ function createDraftReadyLeague() {
 
 describe("rosterLedger", () => {
   it("finds players on rosters and in the free agent pool", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Ledger Lookup",
       baseSeed: "ledger-lookup",
       rng: createRng("ledger-lookup"),
@@ -59,7 +59,7 @@ describe("rosterLedger", () => {
   })
 
   it("releases a player with contract waiver and log entry", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Ledger Release",
       baseSeed: "ledger-release",
       rng: createRng("ledger-release"),

@@ -17,7 +17,7 @@ import {
 } from "../src"
 
 function createTradeLeague(): LeagueRecord {
-  return createLeague({
+  return createLeague({ skipPreseason: true,
     name: "Trade League",
     baseSeed: "trade-league",
     rng: createRng("trade-league"),

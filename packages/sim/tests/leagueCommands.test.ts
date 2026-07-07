@@ -16,7 +16,7 @@ import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 
 function createOffseasonLeague() {
-  const league = createLeague({
+  const league = createLeague({ skipPreseason: true,
     name: "League Commands",
     baseSeed: "league-commands",
     rng: createRng("league-commands"),
@@ -45,7 +45,7 @@ function createOffseasonLeague() {
 
 describe("leagueCommands", () => {
   it("simulates a regular season day", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Sim Day",
       baseSeed: "sim-day",
       rng: createRng("sim-day"),
@@ -62,7 +62,7 @@ describe("leagueCommands", () => {
   })
 
   it("replays the same saved league command deterministically", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Replay",
       baseSeed: "replay",
       rng: createRng("replay"),
@@ -76,7 +76,7 @@ describe("leagueCommands", () => {
   })
 
   it("uses rngNonce to avoid schedule-slot-only game randomness", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Nonce",
       baseSeed: "nonce-games",
       rng: createRng("nonce-games"),
@@ -108,7 +108,7 @@ describe("leagueCommands", () => {
   })
 
   it("blocks disallowed lifecycle commands with eligibility reason", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Blocked",
       baseSeed: "blocked",
       rng: createRng("blocked"),
@@ -123,7 +123,7 @@ describe("leagueCommands", () => {
   })
 
   it("runs beginOffseason composition", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Offseason",
       baseSeed: "offseason-command",
       rng: createRng("offseason-command"),
@@ -174,7 +174,7 @@ describe("leagueCommands", () => {
         ...league.seasonState,
         teams: trimmed.teams.map((team) =>
           team.id === league.userTeamId
-            ? { ...team, players: team.players.slice(0, 12) }
+            ? { ...team, players: team.players.slice(0, 15) }
             : team
         ),
       },

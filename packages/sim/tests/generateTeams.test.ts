@@ -57,7 +57,7 @@ describe("generateTeams", () => {
     for (const team of teams) {
       const ratings = team.players.map((player) => player.ratings.overall)
 
-      expect(team.players).toHaveLength(12)
+      expect(team.players).toHaveLength(15)
       expect(ratings.filter((overall) => overall >= 85).length).toBeLessThanOrEqual(3)
       expect(ratings.filter((overall) => overall >= 88).length).toBeLessThanOrEqual(2)
     }
@@ -82,14 +82,21 @@ describe("createSchedule NBA", () => {
     ).length
   }
 
-  it("creates 1230 games with 82 per team", async () => {
+  it("creates 1230 regular games with 82 per team plus exhibitions", async () => {
     const { createSchedule } = await import("../src/createSchedule")
     const schedule = createSchedule(config, createRng("schedule-nba"))
+    const regularGames = schedule.filter((game) => game.gameType === "regular")
 
-    expect(schedule).toHaveLength(NBA_TOTAL_GAMES)
+    expect(regularGames).toHaveLength(NBA_TOTAL_GAMES)
 
     for (const team of teams) {
-      expect(countTeamGames(schedule, team.id)).toBe(NBA_GAMES_PER_TEAM)
+      expect(
+        schedule.filter(
+          (game) =>
+            game.gameType === "regular" &&
+            (game.homeTeamId === team.id || game.awayTeamId === team.id),
+        ).length,
+      ).toBe(NBA_GAMES_PER_TEAM)
     }
   })
 

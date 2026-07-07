@@ -14,7 +14,7 @@ import {
 
 describe("calendar, goals, awards, and player profiles", () => {
   it("maps fictional calendar dates and trade deadline gates", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Calendar League",
       baseSeed: "calendar",
       rng: createRng("calendar"),
@@ -22,19 +22,25 @@ describe("calendar, goals, awards, and player profiles", () => {
     })
     const calendar = getCurrentCalendar(league.seasonState)
 
-    expect(getCalendarDate(1).label).toBe("Oct 1")
+    expect(getCalendarDate(1).label).toBe("Tue, Oct 1")
     expect(calendar.milestones.tradeDeadlineDay).toBeGreaterThan(1)
     expect(canTradeOnDate(league.seasonState)).toBe(true)
     expect(
       canTradeOnDate({
         ...league.seasonState,
         currentDay: calendar.milestones.tradeDeadlineDay,
-      })
+      }),
+    ).toBe(true)
+    expect(
+      canTradeOnDate({
+        ...league.seasonState,
+        currentDay: calendar.milestones.tradeDeadlineDay + 1,
+      }),
     ).toBe(false)
   })
 
   it("creates owners and season goals for every team", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Owner League",
       baseSeed: "owners",
       rng: createRng("owners"),
@@ -48,7 +54,7 @@ describe("calendar, goals, awards, and player profiles", () => {
   })
 
   it("assigns awards, evaluates goals, and archives player snapshots", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Awards League",
       baseSeed: "awards",
       rng: createRng("awards"),

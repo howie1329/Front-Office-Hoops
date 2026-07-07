@@ -2,11 +2,17 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
   applyLeagueCommand,
+  advanceSeason,
   createLeague,
   createRng,
   normalizeLeagueRecord,
 } from "@workspace/sim"
-import type { LeagueCommand } from "@workspace/sim"
+import type {
+  AdvancePolicy,
+  AdvanceResult,
+  AdvanceTarget,
+  LeagueCommand,
+} from "@workspace/sim"
 import type {
   FreeAgentOffer,
   LeagueRecord,
@@ -56,6 +62,8 @@ export function useLeague() {
   const [saves, setSaves] = useState<LeagueSummary[]>([])
   const [activeLeagueId, setActiveLeagueIdState] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [lastAdvanceResult, setLastAdvanceResult] =
+    useState<AdvanceResult | null>(null)
   const leagueRef = useRef<LeagueRecord | null>(null)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingSaveRef = useRef<LeagueRecord | null>(null)
@@ -381,6 +389,39 @@ export function useLeague() {
     }
   }, [flushPendingSave, persistLeague])
 
+  const advance = useCallback(
+    (target: AdvanceTarget, policy?: AdvancePolicy) => {
+      const current = leagueRef.current
+      if (!current) {
+        return null
+      }
+
+      try {
+        const result = advanceSeason(current.seasonState, {
+          target,
+          policy,
+          userTeamId: current.userTeamId,
+          league: current,
+          rngNonce: current.rngNonce,
+        })
+        setLastAdvanceResult(result)
+        scheduleSave({
+          ...current,
+          seasonState: result.state,
+        })
+        return result
+      } catch (commandError: unknown) {
+        setError(
+          commandError instanceof Error
+            ? commandError.message
+            : "Failed to advance league",
+        )
+        return null
+      }
+    },
+    [scheduleSave],
+  )
+
   return {
     status,
     saveStatus,
@@ -392,6 +433,7 @@ export function useLeague() {
     saves,
     activeLeagueId,
     error,
+    lastAdvanceResult,
     createNewLeague,
     createProductLeague,
     setUserTeamId,
@@ -419,8 +461,12 @@ export function useLeague() {
     simulateCurrentPlayoffRound: () =>
       dispatch({ type: "simulateCurrentPlayoffRound" }),
     simulatePlayoffs: () => dispatch({ type: "simulatePlayoffs" }),
-    simDay: () => dispatch({ type: "simDay" }),
-    simWeek: () => dispatch({ type: "simWeek" }),
+    advance,
+    beginRegularSeason: () => dispatch({ type: "beginRegularSeason" }),
+    skipRemainingExhibitions: () =>
+      dispatch({ type: "skipRemainingExhibitions" }),
+    simDay: () => advance("day", "stopAtUserGames"),
+    simWeek: () => advance("week", "stopAtUserGames"),
     simSeason: () => dispatch({ type: "simSeason" }),
     startNextSeason: startNextSeasonAction,
     persistLeague,

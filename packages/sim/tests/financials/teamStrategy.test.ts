@@ -97,7 +97,7 @@ describe("teamStrategy", () => {
   })
 
   it("assigns strategy on league creation", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Strategy Test League",
       baseSeed: "strategy-test",
       rng: createRng("strategy-test"),

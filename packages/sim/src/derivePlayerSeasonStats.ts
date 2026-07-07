@@ -88,7 +88,9 @@ export function derivePlayerSeasonStats(
   season: number,
 ): PlayerSeasonStats[] {
   const statsByPlayer = new Map<string, PlayerSeasonStats>()
-  const sortedGames = [...games].sort(compareGames)
+  const sortedGames = [...games]
+    .filter((game) => game.gameType !== "exhibition")
+    .sort(compareGames)
 
   for (const game of sortedGames) {
     for (const line of game.result.homePlayerStats) {

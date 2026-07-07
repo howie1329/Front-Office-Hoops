@@ -12,6 +12,7 @@ import { attachRookieContract } from "./freeAgency"
 import {
   generateInitialContractsForLeague,
   applyInitialContractsToPlayers,
+  generateInitialContract,
   normalizeInitialContractsForLeague,
 } from "./contracts/createContract"
 import {
@@ -130,6 +131,49 @@ export function initializeFinancialsForLeague(
     leagueFinancials,
     teamFinancials: teamFinancialsWithStrategy,
     spendingProfileEvents: [],
+    seasonState: {
+      ...league.seasonState,
+      teams,
+    },
+  }
+}
+
+export function attachMissingRosterContracts(
+  league: Pick<
+    LeagueRecord,
+    "seasonState" | "contracts" | "leagueFinancials" | "teamFinancials"
+  >,
+  rng: Rng,
+): Pick<LeagueRecord, "seasonState" | "contracts"> {
+  const season = league.seasonState.season
+  const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
+  const contracts = [...league.contracts]
+  const activePlayerIds = new Set(
+    contracts
+      .filter((contract) => contract.status === "active")
+      .map((contract) => contract.playerId),
+  )
+
+  for (const team of league.seasonState.teams) {
+    for (const player of team.players) {
+      if (activePlayerIds.has(player.id)) {
+        continue
+      }
+
+      contracts.push(
+        generateInitialContract(player, team.id, season, seasonFinancials, rng),
+      )
+      activePlayerIds.add(player.id)
+    }
+  }
+
+  const teams = league.seasonState.teams.map((team) => ({
+    ...team,
+    players: applyInitialContractsToPlayers([team], contracts),
+  }))
+
+  return {
+    contracts,
     seasonState: {
       ...league.seasonState,
       teams,

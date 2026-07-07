@@ -1,11 +1,13 @@
-import { ROSTER_MAX } from "@workspace/shared/constants"
+import { CAMP_ROSTER_MAX, ROSTER_MAX } from "@workspace/shared/constants"
 import type { LeagueRecord, SeasonMilestones, SeasonState } from "@workspace/shared/types"
 
-import { getSeasonMilestones } from "./calendar"
+import { getCurrentCalendar } from "./calendar"
 import { isDraftRequired } from "./draft/isDraftRequired"
+import { isPreseasonComplete } from "./preseason/isPreseasonComplete"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
 
 export type PhaseAction =
+  | "beginRegularSeason"
   | "beginPlayoffs"
   | "beginOffseason"
   | "simAiReSignings"
@@ -20,6 +22,7 @@ export type EligibilityResult =
   | { allowed: false; reason: string }
 
 const PHASE_ACTIONS: PhaseAction[] = [
+  "beginRegularSeason",
   "beginPlayoffs",
   "beginOffseason",
   "simAiReSignings",
@@ -31,13 +34,7 @@ const PHASE_ACTIONS: PhaseAction[] = [
 ]
 
 function getScheduleBasedMilestones(seasonState: SeasonState): SeasonMilestones {
-  const regularSeasonEndDay = Math.max(
-    ...seasonState.schedule
-      .filter((game) => !game.seriesId)
-      .map((game) => game.day),
-    1
-  )
-  return getSeasonMilestones(regularSeasonEndDay)
+  return getCurrentCalendar(seasonState).milestones
 }
 
 function getUserRosterSize(league: LeagueRecord): number {
@@ -79,6 +76,45 @@ export function getPhaseEligibility(
   const rosterOverLimit = userRosterSize > ROSTER_MAX
 
   switch (action) {
+    case "beginRegularSeason": {
+      if (phase !== "preseason") {
+        return {
+          allowed: false,
+          reason: "Regular season can only begin from preseason",
+        }
+      }
+      if (!isPreseasonComplete(seasonState)) {
+        return {
+          allowed: false,
+          reason: "Preseason exhibition games are not complete",
+        }
+      }
+      if (userRosterSize > ROSTER_MAX) {
+        return {
+          allowed: false,
+          reason: `Cut roster to ${ROSTER_MAX} players before starting the regular season`,
+        }
+      }
+      if (league.userTeamId && userRosterSize < ROSTER_MAX) {
+        return {
+          allowed: false,
+          reason: `Roster must have ${ROSTER_MAX} players before starting the regular season`,
+        }
+      }
+      if (
+        seasonState.teams.some(
+          (team) =>
+            team.id !== league.userTeamId && team.players.length > CAMP_ROSTER_MAX,
+        )
+      ) {
+        return {
+          allowed: false,
+          reason: "One or more teams exceed the camp roster limit",
+        }
+      }
+      return { allowed: true }
+    }
+
     case "beginPlayoffs": {
       if (phase !== "regular") {
         return {

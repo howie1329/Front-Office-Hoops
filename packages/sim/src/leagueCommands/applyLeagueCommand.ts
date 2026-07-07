@@ -1,6 +1,11 @@
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
 import { archivePlayerCareerSnapshots } from "../playerProfiles"
+import { advanceSeason } from "../advance/advanceSeason"
+import {
+  beginRegularSeason,
+  skipRemainingExhibitions,
+} from "../preseason/beginRegularSeason"
 import { derivePlayerSeasonProfiles } from "../playerSeasonProfiles"
 import { assignSeasonAwards } from "../awards"
 import { beginOffseason } from "../beginOffseason"
@@ -21,11 +26,9 @@ import { signFreeAgent } from "../financials/freeAgency"
 import { normalizeLeagueRecord } from "../normalizeLeague"
 import { assertPhaseEligibility } from "../phaseEligibility"
 import { applyDraftSelections, releasePlayerFromTeam } from "../roster/ledger"
-import { simulateDay } from "../simulateDay"
 import { simulateCurrentPlayoffRound } from "../simulateCurrentPlayoffRound"
 import { simulatePlayoffs } from "../simulatePlayoffs"
 import { simulateSeason } from "../simulateSeason"
-import { simulateWeek } from "../simulateWeek"
 import { startNextSeason } from "../startNextSeason"
 import { commandRng } from "./rngSeeds"
 import {
@@ -35,6 +38,7 @@ import {
 } from "./types"
 
 const PHASE_GATED_TYPES = new Set<LeagueCommand["type"]>([
+  "beginRegularSeason",
   "beginPlayoffs",
   "beginOffseason",
   "completeReSignings",
@@ -46,6 +50,7 @@ const PHASE_GATED_TYPES = new Set<LeagueCommand["type"]>([
 ])
 
 const STOCHASTIC_TYPES = new Set<LeagueCommand["type"]>([
+  "advance",
   "simDay",
   "simWeek",
   "simSeason",
@@ -85,20 +90,37 @@ function applyLeagueCommandInternal(
   const resolvedRng = rng ?? commandRng(league, command)
 
   switch (command.type) {
+    case "advance":
+      return {
+        ...league,
+        seasonState: advanceSeason(league.seasonState, {
+          target: command.target,
+          userTeamId: league.userTeamId,
+          league,
+          rngNonce: league.rngNonce,
+        }).state,
+      }
+
     case "simDay":
       return {
         ...league,
-        seasonState: simulateDay(
-          league.seasonState,
-          league.seasonState.currentDay,
-          league.rngNonce
-        ),
+        seasonState: advanceSeason(league.seasonState, {
+          target: "day",
+          userTeamId: league.userTeamId,
+          league,
+          rngNonce: league.rngNonce,
+        }).state,
       }
 
     case "simWeek":
       return {
         ...league,
-        seasonState: simulateWeek(league.seasonState, league.rngNonce),
+        seasonState: advanceSeason(league.seasonState, {
+          target: "week",
+          userTeamId: league.userTeamId,
+          league,
+          rngNonce: league.rngNonce,
+        }).state,
       }
 
     case "simSeason":
@@ -120,6 +142,15 @@ function applyLeagueCommandInternal(
           league.seasonState,
           league.rngNonce
         ),
+      }
+
+    case "beginRegularSeason":
+      return beginRegularSeason(league, resolvedRng)
+
+    case "skipRemainingExhibitions":
+      return {
+        ...league,
+        seasonState: skipRemainingExhibitions(league),
       }
 
     case "beginPlayoffs":

@@ -2,12 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { ROSTER_MAX } from "@workspace/shared/constants"
 
-import {
-  applyLeagueCommand,
-  createLeague,
-  createRng,
-  getSeasonFinancials,
-} from "../src"
+import { applyLeagueCommand, createLeague, createRng, getSeasonFinancials } from "../src"
 import { calculateMinSalary } from "../src/financials/capMath"
 import { expectLeagueInvariants } from "./helpers/leagueInvariants"
 
@@ -50,7 +45,7 @@ function fillUserRoster(league: ReturnType<typeof createLeague>) {
 
 describe("league invariants", () => {
   it("survives five deterministic mini-league seasons through the command flow", () => {
-    let league = createLeague({
+    let league = createLeague({ skipPreseason: true,
       name: "Invariant Soak",
       baseSeed: "invariant-soak",
       rng: createRng("invariant-soak"),
@@ -61,6 +56,17 @@ describe("league invariants", () => {
     expectLeagueInvariants(league)
 
     for (let season = 1; season <= 5; season += 1) {
+      if (league.seasonState.phase === "preseason") {
+        if (getUserRosterSize(league) < ROSTER_MAX) {
+          league = fillUserRoster(league)
+        }
+
+        league = applyLeagueCommand(league, {
+          type: "skipRemainingExhibitions",
+        })
+        league = applyLeagueCommand(league, { type: "beginRegularSeason" })
+      }
+
       league = applyLeagueCommand(league, { type: "simSeason" })
       expectLeagueInvariants(league)
 

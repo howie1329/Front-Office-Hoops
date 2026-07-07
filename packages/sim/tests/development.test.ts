@@ -518,7 +518,7 @@ describe("player development", () => {
 
 describe("offseason phase", () => {
   it("begins offseason from a completed season and applies progression", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Offseason Test",
       baseSeed: "offseason-test",
       rng: createRng("offseason-test"),
@@ -554,7 +554,7 @@ describe("offseason phase", () => {
   })
 
   it("requires offseason before starting the next season", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Offseason Guard",
       baseSeed: "offseason-guard",
       rng: createRng("offseason-guard"),
@@ -593,6 +593,6 @@ describe("offseason phase", () => {
     })
 
     expect(next.seasonState.season).toBe(2)
-    expect(next.seasonState.phase).toBe("regular")
+    expect(next.seasonState.phase).toBe("preseason")
   })
 })

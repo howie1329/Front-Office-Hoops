@@ -4,6 +4,8 @@ import type { DraftState } from "./draftTypes"
 
 export type ScheduleGameStatus = "scheduled" | "final"
 
+export type GameType = "exhibition" | "regular" | "playoff"
+
 export type ScheduleGame = {
   id: string
   season: number
@@ -11,12 +13,18 @@ export type ScheduleGame = {
   homeTeamId: string
   awayTeamId: string
   status: ScheduleGameStatus
+  gameType: GameType
   gameId?: string
   seriesId?: string
   playoffRound?: PlayoffRound
 }
 
-export type SeasonPhase = "regular" | "playoffs" | "complete" | "offseason"
+export type SeasonPhase =
+  | "preseason"
+  | "regular"
+  | "playoffs"
+  | "complete"
+  | "offseason"
 export type OffseasonPhase = "re_signing" | "draft" | "free_agency"
 
 export type PlayoffRound = 1 | 2 | 3 | 4
@@ -68,6 +76,7 @@ export type Game = {
   day: number
   homeTeamId: string
   awayTeamId: string
+  gameType?: GameType
   rngSeed: string
   rngNonce: number
   result: TeamMatchupResult

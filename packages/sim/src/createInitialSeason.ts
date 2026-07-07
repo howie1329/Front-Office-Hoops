@@ -6,9 +6,15 @@ import {
 } from "@workspace/shared/constants"
 import type { Rng, SeasonState, TeamWithRoster } from "@workspace/shared/types"
 
-import { createSchedule } from "./createSchedule"
+import { getRegularSeasonStartDay } from "./calendar"
+import { createRegularSchedule, createSchedule } from "./createSchedule"
 import { derivePlayerSeasonStats } from "./derivePlayerSeasonStats"
 import { deriveStandings } from "./deriveStandings"
+import { addCampPlayersToTeams } from "./preseason/campPlayers"
+
+export type CreateSeasonOptions = {
+  skipPreseason?: boolean
+}
 
 function resolveScheduleConfig(teams: TeamWithRoster[], season: number) {
   if (teams.length === 6) {
@@ -37,19 +43,48 @@ export function createInitialSeason(
   baseSeed: string,
   rng: Rng,
   season = 1,
+  options?: CreateSeasonOptions,
 ): SeasonState {
-  const schedule = createSchedule(resolveScheduleConfig(teams, season), rng)
+  const config = resolveScheduleConfig(teams, season)
+
+  if (options?.skipPreseason) {
+    const schedule = createRegularSchedule(config, rng)
+    const state: SeasonState = {
+      season,
+      teams,
+      schedule,
+      games: [],
+      standings: [],
+      playerSeasonStats: [],
+      currentDay: getRegularSeasonStartDay(teams.length),
+      baseSeed,
+      phase: "regular",
+    }
+
+    return {
+      ...state,
+      standings: deriveStandings(state.teams, state.games, state.season),
+      playerSeasonStats: derivePlayerSeasonStats(
+        state.teams,
+        state.games,
+        state.season,
+      ),
+    }
+  }
+
+  const campTeams = addCampPlayersToTeams(teams, rng, season)
+  const schedule = createSchedule(resolveScheduleConfig(campTeams, season), rng)
 
   const state: SeasonState = {
     season,
-    teams,
+    teams: campTeams,
     schedule,
     games: [],
     standings: [],
     playerSeasonStats: [],
     currentDay: 1,
     baseSeed,
-    phase: "regular",
+    phase: "preseason",
   }
 
   return {
