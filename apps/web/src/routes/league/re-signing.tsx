@@ -20,7 +20,7 @@ function LeagueReSigningPage() {
     userTeamId,
     isOffseason,
     offseasonPhase,
-    signFreeAgent,
+    submitPlayerContractOffer,
   } = useLeagueContext()
 
   if (!league || !userTeamId) {
@@ -65,7 +65,7 @@ function LeagueReSigningPage() {
       description="Negotiate with your own expiring players before the draft opens."
       emptyMessage="You do not have any expiring players to re-sign."
       mode="re_sign"
-      onSign={signFreeAgent}
+      onOffer={submitPlayerContractOffer}
     />
   )
 }

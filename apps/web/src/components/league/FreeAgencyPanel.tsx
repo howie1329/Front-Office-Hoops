@@ -5,7 +5,12 @@ import type {
   LeagueRecord,
   Player,
 } from "@workspace/shared/types"
-import { canSignPlayer } from "@workspace/sim"
+import {
+  canSignPlayer,
+  getContractOffersForCandidate,
+  getPlayerContractMarketValue,
+  getReSigningAttemptsRemaining,
+} from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import { Button } from "@workspace/ui/components/button"
@@ -42,7 +47,8 @@ type FreeAgencyPanelProps = {
   description?: string
   emptyMessage?: string
   mode?: "re_sign" | "external"
-  onSign: (playerId: string, offer: FreeAgentOffer) => void
+  onOffer: (playerId: string, offer: FreeAgentOffer) => void
+  onAdvanceMarketDay?: () => void
 }
 
 export function FreeAgencyPanel({
@@ -53,7 +59,8 @@ export function FreeAgencyPanel({
   description = "Sign available free agents during the offseason.",
   emptyMessage = "No free agents are currently available.",
   mode = "external",
-  onSign,
+  onOffer,
+  onAdvanceMarketDay,
 }: FreeAgencyPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [years, setYears] = useState(2)
@@ -88,7 +95,7 @@ export function FreeAgencyPanel({
       return
     }
 
-    onSign(selected.id, offer)
+    onOffer(selected.id, offer)
     closeOffer()
   }
 
@@ -96,8 +103,17 @@ export function FreeAgencyPanel({
     <>
       <Card>
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>{title}</CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </div>
+            {mode === "external" && onAdvanceMarketDay ? (
+              <Button size="sm" onClick={onAdvanceMarketDay}>
+                Advance market day
+              </Button>
+            ) : null}
+          </div>
         </CardHeader>
         <CardContent className="min-h-0 overflow-hidden">
           <div className="-m-px max-h-[420px] overflow-auto p-px">
@@ -108,6 +124,9 @@ export function FreeAgencyPanel({
                   <TableHead>Pos</TableHead>
                   <TableHead>OVR</TableHead>
                   <TableHead>Age</TableHead>
+                  <TableHead>Expected</TableHead>
+                  <TableHead>Offers</TableHead>
+                  {mode === "re_sign" ? <TableHead>Attempts</TableHead> : null}
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -115,32 +134,66 @@ export function FreeAgencyPanel({
                 {sorted.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={5}
+                      colSpan={mode === "re_sign" ? 8 : 7}
                       className="text-sm text-muted-foreground"
                     >
                       {emptyMessage}
                     </TableCell>
                   </TableRow>
                 ) : null}
-                {sorted.slice(0, 20).map((player) => (
-                  <TableRow key={player.id}>
-                    <TableCell>
-                      {player.firstName} {player.lastName}
-                    </TableCell>
-                    <TableCell>{player.position}</TableCell>
-                    <TableCell>{player.ratings.overall}</TableCell>
-                    <TableCell>{player.age}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openOffer(player)}
-                      >
-                        {mode === "re_sign" ? "Re-sign" : "Offer"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {sorted.slice(0, 20).map((player) => {
+                  const market = getPlayerContractMarketValue(league, player)
+                  const activeOffers = getContractOffersForCandidate(
+                    league,
+                    player.id,
+                    "player",
+                    mode === "re_sign" ? "re_signing" : "free_agency",
+                  ).filter((entry) => entry.status === "pending")
+                  const sortedOffers = [...activeOffers].sort(
+                    (a, b) => b.firstYearSalary - a.firstYearSalary,
+                  )
+                  const bestOfferText =
+                    sortedOffers.length > 0
+                      ? `${formatMoney(sortedOffers[0].firstYearSalary)} x ${sortedOffers[0].years}`
+                      : "None"
+                  const attemptsRemaining =
+                    mode === "re_sign"
+                      ? getReSigningAttemptsRemaining(league, player.id, teamId)
+                      : null
+
+                  return (
+                    <TableRow key={player.id}>
+                      <TableCell>
+                        {player.firstName} {player.lastName}
+                      </TableCell>
+                      <TableCell>{player.position}</TableCell>
+                      <TableCell>{player.ratings.overall}</TableCell>
+                      <TableCell>{player.age}</TableCell>
+                      <TableCell className="tabular-nums">
+                        {formatMoney(market.lowSalary)}-
+                        {formatMoney(market.highSalary)}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {bestOfferText}
+                      </TableCell>
+                      {mode === "re_sign" ? (
+                        <TableCell className="tabular-nums">
+                          {attemptsRemaining}
+                        </TableCell>
+                      ) : null}
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={attemptsRemaining === 0}
+                          onClick={() => openOffer(player)}
+                        >
+                          {mode === "re_sign" ? "Offer" : "Offer"}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>
@@ -159,8 +212,8 @@ export function FreeAgencyPanel({
                 {selected.lastName}
               </DialogTitle>
               <DialogDescription>
-                Set years and first-year salary, then validate the offer against
-                your cap sheet.
+                Set years and first-year salary, then submit the offer for
+                evaluation.
               </DialogDescription>
             </DialogHeader>
 
@@ -216,7 +269,7 @@ export function FreeAgencyPanel({
                 Cancel
               </Button>
               <Button disabled={!validation?.ok} onClick={submitOffer}>
-                {mode === "re_sign" ? "Re-sign" : "Sign"} for{" "}
+                Offer{" "}
                 {formatMoney(salary)} × {years} yr
               </Button>
             </DialogFooter>

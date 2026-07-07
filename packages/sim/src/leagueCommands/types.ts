@@ -29,8 +29,12 @@ export type LeagueCommand =
   | { type: "completeFreeAgency" }
   | { type: "releasePlayer"; playerId: string }
   | { type: "signFreeAgent"; playerId: string; offer: FreeAgentOffer }
+  | { type: "submitPlayerContractOffer"; playerId: string; offer: FreeAgentOffer }
   | { type: "extendContract"; playerId: string; offer: ExtensionOffer }
   | { type: "hireStaff"; staffId: string; offer: StaffOffer }
+  | { type: "submitStaffContractOffer"; staffId: string; offer: StaffOffer }
+  | { type: "advanceStaffMarketDay" }
+  | { type: "advanceFreeAgencyMarketDay" }
   | { type: "fireStaff"; staffId: string }
   | { type: "extendStaffContract"; staffId: string; offer: StaffExtensionOffer }
   | { type: "executeTrade"; proposal: TradeProposal }

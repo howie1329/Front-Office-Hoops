@@ -15,11 +15,11 @@ import { simAiPick, simToUserPick } from "../draft/simAiPick"
 import { makeDraftPick } from "../draft/makeDraftPick"
 import { prepareDraftForLeague } from "../draft/prepareDraft"
 import {
+  advanceLeagueToFreeAgencyPhase,
   advanceToDraftPhase,
-  advanceToFreeAgencyPhase,
   completeFreeAgencyPhase,
 } from "../offseason/phases"
-import { completeStaffPhase } from "../offseason/staffPhase"
+import { beginStaffMarket, completeStaffPhase } from "../offseason/staffPhase"
 import { completeReSigningPhase } from "../offseason/reSigning"
 import { ensureFaPoolMinimum, processOffseasonFinancials } from "../financials"
 import {
@@ -31,6 +31,12 @@ import {
 import { signFreeAgent } from "../financials/freeAgency"
 import { extendContract } from "../financials/contractExtensions"
 import { extendStaffContract, fireStaff, hireStaff } from "../staff"
+import {
+  advanceFreeAgencyMarketDay,
+  advanceStaffMarketDay,
+  submitPlayerContractOffer,
+  submitStaffContractOffer,
+} from "../contracts/offerMarket"
 import { assertPhaseEligibility } from "../phaseEligibility"
 import { applyDraftSelections, releasePlayerFromTeam } from "../roster/ledger"
 import { simulateCurrentPlayoffRound } from "../simulateCurrentPlayoffRound"
@@ -187,17 +193,20 @@ function applyLeagueCommandInternal(
         completedLeague.seasonState,
         profiles
       )
-      return processOffseasonFinancials(
-        {
-          ...completedLeague,
-          seasonState: nextState,
-          playerSeasonProfiles: [
-            ...completedLeague.playerSeasonProfiles.filter(
-              (entry) => entry.season !== completedLeague.seasonState.season
-            ),
-            ...profiles,
-          ],
-        },
+      return beginStaffMarket(
+        processOffseasonFinancials(
+          {
+            ...completedLeague,
+            seasonState: nextState,
+            playerSeasonProfiles: [
+              ...completedLeague.playerSeasonProfiles.filter(
+                (entry) => entry.season !== completedLeague.seasonState.season
+              ),
+              ...profiles,
+            ],
+          },
+          resolvedRng
+        ),
         resolvedRng
       )
     }
@@ -241,11 +250,8 @@ function applyLeagueCommandInternal(
     }
 
     case "advanceToFreeAgency":
-      return ensureFaPoolMinimum(
-        {
-          ...league,
-          seasonState: advanceToFreeAgencyPhase(league.seasonState),
-        },
+      return advanceLeagueToFreeAgencyPhase(
+        ensureFaPoolMinimum(league, resolvedRng),
         resolvedRng
       )
 
@@ -271,6 +277,21 @@ function applyLeagueCommandInternal(
       }
 
       return signFreeAgent(
+        league,
+        league.userTeamId,
+        command.playerId,
+        command.offer
+      )
+    }
+
+    case "submitPlayerContractOffer": {
+      if (!league.userTeamId) {
+        throw new Error(
+          "User team must be selected before submitting a contract offer"
+        )
+      }
+
+      return submitPlayerContractOffer(
         league,
         league.userTeamId,
         command.playerId,
@@ -309,6 +330,25 @@ function applyLeagueCommandInternal(
       }
       return result.league
     }
+
+    case "submitStaffContractOffer": {
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before offering staff")
+      }
+
+      return submitStaffContractOffer(
+        league,
+        league.userTeamId,
+        command.staffId,
+        command.offer,
+      )
+    }
+
+    case "advanceStaffMarketDay":
+      return advanceStaffMarketDay(league, resolvedRng)
+
+    case "advanceFreeAgencyMarketDay":
+      return advanceFreeAgencyMarketDay(league, resolvedRng)
 
     case "fireStaff": {
       if (!league.userTeamId) {

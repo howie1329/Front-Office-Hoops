@@ -49,12 +49,27 @@ export { finalizeSeason } from "./finalizeSeason"
 export { archiveSeason } from "./archiveSeason"
 export { beginOffseason } from "./beginOffseason"
 export {
+  advanceLeagueToFreeAgencyPhase,
   advanceToDraftPhase,
   advanceToFreeAgencyPhase,
   completeFreeAgencyPhase,
 } from "./offseason/phases"
 export { completeReSigningPhase } from "./offseason/reSigning"
-export { completeStaffPhase } from "./offseason/staffPhase"
+export { beginStaffMarket, completeStaffPhase } from "./offseason/staffPhase"
+export {
+  advanceFreeAgencyMarketDay,
+  advanceStaffMarketDay,
+  generateAiFreeAgencyMarketOffers,
+  generateAiStaffMarketOffers,
+  getContractOffersForCandidate,
+  getReSigningAttemptsRemaining,
+  submitPlayerContractOffer,
+  submitStaffContractOffer,
+} from "./contracts/offerMarket"
+export {
+  getPlayerContractMarketValue,
+  getStaffContractMarketValue,
+} from "./contracts/marketValue"
 export {
   applyStaffBudgetsFromOwners,
   derivePhilosophyFromStaff,

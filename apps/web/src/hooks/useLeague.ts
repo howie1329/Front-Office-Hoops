@@ -474,11 +474,18 @@ export function useLeague() {
       dispatch({ type: "extendContract", playerId, offer }),
     hireStaff: (staffId: string, offer: StaffOffer) =>
       dispatch({ type: "hireStaff", staffId, offer }),
+    submitStaffContractOffer: (staffId: string, offer: StaffOffer) =>
+      dispatch({ type: "submitStaffContractOffer", staffId, offer }),
+    advanceStaffMarketDay: () => dispatch({ type: "advanceStaffMarketDay" }),
     fireStaff: (staffId: string) => dispatch({ type: "fireStaff", staffId }),
     extendStaffContract: (staffId: string, offer: StaffExtensionOffer) =>
       dispatch({ type: "extendStaffContract", staffId, offer }),
     signFreeAgent: (playerId: string, offer: FreeAgentOffer) =>
       dispatch({ type: "signFreeAgent", playerId, offer }),
+    submitPlayerContractOffer: (playerId: string, offer: FreeAgentOffer) =>
+      dispatch({ type: "submitPlayerContractOffer", playerId, offer }),
+    advanceFreeAgencyMarketDay: () =>
+      dispatch({ type: "advanceFreeAgencyMarketDay" }),
     executeTrade: (proposal: TradeProposal) =>
       dispatch({ type: "executeTrade", proposal }),
     acceptTradeOffer: (offerId: string) =>

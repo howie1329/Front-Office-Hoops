@@ -166,6 +166,15 @@ export type {
   SigningException,
 } from "./contractTypes"
 
+export type {
+  ContractCandidateType,
+  ContractMarketPhase,
+  ContractOffer,
+  ContractOfferStatus,
+  ReSigningNegotiation,
+  ReSigningNegotiationStatus,
+} from "./contractOfferTypes"
+
 export type { LeagueLogEntry, LeagueLogEntryType } from "./logTypes"
 
 export type {

@@ -4,6 +4,7 @@ import type { LeagueRecord, Rng, StaffMember, StaffOffer, StaffRole } from "@wor
 import { hireStaff } from "../staff/hireStaff"
 import { getStaffByRole, STAFF_ROLES, syncLeagueStaffFinancials } from "../staff/deriveTeamStaff"
 import { getStaffPayroll } from "../staff/staffPayroll"
+import { generateAiStaffMarketOffers, resolveContractMarketDay } from "../contracts/offerMarket"
 
 function clampRating(value: number): number {
   return Math.max(1, Math.min(STAFF_RATING_MAX, Math.round(value)))
@@ -161,10 +162,15 @@ export function completeStaffPhase(
     throw new Error("Staff phase is not active")
   }
 
-  const withAiMoves = processAiStaffMoves(league, rng)
+  const withResolvedOffers = resolveContractMarketDay(league, "staff")
+  const withAiMoves = processAiStaffMoves(withResolvedOffers, rng)
 
   return {
     ...withAiMoves,
     seasonState: advanceToReSigningPhase(withAiMoves.seasonState),
   }
+}
+
+export function beginStaffMarket(league: LeagueRecord, rng: Rng): LeagueRecord {
+  return generateAiStaffMarketOffers(league, rng)
 }
