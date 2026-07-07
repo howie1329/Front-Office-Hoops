@@ -5,6 +5,12 @@ export {
   estimateTeamOffFactor,
 } from "./teamStrength"
 export { simulateTeamMatchup } from "./simulateTeamMatchup"
+export {
+  deriveCoachingPhilosophy,
+  computeLineupSynergy,
+  computeTeamMomentum,
+  updateTeamMomentumMap,
+} from "./gameSim"
 export { generatePlayers, generateTeamWithRoster } from "./generatePlayers"
 export { generateLeagueRosters, generateTeams } from "./generateTeams"
 export {

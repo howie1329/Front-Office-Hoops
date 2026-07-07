@@ -1,10 +1,18 @@
-import type { PlayoffSeries, SeasonState } from "@workspace/shared/types"
+import type {
+  PlayoffSeries,
+  SeasonState,
+  TeamFinancials,
+} from "@workspace/shared/types"
 
 import { derivePlayerSeasonStats } from "../derivePlayerSeasonStats"
 import { deriveStandings } from "../deriveStandings"
 import { applyPostGameInjuries } from "../injuries"
 import { createRng } from "../rng"
-import { simulateGame } from "../simulateGame"
+import {
+  simulateGameWithContext,
+  updateMomentumAfterGame,
+} from "../simulateGameWithContext"
+import type { SimulateDayOptions } from "../simulateDay"
 import {
   getPlayoffFormat,
   getSeriesLoserId,
@@ -19,7 +27,7 @@ function getTeamById(state: SeasonState, teamId: string) {
 
 function finalizeSeriesIfComplete(
   series: PlayoffSeries,
-  teamCount: number
+  teamCount: number,
 ): PlayoffSeries {
   const format = getPlayoffFormat(teamCount)
 
@@ -37,10 +45,11 @@ function finalizeSeriesIfComplete(
 export function simulateSeriesGame(
   state: SeasonState,
   scheduledGameId: string,
-  rngNonce = 0
+  rngNonce = 0,
+  options?: SimulateDayOptions,
 ): SeasonState {
   const scheduledGame = state.schedule.find(
-    (game) => game.id === scheduledGameId
+    (game) => game.id === scheduledGameId,
   )
 
   if (!scheduledGame?.seriesId) {
@@ -53,7 +62,7 @@ export function simulateSeriesGame(
   }
 
   const seriesIndex = bracket.series.findIndex(
-    (series) => series.id === scheduledGame.seriesId
+    (series) => series.id === scheduledGame.seriesId,
   )
 
   if (seriesIndex < 0) {
@@ -75,12 +84,15 @@ export function simulateSeriesGame(
   }
 
   const gameId = `g_${state.season}_${scheduledGame.id}`
-  const game = simulateGame(home, away, {
+  const game = simulateGameWithContext(home, away, {
     season: state.season,
     day: scheduledGame.day,
     gameId,
     baseSeed: state.baseSeed,
     rngNonce,
+    gameType: "playoff",
+    scheduleState: state,
+    teamFinancials: options?.teamFinancials,
   })
 
   const homeIsHigher = scheduledGame.homeTeamId === series.higherSeedTeamId
@@ -103,7 +115,7 @@ export function simulateSeriesGame(
   const newSchedule = state.schedule.map((entry) =>
     entry.id === scheduledGame.id
       ? { ...entry, status: "final" as const, gameId: game.id }
-      : entry
+      : entry,
   )
 
   const newSeries = [...bracket.series]
@@ -119,7 +131,7 @@ export function simulateSeriesGame(
         homePlayerStats: game.result.homePlayerStats,
         awayPlayerStats: game.result.awayPlayerStats,
       },
-      createRng(`${state.baseSeed}:injuries:${game.id}:nonce:${rngNonce}`)
+      createRng(`${state.baseSeed}:injuries:${game.id}:nonce:${rngNonce}`),
     ),
     schedule: newSchedule,
     games: [...state.games, game],
@@ -129,7 +141,10 @@ export function simulateSeriesGame(
     },
     standings: [],
     playerSeasonStats: [],
+    teamMomentum: state.teamMomentum ?? {},
   }
+
+  nextState = updateMomentumAfterGame(nextState, game)
 
   if (!isSeriesComplete(updatedSeries, format)) {
     const nextGame = scheduleNextSeriesGame(nextState, updatedSeries)
@@ -146,12 +161,12 @@ export function simulateSeriesGame(
     standings: deriveStandings(
       nextState.teams,
       nextState.games,
-      nextState.season
+      nextState.season,
     ),
     playerSeasonStats: derivePlayerSeasonStats(
       nextState.teams,
       nextState.games,
-      nextState.season
+      nextState.season,
     ),
   }
 }

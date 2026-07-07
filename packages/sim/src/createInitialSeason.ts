@@ -59,6 +59,7 @@ export function createInitialSeason(
       currentDay: getRegularSeasonStartDay(teams.length),
       baseSeed,
       phase: "regular",
+      teamMomentum: {},
     }
 
     return {
@@ -85,6 +86,7 @@ export function createInitialSeason(
     currentDay: 1,
     baseSeed,
     phase: "preseason",
+    teamMomentum: {},
   }
 
   return {

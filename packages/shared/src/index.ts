@@ -1,4 +1,6 @@
 export * from "./developmentTypes"
+export * from "./gameSimTypes"
+export * from "./coachTypes"
 export * from "./types"
 export * from "./playerTypes"
 export * from "./seasonTypes"

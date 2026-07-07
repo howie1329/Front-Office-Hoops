@@ -1,6 +1,7 @@
 import type { TeamMatchupResult } from "./types"
 import type { TeamWithRoster } from "./playerTypes"
 import type { DraftState } from "./draftTypes"
+import type { TeamMomentumState } from "./gameSimTypes"
 
 export type ScheduleGameStatus = "scheduled" | "final"
 
@@ -134,6 +135,7 @@ export type SeasonState = {
   offseasonPhase?: OffseasonPhase
   playoffBracket?: PlayoffBracket
   draftState?: DraftState
+  teamMomentum?: Record<string, TeamMomentumState>
 }
 
 export type SimulateGameContext = {

@@ -1,4 +1,4 @@
-import type { SeasonState } from "@workspace/shared/types"
+import type { SeasonState, TeamFinancials } from "@workspace/shared/types"
 
 import { derivePlayerSeasonStats } from "./derivePlayerSeasonStats"
 import { deriveStandings } from "./deriveStandings"
@@ -9,11 +9,13 @@ import {
 } from "./playoffs/advanceWinners"
 import { simulateSeriesGame } from "./playoffs/simulateSeriesGame"
 import { getCurrentCalendar } from "./calendar"
+import type { SimulateDayOptions } from "./simulateDay"
 
 export function simulatePlayoffDay(
   state: SeasonState,
   day: number = state.currentDay,
-  rngNonce = 0
+  rngNonce = 0,
+  options?: SimulateDayOptions,
 ): SeasonState {
   const playoffGames = state.schedule.filter(
     (game) => game.seriesId && game.day === day && game.status === "scheduled"
@@ -42,7 +44,7 @@ export function simulatePlayoffDay(
   }
 
   for (const game of playoffGames) {
-    nextState = simulateSeriesGame(nextState, game.id, rngNonce)
+    nextState = simulateSeriesGame(nextState, game.id, rngNonce, options)
     nextState = advancePlayoffWinners(nextState)
     nextState = ensureActiveSeriesScheduled(nextState)
   }
