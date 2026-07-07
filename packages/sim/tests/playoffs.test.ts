@@ -77,7 +77,7 @@ describe("playoffs", () => {
     expect(state.playoffBracket?.championTeamId).toBeTruthy()
 
     const userTeamId = state.teams[0]!.id
-    state = beginOffseason(state, createRng("mini-playoff-offseason"))
+    state = beginOffseason(state)
     expect(state.phase).toBe("offseason")
     const prepared = prepareDraft(advanceToDraftPhase(state))
     const completed = simDraftUntilComplete(prepared, [])

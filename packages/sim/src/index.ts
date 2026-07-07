@@ -51,7 +51,8 @@ export type {
   StartNextSeasonInput,
   StartNextSeasonResult,
 } from "./startNextSeason"
-export { applyOffseasonProgression } from "./development/applyOffseasonProgression"
+export { applyPreseasonProgression } from "./preseason/applyPreseasonProgression"
+export { applyOffseasonProgression } from "./preseason/applyPreseasonProgression"
 export {
   ARCHETYPES_BY_POSITION,
   ARCHETYPE_SKILL_BIAS,

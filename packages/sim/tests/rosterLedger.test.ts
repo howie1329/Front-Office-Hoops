@@ -28,7 +28,7 @@ function createDraftReadyLeague() {
   let state = simulateSeason(league.seasonState)
   state = beginPlayoffs(state)
   state = simulatePlayoffs(state)
-  state = beginOffseason(state, createRng("ledger-draft-offseason"))
+  state = beginOffseason(state)
   state = advanceToDraftPhase(state)
   state = prepareDraft(state, league.draftPickAssets)
 

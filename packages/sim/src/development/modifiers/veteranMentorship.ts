@@ -33,6 +33,7 @@ export function computeVeteranMentorshipModifier(
     return {
       id: "team:veteran_mentorship_growth",
       source: "team",
+      category: "mentorship",
       growthMultiplier: 1 + VETERAN_GROWTH_BONUS * mentorStrength * intensity,
     }
   }
@@ -41,6 +42,7 @@ export function computeVeteranMentorshipModifier(
     return {
       id: "team:veteran_mentorship_regression",
       source: "team",
+      category: "mentorship",
       regressionMultiplier: 1 - VETERAN_REGRESSION_BONUS * mentorStrength,
     }
   }

@@ -1,4 +1,5 @@
 import type { DraftInfo } from "./draftTypes"
+import type { PlayerInjuryHistory } from "./developmentTypes"
 import type { Team } from "./teamTypes"
 
 export type {
@@ -46,6 +47,8 @@ export type PlayerMood = {
   fame: number
 }
 
+export type { PlayerInjuryHistory } from "./developmentTypes"
+
 export type SkillKey =
   | "threePoint"
   | "midRange"
@@ -91,6 +94,10 @@ export type Player = {
   yearsOfService: number
   mood: PlayerMood
   performanceDrift: number
+  careerPeakOverall: number
+  developmentMomentum: number
+  injuryHistory: PlayerInjuryHistory
+  reinventionSeasonsRemaining: number
 }
 
 export type TeamWithRoster = Team & {

@@ -180,7 +180,6 @@ function applyLeagueCommandInternal(
       )
       const nextState = beginOffseason(
         completedLeague.seasonState,
-        resolvedRng,
         profiles
       )
       return processOffseasonFinancials(
@@ -315,6 +314,9 @@ function applyLeagueCommandInternal(
         userTeamId: league.userTeamId,
         freeAgentPool: league.freeAgentPool,
         rng: resolvedRng,
+        playerSeasonStats: league.seasonState.playerSeasonStats,
+        playerSeasonProfiles: league.playerSeasonProfiles,
+        seasonHistory: league.seasonHistory,
         league: {
           contracts: league.contracts,
           leagueFinancials: league.leagueFinancials,
@@ -333,6 +335,15 @@ function applyLeagueCommandInternal(
         leagueFinancials: result.leagueFinancials,
         teamFinancials: result.teamFinancials,
         draftPickAssets: result.draftPickAssets,
+        playerDevelopmentRecords: [
+          ...league.playerDevelopmentRecords,
+          ...result.playerDevelopmentRecords,
+        ],
+        developmentReports: [
+          ...league.developmentReports,
+          result.developmentReport,
+        ],
+        retiredPlayers: [...league.retiredPlayers, ...result.retiredPlayers],
       }
 
       return {

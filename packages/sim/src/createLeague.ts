@@ -68,6 +68,9 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     seasonAwards: [],
     playerCareerSnapshots: [],
     playerSeasonProfiles: [],
+    playerDevelopmentRecords: [],
+    developmentReports: [],
+    retiredPlayers: [],
   }
 
   const withFinancials = ensureFaPoolMinimum(

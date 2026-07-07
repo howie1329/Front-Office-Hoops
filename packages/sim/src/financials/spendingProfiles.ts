@@ -1,4 +1,8 @@
-import { DEFAULT_SCOUTING_LEVEL } from "@workspace/shared/constants"
+import {
+  DEFAULT_COACHING_LEVEL,
+  DEFAULT_DEVELOPMENT_LEVEL,
+  DEFAULT_SCOUTING_LEVEL,
+} from "@workspace/shared/constants"
 import {
   BASE_SALARY_CAP,
   CAP_GROWTH_MAX,
@@ -84,6 +88,8 @@ export function initializeTeamFinancials(
       spendingProfile,
       strategy: createDefaultStrategy(seasonFinancials.season, "buying"),
       scoutingLevel: DEFAULT_SCOUTING_LEVEL,
+      coachingLevel: DEFAULT_COACHING_LEVEL,
+      developmentLevel: DEFAULT_DEVELOPMENT_LEVEL,
       cashReserves: STARTING_CASH_RESERVES,
       debt: 0,
       consecutiveTaxSeasons: 0,

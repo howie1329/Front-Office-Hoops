@@ -18,6 +18,7 @@ import type {
   LeagueLogEntry,
   Player,
   PlayerCareerSnapshot,
+  PlayerDevelopmentRecord,
   PlayerRatings,
   PlayerSeasonStats,
   SeasonAward,
@@ -106,6 +107,9 @@ function PlayerProfilePage() {
   const snapshots = league.playerCareerSnapshots
     .filter((entry) => entry.playerId === playerId)
     .sort((a, b) => a.season - b.season)
+  const lastDevelopment = (league.playerDevelopmentRecords ?? [])
+    .filter((entry) => entry.playerId === playerId && !entry.retired)
+    .sort((a, b) => b.season - a.season)[0]
   const awards = league.seasonAwards.filter(
     (entry) => entry.playerId === playerId
   )
@@ -264,6 +268,9 @@ function PlayerProfilePage() {
           ) : null}
           {player ? (
             <PlayerMoodCard hints={moodHints} scoutingNote={scoutingNote} />
+          ) : null}
+          {player && lastDevelopment ? (
+            <LastDevelopmentCard record={lastDevelopment} />
           ) : null}
           <TimelineCard awards={awards} transactions={transactions} />
         </div>
@@ -605,6 +612,76 @@ function CareerTable({
       </CardContent>
     </Card>
   )
+}
+
+function LastDevelopmentCard({ record }: { record: PlayerDevelopmentRecord }) {
+  const overallDelta = record.overallAfter - record.overallBefore
+  const potentialDelta = record.potentialAfter - record.potentialBefore
+  const deltaLabel =
+    overallDelta > 0 ? `+${overallDelta}` : overallDelta.toString()
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Last progression</CardTitle>
+        <CardDescription>
+          Season {record.season} preseason · Age {record.ageBefore} →{" "}
+          {record.ageAfter}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 py-4 text-sm">
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground">Overall</span>
+          <span className="font-medium">
+            {record.overallBefore} → {record.overallAfter} ({deltaLabel})
+          </span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground">Potential</span>
+          <span className="font-medium">
+            {record.potentialBefore} → {record.potentialAfter}
+            {potentialDelta !== 0
+              ? ` (${potentialDelta > 0 ? "+" : ""}${potentialDelta})`
+              : ""}
+          </span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-muted-foreground">Momentum</span>
+          <span className="font-medium">
+            {record.momentumApplied >= 0 ? "+" : ""}
+            {record.momentumApplied.toFixed(2)}
+          </span>
+        </div>
+        {record.modifierIds.length > 0 ? (
+          <div>
+            <p className="text-muted-foreground">Modifiers</p>
+            <ul className="mt-1 list-inside list-disc">
+              {record.modifierIds.map((id) => (
+                <li key={id}>{formatDevelopmentReason(id)}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {record.events.length > 0 ? (
+          <div>
+            <p className="text-muted-foreground">Events</p>
+            <ul className="mt-1 list-inside list-disc">
+              {record.events.map((event) => (
+                <li key={event}>{formatDevelopmentReason(event)}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
+}
+
+function formatDevelopmentReason(code: string): string {
+  return code
+    .replaceAll(":", " · ")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 function ContractCard({

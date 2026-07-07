@@ -125,22 +125,25 @@ createLeague
     → [simulate regular season]
     → beginPlayoffs
     → [simulate playoffs]
-    → beginOffseason (player development)
+    → beginOffseason (contracts, no development)
     → finalizeSeason + archiveSeason
-    → startNextSeason (increment season, new schedule)
+    → startNextSeason (preseason progression + new schedule)
 ```
 
-## Player development (offseason)
+## Player development (preseason)
 
-Each offseason, `beginOffseason` applies `applyOffseasonProgression`:
+Each new season year, `startNextSeason` applies `applyPreseasonProgression` before entering preseason:
 
 - Increments player age
-- Per-skill growth or regression based on individual `peakAge` and `potential` headroom
-- Slow potential drift (seeded RNG)
-- Veteran mentorship modifier for developing teammates and post-peak regression
+- Per-skill growth or regression based on individual `peakAge`, Monte Carlo potential forecast headroom, and RNG
+- Potential refreshed via Monte Carlo simulation (75th percentile career peak)
+- Modifiers: veteran mentorship, role/minutes, performance, injuries, coaching/dev staff, team culture
+- Breakout/regression/second-peak events (seeded)
+- Retirement evaluation (age + falloff + minutes + production)
 - Recalculates `overall`, `usage`, and team `overall`
+- Stores `PlayerDevelopmentRecord` and `PreseasonDevelopmentReport` on the league
 
-Development currently uses age, peak age, potential headroom, skill deltas, veteran mentorship, and potential drift. It does not yet use season role/minutes, injury history, or performance context.
+`beginOffseason` handles awards and contract phases only — no rating changes until the next season starts.
 
 ## Injuries
 

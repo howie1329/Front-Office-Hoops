@@ -4,6 +4,11 @@ import type {
   DraftPickAsset,
   LeagueRecord,
   Player,
+  PlayerDevelopmentRecord,
+  PlayerSeasonProfile,
+  PlayerSeasonStats,
+  PreseasonDevelopmentReport,
+  RetirementEntry,
   Rng,
   SeasonHistoryEntry,
   SeasonState,
@@ -20,6 +25,7 @@ import { ensureDraftPickAssets } from "./draft/generateDraftOrder"
 import { isDraftRequired } from "./draft/isDraftRequired"
 import { finalizeSeason } from "./finalizeSeason"
 import { prepareNewSeasonFinancials, attachMissingRosterContracts } from "./financials"
+import { applyPreseasonProgression } from "./preseason/applyPreseasonProgression"
 import { purgeCampFringePlayers } from "./preseason/campPlayers"
 import {
   applyAiRosterTrimming,
@@ -31,6 +37,9 @@ export type StartNextSeasonInput = {
   userTeamId: string | null
   freeAgentPool: Player[]
   rng: Rng
+  playerSeasonStats?: PlayerSeasonStats[]
+  playerSeasonProfiles?: PlayerSeasonProfile[]
+  seasonHistory?: SeasonHistoryEntry[]
   league?: Pick<
     LeagueRecord,
     | "contracts"
@@ -49,6 +58,9 @@ export type StartNextSeasonResult = {
   leagueFinancials: LeagueFinancials
   teamFinancials: TeamFinancials[]
   draftPickAssets: DraftPickAsset[]
+  playerDevelopmentRecords: PlayerDevelopmentRecord[]
+  developmentReport: PreseasonDevelopmentReport
+  retiredPlayers: RetirementEntry[]
 }
 
 export function startNextSeason(
@@ -107,7 +119,20 @@ export function startNextSeason(
 
   validateRostersForSeasonStart(trimmed.teams, userTeamId)
 
-  const newSeason = seasonState.season + 1
+  const priorSeason = seasonState.season
+  const newSeason = priorSeason + 1
+
+  const progression = applyPreseasonProgression({
+    teams: trimmed.teams,
+    priorSeason,
+    newSeason,
+    playerSeasonStats:
+      input.playerSeasonStats ?? seasonState.playerSeasonStats,
+    playerSeasonProfiles: input.playerSeasonProfiles ?? [],
+    baseSeed: seasonState.baseSeed,
+    teamFinancials: league?.teamFinancials,
+    seasonHistory: input.seasonHistory ?? [],
+  })
 
   let financialBundle = {
     contracts: trimmed.contracts,
@@ -122,7 +147,7 @@ export function startNextSeason(
     freeAgentPool,
     seasonState: {
       ...seasonState,
-      teams: trimmed.teams,
+      teams: progression.teams,
     },
   } satisfies Pick<
     LeagueRecord,
@@ -157,6 +182,9 @@ export function startNextSeason(
         seasonAwards: [],
         playerCareerSnapshots: [],
         playerSeasonProfiles: [],
+        playerDevelopmentRecords: [],
+        developmentReports: [],
+        retiredPlayers: [],
       },
       newSeason,
       rng
@@ -166,7 +194,7 @@ export function startNextSeason(
 
   const stateForArchive = {
     ...financialBundle.seasonState,
-    teams: trimmed.teams,
+    teams: progression.teams,
   }
 
   const finalized = finalizeSeason(stateForArchive)
@@ -217,5 +245,8 @@ export function startNextSeason(
     leagueFinancials: financialBundle.leagueFinancials,
     teamFinancials: financialBundle.teamFinancials,
     draftPickAssets,
+    playerDevelopmentRecords: progression.records,
+    developmentReport: progression.report,
+    retiredPlayers: progression.retirements,
   }
 }

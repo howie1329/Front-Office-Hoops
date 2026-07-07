@@ -14,6 +14,7 @@ import type {
 
 import { generatePlayerProfile } from "../playerGeneration/generatePlayerProfile"
 import { pickProspectType } from "../playerGeneration/correlationBundles"
+import { buildPotentialRange } from "../development/monteCarloPotential"
 import { clampRating } from "../playerRatings"
 import { getDraftClassSize } from "./isDraftRequired"
 
@@ -165,6 +166,7 @@ export function generateDraftClass(
         potential,
         usage: 8,
       },
+      potentialRange: buildPotentialRange(potential, 3, rng),
       tags: [prospectType],
     }
 
