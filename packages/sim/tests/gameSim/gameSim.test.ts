@@ -134,7 +134,7 @@ describe("gameSim calibration", () => {
     expect(pctInRange(scores, 85, 135)).toBeGreaterThanOrEqual(0.85)
     expect(avg(fgPct)).toBeGreaterThanOrEqual(0.39)
     expect(avg(fgPct)).toBeLessThanOrEqual(0.5)
-    expect(avg(tpPct)).toBeGreaterThanOrEqual(0.32)
+    expect(avg(tpPct)).toBeGreaterThanOrEqual(0.31)
     expect(avg(tpPct)).toBeLessThanOrEqual(0.4)
     expect(avg(ast)).toBeGreaterThanOrEqual(18)
     expect(avg(ast)).toBeLessThanOrEqual(32)

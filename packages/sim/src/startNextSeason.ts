@@ -47,7 +47,12 @@ export type StartNextSeasonInput = {
     | "teamFinancials"
     | "spendingProfileEvents"
   > &
-    Partial<Pick<LeagueRecord, "draftPickAssets">>
+    Partial<
+      Pick<
+        LeagueRecord,
+        "draftPickAssets" | "staff" | "staffContracts" | "collegeCoaches"
+      >
+    >
 }
 
 export type StartNextSeasonResult = {
@@ -185,6 +190,9 @@ export function startNextSeason(
         playerDevelopmentRecords: [],
         developmentReports: [],
         retiredPlayers: [],
+        staff: league.staff ?? [],
+        staffContracts: league.staffContracts ?? [],
+        collegeCoaches: league.collegeCoaches ?? [],
       },
       newSeason,
       rng

@@ -50,16 +50,32 @@ function trimUserRoster(league: ReturnType<typeof createLeague>) {
     const userTeam = next.seasonState.teams.find(
       (team) => team.id === next.userTeamId
     )
-    const player = userTeam?.players[userTeam.players.length - 1]
-    if (!player) {
-      throw new Error("Expected user players to trim roster")
+    if (!userTeam) {
+      throw new Error("Expected user team to trim roster")
     }
 
-    next = applyLeagueCommand(next, {
-      type: "releasePlayer",
-      playerId: player.id,
-    })
-    expectLeagueInvariants(next)
+    const candidates = [...userTeam.players].sort(
+      (left, right) => left.ratings.overall - right.ratings.overall,
+    )
+
+    let released = false
+    for (const player of candidates) {
+      try {
+        next = applyLeagueCommand(next, {
+          type: "releasePlayer",
+          playerId: player.id,
+        })
+        expectLeagueInvariants(next)
+        released = true
+        break
+      } catch {
+        continue
+      }
+    }
+
+    if (!released) {
+      throw new Error("Could not trim user roster without breaking position floors")
+    }
   }
 
   return next
@@ -104,6 +120,9 @@ describe("league invariants", () => {
 
       league = applyLeagueCommand(league, { type: "beginOffseason" })
       expect(league.playerSeasonProfiles.length).toBeGreaterThan(0)
+      expectLeagueInvariants(league)
+
+      league = applyLeagueCommand(league, { type: "completeStaffPhase" })
       expectLeagueInvariants(league)
 
       league = applyLeagueCommand(league, { type: "completeReSignings" })

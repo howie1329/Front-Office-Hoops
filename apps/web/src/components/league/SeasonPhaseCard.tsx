@@ -13,6 +13,15 @@ import {
 
 import { teamName } from "./lib/teamFormat"
 
+type OffseasonMicroPhase = "staff" | "re_signing" | "draft" | "free_agency"
+
+const OFFSEASON_STEPS: { id: OffseasonMicroPhase; label: string }[] = [
+  { id: "staff", label: "Staff" },
+  { id: "re_signing", label: "Re-signing" },
+  { id: "draft", label: "Draft" },
+  { id: "free_agency", label: "Free agency" },
+]
+
 type SeasonPhaseCardProps = {
   state: SeasonState
   championTeamId: string | null
@@ -68,6 +77,7 @@ export function SeasonPhaseCard({
 }: SeasonPhaseCardProps) {
   const championName = championTeamId ? teamName(state, championTeamId) : null
   const calendar = getCurrentCalendar(state)
+  const offseasonPhase = (state.offseasonPhase ?? "staff") as OffseasonMicroPhase
 
   return (
     <Card>
@@ -83,8 +93,11 @@ export function SeasonPhaseCard({
               : state.phase === "playoffs"
                 ? "Sim playoff games from the bracket page."
                 : state.phase === "offseason" &&
-                    (state.offseasonPhase ?? "re_signing") === "re_signing"
-                  ? "Re-sign your own expiring players before the draft window opens."
+                    (state.offseasonPhase ?? "staff") === "staff"
+                  ? "Hire and fire coaches during the staff week before re-signing opens."
+                  : state.phase === "offseason" &&
+                      (state.offseasonPhase ?? "staff") === "re_signing"
+                    ? "Re-sign your own expiring players before the draft window opens."
                   : state.phase === "offseason" &&
                       state.offseasonPhase === "draft"
                     ? "Prepare and run the draft before free agency opens."
@@ -97,6 +110,10 @@ export function SeasonPhaseCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {state.phase === "offseason" ? (
+          <OffseasonPhaseStepper currentPhase={offseasonPhase} />
+        ) : null}
+
         <div className="grid gap-2 text-sm sm:grid-cols-2">
           <SeasonMetric label="Date" value={calendar.date.label} />
           <SeasonMetric label="Day" value={String(state.currentDay)} />
@@ -147,6 +164,12 @@ export function SeasonPhaseCard({
             </Button>
           ) : null}
 
+          {state.phase === "offseason" && offseasonPhase === "staff" ? (
+            <Button variant="secondary" asChild>
+              <Link to="/league/staff">Manage staff</Link>
+            </Button>
+          ) : null}
+
           {canPrepareDraft ? (
             <Button onClick={onPrepareDraft}>Prepare draft</Button>
           ) : null}
@@ -167,6 +190,44 @@ export function SeasonPhaseCard({
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function OffseasonPhaseStepper({
+  currentPhase,
+}: {
+  currentPhase: OffseasonMicroPhase
+}) {
+  const currentIndex = OFFSEASON_STEPS.findIndex(
+    (step) => step.id === currentPhase,
+  )
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      {OFFSEASON_STEPS.map((step, index) => {
+        const isCurrent = step.id === currentPhase
+        const isComplete = index < currentIndex
+
+        return (
+          <div key={step.id} className="flex items-center gap-2">
+            <span
+              className={
+                isCurrent
+                  ? "rounded-full border border-primary bg-primary/10 px-2.5 py-1 font-medium text-primary"
+                  : isComplete
+                    ? "rounded-full border bg-muted px-2.5 py-1 text-muted-foreground"
+                    : "rounded-full border border-dashed px-2.5 py-1 text-muted-foreground"
+              }
+            >
+              {step.label}
+            </span>
+            {index < OFFSEASON_STEPS.length - 1 ? (
+              <span className="text-muted-foreground">→</span>
+            ) : null}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

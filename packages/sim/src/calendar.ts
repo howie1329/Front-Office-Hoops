@@ -88,6 +88,7 @@ export function getSeasonMilestones(
     regularSeasonEndDay,
     playoffsStartDay: regularSeasonEndDay + 1,
     offseasonStartDay: regularSeasonEndDay + 36,
+    staffPhaseEndDay: regularSeasonEndDay + 43,
     draftDay: regularSeasonEndDay + 50,
     freeAgencyStartDay: regularSeasonEndDay + 56,
     nextSeasonStartDay: regularSeasonEndDay + 72,

@@ -61,6 +61,7 @@ function LeagueDashboardPage() {
     canBeginRegularSeason,
     canBeginPlayoffs,
     canBeginOffseason,
+    canCompleteStaffPhase,
     canSimAiReSignings,
     canProceedToDraft,
     canPrepareDraft,
@@ -72,6 +73,7 @@ function LeagueDashboardPage() {
     beginRegularSeason,
     beginPlayoffs,
     beginOffseason,
+    completeStaffPhase,
     completeReSignings,
     advanceToDraft,
     prepareDraft,
@@ -147,6 +149,7 @@ function LeagueDashboardPage() {
     canBeginRegularSeason,
     canBeginPlayoffs,
     canBeginOffseason,
+    canCompleteStaffPhase,
     canSimAiReSignings,
     canProceedToDraft,
     canPrepareDraft,
@@ -227,6 +230,7 @@ function LeagueDashboardPage() {
             canBeginRegularSeason={canBeginRegularSeason}
             canBeginPlayoffs={canBeginPlayoffs}
             canBeginOffseason={canBeginOffseason}
+            canCompleteStaffPhase={canCompleteStaffPhase}
             canSimAiReSignings={canSimAiReSignings}
             canProceedToDraft={canProceedToDraft}
             canPrepareDraft={canPrepareDraft}
@@ -238,6 +242,7 @@ function LeagueDashboardPage() {
             onBeginRegularSeason={beginRegularSeason}
             onBeginPlayoffs={beginPlayoffs}
             onBeginOffseason={beginOffseason}
+            onCompleteStaffPhase={completeStaffPhase}
             onCompleteReSignings={completeReSignings}
             onAdvanceToDraft={advanceToDraft}
             onPrepareDraft={prepareDraft}
@@ -392,6 +397,7 @@ function ScheduleRail({
   canBeginRegularSeason,
   canBeginPlayoffs,
   canBeginOffseason,
+  canCompleteStaffPhase,
   canSimAiReSignings,
   canProceedToDraft,
   canPrepareDraft,
@@ -403,6 +409,7 @@ function ScheduleRail({
   onBeginRegularSeason,
   onBeginPlayoffs,
   onBeginOffseason,
+  onCompleteStaffPhase,
   onCompleteReSignings,
   onAdvanceToDraft,
   onPrepareDraft,
@@ -423,6 +430,7 @@ function ScheduleRail({
   canBeginRegularSeason: boolean
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
+  canCompleteStaffPhase: boolean
   canSimAiReSignings: boolean
   canProceedToDraft: boolean
   canPrepareDraft: boolean
@@ -434,6 +442,7 @@ function ScheduleRail({
   onBeginRegularSeason: () => void
   onBeginPlayoffs: () => void
   onBeginOffseason: () => void
+  onCompleteStaffPhase: () => void
   onCompleteReSignings: () => void
   onAdvanceToDraft: () => void
   onPrepareDraft: () => void
@@ -492,6 +501,7 @@ function ScheduleRail({
           canBeginRegularSeason={canBeginRegularSeason}
           canBeginPlayoffs={canBeginPlayoffs}
           canBeginOffseason={canBeginOffseason}
+          canCompleteStaffPhase={canCompleteStaffPhase}
           canSimAiReSignings={canSimAiReSignings}
           canProceedToDraft={canProceedToDraft}
           canPrepareDraft={canPrepareDraft}
@@ -501,6 +511,7 @@ function ScheduleRail({
           onBeginRegularSeason={onBeginRegularSeason}
           onBeginPlayoffs={onBeginPlayoffs}
           onBeginOffseason={onBeginOffseason}
+          onCompleteStaffPhase={onCompleteStaffPhase}
           onCompleteReSignings={onCompleteReSignings}
           onAdvanceToDraft={onAdvanceToDraft}
           onPrepareDraft={onPrepareDraft}
@@ -556,6 +567,7 @@ function ScheduleGateActions({
   canBeginRegularSeason,
   canBeginPlayoffs,
   canBeginOffseason,
+  canCompleteStaffPhase,
   canSimAiReSignings,
   canProceedToDraft,
   canPrepareDraft,
@@ -565,6 +577,7 @@ function ScheduleGateActions({
   onBeginRegularSeason,
   onBeginPlayoffs,
   onBeginOffseason,
+  onCompleteStaffPhase,
   onCompleteReSignings,
   onAdvanceToDraft,
   onPrepareDraft,
@@ -578,6 +591,7 @@ function ScheduleGateActions({
   canBeginRegularSeason: boolean
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
+  canCompleteStaffPhase: boolean
   canSimAiReSignings: boolean
   canProceedToDraft: boolean
   canPrepareDraft: boolean
@@ -587,6 +601,7 @@ function ScheduleGateActions({
   onBeginRegularSeason: () => void
   onBeginPlayoffs: () => void
   onBeginOffseason: () => void
+  onCompleteStaffPhase: () => void
   onCompleteReSignings: () => void
   onAdvanceToDraft: () => void
   onPrepareDraft: () => void
@@ -599,6 +614,7 @@ function ScheduleGateActions({
     canBeginRegularSeason ||
     canBeginPlayoffs ||
     canBeginOffseason ||
+    canCompleteStaffPhase ||
     canSimAiReSignings ||
     canProceedToDraft ||
     canPrepareDraft ||
@@ -647,6 +663,18 @@ function ScheduleGateActions({
       {canBeginOffseason ? (
         <Button size="sm" onClick={onBeginOffseason}>
           Begin offseason
+        </Button>
+      ) : null}
+
+      {canCompleteStaffPhase ? (
+        <Button size="sm" variant="secondary" asChild>
+          <Link to="/league/staff">Manage staff</Link>
+        </Button>
+      ) : null}
+
+      {canCompleteStaffPhase ? (
+        <Button size="sm" onClick={onCompleteStaffPhase}>
+          Complete staff phase
         </Button>
       ) : null}
 
@@ -884,6 +912,7 @@ function getUrgentItems({
   canBeginRegularSeason,
   canBeginPlayoffs,
   canBeginOffseason,
+  canCompleteStaffPhase,
   canSimAiReSignings,
   canProceedToDraft,
   canPrepareDraft,
@@ -899,6 +928,7 @@ function getUrgentItems({
   canBeginRegularSeason: boolean
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
+  canCompleteStaffPhase: boolean
   canSimAiReSignings: boolean
   canProceedToDraft: boolean
   canPrepareDraft: boolean
@@ -956,6 +986,13 @@ function getUrgentItems({
       label: "Season complete",
       description:
         "Advance the calendar to enter the offseason.",
+    })
+  }
+  if (canCompleteStaffPhase) {
+    items.push({
+      label: "Staff week open",
+      description:
+        "Hire and fire coaches before re-signing opens.",
     })
   }
   if (canSimAiReSignings) {
@@ -1022,6 +1059,7 @@ function showAdvanceEventToast(event: AdvanceEvent, state: SeasonState) {
         regular: "Regular season started",
         playoffs: "Playoffs started",
         offseason: "Offseason started",
+        staff: "Staff week opened",
         re_signing: "Re-signing window opened",
         draft: "Draft window opened",
         free_agency: "Free agency opened",

@@ -5,6 +5,7 @@ import { simulateRegularDay } from "./simulateRegularDay"
 
 export type SimulateDayOptions = {
   teamFinancials?: TeamFinancials[]
+  staff?: import("@workspace/shared/types").StaffMember[]
 }
 
 export function simulateDay(

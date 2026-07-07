@@ -17,6 +17,8 @@ import type {
   FreeAgentOffer,
   LeagueRecord,
   LeagueSummary,
+  StaffExtensionOffer,
+  StaffOffer,
   TradeProposal,
 } from "@workspace/shared/types"
 import { toast } from "sonner"
@@ -457,6 +459,7 @@ export function useLeague() {
     beginPlayoffs: () => dispatch({ type: "beginPlayoffs" }),
     beginOffseason: () => dispatch({ type: "beginOffseason" }),
     completeReSignings: () => dispatch({ type: "completeReSignings" }),
+    completeStaffPhase: () => dispatch({ type: "completeStaffPhase" }),
     advanceToDraft: () => dispatch({ type: "advanceToDraft" }),
     advanceToFreeAgency: () => dispatch({ type: "advanceToFreeAgency" }),
     completeFreeAgency: () => dispatch({ type: "completeFreeAgency" }),
@@ -469,6 +472,11 @@ export function useLeague() {
       dispatch({ type: "releasePlayer", playerId }),
     extendContract: (playerId: string, offer: ExtensionOffer) =>
       dispatch({ type: "extendContract", playerId, offer }),
+    hireStaff: (staffId: string, offer: StaffOffer) =>
+      dispatch({ type: "hireStaff", staffId, offer }),
+    fireStaff: (staffId: string) => dispatch({ type: "fireStaff", staffId }),
+    extendStaffContract: (staffId: string, offer: StaffExtensionOffer) =>
+      dispatch({ type: "extendStaffContract", staffId, offer }),
     signFreeAgent: (playerId: string, offer: FreeAgentOffer) =>
       dispatch({ type: "signFreeAgent", playerId, offer }),
     executeTrade: (proposal: TradeProposal) =>

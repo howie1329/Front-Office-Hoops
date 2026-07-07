@@ -11,7 +11,17 @@ import { emptyComponents, mergeComponents } from "./mergeComponents"
 import { applySegmentRotation, accumulatePlayerMinutes } from "./segmentRotation"
 import { addRebounds, buildScoringComponents } from "./buildScoringComponents"
 import { buildSegmentModifiers } from "./situationalModifiers"
-import { computeLineupSynergy } from "./synergy"
+import {
+  computeDefensiveSynergy,
+  computeOffensiveSynergy,
+} from "./synergy"
+
+const DEFAULT_PHILOSOPHY = {
+  pace: "balanced" as const,
+  offense: "balanced" as const,
+  defense: "drop_coverage" as const,
+  rotation: "standard" as const,
+}
 
 const OT_POSSESSIONS_PER_TEAM = 10
 const MAX_OVERTIMES = 4
@@ -45,25 +55,45 @@ function simulateOtSegment({
   const plan = buildOvertimeSegmentPlan(otIndex, OT_POSSESSIONS_PER_TEAM, OT_POSSESSIONS_PER_TEAM * 2)
   const segPoss = segmentPossessionCount(OT_POSSESSIONS_PER_TEAM * 2, plan)
 
+  const homePhilosophy = input.homePhilosophy ?? DEFAULT_PHILOSOPHY
+  const awayPhilosophy = input.awayPhilosophy ?? DEFAULT_PHILOSOPHY
+
   const homeSegRotation = applySegmentRotation(
     homeRotation,
     plan,
     0,
-    input.homePhilosophy,
+    homePhilosophy,
   )
   const awaySegRotation = applySegmentRotation(
     awayRotation,
     plan,
     0,
-    input.awayPhilosophy,
+    awayPhilosophy,
   )
 
-  const homeSynergy = computeLineupSynergy(homeSegRotation)
-  const awaySynergy = computeLineupSynergy(awaySegRotation)
+  const homeOffSynergy = computeOffensiveSynergy(
+    homeSegRotation,
+    homePhilosophy.offense,
+  )
+  const homeDefSynergy = computeDefensiveSynergy(
+    homeSegRotation,
+    homePhilosophy.defense,
+  )
+  const awayOffSynergy = computeOffensiveSynergy(
+    awaySegRotation,
+    awayPhilosophy.offense,
+  )
+  const awayDefSynergy = computeDefensiveSynergy(
+    awaySegRotation,
+    awayPhilosophy.defense,
+  )
 
   const homeMods = buildSegmentModifiers({
-    philosophy: input.homePhilosophy,
-    synergy: homeSynergy,
+    philosophy: homePhilosophy,
+    offSynergy: homeOffSynergy,
+    defSynergy: homeDefSynergy,
+    staffAlignmentShift: input.homeStaffAlignmentShift ?? 0,
+    coachingQualityShift: input.homeCoachingQualityShift ?? 0,
     momentum: input.homeMomentum,
     streak: input.homeStreak ?? 0,
     fatiguePenalty: (input.homeFatiguePenalty ?? 0) + 0.005 * otIndex,
@@ -76,8 +106,11 @@ function simulateOtSegment({
   })
 
   const awayMods = buildSegmentModifiers({
-    philosophy: input.awayPhilosophy,
-    synergy: awaySynergy,
+    philosophy: awayPhilosophy,
+    offSynergy: awayOffSynergy,
+    defSynergy: awayDefSynergy,
+    staffAlignmentShift: input.awayStaffAlignmentShift ?? 0,
+    coachingQualityShift: input.awayCoachingQualityShift ?? 0,
     momentum: input.awayMomentum,
     streak: input.awayStreak ?? 0,
     fatiguePenalty: (input.awayFatiguePenalty ?? 0) + 0.005 * otIndex,

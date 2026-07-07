@@ -3,7 +3,6 @@ export type Team = {
   name: string
   abbrev: string
   overall: number
-  pace: number
   conferenceId?: string
   divisionId?: string
 }

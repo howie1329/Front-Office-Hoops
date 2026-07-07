@@ -3,9 +3,13 @@ import type {
   QuarterScores,
   Rng,
   RotationEntry,
+  SynergyBreakdown,
   TeamMatchupInput,
 } from "@workspace/shared/types"
-import { DEFAULT_HOME_COURT_ADVANTAGE } from "@workspace/shared/constants"
+import {
+  DEFAULT_HOME_COURT_ADVANTAGE,
+  DEFAULT_PACE,
+} from "@workspace/shared/constants"
 
 import type { TeamStatComponents } from "../allocatePlayerStats"
 import { addRebounds, buildScoringComponents } from "./buildScoringComponents"
@@ -19,10 +23,21 @@ import {
   type SegmentPlan,
 } from "./segments"
 import { buildSegmentModifiers } from "./situationalModifiers"
-import { computeLineupSynergy } from "./synergy"
+import {
+  combineSynergyBreakdowns,
+  computeDefensiveSynergy,
+  computeOffensiveSynergy,
+} from "./synergy"
 import { emptyComponents, mergeComponents } from "./mergeComponents"
 import { estimatePossessions, rotationQuality } from "./ratingHelpers"
 import { philosophyPaceModifier } from "./coachingPhilosophy"
+
+const DEFAULT_PHILOSOPHY = {
+  pace: "balanced" as const,
+  offense: "balanced" as const,
+  defense: "drop_coverage" as const,
+  rotation: "standard" as const,
+}
 
 export type RegulationResult = {
   homeScore: number
@@ -36,8 +51,12 @@ export type RegulationResult = {
     home: Map<string, number>
     away: Map<string, number>
   }
-  homeSynergy: ReturnType<typeof computeLineupSynergy>
-  awaySynergy: ReturnType<typeof computeLineupSynergy>
+  homeSynergy: SynergyBreakdown
+  awaySynergy: SynergyBreakdown
+  homeOffSynergy: SynergyBreakdown
+  awayOffSynergy: SynergyBreakdown
+  homeDefSynergy: SynergyBreakdown
+  awayDefSynergy: SynergyBreakdown
   totalPossessions: number
 }
 
@@ -60,25 +79,48 @@ function simulateSegmentPair({
   homeCourtPerSegment: number
   rng: Rng
 }) {
+  const homePhilosophy = input.homePhilosophy ?? DEFAULT_PHILOSOPHY
+  const awayPhilosophy = input.awayPhilosophy ?? DEFAULT_PHILOSOPHY
+
   const homeSegRotation = applySegmentRotation(
     homeRotation,
     plan,
     runningMargin,
-    input.homePhilosophy,
+    homePhilosophy,
   )
   const awaySegRotation = applySegmentRotation(
     awayRotation,
     plan,
     -runningMargin,
-    input.awayPhilosophy,
+    awayPhilosophy,
   )
 
-  const homeSynergy = computeLineupSynergy(homeSegRotation)
-  const awaySynergy = computeLineupSynergy(awaySegRotation)
+  const homeOffSynergy = computeOffensiveSynergy(
+    homeSegRotation,
+    homePhilosophy.offense,
+  )
+  const homeDefSynergy = computeDefensiveSynergy(
+    homeSegRotation,
+    homePhilosophy.defense,
+  )
+  const awayOffSynergy = computeOffensiveSynergy(
+    awaySegRotation,
+    awayPhilosophy.offense,
+  )
+  const awayDefSynergy = computeDefensiveSynergy(
+    awaySegRotation,
+    awayPhilosophy.defense,
+  )
+
+  const homeSynergy = combineSynergyBreakdowns(homeOffSynergy, homeDefSynergy)
+  const awaySynergy = combineSynergyBreakdowns(awayOffSynergy, awayDefSynergy)
 
   const homeMods = buildSegmentModifiers({
-    philosophy: input.homePhilosophy,
-    synergy: homeSynergy,
+    philosophy: homePhilosophy,
+    offSynergy: homeOffSynergy,
+    defSynergy: homeDefSynergy,
+    staffAlignmentShift: input.homeStaffAlignmentShift ?? 0,
+    coachingQualityShift: input.homeCoachingQualityShift ?? 0,
     momentum: input.homeMomentum,
     streak: input.homeStreak ?? 0,
     fatiguePenalty: input.homeFatiguePenalty ?? 0,
@@ -90,8 +132,11 @@ function simulateSegmentPair({
   })
 
   const awayMods = buildSegmentModifiers({
-    philosophy: input.awayPhilosophy,
-    synergy: awaySynergy,
+    philosophy: awayPhilosophy,
+    offSynergy: awayOffSynergy,
+    defSynergy: awayDefSynergy,
+    staffAlignmentShift: input.awayStaffAlignmentShift ?? 0,
+    coachingQualityShift: input.awayCoachingQualityShift ?? 0,
     momentum: input.awayMomentum,
     streak: input.awayStreak ?? 0,
     fatiguePenalty: input.awayFatiguePenalty ?? 0,
@@ -126,6 +171,10 @@ function simulateSegmentPair({
     awaySegRotation,
     homeSynergy,
     awaySynergy,
+    homeOffSynergy,
+    awayOffSynergy,
+    homeDefSynergy,
+    awayDefSynergy,
   }
 }
 
@@ -139,29 +188,15 @@ export function simulateRegulation(
     input.homeCourtAdvantage ?? DEFAULT_HOME_COURT_ADVANTAGE
   const homeCourtPerSegment = homeCourtAdvantage / 4
 
+  const homePhilosophy = input.homePhilosophy ?? DEFAULT_PHILOSOPHY
+  const awayPhilosophy = input.awayPhilosophy ?? DEFAULT_PHILOSOPHY
+
   const paceModifier =
-    (philosophyPaceModifier(
-      input.homePhilosophy ?? {
-        pace: "balanced",
-        offense: "balanced",
-        rotation: "standard",
-      },
-    ) +
-      philosophyPaceModifier(
-        input.awayPhilosophy ?? {
-          pace: "balanced",
-          offense: "balanced",
-          rotation: "standard",
-        },
-      )) /
+    (philosophyPaceModifier(homePhilosophy.pace) +
+      philosophyPaceModifier(awayPhilosophy.pace)) /
     2
 
-  const totalPossessions = estimatePossessions(
-    input.home.pace,
-    input.away.pace,
-    paceModifier,
-    rng,
-  )
+  const totalPossessions = estimatePossessions(DEFAULT_PACE, paceModifier, rng)
 
   const plans = buildRegulationSegmentPlans()
   const homeQuarterScores: QuarterScores = [0, 0, 0, 0]
@@ -173,8 +208,32 @@ export function simulateRegulation(
   const awayMinutes = new Map<string, number>()
 
   let runningMargin = 0
-  let lastHomeSynergy = computeLineupSynergy(homeRotation)
-  let lastAwaySynergy = computeLineupSynergy(awayRotation)
+  const initialHomePhilosophy = input.homePhilosophy ?? DEFAULT_PHILOSOPHY
+  const initialAwayPhilosophy = input.awayPhilosophy ?? DEFAULT_PHILOSOPHY
+  let lastHomeSynergy = combineSynergyBreakdowns(
+    computeOffensiveSynergy(homeRotation, initialHomePhilosophy.offense),
+    computeDefensiveSynergy(homeRotation, initialHomePhilosophy.defense),
+  )
+  let lastAwaySynergy = combineSynergyBreakdowns(
+    computeOffensiveSynergy(awayRotation, initialAwayPhilosophy.offense),
+    computeDefensiveSynergy(awayRotation, initialAwayPhilosophy.defense),
+  )
+  let lastHomeOffSynergy = computeOffensiveSynergy(
+    homeRotation,
+    initialHomePhilosophy.offense,
+  )
+  let lastAwayOffSynergy = computeOffensiveSynergy(
+    awayRotation,
+    initialAwayPhilosophy.offense,
+  )
+  let lastHomeDefSynergy = computeDefensiveSynergy(
+    homeRotation,
+    initialHomePhilosophy.defense,
+  )
+  let lastAwayDefSynergy = computeDefensiveSynergy(
+    awayRotation,
+    initialAwayPhilosophy.defense,
+  )
 
   for (const plan of plans) {
     const segPoss = segmentPossessionCount(totalPossessions, plan)
@@ -204,6 +263,10 @@ export function simulateRegulation(
     runningMargin += segment.homeStats.points - segment.awayStats.points
     lastHomeSynergy = segment.homeSynergy
     lastAwaySynergy = segment.awaySynergy
+    lastHomeOffSynergy = segment.homeOffSynergy
+    lastAwayOffSynergy = segment.awayOffSynergy
+    lastHomeDefSynergy = segment.homeDefSynergy
+    lastAwayDefSynergy = segment.awayDefSynergy
 
     segmentMeta.push({
       kind: plan.kind,
@@ -226,6 +289,10 @@ export function simulateRegulation(
     playerMinutes: { home: homeMinutes, away: awayMinutes },
     homeSynergy: lastHomeSynergy,
     awaySynergy: lastAwaySynergy,
+    homeOffSynergy: lastHomeOffSynergy,
+    awayOffSynergy: lastAwayOffSynergy,
+    homeDefSynergy: lastHomeDefSynergy,
+    awayDefSynergy: lastAwayDefSynergy,
     totalPossessions,
   }
 }

@@ -12,6 +12,7 @@ import { getAllPhaseEligibility } from "../phaseEligibility"
 import { isPreseasonComplete } from "../preseason/isPreseasonComplete"
 import { simulateDay } from "../simulateDay"
 import { simulateLeagueRegularDay } from "../simulateRegularDay"
+import { completeStaffPhase } from "../offseason/staffPhase"
 import { completeReSigningPhase } from "../offseason/reSigning"
 import {
   advanceToFreeAgencyPhase,
@@ -65,6 +66,7 @@ export type AdvanceEvent =
         | "regular"
         | "playoffs"
         | "offseason"
+        | "staff"
         | "re_signing"
         | "draft"
         | "free_agency"
@@ -328,14 +330,23 @@ function reconcileCalendarPhase(
         current = beginOffseasonForLeague(current, rng)
         events.push(
           { type: "phase_started", phase: "offseason" },
-          { type: "phase_started", phase: "re_signing" },
+          { type: "phase_started", phase: "staff" },
         )
         continue
       }
     }
 
     if (state.phase === "offseason") {
-      const offseasonPhase = state.offseasonPhase ?? "re_signing"
+      const offseasonPhase = state.offseasonPhase ?? "staff"
+
+      if (
+        offseasonPhase === "staff" &&
+        state.currentDay >= milestones.staffPhaseEndDay
+      ) {
+        current = completeStaffPhase(current, rng)
+        events.push({ type: "phase_started", phase: "re_signing" })
+        continue
+      }
 
       if (
         offseasonPhase === "re_signing" &&

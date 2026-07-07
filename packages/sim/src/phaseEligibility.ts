@@ -10,6 +10,7 @@ export type PhaseAction =
   | "beginRegularSeason"
   | "beginPlayoffs"
   | "beginOffseason"
+  | "completeStaffPhase"
   | "simAiReSignings"
   | "proceedToDraft"
   | "prepareDraft"
@@ -25,6 +26,7 @@ const PHASE_ACTIONS: PhaseAction[] = [
   "beginRegularSeason",
   "beginPlayoffs",
   "beginOffseason",
+  "completeStaffPhase",
   "simAiReSignings",
   "proceedToDraft",
   "prepareDraft",
@@ -66,7 +68,7 @@ export function getPhaseEligibility(
   const isSeasonComplete = phase === "complete"
   const isOffseason = phase === "offseason"
   const offseasonPhase = isOffseason
-    ? (seasonState.offseasonPhase ?? "re_signing")
+    ? (seasonState.offseasonPhase ?? "staff")
     : null
   const championTeamId = seasonState.playoffBracket?.championTeamId ?? null
   const completedSeason = seasonState.season
@@ -151,6 +153,22 @@ export function getPhaseEligibility(
         return {
           allowed: false,
           reason: "Season calendar has not reached offseason start",
+        }
+      }
+      return { allowed: true }
+    }
+
+    case "completeStaffPhase": {
+      if (!isOffseason) {
+        return {
+          allowed: false,
+          reason: "Staff phase can only be completed during the offseason",
+        }
+      }
+      if (offseasonPhase !== "staff") {
+        return {
+          allowed: false,
+          reason: "Staff phase is not active",
         }
       }
       return { allowed: true }

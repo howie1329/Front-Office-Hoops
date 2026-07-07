@@ -69,6 +69,8 @@ export type TeamFinancials = {
   scoutingLevel: number
   coachingLevel: number
   developmentLevel: number
+  staffBudget: number
+  staffPayroll: number
   cashReserves: number
   debt: number
   consecutiveTaxSeasons: number

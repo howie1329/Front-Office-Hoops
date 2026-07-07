@@ -68,6 +68,19 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
         ) : null}
         <CapMetric label="Total payroll" value={formatMoney(payroll)} />
         <CapMetric
+          label="Staff budget"
+          value={formatMoney(teamFinance.staffBudget)}
+        />
+        <CapMetric
+          label="Staff payroll"
+          value={formatMoney(teamFinance.staffPayroll)}
+          tone={
+            teamFinance.staffPayroll > teamFinance.staffBudget
+              ? "destructive"
+              : undefined
+          }
+        />
+        <CapMetric
           label="Cap space"
           value={formatMoney(capSpace)}
           tone={capSpace < 0 ? "destructive" : undefined}

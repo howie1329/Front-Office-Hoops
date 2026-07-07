@@ -1,10 +1,28 @@
 export type CoachingPace = "slow" | "balanced" | "fast"
-export type CoachingOffense = "attack_rim" | "balanced" | "perimeter"
+
+export type OffensiveScheme =
+  | "attack_rim"
+  | "balanced"
+  | "perimeter"
+  | "post_hub"
+  | "pace_space"
+
+export type DefensiveScheme =
+  | "drop_coverage"
+  | "switch_everything"
+  | "zone_23"
+  | "full_court_press"
+  | "aggressive_help"
+
+/** @deprecated Use OffensiveScheme */
+export type CoachingOffense = OffensiveScheme
+
 export type CoachingRotation = "tight" | "standard" | "deep"
 
 export type CoachingPhilosophy = {
   pace: CoachingPace
-  offense: CoachingOffense
+  offense: OffensiveScheme
+  defense: DefensiveScheme
   rotation: CoachingRotation
 }
 

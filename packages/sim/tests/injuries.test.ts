@@ -40,7 +40,6 @@ function makeTeam(players: Player[]): TeamWithRoster {
     name: "Injury Team",
     abbrev: "INJ",
     overall: 70,
-    pace: 100,
     players,
   }
 }

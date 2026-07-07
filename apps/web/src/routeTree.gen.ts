@@ -18,6 +18,7 @@ import { Route as LeagueTradesRouteImport } from './routes/league/trades'
 import { Route as LeagueTeamRouteImport } from './routes/league/team'
 import { Route as LeagueStatsRouteImport } from './routes/league/stats'
 import { Route as LeagueStandingsRouteImport } from './routes/league/standings'
+import { Route as LeagueStaffRouteImport } from './routes/league/staff'
 import { Route as LeagueScheduleRouteImport } from './routes/league/schedule'
 import { Route as LeagueSavesRouteImport } from './routes/league/saves'
 import { Route as LeagueReSigningRouteImport } from './routes/league/re-signing'
@@ -74,6 +75,11 @@ const LeagueStatsRoute = LeagueStatsRouteImport.update({
 const LeagueStandingsRoute = LeagueStandingsRouteImport.update({
   id: '/standings',
   path: '/standings',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueStaffRoute = LeagueStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
   getParentRoute: () => LeagueRouteRoute,
 } as any)
 const LeagueScheduleRoute = LeagueScheduleRouteImport.update({
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/league/re-signing': typeof LeagueReSigningRoute
   '/league/saves': typeof LeagueSavesRoute
   '/league/schedule': typeof LeagueScheduleRoute
+  '/league/staff': typeof LeagueStaffRoute
   '/league/standings': typeof LeagueStandingsRoute
   '/league/stats': typeof LeagueStatsRoute
   '/league/team': typeof LeagueTeamRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/league/re-signing': typeof LeagueReSigningRoute
   '/league/saves': typeof LeagueSavesRoute
   '/league/schedule': typeof LeagueScheduleRoute
+  '/league/staff': typeof LeagueStaffRoute
   '/league/standings': typeof LeagueStandingsRoute
   '/league/stats': typeof LeagueStatsRoute
   '/league/team': typeof LeagueTeamRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/league/re-signing': typeof LeagueReSigningRoute
   '/league/saves': typeof LeagueSavesRoute
   '/league/schedule': typeof LeagueScheduleRoute
+  '/league/staff': typeof LeagueStaffRoute
   '/league/standings': typeof LeagueStandingsRoute
   '/league/stats': typeof LeagueStatsRoute
   '/league/team': typeof LeagueTeamRoute
@@ -223,6 +232,7 @@ export interface FileRouteTypes {
     | '/league/re-signing'
     | '/league/saves'
     | '/league/schedule'
+    | '/league/staff'
     | '/league/standings'
     | '/league/stats'
     | '/league/team'
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/league/re-signing'
     | '/league/saves'
     | '/league/schedule'
+    | '/league/staff'
     | '/league/standings'
     | '/league/stats'
     | '/league/team'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/league/re-signing'
     | '/league/saves'
     | '/league/schedule'
+    | '/league/staff'
     | '/league/standings'
     | '/league/stats'
     | '/league/team'
@@ -347,6 +359,13 @@ declare module '@tanstack/react-router' {
       path: '/standings'
       fullPath: '/league/standings'
       preLoaderRoute: typeof LeagueStandingsRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/staff': {
+      id: '/league/staff'
+      path: '/staff'
+      fullPath: '/league/staff'
+      preLoaderRoute: typeof LeagueStaffRouteImport
       parentRoute: typeof LeagueRouteRoute
     }
     '/league/schedule': {
@@ -447,6 +466,7 @@ interface LeagueRouteRouteChildren {
   LeagueReSigningRoute: typeof LeagueReSigningRoute
   LeagueSavesRoute: typeof LeagueSavesRoute
   LeagueScheduleRoute: typeof LeagueScheduleRoute
+  LeagueStaffRoute: typeof LeagueStaffRoute
   LeagueStandingsRoute: typeof LeagueStandingsRoute
   LeagueStatsRoute: typeof LeagueStatsRoute
   LeagueTeamRoute: typeof LeagueTeamRoute
@@ -467,6 +487,7 @@ const LeagueRouteRouteChildren: LeagueRouteRouteChildren = {
   LeagueReSigningRoute: LeagueReSigningRoute,
   LeagueSavesRoute: LeagueSavesRoute,
   LeagueScheduleRoute: LeagueScheduleRoute,
+  LeagueStaffRoute: LeagueStaffRoute,
   LeagueStandingsRoute: LeagueStandingsRoute,
   LeagueStatsRoute: LeagueStatsRoute,
   LeagueTeamRoute: LeagueTeamRoute,

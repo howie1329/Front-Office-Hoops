@@ -23,6 +23,10 @@ export type TeamMatchupInput = {
   awayMinuteReduction?: number
   homePhilosophy?: CoachingPhilosophy
   awayPhilosophy?: CoachingPhilosophy
+  homeStaffAlignmentShift?: number
+  awayStaffAlignmentShift?: number
+  homeCoachingQualityShift?: number
+  awayCoachingQualityShift?: number
   homeMomentum?: TeamMomentumState
   awayMomentum?: TeamMomentumState
   homeStreak?: number
@@ -43,6 +47,10 @@ export type TeamMatchupMeta = {
   segments?: GameSimSegmentMeta[]
   homeSynergy?: SynergyBreakdown
   awaySynergy?: SynergyBreakdown
+  homeOffSynergy?: SynergyBreakdown
+  awayOffSynergy?: SynergyBreakdown
+  homeDefSynergy?: SynergyBreakdown
+  awayDefSynergy?: SynergyBreakdown
   homeMomentumApplied?: number
   awayMomentumApplied?: number
 }
@@ -192,8 +200,10 @@ export type {
   CoachingPace,
   CoachingPhilosophy,
   CoachingRotation,
+  DefensiveScheme,
   GameSimSegmentMeta,
   LineupSynergyGrade,
+  OffensiveScheme,
   SegmentKind,
   SynergyBreakdown,
   TeamMomentumState,
@@ -201,7 +211,16 @@ export type {
 
 export { DEFAULT_TEAM_MOMENTUM } from "./gameSimTypes"
 
-export type { HeadCoach } from "./coachTypes"
+export type {
+  StaffExtensionOffer,
+  StaffMember,
+  StaffOffer,
+  StaffRatings,
+  StaffRole,
+  StaffSource,
+} from "./coachTypes"
+
+export type { StaffContract, StaffContractStatus } from "./staffContractTypes"
 
 export type {
   TradeEvaluation,

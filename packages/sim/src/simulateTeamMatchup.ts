@@ -151,6 +151,10 @@ export function simulateTeamMatchup(
       segments: segmentMeta,
       homeSynergy: regulation.homeSynergy,
       awaySynergy: regulation.awaySynergy,
+      homeOffSynergy: regulation.homeOffSynergy,
+      awayOffSynergy: regulation.awayOffSynergy,
+      homeDefSynergy: regulation.homeDefSynergy,
+      awayDefSynergy: regulation.awayDefSynergy,
       homeMomentumApplied: momentumEfficiencyModifier(
         input.homeMomentum,
         input.homeStreak ?? 0,

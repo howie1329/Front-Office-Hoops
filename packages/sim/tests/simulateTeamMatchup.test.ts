@@ -18,7 +18,6 @@ function makeRoster(overall: number, id = "t_test"): TeamWithRoster {
     name: "Test Team",
     abbrev: "TST",
     overall,
-    pace: 100,
   }
 
   return generateTeamWithRoster(team, createRng(`${id}-${overall}`))

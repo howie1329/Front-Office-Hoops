@@ -59,7 +59,6 @@ function buildTeamBase(
     name,
     abbrev: makeAbbrev(city, nickname, usedAbbrevs),
     overall,
-    pace: 96 + (index % 9),
     conferenceId,
     divisionId,
   }

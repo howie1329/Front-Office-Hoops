@@ -15,6 +15,7 @@ import { beginOffseason } from "../src/beginOffseason"
 import { beginPlayoffs } from "../src/beginPlayoffs"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 import { simulateSeason } from "../src/simulateSeason"
+import { pastStaffPhaseState } from "./helpers/offseason"
 
 function createDraftReadyLeague() {
   const league = createLeague({ skipPreseason: true,
@@ -29,7 +30,7 @@ function createDraftReadyLeague() {
   state = beginPlayoffs(state)
   state = simulatePlayoffs(state)
   state = beginOffseason(state)
-  state = advanceToDraftPhase(state)
+  state = advanceToDraftPhase(pastStaffPhaseState(state, league))
   state = prepareDraft(state, league.draftPickAssets)
 
   return {

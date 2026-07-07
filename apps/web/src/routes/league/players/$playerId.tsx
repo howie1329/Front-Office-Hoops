@@ -988,7 +988,7 @@ function buildDecisionSummary({
   isMyRosterPlayer: boolean
   isFreeAgent: boolean
   isOffseason: boolean
-  offseasonPhase: "re_signing" | "draft" | "free_agency" | null
+  offseasonPhase: "staff" | "re_signing" | "draft" | "free_agency" | null
 }): PlayerDecision {
   const gap = developmentGap(player)
   const ageCurve =

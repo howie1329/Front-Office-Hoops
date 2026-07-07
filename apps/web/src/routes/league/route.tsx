@@ -17,6 +17,7 @@ import {
   Home01Icon,
   RankingIcon,
   SaveIcon,
+  StrategyIcon,
   TradeUpIcon,
   UserGroupIcon,
   UserMultiple02Icon,
@@ -182,6 +183,7 @@ const sidebarNavGroups: SidebarNavGroup[] = [
     label: "Team ops",
     items: [
       { to: "/league/team", label: "My Team", icon: UserGroupIcon },
+      { to: "/league/staff", label: "Staff", icon: StrategyIcon },
       { to: "/league/re-signing", label: "Re-signing", icon: UserMultiple02Icon },
       { to: "/league/free-agency", label: "Free Agency", icon: UserMultiple02Icon },
       { to: "/league/trades", label: "Trades", icon: TradeUpIcon },

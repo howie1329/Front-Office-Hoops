@@ -23,15 +23,17 @@ import { generateDraftClass } from "../src/draft/generateDraftClass"
 import { generateDraftOrderFromSeed } from "../src/draft/generateDraftOrder"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
+import { pastStaffPhaseState } from "./helpers/offseason"
 
 function completeSeasonToOffseason(
-  state: ReturnType<typeof createLeague>["seasonState"]
+  state: ReturnType<typeof createLeague>["seasonState"],
+  league: ReturnType<typeof createLeague>,
 ) {
   let next = simulateSeason(state)
   next = beginPlayoffs(next)
   next = simulatePlayoffs(next)
   next = beginOffseason(next)
-  return next
+  return pastStaffPhaseState(next, league)
 }
 
 function runToDraftOffseason(
@@ -43,7 +45,7 @@ function runToDraftOffseason(
   })
 ) {
   const state = advanceToDraftPhase(
-    completeSeasonToOffseason(league.seasonState)
+    completeSeasonToOffseason(league.seasonState, league)
   )
   return { league, state }
 }

@@ -16,6 +16,7 @@ import {
 } from "../src"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
+import { pastStaffPhase, pastStaffPhaseState } from "./helpers/offseason"
 
 function createOffseasonLeague() {
   const league = createLeague({ skipPreseason: true,
@@ -29,10 +30,10 @@ function createOffseasonLeague() {
   state = beginPlayoffs(state)
   state = simulatePlayoffs(state)
   state = beginOffseason(state)
-  return {
+  return pastStaffPhase({
     ...league,
     seasonState: state,
-  }
+  })
 }
 
 describe("phaseEligibility", () => {

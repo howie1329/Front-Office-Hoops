@@ -25,11 +25,12 @@ type LeagueContextValue = ReturnType<typeof useLeague> & {
   isPlayoffs: boolean
   isSeasonComplete: boolean
   isOffseason: boolean
-  offseasonPhase: "re_signing" | "draft" | "free_agency" | null
+  offseasonPhase: "staff" | "re_signing" | "draft" | "free_agency" | null
   championTeamId: string | null
   canBeginRegularSeason: boolean
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
+  canCompleteStaffPhase: boolean
   canSimAiReSignings: boolean
   canProceedToDraft: boolean
   canPrepareDraft: boolean
@@ -66,7 +67,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const isSeasonComplete = phase === "complete"
     const isOffseason = phase === "offseason"
     const offseasonPhase = isOffseason
-      ? (seasonState?.offseasonPhase ?? "re_signing")
+      ? (seasonState?.offseasonPhase ?? "staff")
       : null
     const championTeamId = seasonState?.playoffBracket?.championTeamId ?? null
     const userRosterSize = myTeam?.players.length ?? 0
@@ -100,6 +101,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       canBeginRegularSeason: eligibility?.beginRegularSeason.allowed ?? false,
       canBeginPlayoffs: eligibility?.beginPlayoffs.allowed ?? false,
       canBeginOffseason: eligibility?.beginOffseason.allowed ?? false,
+      canCompleteStaffPhase: eligibility?.completeStaffPhase.allowed ?? false,
       canSimAiReSignings: eligibility?.simAiReSignings.allowed ?? false,
       canProceedToDraft: eligibility?.proceedToDraft.allowed ?? false,
       canPrepareDraft: eligibility?.prepareDraft.allowed ?? false,

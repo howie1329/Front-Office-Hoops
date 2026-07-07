@@ -2,6 +2,8 @@ import type { AdvanceTarget } from "./advanceTypes"
 import type {
   ExtensionOffer,
   FreeAgentOffer,
+  StaffExtensionOffer,
+  StaffOffer,
   TradeProposal,
 } from "@workspace/shared/types"
 
@@ -16,6 +18,7 @@ export type LeagueCommand =
   | { type: "skipRemainingExhibitions" }
   | { type: "beginPlayoffs" }
   | { type: "beginOffseason" }
+  | { type: "completeStaffPhase" }
   | { type: "completeReSignings" }
   | { type: "advanceToDraft" }
   | { type: "prepareDraft" }
@@ -27,6 +30,9 @@ export type LeagueCommand =
   | { type: "releasePlayer"; playerId: string }
   | { type: "signFreeAgent"; playerId: string; offer: FreeAgentOffer }
   | { type: "extendContract"; playerId: string; offer: ExtensionOffer }
+  | { type: "hireStaff"; staffId: string; offer: StaffOffer }
+  | { type: "fireStaff"; staffId: string }
+  | { type: "extendStaffContract"; staffId: string; offer: StaffExtensionOffer }
   | { type: "executeTrade"; proposal: TradeProposal }
   | { type: "acceptTradeOffer"; offerId: string }
   | { type: "rejectTradeOffer"; offerId: string }
@@ -39,6 +45,7 @@ export type PhaseGatedCommand = Extract<
   | { type: "beginRegularSeason" }
   | { type: "beginPlayoffs" }
   | { type: "beginOffseason" }
+  | { type: "completeStaffPhase" }
   | { type: "completeReSignings" }
   | { type: "advanceToDraft" }
   | { type: "prepareDraft" }
@@ -48,11 +55,12 @@ export type PhaseGatedCommand = Extract<
 >
 
 export function getPhaseActionForCommand(
-  command: PhaseGatedCommand
+  command: PhaseGatedCommand,
 ):
   | "beginRegularSeason"
   | "beginPlayoffs"
   | "beginOffseason"
+  | "completeStaffPhase"
   | "simAiReSignings"
   | "proceedToDraft"
   | "prepareDraft"
@@ -66,6 +74,8 @@ export function getPhaseActionForCommand(
       return "beginPlayoffs"
     case "beginOffseason":
       return "beginOffseason"
+    case "completeStaffPhase":
+      return "completeStaffPhase"
     case "completeReSignings":
       return "simAiReSignings"
     case "advanceToDraft":

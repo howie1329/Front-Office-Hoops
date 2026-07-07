@@ -6,9 +6,11 @@ export {
 } from "./teamStrength"
 export { simulateTeamMatchup } from "./simulateTeamMatchup"
 export {
-  deriveCoachingPhilosophy,
   computeLineupSynergy,
+  computeOffensiveSynergy,
+  computeDefensiveSynergy,
   computeTeamMomentum,
+  philosophyPaceModifier,
   updateTeamMomentumMap,
 } from "./gameSim"
 export { generatePlayers, generateTeamWithRoster } from "./generatePlayers"
@@ -52,6 +54,19 @@ export {
   completeFreeAgencyPhase,
 } from "./offseason/phases"
 export { completeReSigningPhase } from "./offseason/reSigning"
+export { completeStaffPhase } from "./offseason/staffPhase"
+export {
+  applyStaffBudgetsFromOwners,
+  derivePhilosophyFromStaff,
+  getHeadCoachPace,
+  getStaffByRole,
+  getTeamStaff,
+  hireStaff,
+  fireStaff,
+  extendStaffContract,
+  initializeStaffForLeague,
+  syncLeagueStaffFinancials,
+} from "./staff"
 export { startNextSeason } from "./startNextSeason"
 export type {
   StartNextSeasonInput,

@@ -12,8 +12,10 @@ import {
 } from "../src"
 import { beginOffseason } from "../src/beginOffseason"
 import { beginPlayoffs } from "../src/beginPlayoffs"
+import { completeStaffPhase } from "../src/offseason/staffPhase"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
+import { pastStaffPhaseState } from "./helpers/offseason"
 
 function createOffseasonLeague() {
   const league = createLeague({ skipPreseason: true,
@@ -30,16 +32,27 @@ function createOffseasonLeague() {
 }
 
 describe("offseason phases", () => {
-  it("enters re-signing when offseason begins", () => {
+  it("enters staff when offseason begins", () => {
     const { state } = createOffseasonLeague()
 
     expect(state.phase).toBe("offseason")
-    expect(state.offseasonPhase).toBe("re_signing")
+    expect(state.offseasonPhase).toBe("staff")
+  })
+
+  it("advances from staff to re-signing after completeStaffPhase", () => {
+    const { league, state } = createOffseasonLeague()
+    const afterStaff = completeStaffPhase(
+      { ...league, seasonState: state },
+      createRng("staff-complete"),
+    )
+
+    expect(afterStaff.seasonState.offseasonPhase).toBe("re_signing")
   })
 
   it("advances from re-signing to draft and then to free agency after draft completion", () => {
-    const { state } = createOffseasonLeague()
-    const draftPhase = advanceToDraftPhase(state)
+    const { league, state } = createOffseasonLeague()
+    const reSigning = pastStaffPhaseState(state, league)
+    const draftPhase = advanceToDraftPhase(reSigning)
 
     expect(draftPhase.offseasonPhase).toBe("draft")
     expect(() => advanceToFreeAgencyPhase(draftPhase)).toThrow(
@@ -54,7 +67,8 @@ describe("offseason phases", () => {
 
   it("blocks starting the next season before free agency phase", () => {
     const { league, state } = createOffseasonLeague()
-    const draftPhase = advanceToDraftPhase(state)
+    const reSigning = pastStaffPhaseState(state, league)
+    const draftPhase = advanceToDraftPhase(reSigning)
     const completedDraft = simDraftUntilComplete(prepareDraft(draftPhase), [])
     const trimmed = applyAiRosterTrimming(
       completedDraft.seasonState.teams,

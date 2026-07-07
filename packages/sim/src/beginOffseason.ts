@@ -14,6 +14,6 @@ export function beginOffseason(
   return {
     ...state,
     phase: "offseason",
-    offseasonPhase: "re_signing",
+    offseasonPhase: "staff",
   }
 }
