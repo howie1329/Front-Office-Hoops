@@ -64,17 +64,25 @@ on market-day advancement.
 
 ## Evaluation Inputs
 
-The v1 evaluator intentionally stays simple:
+The player evaluator returns a score plus a breakdown for debugging and future
+UI explanation:
 
-- First-year salary versus expected market salary.
-- Contract length.
-- Current-team loyalty for player re-signing.
-- Market timing so candidates can wait on decent offers.
-- Extension context through existing extension bounds.
+- salary: first-year salary versus mood-adjusted market expectation.
+- years: contract length security.
+- loyalty: current-team preference for re-signing and extensions.
+- winning: team quality, standings, and contender/seller strategy.
+- market: market tier preference for fame-driven players.
+- role: projected roster rank and role opportunity.
+- timing: market-day patience and immediate negotiation timing.
 
 Strong offers can be accepted immediately. Competitive but not overwhelming
 open-market offers can remain pending. Weak offers are declined or beaten by
 better offers.
+
+`PlayerMood` is the negotiation personality source. Money-focused players put
+more pressure on salary. Winning-focused players favor contenders. Loyal players
+are easier to retain. Fame-focused players prefer larger markets and stronger
+roles.
 
 ## UI Requirements
 

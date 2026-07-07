@@ -43,11 +43,6 @@ export * from "./contracts/createContract"
 export * from "./contracts/processContracts"
 export * from "./teamStrategy"
 export { applyAiCapBehavior } from "./ai/capCuts"
-export {
-  scoreBidForPlayer,
-  pickAuctionWinner,
-  adjustAskFromBids,
-} from "./market/bidScoring"
 
 export function processOffseasonFinancials(
   league: LeagueRecord,
