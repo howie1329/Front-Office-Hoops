@@ -48,10 +48,7 @@ function completeSeasonToOffseason(
   let state = simulateSeason(league.seasonState)
   state = beginPlayoffs(state)
   state = simulatePlayoffs(state)
-  state = beginOffseason(
-    state,
-    createRng(`${state.baseSeed}:offseason:${state.season}`)
-  )
+  state = beginOffseason(state)
   return { league, state }
 }
 

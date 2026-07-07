@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { useMemo } from "react"
 
+import { playerName } from "@/components/box-score/playerName"
 import { GameLog } from "@/components/league/GameLog"
 import { SeasonPhaseCard } from "@/components/league/SeasonPhaseCard"
 import { AdvanceControls } from "@/components/league/AdvanceControls"
@@ -16,6 +17,7 @@ import { useLeagueContext } from "@/contexts/LeagueContext"
 import { useTeamFinancials } from "@/hooks/useTeamFinancials"
 import { LEAGUE_TEAM_COUNT } from "@workspace/shared/constants"
 import type {
+  PreseasonDevelopmentReport,
   ScheduleGame,
   SeasonPhase,
   SeasonState,
@@ -268,6 +270,15 @@ function LeagueDashboardPage() {
             title="Advance league"
             description={`Advance ${league?.name ?? "your league"} by day or run bulk simulation through your games.`}
           />
+
+          {phase === "preseason" && league?.developmentReports?.length ? (
+            <DevelopmentReportCard
+              report={
+                league.developmentReports[league.developmentReports.length - 1]!
+              }
+              seasonState={seasonState}
+            />
+          ) : null}
 
           <RecentResultsCard
             state={seasonState}
@@ -836,4 +847,84 @@ function getStandingsWindow(
   const adjustedStart = Math.max(0, end - 5)
 
   return state.standings.slice(adjustedStart, end)
+}
+
+function DevelopmentReportCard({
+  report,
+  seasonState,
+}: {
+  report: PreseasonDevelopmentReport
+  seasonState: SeasonState
+}) {
+  const allPlayers = seasonState.teams.flatMap((team) => team.players)
+
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Development report</CardTitle>
+        <CardDescription>
+          Season {report.season} preseason — biggest risers and fallers league-wide.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 py-4 text-sm">
+        <div>
+          <p className="font-medium">Top risers</p>
+          {report.topRisers.length === 0 ? (
+            <p className="text-muted-foreground">No major risers this year.</p>
+          ) : (
+            <ul className="mt-2 space-y-1">
+              {report.topRisers.slice(0, 5).map((entry) => (
+                <li key={entry.id} className="flex justify-between gap-3">
+                  <Link
+                    to="/league/players/$playerId"
+                    params={{ playerId: entry.playerId }}
+                    className="hover:underline"
+                  >
+                    {playerName(allPlayers, entry.playerId)}
+                  </Link>
+                  <span>
+                    {entry.overallBefore} → {entry.overallAfter} (
+                    {entry.overallAfter - entry.overallBefore > 0 ? "+" : ""}
+                    {entry.overallAfter - entry.overallBefore})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <p className="font-medium">Top fallers</p>
+          {report.topFallers.length === 0 ? (
+            <p className="text-muted-foreground">No major fallers this year.</p>
+          ) : (
+            <ul className="mt-2 space-y-1">
+              {report.topFallers.slice(0, 5).map((entry) => (
+                <li key={entry.id} className="flex justify-between gap-3">
+                  <Link
+                    to="/league/players/$playerId"
+                    params={{ playerId: entry.playerId }}
+                    className="hover:underline"
+                  >
+                    {playerName(allPlayers, entry.playerId)}
+                  </Link>
+                  <span>
+                    {entry.overallBefore} → {entry.overallAfter}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {report.retirements.length > 0 ? (
+          <div>
+            <p className="font-medium">Retirements ({report.retirements.length})</p>
+            <p className="text-muted-foreground">
+              {report.retirements.length} player
+              {report.retirements.length === 1 ? "" : "s"} retired this preseason.
+            </p>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  )
 }

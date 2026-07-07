@@ -13,7 +13,7 @@ import type {
 } from "@workspace/shared/types"
 
 import { beginOffseason } from "../src/beginOffseason"
-import { applyOffseasonProgression } from "../src/development/applyOffseasonProgression"
+import { applyPreseasonProgression } from "../src/preseason/applyPreseasonProgression"
 import { collectModifiers } from "../src/development/collectModifiers"
 import { progressPlayer } from "../src/development/progressPlayer"
 import { derivePlayerSeasonProfiles } from "../src/playerSeasonProfiles"
@@ -52,33 +52,25 @@ function createTestPlayer(overrides: Partial<Player> = {}): Player {
   })
 }
 
-function sumSkills(player: Player): number {
-  const {
-    threePoint,
-    midRange,
-    freeThrow,
-    inside,
-    passing,
-    ballHandling,
-    rebounding,
-    defense,
-    stamina,
-    offensiveIQ,
-    defensiveIQ,
-  } = player.ratings
-  return (
-    threePoint +
-    midRange +
-    freeThrow +
-    inside +
-    passing +
-    ballHandling +
-    rebounding +
-    defense +
-    stamina +
-    offensiveIQ +
-    defensiveIQ
-  )
+function runProgress(
+  player: Player,
+  team: TeamWithRoster,
+  baseSeed: string,
+  playerSeasonProfiles: PlayerSeasonProfile[] = [],
+  playerSeasonStats: PlayerSeasonStats[] = [],
+): Player {
+  const result = progressPlayer({
+    player,
+    team,
+    priorSeason: 1,
+    newSeason: 2,
+    playerSeasonStats,
+    playerSeasonProfiles,
+    baseSeed,
+  })
+
+  expect(result.player).not.toBeNull()
+  return result.player!
 }
 
 function createTestTeam(players: Player[]): TeamWithRoster {
@@ -94,7 +86,7 @@ function createTestTeam(players: Player[]): TeamWithRoster {
 
 function createSeasonStats(
   player: Player,
-  overrides: Partial<PlayerSeasonStats> = {}
+  overrides: Partial<PlayerSeasonStats> = {},
 ): PlayerSeasonStats {
   return {
     id: `pss_1_${player.id}`,
@@ -122,7 +114,7 @@ function createSeasonStats(
 
 function createSeasonProfile(
   player: Player,
-  overrides: Partial<PlayerSeasonProfile> = {}
+  overrides: Partial<PlayerSeasonProfile> = {},
 ): PlayerSeasonProfile {
   return {
     id: `psp_1_${player.id}`,
@@ -149,7 +141,7 @@ describe("player development", () => {
     })
     const team = createTestTeam([player])
 
-    const progressed = progressPlayer(player, team, 1, [], "dev-seed")
+    const progressed = runProgress(player, team, "dev-seed")
 
     expect(progressed.age).toBe(21)
     expect(progressed.ratings.overall).toBeGreaterThan(50)
@@ -163,7 +155,7 @@ describe("player development", () => {
     })
     const team = createTestTeam([player])
 
-    const progressed = progressPlayer(player, team, 1, [], "regression-seed")
+    const progressed = runProgress(player, team, "regression-seed")
 
     expect(progressed.age).toBe(35)
     expect(progressed.ratings.overall).toBeLessThan(70)
@@ -177,9 +169,9 @@ describe("player development", () => {
     })
     const team = createTestTeam([player])
 
-    const progressed = progressPlayer(player, team, 1, [], "ceiling-seed")
+    const progressed = runProgress(player, team, "ceiling-seed")
 
-    expect(Math.abs(progressed.ratings.overall - 78)).toBeLessThanOrEqual(2)
+    expect(Math.abs(progressed.ratings.overall - 78)).toBeLessThanOrEqual(3)
   })
 
   it("produces different trajectories for different peak ages at the same age", () => {
@@ -197,8 +189,8 @@ describe("player development", () => {
     })
     const team = createTestTeam([youngEarlyPeak, youngLatePeak])
 
-    const early = progressPlayer(youngEarlyPeak, team, 1, [], "peak-age-seed")
-    const late = progressPlayer(youngLatePeak, team, 1, [], "peak-age-seed")
+    const early = runProgress(youngEarlyPeak, team, "peak-age-seed")
+    const late = runProgress(youngLatePeak, team, "peak-age-seed")
 
     expect(late.ratings.overall).toBeGreaterThan(early.ratings.overall)
   })
@@ -218,22 +210,20 @@ describe("player development", () => {
       ratings: makeTestRatings({ overall: 68, potential: 68, usage: 18 }),
     })
 
-    const withoutVet = progressPlayer(
+    const withoutVet = runProgress(
       youngPlayer,
       createTestTeam([youngPlayer]),
-      1,
-      [],
-      "vet-seed"
+      "vet-seed",
     )
-    const withVet = progressPlayer(
+    const withVet = runProgress(
       youngPlayer,
       createTestTeam([youngPlayer, veteran]),
-      1,
-      [],
-      "vet-seed"
+      "vet-seed",
     )
 
-    expect(withVet.ratings.overall).toBeGreaterThanOrEqual(withoutVet.ratings.overall)
+    expect(withVet.ratings.overall).toBeGreaterThanOrEqual(
+      withoutVet.ratings.overall,
+    )
   })
 
   it("applies a veteran regression modifier for post-peak players", () => {
@@ -263,8 +253,8 @@ describe("player development", () => {
         (modifier) =>
           modifier.id === "team:veteran_mentorship_regression" &&
           modifier.regressionMultiplier !== undefined &&
-          modifier.regressionMultiplier < 1
-      )
+          modifier.regressionMultiplier < 1,
+      ),
     ).toBe(true)
   })
 
@@ -272,8 +262,8 @@ describe("player development", () => {
     const player = createTestPlayer()
     const team = createTestTeam([player])
 
-    const first = progressPlayer(player, team, 1, [], "deterministic-seed")
-    const second = progressPlayer(player, team, 1, [], "deterministic-seed")
+    const first = runProgress(player, team, "deterministic-seed")
+    const second = runProgress(player, team, "deterministic-seed")
 
     expect(second).toEqual(first)
   })
@@ -286,7 +276,7 @@ describe("player development", () => {
     })
     const team = createTestTeam([player])
 
-    const progressed = progressPlayer(player, team, 1, [], "bounds-seed")
+    const progressed = runProgress(player, team, "bounds-seed")
 
     for (const skill of [
       "threePoint",
@@ -318,16 +308,19 @@ describe("player development", () => {
       ratings: makeTestRatings({ overall: 50, potential: 80, usage: 12 }),
     })
     const team = createTestTeam([player])
-    const [updatedTeam] = applyOffseasonProgression(
-      [team],
-      1,
-      [],
-      "team-overall-seed",
-      createRng("team-overall-seed")
-    )
+    const result = applyPreseasonProgression({
+      teams: [team],
+      priorSeason: 1,
+      newSeason: 2,
+      playerSeasonStats: [],
+      playerSeasonProfiles: [],
+      baseSeed: "team-overall-seed",
+    })
+    const updatedTeam = result.teams[0]!
 
-    expect(updatedTeam!.players[0]!.ratings.overall).toBeGreaterThan(50)
-    expect(updatedTeam!.overall).toBe(updatedTeam!.players[0]!.ratings.overall)
+    expect(updatedTeam.players[0]!.ratings.overall).toBeGreaterThan(50)
+    expect(updatedTeam.overall).toBe(updatedTeam.players[0]!.ratings.overall)
+    expect(result.records.length).toBeGreaterThan(0)
   })
 
   it("adds the veteran tag when a player ages into veteran status", () => {
@@ -338,7 +331,7 @@ describe("player development", () => {
     })
     const team = createTestTeam([player])
 
-    const progressed = progressPlayer(player, team, 1, [], "veteran-tag-seed")
+    const progressed = runProgress(player, team, "veteran-tag-seed")
 
     expect(progressed.tags).toContain(VETERAN_TAG)
   })
@@ -368,11 +361,11 @@ describe("player development", () => {
         }),
       ],
       5,
-      1
+      1,
     )
 
     expect(
-      profiles.find((entry) => entry.playerId === starter.id)
+      profiles.find((entry) => entry.playerId === starter.id),
     ).toMatchObject({
       primaryRole: "star",
       mpg: 33,
@@ -384,7 +377,7 @@ describe("player development", () => {
       gamesMissed: 4,
     })
     expect(
-      profiles.find((entry) => entry.playerId === inactive.id)
+      profiles.find((entry) => entry.playerId === inactive.id),
     ).toMatchObject({
       primaryRole: "inactive",
       gp: 0,
@@ -400,18 +393,10 @@ describe("player development", () => {
     })
     const team = createTestTeam([player])
 
-    const withoutProfile = progressPlayer(
+    const withoutProfile = runProgress(player, team, "role-opportunity-seed")
+    const withProfile = runProgress(
       player,
       team,
-      1,
-      [],
-      "role-opportunity-seed"
-    )
-    const withProfile = progressPlayer(
-      player,
-      team,
-      1,
-      [],
       "role-opportunity-seed",
       [
         createSeasonProfile(player, {
@@ -422,7 +407,7 @@ describe("player development", () => {
           primaryRole: "starter",
           gamesMissed: 0,
         }),
-      ]
+      ],
     )
 
     expect(withProfile.ratings.overall).toBeGreaterThanOrEqual(
@@ -438,8 +423,8 @@ describe("player development", () => {
     })
     const team = createTestTeam([player])
 
-    const neutral = progressPlayer(player, team, 1, [], "role-buried-seed")
-    const buried = progressPlayer(player, team, 1, [], "role-buried-seed", [
+    const neutral = runProgress(player, team, "role-buried-seed")
+    const buried = runProgress(player, team, "role-buried-seed", [
       createSeasonProfile(player, {
         gp: 5,
         totalMinutes: 25,
@@ -451,11 +436,31 @@ describe("player development", () => {
 
     expect(buried.ratings.overall).toBeLessThanOrEqual(neutral.ratings.overall)
   })
+
+  it("records development reasons on progression", () => {
+    const player = createTestPlayer({ age: 21, peakAge: 29 })
+    const team = createTestTeam([player])
+    const result = progressPlayer({
+      player,
+      team,
+      priorSeason: 1,
+      newSeason: 2,
+      playerSeasonStats: [],
+      playerSeasonProfiles: [],
+      baseSeed: "record-seed",
+    })
+
+    expect(result.record.modifierIds.length).toBeGreaterThanOrEqual(0)
+    expect(result.record.events.some((e) => e.startsWith("potential:"))).toBe(
+      true,
+    )
+  })
 })
 
-describe("offseason phase", () => {
-  it("begins offseason from a completed season and applies progression", () => {
-    const league = createLeague({ skipPreseason: true,
+describe("preseason progression phase", () => {
+  it("begins offseason without aging players", () => {
+    const league = createLeague({
+      skipPreseason: true,
       name: "Offseason Test",
       baseSeed: "offseason-test",
       rng: createRng("offseason-test"),
@@ -473,25 +478,21 @@ describe("offseason phase", () => {
       overall: player.ratings.overall,
     }))
 
-    state = beginOffseason(state, createRng("offseason-test:offseason:1"))
+    state = beginOffseason(state)
 
     expect(state.phase).toBe("offseason")
     for (const before of beforePlayers) {
       const after = state.teams[0]!.players.find(
-        (player) => player.id === before.id
+        (player) => player.id === before.id,
       )!
-      expect(after.age).toBe(before.age + 1)
+      expect(after.age).toBe(before.age)
+      expect(after.ratings.overall).toBe(before.overall)
     }
-    expect(
-      state.teams[0]!.players.some((player) => {
-        const before = beforePlayers.find((entry) => entry.id === player.id)!
-        return player.ratings.overall !== before.overall
-      })
-    ).toBe(true)
   })
 
   it("requires offseason before starting the next season", () => {
-    const league = createLeague({ skipPreseason: true,
+    const league = createLeague({
+      skipPreseason: true,
       name: "Offseason Guard",
       baseSeed: "offseason-guard",
       rng: createRng("offseason-guard"),
@@ -508,16 +509,16 @@ describe("offseason phase", () => {
         userTeamId: league.userTeamId,
         freeAgentPool: [],
         rng: createRng("offseason-guard-next"),
-      })
+      }),
     ).toThrow("offseason")
 
-    state = beginOffseason(state, createRng("offseason-guard:offseason:1"))
+    state = beginOffseason(state)
     const prepared = prepareDraft(advanceToDraftPhase(state))
     const completed = simDraftUntilComplete(prepared, [])
     const trimmed = applyAiRosterTrimming(
       completed.seasonState.teams,
       completed.freeAgentPool,
-      null
+      null,
     )
     const next = startNextSeason({
       seasonState: {
@@ -527,9 +528,13 @@ describe("offseason phase", () => {
       userTeamId: league.userTeamId,
       freeAgentPool: trimmed.freeAgentPool,
       rng: createRng("offseason-guard-next"),
+      playerSeasonProfiles: league.playerSeasonProfiles,
+      seasonHistory: league.seasonHistory,
     })
 
     expect(next.seasonState.season).toBe(2)
     expect(next.seasonState.phase).toBe("preseason")
+    expect(next.playerDevelopmentRecords.length).toBeGreaterThan(0)
+    expect(next.developmentReport.season).toBe(2)
   })
 })

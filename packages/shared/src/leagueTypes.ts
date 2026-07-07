@@ -12,11 +12,16 @@ import type {
   PlayerCareerSnapshot,
   PlayerSeasonProfile,
 } from "./playerProfileTypes"
+import type {
+  PlayerDevelopmentRecord,
+  PreseasonDevelopmentReport,
+  RetirementEntry,
+} from "./developmentTypes"
 import type { SeasonAward } from "./awardTypes"
 import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
 import type { PendingTradeOffer, TradeHistoryEntry } from "./tradeTypes"
 
-export const SAVE_VERSION = 12 as const
+export const SAVE_VERSION = 13 as const
 
 export type DraftClassCache = {
   season: number
@@ -53,6 +58,9 @@ export type LeagueRecord = League & {
   seasonAwards: SeasonAward[]
   playerCareerSnapshots: PlayerCareerSnapshot[]
   playerSeasonProfiles: PlayerSeasonProfile[]
+  playerDevelopmentRecords: PlayerDevelopmentRecord[]
+  developmentReports: PreseasonDevelopmentReport[]
+  retiredPlayers: RetirementEntry[]
 }
 
 export type LeagueSummary = Pick<

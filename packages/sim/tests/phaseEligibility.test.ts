@@ -28,7 +28,7 @@ function createOffseasonLeague() {
   let state = simulateSeason(league.seasonState)
   state = beginPlayoffs(state)
   state = simulatePlayoffs(state)
-  state = beginOffseason(state, createRng("phase-eligibility-open"))
+  state = beginOffseason(state)
   return {
     ...league,
     seasonState: state,

@@ -15,6 +15,7 @@ export function computeRoleMinutesModifier(
       return {
         id: "performance:young_opportunity",
         source: "performance",
+        category: "opportunity",
         growthMultiplier: 1.08,
         potentialDriftBias: 0.08,
       }
@@ -24,6 +25,7 @@ export function computeRoleMinutesModifier(
       return {
         id: "performance:young_buried",
         source: "performance",
+        category: "opportunity",
         growthMultiplier: 0.94,
         potentialDriftBias: -0.08,
       }
@@ -34,6 +36,7 @@ export function computeRoleMinutesModifier(
     return {
       id: "performance:veteran_workload",
       source: "performance",
+      category: "opportunity",
       regressionMultiplier: 1.06,
       skillBonuses: {
         stamina: -0.25,

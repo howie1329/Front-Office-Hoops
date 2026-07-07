@@ -27,6 +27,8 @@ function mockTeamFinance(mode: TeamFinancials["strategy"]["mode"]): TeamFinancia
     roomMleRemaining: 8,
     wasUnderCapThisYear: true,
     scoutingLevel: 5,
+    coachingLevel: 5,
+    developmentLevel: 5,
     tradeExceptions: [],
     deadCapCharges: [],
   }

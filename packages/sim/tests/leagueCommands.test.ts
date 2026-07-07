@@ -35,7 +35,7 @@ function createOffseasonLeague() {
   }
   state = beginPlayoffs(state)
   state = simulatePlayoffs(state)
-  state = beginOffseason(state, createRng("league-commands-offseason"))
+  state = beginOffseason(state)
 
   return {
     ...league,

@@ -51,6 +51,24 @@ export const VETERAN_REGRESSION_BONUS = 0.1
 export const REGRESSION_RAMP_YEARS = 4
 export const GROWTH_RATE_SCALE = 0.35
 export const POTENTIAL_OVERSHOOT_ALLOWANCE = 1
+export const GROWTH_RNG_MIN = 0.4
+export const GROWTH_RNG_MAX = 1.4
+export const DECLINE_RNG_MIN = 0.8
+export const DECLINE_RNG_MAX = 1.2
+export const MONTE_CARLO_SIMULATIONS = 24
+export const MONTE_CARLO_PERCENTILE = 0.75
+export const DEFAULT_COACHING_LEVEL = 5
+export const DEFAULT_DEVELOPMENT_LEVEL = 5
+export const COACHING_LEVEL_MIN = 1
+export const COACHING_LEVEL_MAX = 10
+export const MAX_GROWTH_MODIFIER = 1.5
+export const MIN_REGRESSION_MODIFIER = 0.5
+export const RETIREMENT_HARD_THRESHOLD = 72
+export const BREAKOUT_EVENT_CHANCE = 0.04
+export const REGRESSION_EVENT_CHANCE = 0.035
+export const SECOND_PEAK_MAX_AGE = 35
+export const DEVELOPMENT_MOMENTUM_MIN = -1
+export const DEVELOPMENT_MOMENTUM_MAX = 1
 
 export const SKILL_KEYS = [
   "threePoint",

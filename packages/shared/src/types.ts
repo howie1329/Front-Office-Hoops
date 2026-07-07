@@ -159,6 +159,14 @@ export type {
 } from "./playerProfileTypes"
 
 export type {
+  PlayerDevelopmentRecord,
+  PreseasonDevelopmentReport,
+  RetirementEntry,
+  PotentialRange,
+  PlayerInjuryHistory,
+} from "./developmentTypes"
+
+export type {
   TradeEvaluation,
   TradeHistoryEntry,
   TradeHistoryTeamEntry,

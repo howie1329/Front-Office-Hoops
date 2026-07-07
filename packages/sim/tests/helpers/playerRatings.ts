@@ -1,4 +1,5 @@
 import { SKILL_KEYS } from "@workspace/shared/constants"
+import { EMPTY_INJURY_HISTORY } from "@workspace/shared"
 import type { Player, PlayerRatings, SkillKey } from "@workspace/shared/types"
 
 import { seedPlayerMood } from "../../src/playerValue/moodSeed"
@@ -52,6 +53,11 @@ export function makeTestPlayer(overrides: Partial<Player> = {}): Player {
     yearsOfService: 2,
     mood: overrides.mood ?? seedPlayerMood(id),
     performanceDrift: overrides.performanceDrift ?? 0,
+    careerPeakOverall:
+      overrides.careerPeakOverall ?? overrides.ratings?.overall ?? 60,
+    developmentMomentum: overrides.developmentMomentum ?? 0,
+    injuryHistory: overrides.injuryHistory ?? { ...EMPTY_INJURY_HISTORY },
+    reinventionSeasonsRemaining: overrides.reinventionSeasonsRemaining ?? 0,
     ...overrides,
   }
 }

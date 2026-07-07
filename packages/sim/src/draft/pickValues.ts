@@ -8,6 +8,7 @@ import type {
 } from "@workspace/shared/types"
 
 import { getPlayerWorth } from "../playerValue"
+import { defaultDevelopmentFields } from "../development/playerDefaults"
 
 function prospectToWorth(prospect: DraftProspect, league: LeagueRecord): number {
   const pseudoPlayer = {
@@ -32,7 +33,7 @@ function prospectToWorth(prospect: DraftProspect, league: LeagueRecord): number 
     seasonsWithTeam: 0,
     yearsOfService: 0,
     mood: { money: 50, winning: 50, loyalty: 50, fame: 50 },
-    performanceDrift: 0,
+    ...defaultDevelopmentFields(prospect.ratings.overall),
   }
 
   return getPlayerWorth(pseudoPlayer, { league, includeMarketPremium: true })

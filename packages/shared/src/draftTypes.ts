@@ -1,3 +1,4 @@
+import type { PotentialRange } from "./developmentTypes"
 import type {
   PlayerArchetype,
   PlayerPosition,
@@ -28,6 +29,7 @@ export type DraftProspect = {
   archetype: PlayerArchetype
   prospectType: ProspectType
   ratings: PlayerRatings
+  potentialRange: PotentialRange
   tags: string[]
 }
 
