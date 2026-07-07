@@ -13,11 +13,15 @@ import type {
   LeagueCommand,
 } from "@workspace/sim"
 import type {
+  ExtensionOffer,
   FreeAgentOffer,
   LeagueRecord,
   LeagueSummary,
+  StaffExtensionOffer,
+  StaffOffer,
   TradeProposal,
 } from "@workspace/shared/types"
+import { toast } from "sonner"
 
 import {
   clearActiveLeagueId,
@@ -355,6 +359,17 @@ export function useLeague() {
 
       try {
         scheduleSave(applyLeagueCommand(current, command))
+        if (command.type === "executeTrade" || command.type === "acceptTradeOffer") {
+          toast.success("Trade accepted", {
+            description: "The transaction has been processed.",
+          })
+        }
+        if (command.type === "releasePlayer") {
+          toast.success("Player released")
+        }
+        if (command.type === "extendContract") {
+          toast.success("Contract extended")
+        }
       } catch (commandError: unknown) {
         setError(
           commandError instanceof Error
@@ -444,6 +459,7 @@ export function useLeague() {
     beginPlayoffs: () => dispatch({ type: "beginPlayoffs" }),
     beginOffseason: () => dispatch({ type: "beginOffseason" }),
     completeReSignings: () => dispatch({ type: "completeReSignings" }),
+    completeStaffPhase: () => dispatch({ type: "completeStaffPhase" }),
     advanceToDraft: () => dispatch({ type: "advanceToDraft" }),
     advanceToFreeAgency: () => dispatch({ type: "advanceToFreeAgency" }),
     completeFreeAgency: () => dispatch({ type: "completeFreeAgency" }),
@@ -454,6 +470,13 @@ export function useLeague() {
     simToUserPick: () => dispatch({ type: "simToUserPick" }),
     releasePlayer: (playerId: string) =>
       dispatch({ type: "releasePlayer", playerId }),
+    extendContract: (playerId: string, offer: ExtensionOffer) =>
+      dispatch({ type: "extendContract", playerId, offer }),
+    hireStaff: (staffId: string, offer: StaffOffer) =>
+      dispatch({ type: "hireStaff", staffId, offer }),
+    fireStaff: (staffId: string) => dispatch({ type: "fireStaff", staffId }),
+    extendStaffContract: (staffId: string, offer: StaffExtensionOffer) =>
+      dispatch({ type: "extendStaffContract", staffId, offer }),
     signFreeAgent: (playerId: string, offer: FreeAgentOffer) =>
       dispatch({ type: "signFreeAgent", playerId, offer }),
     executeTrade: (proposal: TradeProposal) =>
@@ -469,8 +492,8 @@ export function useLeague() {
     beginRegularSeason: () => dispatch({ type: "beginRegularSeason" }),
     skipRemainingExhibitions: () =>
       dispatch({ type: "skipRemainingExhibitions" }),
-    simDay: () => advance("day", "stopAtUserGames"),
-    simWeek: () => advance("week", "stopAtUserGames"),
+    simDay: () => advance("day", "runThrough"),
+    simWeek: () => advance("week", "runThrough"),
     simSeason: () => dispatch({ type: "simSeason" }),
     startNextSeason: startNextSeasonAction,
     persistLeague,

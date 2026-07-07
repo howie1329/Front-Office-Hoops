@@ -1,6 +1,4 @@
 import {
-  COACHING_LEVEL_MAX,
-  COACHING_LEVEL_MIN,
   SHOOTING_SKILL_KEYS,
 } from "@workspace/shared/constants"
 import type { SkillKey } from "@workspace/shared/types"
@@ -41,18 +39,4 @@ export function declineAgeModifier(skill: SkillKey, age: number): number {
   }
 
   return 0
-}
-
-export function coachingEffect(level: number): number {
-  const normalized =
-    (Math.max(COACHING_LEVEL_MIN, Math.min(COACHING_LEVEL_MAX, level)) - 1) /
-    (COACHING_LEVEL_MAX - 1)
-  return 0.09 * (normalized * 2 - 1)
-}
-
-export function developmentStaffEffect(level: number): number {
-  const normalized =
-    (Math.max(COACHING_LEVEL_MIN, Math.min(COACHING_LEVEL_MAX, level)) - 1) /
-    (COACHING_LEVEL_MAX - 1)
-  return 0.06 * normalized
 }

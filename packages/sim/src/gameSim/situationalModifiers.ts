@@ -8,7 +8,7 @@ import type {
 
 import { momentumEfficiencyModifier } from "./momentum"
 import { blowoutEfficiencyPenalty } from "./blowout"
-import { synergyToModifiers } from "./synergy"
+import { mergeOffDefSynergyModifiers, synergyToModifiers } from "./synergy"
 import type { SegmentModifiers } from "./types"
 import { EMPTY_SEGMENT_MODIFIERS } from "./types"
 
@@ -21,11 +21,14 @@ export function philosophyModifiers(
 
   const mods: SegmentModifiers = { ...EMPTY_SEGMENT_MODIFIERS }
 
-  if (philosophy.offense === "attack_rim") {
+  if (philosophy.offense === "attack_rim" || philosophy.offense === "pace_space") {
     mods.ftaRateShift += 0.03
-    mods.tpaRateShift -= 0.04
-  } else if (philosophy.offense === "perimeter") {
-    mods.tpaRateShift += 0.05
+    mods.tpaRateShift -= 0.02
+  } else if (
+    philosophy.offense === "perimeter" ||
+    philosophy.offense === "post_hub"
+  ) {
+    mods.tpaRateShift += philosophy.offense === "perimeter" ? 0.05 : 0.02
     mods.ftaRateShift -= 0.02
   }
 
@@ -68,6 +71,10 @@ export function crunchTimeModifiers(
 export function buildSegmentModifiers({
   philosophy,
   synergy,
+  offSynergy,
+  defSynergy,
+  staffAlignmentShift = 0,
+  coachingQualityShift = 0,
   momentum,
   streak,
   fatiguePenalty,
@@ -79,7 +86,11 @@ export function buildSegmentModifiers({
   otIndex,
 }: {
   philosophy?: CoachingPhilosophy
-  synergy: SynergyBreakdown
+  synergy?: SynergyBreakdown
+  offSynergy?: SynergyBreakdown
+  defSynergy?: SynergyBreakdown
+  staffAlignmentShift?: number
+  coachingQualityShift?: number
   momentum?: TeamMomentumState
   streak: number
   fatiguePenalty: number
@@ -91,16 +102,30 @@ export function buildSegmentModifiers({
   otIndex?: number
 }): SegmentModifiers {
   let mods = philosophyModifiers(philosophy)
+
+  const synergyMods =
+    offSynergy && defSynergy
+      ? mergeOffDefSynergyModifiers(offSynergy, defSynergy)
+      : synergy
+        ? synergyToModifiers(synergy)
+        : EMPTY_SEGMENT_MODIFIERS
+
   mods = {
     ...mods,
-    ...synergyToModifiers(synergy),
+    ...synergyMods,
     efficiencyShift:
       mods.efficiencyShift +
+      synergyMods.efficiencyShift +
+      staffAlignmentShift +
+      coachingQualityShift +
       momentumEfficiencyModifier(momentum, streak) +
       crunchTimeModifiers(segment, margin, teamMargin).efficiencyShift,
     tpaRateShift:
       mods.tpaRateShift +
+      synergyMods.tpaRateShift +
       crunchTimeModifiers(segment, margin, teamMargin).tpaRateShift,
+    ftaRateShift: mods.ftaRateShift + synergyMods.ftaRateShift,
+    tovRateShift: mods.tovRateShift + synergyMods.tovRateShift,
     fatiguePenalty,
     homeCourtPoints,
   }

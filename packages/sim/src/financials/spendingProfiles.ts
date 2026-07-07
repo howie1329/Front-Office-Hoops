@@ -90,6 +90,8 @@ export function initializeTeamFinancials(
       scoutingLevel: DEFAULT_SCOUTING_LEVEL,
       coachingLevel: DEFAULT_COACHING_LEVEL,
       developmentLevel: DEFAULT_DEVELOPMENT_LEVEL,
+      staffBudget: 6,
+      staffPayroll: 0,
       cashReserves: STARTING_CASH_RESERVES,
       debt: 0,
       consecutiveTaxSeasons: 0,

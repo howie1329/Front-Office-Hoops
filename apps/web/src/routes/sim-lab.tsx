@@ -103,7 +103,7 @@ function SimLabPage() {
                     value={team.id}
                     disabled={team.id === awayTeamId}
                   >
-                    {team.name} ({team.overall} OVR, {team.pace} pace)
+                    {team.name} ({team.overall} OVR)
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -123,7 +123,7 @@ function SimLabPage() {
                     value={team.id}
                     disabled={team.id === homeTeamId}
                   >
-                    {team.name} ({team.overall} OVR, {team.pace} pace)
+                    {team.name} ({team.overall} OVR)
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -17,8 +17,10 @@ import {
   Home01Icon,
   RankingIcon,
   SaveIcon,
+  StrategyIcon,
   TradeUpIcon,
   UserGroupIcon,
+  UserMultiple02Icon,
 } from "@hugeicons/core-free-icons"
 
 import { winPct } from "@/components/league/lib/teamFormat"
@@ -181,6 +183,9 @@ const sidebarNavGroups: SidebarNavGroup[] = [
     label: "Team ops",
     items: [
       { to: "/league/team", label: "My Team", icon: UserGroupIcon },
+      { to: "/league/staff", label: "Staff", icon: StrategyIcon },
+      { to: "/league/re-signing", label: "Re-signing", icon: UserMultiple02Icon },
+      { to: "/league/free-agency", label: "Free Agency", icon: UserMultiple02Icon },
       { to: "/league/trades", label: "Trades", icon: TradeUpIcon },
       { to: "/league/draft", label: "Draft", icon: DraftingCompassIcon },
       { to: "/league/stats", label: "Stats", icon: Analytics01Icon },

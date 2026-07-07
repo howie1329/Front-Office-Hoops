@@ -89,6 +89,7 @@ export function simulateSeriesGame(
     gameType: "playoff",
     scheduleState: state,
     teamFinancials: options?.teamFinancials,
+    staff: options?.staff,
   })
 
   const homeIsHigher = scheduledGame.homeTeamId === series.higherSeedTeamId

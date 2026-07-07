@@ -43,7 +43,7 @@ export function simulateRegularDay(
   state: SeasonState,
   day: number = state.currentDay,
   rngNonce = 0,
-  options?: { teamFinancials?: TeamFinancials[] },
+  options?: { teamFinancials?: TeamFinancials[]; staff?: LeagueRecord["staff"] },
 ): SeasonState {
   const teamsAfterRecovery = advanceInjuriesForDay(state.teams)
   const stateWithRecoveredPlayers = {
@@ -102,6 +102,7 @@ export function simulateRegularDay(
       gameType: scheduledGame.gameType,
       scheduleState: stateWithRecoveredPlayers,
       teamFinancials: options?.teamFinancials,
+      staff: options?.staff,
     })
 
     newGames.push(game)
@@ -189,6 +190,7 @@ export function simulateLeagueRegularDay(
 ): LeagueRecord {
   const seasonState = simulateDay(league.seasonState, day, league.rngNonce, {
     teamFinancials: league.teamFinancials,
+    staff: league.staff,
   })
 
   let updated: LeagueRecord = {

@@ -18,6 +18,7 @@ export type SeasonMilestones = {
   regularSeasonEndDay: number
   playoffsStartDay: number
   offseasonStartDay: number
+  staffPhaseEndDay: number
   draftDay: number
   freeAgencyStartDay: number
   nextSeasonStartDay: number

@@ -89,6 +89,12 @@ export const SCOUTING_LEVEL_MAX = 10
 export const DEFAULT_SCOUTING_LEVEL = 5
 export const OWN_ROSTER_SCOUTING_LEVEL = 9
 
+export const STAFF_RATING_MIN = 1
+export const STAFF_RATING_MAX = 10
+export const COLLEGE_PROMOTION_THRESHOLD = 6
+export const COLLEGE_COACH_POOL_SIZE = 50
+export const MARKET_COACH_POOL_SIZE = 25
+
 export const IQ_SKILL_KEYS = ["offensiveIQ", "defensiveIQ"] as const
 export const SHOOTING_SKILL_KEYS = ["threePoint", "midRange", "freeThrow"] as const
 

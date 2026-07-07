@@ -89,12 +89,11 @@ export function averageRatings(rotation: RotationEntry[]) {
 }
 
 export function estimatePossessions(
-  homePace: number,
-  awayPace: number,
+  basePace: number,
   paceModifier: number,
   rng: { normal: (mean?: number, stdDev?: number) => number },
 ): number {
-  const pace = (homePace + awayPace) / 2 + paceModifier
+  const pace = basePace + paceModifier
   return Math.max(
     80,
     Math.round(pace + rng.normal(0, POSSESSION_NOISE_STDDEV)),

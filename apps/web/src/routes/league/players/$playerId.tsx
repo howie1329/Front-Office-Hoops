@@ -2,12 +2,14 @@ import { Link, createFileRoute } from "@tanstack/react-router"
 import { useMemo, useState } from "react"
 
 import { playerName } from "@/components/box-score/playerName"
+import { ExtendContractDialog } from "@/components/league/ExtendContractDialog"
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import { teamAbbrev, teamName } from "@/components/league/lib/teamFormat"
 import { useLeagueContext } from "@/contexts/LeagueContext"
 import {
   canSignPlayer,
   getCurrentSalary,
+  getExtensionEligibilityReason,
   getExternalFreeAgents,
   getPlayerContract,
   getTeamExpiredFreeAgents,
@@ -22,15 +24,9 @@ import type {
   PlayerRatings,
   PlayerSeasonStats,
   SeasonAward,
+  SkillKey,
 } from "@workspace/shared/types"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
 import { Input } from "@workspace/ui/components/input"
 import {
   Dialog,
@@ -41,7 +37,6 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import {
-  DISPLAY_SKILL_KEYS,
   getTeamScoutingLevel,
   getViewRatings,
   skillLabel,
@@ -51,6 +46,7 @@ import {
   getTradableRestrictionLabel,
 } from "@/components/league/lib/contractLabels"
 import { getPlayerMoodHints } from "@/components/league/lib/moodHints"
+import { cn } from "@workspace/ui/lib/utils"
 import {
   Table,
   TableBody,
@@ -64,18 +60,47 @@ export const Route = createFileRoute("/league/players/$playerId")({
   component: PlayerProfilePage,
 })
 
+type PlayerTab = "scouting" | "contract" | "career"
+
+const PLAYER_TABS: Array<{ id: PlayerTab; label: string }> = [
+  { id: "scouting", label: "Scouting" },
+  { id: "contract", label: "Contract" },
+  { id: "career", label: "Career" },
+]
+
+const SKILL_CATEGORIES: Array<{ title: string; keys: SkillKey[] }> = [
+  {
+    title: "Shooting",
+    keys: ["threePoint", "midRange", "freeThrow", "inside"],
+  },
+  {
+    title: "Playmaking",
+    keys: ["passing", "ballHandling", "offensiveIQ"],
+  },
+  {
+    title: "Defense",
+    keys: ["defense", "rebounding", "defensiveIQ"],
+  },
+  {
+    title: "Physical",
+    keys: ["stamina"],
+  },
+]
+
 function PlayerProfilePage() {
   const { playerId } = Route.useParams()
   const {
     league,
     seasonState,
     userTeamId,
-    isOffseason,
     offseasonPhase,
     releasePlayer,
     signFreeAgent,
+    extendContract,
   } = useLeagueContext()
+  const [activeTab, setActiveTab] = useState<PlayerTab>("scouting")
   const [offerOpen, setOfferOpen] = useState(false)
+  const [extendOpen, setExtendOpen] = useState(false)
   const [offerYears, setOfferYears] = useState(2)
   const [offerSalary, setOfferSalary] = useState(5)
 
@@ -102,7 +127,7 @@ function PlayerProfilePage() {
     : undefined
   const currentStats =
     seasonState.playerSeasonStats.find(
-      (entry) => entry.playerId === playerId
+      (entry) => entry.playerId === playerId,
     ) ?? null
   const snapshots = league.playerCareerSnapshots
     .filter((entry) => entry.playerId === playerId)
@@ -111,7 +136,7 @@ function PlayerProfilePage() {
     .filter((entry) => entry.playerId === playerId && !entry.retired)
     .sort((a, b) => b.season - a.season)[0]
   const awards = league.seasonAwards.filter(
-    (entry) => entry.playerId === playerId
+    (entry) => entry.playerId === playerId,
   )
   const transactions = league.leagueLog
     .filter((entry) => entry.playerId === playerId)
@@ -120,14 +145,12 @@ function PlayerProfilePage() {
 
   if (!player && snapshots.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Player not found</CardTitle>
-          <CardDescription>
-            This player is not in the current league.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="rounded-lg ring-1 ring-foreground/10 p-4">
+        <h1 className="text-sm font-medium">Player not found</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          This player is not in the current league.
+        </p>
+      </div>
     )
   }
 
@@ -138,21 +161,21 @@ function PlayerProfilePage() {
     ? getExternalFreeAgents(league, userTeamId)
     : []
   const isMyRosterPlayer = Boolean(
-    player && userTeamId && player.teamId === userTeamId
+    player && userTeamId && player.teamId === userTeamId,
   )
   const isFreeAgent = Boolean(player && player.teamId === null)
   const isReSignCandidate = Boolean(
-    player && reSignFreeAgents.some((entry) => entry.id === player.id)
+    player && reSignFreeAgents.some((entry) => entry.id === player.id),
   )
   const isExternalFreeAgent = Boolean(
-    player && externalFreeAgents.some((entry) => entry.id === player.id)
+    player && externalFreeAgents.some((entry) => entry.id === player.id),
   )
   const canOpenOffer = Boolean(
     player &&
-    userTeamId &&
-    isFreeAgent &&
-    ((offseasonPhase === "re_signing" && isReSignCandidate) ||
-      (offseasonPhase === "free_agency" && isExternalFreeAgent))
+      userTeamId &&
+      isFreeAgent &&
+      ((offseasonPhase === "re_signing" && isReSignCandidate) ||
+        (offseasonPhase === "free_agency" && isExternalFreeAgent)),
   )
   const offer: FreeAgentOffer = {
     years: offerYears,
@@ -163,17 +186,6 @@ function PlayerProfilePage() {
       ? canSignPlayer(league, userTeamId, player.id, offer)
       : null
   const yearsRemaining = getYearsRemaining(contract)
-  const decision = player
-    ? buildDecisionSummary({
-        player,
-        currentStats,
-        yearsRemaining,
-        isMyRosterPlayer,
-        isFreeAgent,
-        isOffseason,
-        offseasonPhase,
-      })
-    : null
   const teamFinance = userTeamId
     ? league.teamFinancials.find((entry) => entry.teamId === userTeamId)
     : undefined
@@ -199,136 +211,162 @@ function PlayerProfilePage() {
     contract,
     seasonState.currentDay,
   )
+  const displayName = player ? playerName(allPlayers, player.id) : playerId
+  const teamBadge = playerTeam
+    ? playerTeam.abbrev
+    : player?.teamId === null
+      ? "FA"
+      : null
+  const contractLabel = contractSummary(contract, yearsRemaining)
+  const extendEligibility =
+    player && userTeamId && isMyRosterPlayer
+      ? getExtensionEligibilityReason(league, userTeamId, player.id)
+      : null
+  const contractSalary = getCurrentSalary(contract)
 
   return (
-    <div className="-m-px flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-px">
-      <PlayerHeader
+    <div className="-m-px flex h-full min-h-0 flex-col gap-5 overflow-y-auto p-px">
+      <PlayerIdentityStrip
         player={player}
+        name={displayName}
+        teamBadge={teamBadge}
+        contractLabel={contractLabel}
         viewRatings={viewRatings}
-        name={player ? playerName(allPlayers, player.id) : playerId}
-        teamLabel={
-          playerTeam
-            ? `${playerTeam.name} · ${playerTeam.abbrev}`
-            : player
-              ? "Free agent"
-              : "Archived player"
-        }
-        contractLabel={contractSummary(contract, yearsRemaining)}
         currentStats={currentStats}
-        decision={decision}
         isMyRosterPlayer={isMyRosterPlayer}
         isFreeAgent={isFreeAgent}
         canOpenOffer={canOpenOffer}
+        canExtend={extendEligibility?.ok ?? false}
+        extendReason={
+          extendEligibility && !extendEligibility.ok
+            ? extendEligibility.reason
+            : undefined
+        }
         onOpenOffer={() => {
           if (player) {
             setOfferSalary(Math.max(2, Math.round(player.ratings.overall / 8)))
           }
           setOfferOpen(true)
         }}
+        onExtend={() => setExtendOpen(true)}
         onRelease={() => player && releasePlayer(player.id)}
       />
 
-      <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
-        <div className="flex min-w-0 flex-col gap-4">
-          {player ? (
-            <RatingsCard
-              player={player}
-              viewRatings={viewRatings ?? player.ratings}
-              scoutingNote={scoutingNote}
-              decision={decision}
-            />
-          ) : null}
-          <CurrentProductionCard
-            currentStats={currentStats}
-            season={seasonState.season}
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <PlayerTabBar activeTab={activeTab} onTabChange={setActiveTab} />
+
+        {activeTab === "scouting" && player ? (
+          <ScoutingTab
+            player={player}
+            viewRatings={viewRatings ?? player.ratings}
+            scoutingNote={scoutingNote}
+            moodHints={moodHints}
+            lastDevelopment={lastDevelopment}
           />
-          <CareerTable
+        ) : null}
+
+        {activeTab === "contract" && player ? (
+          <ContractTab
+            player={player}
+            contractLabel={contractLabel}
+            optionLabel={optionLabel}
+            tradableLabel={tradableLabel}
+            contractSalary={contractSalary}
+            yearsRemaining={yearsRemaining}
+            draftInfoLabel={draftLabel(player)}
+            teamLabel={
+              player.teamId ? teamName(seasonState, player.teamId) : "None"
+            }
+          />
+        ) : null}
+
+        {activeTab === "career" ? (
+          <CareerTab
             seasonState={seasonState}
             snapshots={snapshots}
             awards={awards}
             player={player}
             currentStats={currentStats}
+            season={seasonState.season}
+            transactions={transactions}
           />
-        </div>
-
-        <div className="flex min-w-0 flex-col gap-4">
-          {player ? (
-            <ContractCard
-              player={player}
-              contractSalary={getCurrentSalary(contract)}
-              yearsRemaining={yearsRemaining}
-              contractLabel={contractSummary(contract, yearsRemaining)}
-              optionLabel={optionLabel}
-              tradableLabel={tradableLabel}
-              draftInfoLabel={draftLabel(player)}
-              teamLabel={
-                player.teamId ? teamName(seasonState, player.teamId) : "None"
-              }
-            />
-          ) : null}
-          {player ? (
-            <PlayerMoodCard hints={moodHints} scoutingNote={scoutingNote} />
-          ) : null}
-          {player && lastDevelopment ? (
-            <LastDevelopmentCard record={lastDevelopment} />
-          ) : null}
-          <TimelineCard awards={awards} transactions={transactions} />
-        </div>
+        ) : null}
       </div>
 
       {player && userTeamId ? (
-        <OfferDialog
-          open={offerOpen}
-          onOpenChange={setOfferOpen}
-          player={player}
-          mode={isReSignCandidate ? "re_sign" : "external"}
-          years={offerYears}
-          salary={offerSalary}
-          validation={signValidation}
-          onYearsChange={setOfferYears}
-          onSalaryChange={setOfferSalary}
-          onSubmit={() => {
-            if (!signValidation?.ok) {
-              return
-            }
-            signFreeAgent(player.id, offer)
-            setOfferOpen(false)
-          }}
-        />
+        <>
+          <OfferDialog
+            open={offerOpen}
+            onOpenChange={setOfferOpen}
+            player={player}
+            mode={isReSignCandidate ? "re_sign" : "external"}
+            years={offerYears}
+            salary={offerSalary}
+            validation={signValidation}
+            onYearsChange={setOfferYears}
+            onSalaryChange={setOfferSalary}
+            onSubmit={() => {
+              if (!signValidation?.ok) {
+                return
+              }
+              signFreeAgent(player.id, offer)
+              setOfferOpen(false)
+            }}
+          />
+          <ExtendContractDialog
+            league={league}
+            teamId={userTeamId}
+            playerId={player.id}
+            playerName={displayName}
+            position={player.position}
+            overall={player.ratings.overall}
+            currentSalary={contractSalary}
+            open={extendOpen}
+            onClose={() => setExtendOpen(false)}
+            onConfirm={(id, extensionOffer) => {
+              extendContract(id, extensionOffer)
+              setExtendOpen(false)
+            }}
+          />
+        </>
       ) : null}
     </div>
   )
 }
 
-type PlayerHeaderProps = {
+type PlayerIdentityStripProps = {
   player: Player | undefined
   viewRatings: PlayerRatings | null
   name: string
-  teamLabel: string
+  teamBadge: string | null
   contractLabel: string
   currentStats: PlayerSeasonStats | null
-  decision: PlayerDecision | null
   isMyRosterPlayer: boolean
   isFreeAgent: boolean
   canOpenOffer: boolean
+  canExtend: boolean
+  extendReason?: string
   onOpenOffer: () => void
+  onExtend: () => void
   onRelease: () => void
 }
 
-function PlayerHeader({
+function PlayerIdentityStrip({
   player,
   viewRatings,
   name,
-  teamLabel,
+  teamBadge,
   contractLabel,
   currentStats,
-  decision,
   isMyRosterPlayer,
   isFreeAgent,
   canOpenOffer,
+  canExtend,
+  extendReason,
   onOpenOffer,
+  onExtend,
   onRelease,
-}: PlayerHeaderProps) {
+}: PlayerIdentityStripProps) {
   const tradeSearch = player
     ? isMyRosterPlayer
       ? { outgoingPlayerId: player.id }
@@ -337,498 +375,453 @@ function PlayerHeader({
         : undefined
     : undefined
 
+  const overall = viewRatings?.overall ?? player?.ratings.overall ?? "—"
+  const potential = viewRatings?.potential ?? player?.ratings.potential ?? "—"
+  const seasonLine = currentStats ? statLine(currentStats) : "No games"
+
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0">
+    <header className="border-b border-border pb-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 gap-4">
+          {player ? (
+            <PlayerMonogram
+              firstName={player.firstName}
+              lastName={player.lastName}
+            />
+          ) : null}
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-lg">{name}</CardTitle>
+              <h1 className="text-2xl font-semibold tracking-tight text-balance">
+                {name}
+              </h1>
               {player ? (
                 <>
-                  <Badge>{player.position}</Badge>
+                  {teamBadge ? <Badge>{teamBadge}</Badge> : null}
                   <Badge>{archetypeLabel(player.archetype)}</Badge>
                   <Badge>{statusLabel(player)}</Badge>
                 </>
               ) : null}
             </div>
-            <CardDescription className="mt-1">
-              {teamLabel} · {player ? `${player.age} years old` : "Archived"} ·{" "}
-              {contractLabel}
-            </CardDescription>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {player ? (
+                <>
+                  {player.age} yrs · {playerSize(player)} · {contractLabel}
+                </>
+              ) : (
+                "Archived player"
+              )}
+            </p>
           </div>
+        </div>
 
-          <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[520px]">
-            <Metric
-              label="Overall"
-              value={viewRatings?.overall ?? player?.ratings.overall ?? "-"}
-            />
-            <Metric
-              label="Potential"
-              value={viewRatings?.potential ?? player?.ratings.potential ?? "-"}
-            />
-            <Metric
-              label="Season line"
-              value={currentStats ? statLine(currentStats) : "No games"}
-            />
+        <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
+          <div className="flex items-end divide-x divide-border">
+            <HeaderStat label="Overall" value={overall} large />
+            <HeaderStat label="Potential" value={potential} />
+            <HeaderStat label="Season line" value={seasonLine} />
+          </div>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            {player && !isFreeAgent ? (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/league/trades" search={tradeSearch}>
+                  Trade
+                </Link>
+              </Button>
+            ) : null}
+            {player && isMyRosterPlayer ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!canExtend}
+                title={extendReason}
+                onClick={onExtend}
+              >
+                Extend
+              </Button>
+            ) : null}
+            {player && isMyRosterPlayer ? (
+              <Button variant="destructive" size="sm" onClick={onRelease}>
+                Release
+              </Button>
+            ) : null}
+            {player && isFreeAgent ? (
+              <Button
+                disabled={!canOpenOffer}
+                size="sm"
+                onClick={onOpenOffer}
+              >
+                {canOpenOffer ? "Open offer" : "Unavailable"}
+              </Button>
+            ) : null}
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="grid gap-4 py-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-        <div>
-          <p className="text-sm font-medium">{decision?.headline}</p>
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            {decision?.detail ??
-              "Archived player profile. Current roster actions are unavailable."}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-start gap-2 lg:justify-end">
-          {player && !isFreeAgent ? (
-            <Button asChild variant="outline">
-              <Link to="/league/trades" search={tradeSearch}>
-                Trade
-              </Link>
-            </Button>
-          ) : null}
-          {player && isMyRosterPlayer ? (
-            <Button variant="destructive" onClick={onRelease}>
-              Release
-            </Button>
-          ) : null}
-          {player && isFreeAgent ? (
-            <Button disabled={!canOpenOffer} onClick={onOpenOffer}>
-              {canOpenOffer ? "Open offer" : "Unavailable"}
-            </Button>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
+      </div>
+    </header>
   )
 }
 
-function RatingsCard({
+function PlayerTabBar({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: PlayerTab
+  onTabChange: (tab: PlayerTab) => void
+}) {
+  return (
+    <div className="flex gap-1 border-b border-border">
+      {PLAYER_TABS.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => onTabChange(tab.id)}
+          className={cn(
+            "px-3 py-2 text-sm font-medium transition-colors",
+            activeTab === tab.id
+              ? "border-b-2 border-foreground text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ScoutingTab({
   player,
   viewRatings,
   scoutingNote,
-  decision,
+  moodHints,
+  lastDevelopment,
 }: {
   player: Player
   viewRatings: PlayerRatings
   scoutingNote: string
-  decision: PlayerDecision | null
+  moodHints: ReturnType<typeof getPlayerMoodHints>
+  lastDevelopment: PlayerDevelopmentRecord | undefined
 }) {
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Scouting profile</CardTitle>
-        <CardDescription>{scoutingNote}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 py-4 lg:grid-cols-[1fr_280px]">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {DISPLAY_SKILL_KEYS.map((key) => (
-            <RatingBar
-              key={key}
-              label={skillLabel(key)}
-              value={viewRatings[key]}
-            />
-          ))}
-          <RatingBar label="Usage" value={viewRatings.usage} />
-          <RatingBar label="Development gap" value={developmentGap(player)} />
+    <div className="flex flex-col gap-5">
+      <section className="rounded-lg ring-1 ring-foreground/10">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="text-sm font-medium">Skill evaluation</h2>
+          <p className="text-xs text-muted-foreground">{scoutingNote}</p>
         </div>
-        <div className="rounded-md border bg-muted/20 p-3">
-          <p className="font-medium">Decision read</p>
-          <div className="mt-3 grid gap-2">
-            {decision?.points.map((point) => (
-              <div key={point.label} className="flex justify-between gap-3">
-                <span className="text-muted-foreground">{point.label}</span>
-                <span className="text-right font-medium">{point.value}</span>
+        <div className="grid gap-6 p-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          {SKILL_CATEGORIES.map((category) => (
+            <div key={category.title}>
+              <h3 className="mb-2 text-xs font-medium text-muted-foreground">
+                {category.title}
+              </h3>
+              <div className="grid gap-0.5">
+                {category.keys.map((key) => (
+                  <RatingCell
+                    key={key}
+                    label={skillLabel(key)}
+                    value={viewRatings[key]}
+                  />
+                ))}
               </div>
-            ))}
+            </div>
+          ))}
+          <div>
+            <h3 className="mb-2 text-xs font-medium text-muted-foreground">
+              Profile
+            </h3>
+            <div className="grid gap-0.5">
+              <RatingCell label="Usage" value={viewRatings.usage} />
+              <RatingCell
+                label="Dev. gap"
+                value={developmentGap(player)}
+              />
+            </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </section>
+
+      <section className="rounded-lg ring-1 ring-foreground/10 px-4 py-3">
+        <h2 className="text-sm font-medium">Player mood</h2>
+        <p className="text-xs text-muted-foreground">{scoutingNote}</p>
+        <div className="mt-3">
+          {moodHints ? (
+            moodHints.map((row) => (
+              <RailRow
+                key={row.label}
+                label={row.label}
+                value={row.value}
+                hint={row.hint}
+              />
+            ))
+          ) : (
+            <p className="py-2 text-sm text-muted-foreground">
+              Limited intel — increase scouting to learn what this player values
+              in contract talks.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {lastDevelopment ? (
+        <section className="rounded-lg ring-1 ring-foreground/10 px-4 py-3">
+          <h2 className="text-sm font-medium">Last progression</h2>
+          <p className="text-xs text-muted-foreground">
+            Season {lastDevelopment.season} preseason · Age{" "}
+            {lastDevelopment.ageBefore} → {lastDevelopment.ageAfter}
+          </p>
+          <div className="mt-3">
+            <LastDevelopmentRows record={lastDevelopment} />
+          </div>
+        </section>
+      ) : null}
+    </div>
   )
 }
 
-function CurrentProductionCard({
-  currentStats,
-  season,
+function ContractTab({
+  player,
+  contractLabel,
+  optionLabel,
+  tradableLabel,
+  contractSalary,
+  yearsRemaining,
+  draftInfoLabel,
+  teamLabel,
 }: {
-  currentStats: PlayerSeasonStats | null
-  season: number
+  player: Player
+  contractLabel: string
+  optionLabel: string | null
+  tradableLabel: string | null
+  contractSalary: number
+  yearsRemaining: number
+  draftInfoLabel: string
+  teamLabel: string
 }) {
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Current season</CardTitle>
-        <CardDescription>Season {season} production snapshot.</CardDescription>
-      </CardHeader>
-      <CardContent className="overflow-x-auto py-2">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>GP</TableHead>
-              <TableHead>GS</TableHead>
-              <TableHead>MIN</TableHead>
-              <TableHead>PTS</TableHead>
-              <TableHead>REB</TableHead>
-              <TableHead>AST</TableHead>
-              <TableHead>STL</TableHead>
-              <TableHead>BLK</TableHead>
-              <TableHead>TOV</TableHead>
-              <TableHead>FG</TableHead>
-              <TableHead>3PT</TableHead>
-              <TableHead>FT</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {currentStats ? (
-              <TableRow>
-                <TableCell>{currentStats.gp}</TableCell>
-                <TableCell>{currentStats.gs}</TableCell>
-                <TableCell>{currentStats.min}</TableCell>
-                <TableCell>{currentStats.pts}</TableCell>
-                <TableCell>{currentStats.reb}</TableCell>
-                <TableCell>{currentStats.ast}</TableCell>
-                <TableCell>{currentStats.stl}</TableCell>
-                <TableCell>{currentStats.blk}</TableCell>
-                <TableCell>{currentStats.tov}</TableCell>
-                <TableCell>
-                  {currentStats.fgm}-{currentStats.fga}
-                </TableCell>
-                <TableCell>
-                  {currentStats.tpm}-{currentStats.tpa}
-                </TableCell>
-                <TableCell>
-                  {currentStats.ftm}-{currentStats.fta}
-                </TableCell>
-              </TableRow>
-            ) : (
-              <TableRow>
-                <TableCell colSpan={12} className="text-muted-foreground">
-                  No completed games for this player yet.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <section className="rounded-lg ring-1 ring-foreground/10 px-4 py-3">
+      <h2 className="text-sm font-medium">Contract and bio</h2>
+      <p className="text-xs text-muted-foreground">
+        Salary, terms, and physical profile.
+      </p>
+      <div className="mt-3">
+        <RailRow label="Team" value={teamLabel} />
+        <RailRow label="Contract" value={contractLabel} />
+        {optionLabel ? <RailRow label="Option" value={optionLabel} /> : null}
+        {tradableLabel ? (
+          <RailRow label="Trade status" value={tradableLabel} />
+        ) : null}
+        <RailRow label="Salary" value={formatMoney(contractSalary)} />
+        <RailRow label="Years remaining" value={String(yearsRemaining)} />
+        <RailRow label="Draft" value={draftInfoLabel} />
+        <RailRow label="Service" value={`${player.yearsOfService} years`} />
+        <RailRow
+          label="With team"
+          value={`${player.seasonsWithTeam} seasons`}
+        />
+        <RailRow label="Size" value={playerSize(player)} />
+        <RailRow
+          label="Wingspan"
+          value={`${player.wingspanInches ?? player.heightInches + 2}"`}
+        />
+        <RailRow label="Reach" value={String(player.reachRating ?? "—")} />
+        <RailRow label="Peak age" value={String(player.peakAge)} />
+      </div>
+    </section>
   )
 }
 
-function CareerTable({
+function CareerTab({
   seasonState,
   snapshots,
   awards,
   player,
   currentStats,
+  season,
+  transactions,
 }: {
   seasonState: Parameters<typeof teamAbbrev>[0]
   snapshots: PlayerCareerSnapshot[]
   awards: SeasonAward[]
   player: Player | undefined
   currentStats: PlayerSeasonStats | null
+  season: number
+  transactions: LeagueLogEntry[]
 }) {
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Career record</CardTitle>
-        <CardDescription>
-          Archived seasons plus the active season when available.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="overflow-x-auto py-2">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Season</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead>Age</TableHead>
-              <TableHead>OVR</TableHead>
-              <TableHead>POT</TableHead>
-              <TableHead>GP</TableHead>
-              <TableHead>GS</TableHead>
-              <TableHead>PTS</TableHead>
-              <TableHead>REB</TableHead>
-              <TableHead>AST</TableHead>
-              <TableHead>Awards</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {player && currentStats ? (
+    <div className="flex flex-col gap-5">
+      <section className="rounded-lg ring-1 ring-foreground/10">
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="text-sm font-medium">Career record</h2>
+          <p className="text-xs text-muted-foreground">
+            Season {season} and archived seasons.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell>{currentStats.season}</TableCell>
-                <TableCell>
-                  {player.teamId
-                    ? teamAbbrev(seasonState, player.teamId)
-                    : "FA"}
-                </TableCell>
-                <TableCell>{player.age}</TableCell>
-                <TableCell>{player.ratings.overall}</TableCell>
-                <TableCell>{player.ratings.potential}</TableCell>
-                <TableCell>{currentStats.gp}</TableCell>
-                <TableCell>{currentStats.gs}</TableCell>
-                <TableCell>{currentStats.pts}</TableCell>
-                <TableCell>{currentStats.reb}</TableCell>
-                <TableCell>{currentStats.ast}</TableCell>
-                <TableCell>
-                  {awards
-                    .filter((award) => award.season === currentStats.season)
-                    .map((award) => awardLabel(award.type))
-                    .join(", ") || "-"}
-                </TableCell>
+                <TableHead>Season</TableHead>
+                <TableHead>Team</TableHead>
+                <TableHead>Age</TableHead>
+                <TableHead>OVR</TableHead>
+                <TableHead>POT</TableHead>
+                <TableHead>GP</TableHead>
+                <TableHead>GS</TableHead>
+                <TableHead>MIN</TableHead>
+                <TableHead>PTS</TableHead>
+                <TableHead>REB</TableHead>
+                <TableHead>AST</TableHead>
+                <TableHead>STL</TableHead>
+                <TableHead>BLK</TableHead>
+                <TableHead>Awards</TableHead>
               </TableRow>
-            ) : null}
-            {snapshots.length === 0 && !currentStats ? (
-              <TableRow>
-                <TableCell colSpan={11} className="text-muted-foreground">
-                  Career snapshots are archived at season end.
-                </TableCell>
-              </TableRow>
-            ) : null}
-            {snapshots.map((snapshot) => (
-              <TableRow key={snapshot.id}>
-                <TableCell>{snapshot.season}</TableCell>
-                <TableCell>
-                  {teamAbbrev(seasonState, snapshot.teamId)}
-                </TableCell>
-                <TableCell>{snapshot.age}</TableCell>
-                <TableCell>{snapshot.overall}</TableCell>
-                <TableCell>{snapshot.potential}</TableCell>
-                <TableCell>{snapshot.gp}</TableCell>
-                <TableCell>{snapshot.gs}</TableCell>
-                <TableCell>{snapshot.pts}</TableCell>
-                <TableCell>{snapshot.reb}</TableCell>
-                <TableCell>{snapshot.ast}</TableCell>
-                <TableCell>
-                  {snapshot.awards.map(awardLabel).join(", ") || "-"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {player && currentStats ? (
+                <TableRow>
+                  <TableCell>{currentStats.season}</TableCell>
+                  <TableCell>
+                    {player.teamId
+                      ? teamAbbrev(seasonState, player.teamId)
+                      : "FA"}
+                  </TableCell>
+                  <TableCell>{player.age}</TableCell>
+                  <TableCell>{player.ratings.overall}</TableCell>
+                  <TableCell>{player.ratings.potential}</TableCell>
+                  <TableCell>{currentStats.gp}</TableCell>
+                  <TableCell>{currentStats.gs}</TableCell>
+                  <TableCell>{currentStats.min}</TableCell>
+                  <TableCell>{currentStats.pts}</TableCell>
+                  <TableCell>{currentStats.reb}</TableCell>
+                  <TableCell>{currentStats.ast}</TableCell>
+                  <TableCell>{currentStats.stl}</TableCell>
+                  <TableCell>{currentStats.blk}</TableCell>
+                  <TableCell>
+                    {awards
+                      .filter((award) => award.season === currentStats.season)
+                      .map((award) => awardLabel(award.type))
+                      .join(", ") || "—"}
+                  </TableCell>
+                </TableRow>
+              ) : null}
+              {snapshots.length === 0 && !currentStats ? (
+                <TableRow>
+                  <TableCell colSpan={14} className="text-muted-foreground">
+                    No completed games or archived seasons yet.
+                  </TableCell>
+                </TableRow>
+              ) : null}
+              {snapshots.map((snapshot) => (
+                <TableRow key={snapshot.id}>
+                  <TableCell>{snapshot.season}</TableCell>
+                  <TableCell>
+                    {teamAbbrev(seasonState, snapshot.teamId)}
+                  </TableCell>
+                  <TableCell>{snapshot.age}</TableCell>
+                  <TableCell>{snapshot.overall}</TableCell>
+                  <TableCell>{snapshot.potential}</TableCell>
+                  <TableCell>{snapshot.gp}</TableCell>
+                  <TableCell>{snapshot.gs}</TableCell>
+                  <TableCell>—</TableCell>
+                  <TableCell>{snapshot.pts}</TableCell>
+                  <TableCell>{snapshot.reb}</TableCell>
+                  <TableCell>{snapshot.ast}</TableCell>
+                  <TableCell>—</TableCell>
+                  <TableCell>—</TableCell>
+                  <TableCell>
+                    {snapshot.awards.map(awardLabel).join(", ") || "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </section>
+
+      <section className="rounded-lg ring-1 ring-foreground/10 px-4 py-3">
+        <h2 className="text-sm font-medium">Awards and movement</h2>
+        <p className="mb-2 mt-0.5 text-xs font-medium text-muted-foreground">
+          Awards
+        </p>
+        {awards.length === 0 ? (
+          <p className="border-b border-border/60 py-2 text-sm text-muted-foreground">
+            No awards yet.
+          </p>
+        ) : (
+          awards.map((award) => (
+            <RailRow
+              key={award.id}
+              label={`Season ${award.season}`}
+              value={awardLabel(award.type)}
+            />
+          ))
+        )}
+        <p className="mb-2 mt-3 text-xs font-medium text-muted-foreground">
+          Transactions
+        </p>
+        {transactions.length === 0 ? (
+          <p className="py-2 text-sm text-muted-foreground">
+            No transactions logged.
+          </p>
+        ) : (
+          transactions.slice(0, 8).map((entry) => (
+            <RailRow
+              key={entry.id}
+              label={entry.dateLabel}
+              value={entry.type.replaceAll("_", " ")}
+            />
+          ))
+        )}
+      </section>
+    </div>
   )
 }
 
-function LastDevelopmentCard({ record }: { record: PlayerDevelopmentRecord }) {
+function LastDevelopmentRows({ record }: { record: PlayerDevelopmentRecord }) {
   const overallDelta = record.overallAfter - record.overallBefore
   const potentialDelta = record.potentialAfter - record.potentialBefore
   const deltaLabel =
     overallDelta > 0 ? `+${overallDelta}` : overallDelta.toString()
 
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Last progression</CardTitle>
-        <CardDescription>
-          Season {record.season} preseason · Age {record.ageBefore} →{" "}
-          {record.ageAfter}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3 py-4 text-sm">
-        <div className="flex justify-between gap-3">
-          <span className="text-muted-foreground">Overall</span>
-          <span className="font-medium">
-            {record.overallBefore} → {record.overallAfter} ({deltaLabel})
-          </span>
+    <>
+      <RailRow
+        label="Overall"
+        value={`${record.overallBefore} → ${record.overallAfter} (${deltaLabel})`}
+      />
+      <RailRow
+        label="Potential"
+        value={`${record.potentialBefore} → ${record.potentialAfter}${
+          potentialDelta !== 0
+            ? ` (${potentialDelta > 0 ? "+" : ""}${potentialDelta})`
+            : ""
+        }`}
+      />
+      <RailRow
+        label="Momentum"
+        value={`${record.momentumApplied >= 0 ? "+" : ""}${record.momentumApplied.toFixed(2)}`}
+      />
+      {record.modifierIds.length > 0 ? (
+        <div className="border-b border-border/60 py-2 text-sm">
+          <span className="text-muted-foreground">Modifiers</span>
+          <ul className="mt-1 list-inside list-disc text-foreground">
+            {record.modifierIds.map((id) => (
+              <li key={id}>{formatDevelopmentReason(id)}</li>
+            ))}
+          </ul>
         </div>
-        <div className="flex justify-between gap-3">
-          <span className="text-muted-foreground">Potential</span>
-          <span className="font-medium">
-            {record.potentialBefore} → {record.potentialAfter}
-            {potentialDelta !== 0
-              ? ` (${potentialDelta > 0 ? "+" : ""}${potentialDelta})`
-              : ""}
-          </span>
+      ) : null}
+      {record.events.length > 0 ? (
+        <div className="py-2 text-sm">
+          <span className="text-muted-foreground">Events</span>
+          <ul className="mt-1 list-inside list-disc text-foreground">
+            {record.events.map((event) => (
+              <li key={event}>{formatDevelopmentReason(event)}</li>
+            ))}
+          </ul>
         </div>
-        <div className="flex justify-between gap-3">
-          <span className="text-muted-foreground">Momentum</span>
-          <span className="font-medium">
-            {record.momentumApplied >= 0 ? "+" : ""}
-            {record.momentumApplied.toFixed(2)}
-          </span>
-        </div>
-        {record.modifierIds.length > 0 ? (
-          <div>
-            <p className="text-muted-foreground">Modifiers</p>
-            <ul className="mt-1 list-inside list-disc">
-              {record.modifierIds.map((id) => (
-                <li key={id}>{formatDevelopmentReason(id)}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-        {record.events.length > 0 ? (
-          <div>
-            <p className="text-muted-foreground">Events</p>
-            <ul className="mt-1 list-inside list-disc">
-              {record.events.map((event) => (
-                <li key={event}>{formatDevelopmentReason(event)}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
-  )
-}
-
-function formatDevelopmentReason(code: string): string {
-  return code
-    .replaceAll(":", " · ")
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
-}
-
-function ContractCard({
-  player,
-  contractSalary,
-  yearsRemaining,
-  contractLabel,
-  optionLabel,
-  tradableLabel,
-  draftInfoLabel,
-  teamLabel,
-}: {
-  player: Player
-  contractSalary: number
-  yearsRemaining: number
-  contractLabel: string
-  optionLabel: string | null
-  tradableLabel: string | null
-  draftInfoLabel: string
-  teamLabel: string
-}) {
-  return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Front-office file</CardTitle>
-        <CardDescription>Contract, roster context, and bio.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-2 py-4">
-        <InfoRow label="Team" value={teamLabel} />
-        <InfoRow label="Contract" value={contractLabel} />
-        {optionLabel ? <InfoRow label="Option" value={optionLabel} /> : null}
-        {tradableLabel ? (
-          <InfoRow label="Trade status" value={tradableLabel} />
-        ) : null}
-        <InfoRow label="Salary" value={formatMoney(contractSalary)} />
-        <InfoRow label="Years remaining" value={String(yearsRemaining)} />
-        <InfoRow label="Draft" value={draftInfoLabel} />
-        <InfoRow label="Service" value={`${player.yearsOfService} years`} />
-        <InfoRow
-          label="With team"
-          value={`${player.seasonsWithTeam} seasons`}
-        />
-        <InfoRow label="Size" value={playerSize(player)} />
-        <InfoRow
-          label="Wingspan"
-          value={`${player.wingspanInches ?? player.heightInches + 2}"`}
-        />
-        <InfoRow
-          label="Reach"
-          value={String(player.reachRating ?? "—")}
-        />
-        <InfoRow label="Peak age" value={String(player.peakAge)} />
-      </CardContent>
-    </Card>
-  )
-}
-
-function PlayerMoodCard({
-  hints,
-  scoutingNote,
-}: {
-  hints: ReturnType<typeof getPlayerMoodHints>
-  scoutingNote: string
-}) {
-  return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Player mood</CardTitle>
-        <CardDescription>{scoutingNote}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3 py-4">
-        {hints ? (
-          hints.map((row) => (
-            <div
-              key={row.label}
-              className="rounded-md border bg-muted/10 px-3 py-2"
-            >
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="font-medium">{row.label}</span>
-                <span className="tabular-nums text-muted-foreground">
-                  {row.value}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{row.hint}</p>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Limited intel — increase scouting to learn what this player values in
-            contract talks.
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function TimelineCard({
-  awards,
-  transactions,
-}: {
-  awards: SeasonAward[]
-  transactions: LeagueLogEntry[]
-}) {
-  return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Awards and movement</CardTitle>
-        <CardDescription>Recognition and logged transactions.</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 py-4">
-        <div>
-          <p className="mb-2 font-medium">Awards</p>
-          {awards.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No awards yet.</p>
-          ) : (
-            <div className="grid gap-2">
-              {awards.map((award) => (
-                <InfoRow
-                  key={award.id}
-                  label={`Season ${award.season}`}
-                  value={awardLabel(award.type)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-        <div>
-          <p className="mb-2 font-medium">Transactions</p>
-          {transactions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No transactions logged.
-            </p>
-          ) : (
-            <div className="grid gap-2">
-              {transactions.slice(0, 8).map((entry) => (
-                <InfoRow
-                  key={entry.id}
-                  label={entry.dateLabel}
-                  value={entry.type.replaceAll("_", " ")}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+      ) : null}
+    </>
   )
 }
 
@@ -873,9 +866,9 @@ function OfferDialog({
         </DialogHeader>
         <div className="grid gap-4 overflow-auto p-4">
           <div className="grid gap-2 sm:grid-cols-3">
-            <Metric label="Position" value={player.position} />
-            <Metric label="Overall" value={player.ratings.overall} />
-            <Metric label="Age" value={player.age} />
+            <OfferMetric label="Position" value={player.position} />
+            <OfferMetric label="Overall" value={player.ratings.overall} />
+            <OfferMetric label="Age" value={player.age} />
           </div>
           <label className="grid gap-1 text-sm">
             Years
@@ -921,7 +914,98 @@ function OfferDialog({
   )
 }
 
-function Metric({ label, value }: { label: string; value: string | number }) {
+function PlayerMonogram({
+  firstName,
+  lastName,
+}: {
+  firstName: string
+  lastName: string
+}) {
+  const initials = `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase()
+  return (
+    <div
+      aria-hidden
+      className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-semibold text-muted-foreground"
+    >
+      {initials}
+    </div>
+  )
+}
+
+function HeaderStat({
+  label,
+  value,
+  large = false,
+}: {
+  label: string
+  value: string | number
+  large?: boolean
+}) {
+  return (
+    <div className="px-4 text-right first:pl-0">
+      <div
+        className={cn(
+          "tabular-nums tracking-tight",
+          large ? "text-4xl font-semibold" : "text-lg font-medium",
+        )}
+      >
+        {value}
+      </div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+    </div>
+  )
+}
+
+function RatingCell({ label, value }: { label: string; value: number }) {
+  return (
+    <div
+      className="flex items-baseline justify-between gap-2 py-0.5"
+      title={label}
+    >
+      <span className="truncate text-xs text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          "shrink-0 tabular-nums text-sm",
+          value >= 85 && "font-semibold text-foreground",
+          value >= 75 && value < 85 && "font-medium text-foreground",
+          value < 75 && "text-muted-foreground",
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function RailRow({
+  label,
+  value,
+  hint,
+}: {
+  label: string
+  value: string | number
+  hint?: string
+}) {
+  return (
+    <div className="border-b border-border/60 py-2 text-sm last:border-b-0">
+      <div className="flex justify-between gap-3">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="text-right font-medium">{value}</span>
+      </div>
+      {hint ? (
+        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function OfferMetric({
+  label,
+  value,
+}: {
+  label: string
+  value: string | number
+}) {
   return (
     <div className="rounded-md border bg-muted/20 px-3 py-2">
       <div className="text-xs text-muted-foreground">{label}</div>
@@ -940,122 +1024,16 @@ function Badge({ children }: { children: React.ReactNode }) {
   )
 }
 
-function RatingBar({ label, value }: { label: string; value: number }) {
-  const clamped = Math.max(0, Math.min(100, value))
-  return (
-    <div className="grid gap-1">
-      <div className="flex justify-between gap-3 text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium tabular-nums">{value}</span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-foreground"
-          style={{ width: `${clamped}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex min-h-9 items-center justify-between gap-3 rounded-md border bg-muted/10 px-3 py-2">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium">{value}</span>
-    </div>
-  )
-}
-
-type PlayerDecision = {
-  headline: string
-  detail: string
-  points: Array<{ label: string; value: string }>
-}
-
-function buildDecisionSummary({
-  player,
-  currentStats,
-  yearsRemaining,
-  isMyRosterPlayer,
-  isFreeAgent,
-  isOffseason,
-  offseasonPhase,
-}: {
-  player: Player
-  currentStats: PlayerSeasonStats | null
-  yearsRemaining: number
-  isMyRosterPlayer: boolean
-  isFreeAgent: boolean
-  isOffseason: boolean
-  offseasonPhase: "re_signing" | "draft" | "free_agency" | null
-}): PlayerDecision {
-  const gap = developmentGap(player)
-  const ageCurve =
-    player.age <= player.peakAge - 2
-      ? "Development"
-      : player.age <= player.peakAge + 2
-        ? "Prime"
-        : "Decline risk"
-  const contractRead =
-    yearsRemaining <= 0
-      ? "No active deal"
-      : yearsRemaining === 1
-        ? "Expiring"
-        : `${yearsRemaining} years`
-  const productionRead = currentStats ? statLine(currentStats) : "No game data"
-
-  if (isFreeAgent) {
-    return {
-      headline:
-        offseasonPhase === "re_signing"
-          ? "Free-agent decision: retain or let walk."
-          : "Free-agent decision: price the role before offering.",
-      detail: isOffseason
-        ? "Use the offer action when this player is eligible for the current offseason phase."
-        : "Signing opens in the offseason. For now, review fit, ratings, and career record.",
-      points: [
-        { label: "Market read", value: contractRead },
-        { label: "Curve", value: ageCurve },
-        { label: "Upside", value: `+${gap}` },
-        { label: "Production", value: productionRead },
-      ],
-    }
-  }
-
-  if (isMyRosterPlayer) {
-    return {
-      headline:
-        yearsRemaining === 1
-          ? "Roster decision: expiring contract, assess trade or extension value."
-          : "Roster decision: compare role value against trade market.",
-      detail:
-        "This is your player, so release and trade actions are available when league rules allow them. The key read is whether the production and development gap justify the cap slot.",
-      points: [
-        { label: "Contract", value: contractRead },
-        { label: "Curve", value: ageCurve },
-        { label: "Upside", value: `+${gap}` },
-        { label: "Production", value: productionRead },
-      ],
-    }
-  }
-
-  return {
-    headline: "Trade target: scout value, cap fit, and development window.",
-    detail:
-      "This player belongs to another team. Use trade to preload him into the incoming side of the trade machine, then build an offer around salary and value.",
-    points: [
-      { label: "Contract", value: contractRead },
-      { label: "Curve", value: ageCurve },
-      { label: "Upside", value: `+${gap}` },
-      { label: "Production", value: productionRead },
-    ],
-  }
+function formatDevelopmentReason(code: string): string {
+  return code
+    .replaceAll(":", " · ")
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 function contractSummary(
   contract: { status: string } | undefined,
-  yearsRemaining: number
+  yearsRemaining: number,
 ): string {
   if (!contract || contract.status !== "active") {
     return "No active contract"

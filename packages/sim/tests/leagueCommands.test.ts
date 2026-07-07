@@ -14,6 +14,7 @@ import { beginOffseason } from "../src/beginOffseason"
 import { beginPlayoffs } from "../src/beginPlayoffs"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
+import { pastStaffPhase } from "./helpers/offseason"
 
 function createOffseasonLeague() {
   const league = createLeague({ skipPreseason: true,
@@ -37,10 +38,10 @@ function createOffseasonLeague() {
   state = simulatePlayoffs(state)
   state = beginOffseason(state)
 
-  return {
+  return pastStaffPhase({
     ...league,
     seasonState: state,
-  }
+  })
 }
 
 describe("leagueCommands", () => {
@@ -144,7 +145,7 @@ describe("leagueCommands", () => {
     const updated = applyLeagueCommand(completed, { type: "beginOffseason" })
 
     expect(updated.seasonState.phase).toBe("offseason")
-    expect(updated.seasonState.offseasonPhase).toBe("re_signing")
+    expect(updated.seasonState.offseasonPhase).toBe("staff")
     expect(updated.seasonAwards.length).toBeGreaterThan(0)
   })
 

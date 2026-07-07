@@ -19,6 +19,7 @@ import {
   advanceToFreeAgencyPhase,
   completeFreeAgencyPhase,
 } from "../offseason/phases"
+import { completeStaffPhase } from "../offseason/staffPhase"
 import { completeReSigningPhase } from "../offseason/reSigning"
 import { ensureFaPoolMinimum, processOffseasonFinancials } from "../financials"
 import {
@@ -28,6 +29,8 @@ import {
   wouldAiAcceptTrade,
 } from "../trades"
 import { signFreeAgent } from "../financials/freeAgency"
+import { extendContract } from "../financials/contractExtensions"
+import { extendStaffContract, fireStaff, hireStaff } from "../staff"
 import { assertPhaseEligibility } from "../phaseEligibility"
 import { applyDraftSelections, releasePlayerFromTeam } from "../roster/ledger"
 import { simulateCurrentPlayoffRound } from "../simulateCurrentPlayoffRound"
@@ -45,6 +48,7 @@ const PHASE_GATED_TYPES = new Set<LeagueCommand["type"]>([
   "beginRegularSeason",
   "beginPlayoffs",
   "beginOffseason",
+  "completeStaffPhase",
   "completeReSignings",
   "advanceToDraft",
   "prepareDraft",
@@ -61,6 +65,7 @@ const STOCHASTIC_TYPES = new Set<LeagueCommand["type"]>([
   "simulatePlayoffs",
   "simulateCurrentPlayoffRound",
   "beginOffseason",
+  "completeStaffPhase",
   "completeReSignings",
   "prepareDraft",
   "simAiPick",
@@ -197,6 +202,9 @@ function applyLeagueCommandInternal(
       )
     }
 
+    case "completeStaffPhase":
+      return completeStaffPhase(league, resolvedRng)
+
     case "completeReSignings":
       return completeReSigningPhase(league, resolvedRng)
 
@@ -268,6 +276,67 @@ function applyLeagueCommandInternal(
         command.playerId,
         command.offer
       )
+    }
+
+    case "extendContract": {
+      if (!league.userTeamId) {
+        throw new Error(
+          "User team must be selected before extending a contract"
+        )
+      }
+
+      return extendContract(
+        league,
+        league.userTeamId,
+        command.playerId,
+        command.offer
+      )
+    }
+
+    case "hireStaff": {
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before hiring staff")
+      }
+
+      const result = hireStaff(
+        league,
+        league.userTeamId,
+        command.staffId,
+        command.offer,
+      )
+      if (!result.ok) {
+        throw new Error(result.reason)
+      }
+      return result.league
+    }
+
+    case "fireStaff": {
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before firing staff")
+      }
+
+      const result = fireStaff(league, league.userTeamId, command.staffId)
+      if (!result.ok) {
+        throw new Error(result.reason)
+      }
+      return result.league
+    }
+
+    case "extendStaffContract": {
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before extending staff")
+      }
+
+      const result = extendStaffContract(
+        league,
+        league.userTeamId,
+        command.staffId,
+        command.offer,
+      )
+      if (!result.ok) {
+        throw new Error(result.reason)
+      }
+      return result.league
     }
 
     case "executeTrade":

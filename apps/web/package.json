@@ -19,6 +19,7 @@
     "@tanstack/react-router": "latest",
     "@tanstack/react-router-devtools": "latest",
     "@tanstack/react-start": "latest",
+    "@tanstack/react-table": "^8.21.3",
     "@tanstack/router-plugin": "latest",
     "@workspace/db": "*",
     "@workspace/shared": "*",
@@ -26,6 +27,7 @@
     "@workspace/ui": "*",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "sonner": "^2.0.7",
     "tailwindcss": "^4"
   },
   "devDependencies": {

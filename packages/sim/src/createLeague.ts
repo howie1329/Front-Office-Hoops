@@ -10,6 +10,7 @@ import { generateLeagueRosters } from "./generateTeams"
 import { SAMPLE_ROSTERS } from "./sampleRosters"
 import { generateInitialDraftPickAssets } from "./draft/generateDraftOrder"
 import { generateOwnerGoals, initializeOwners } from "./owners"
+import { initializeStaffForLeague } from "./staff"
 
 export type CreateLeagueInput = {
   name: string
@@ -71,14 +72,18 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     playerDevelopmentRecords: [],
     developmentReports: [],
     retiredPlayers: [],
+    staff: [],
+    staffContracts: [],
+    collegeCoaches: [],
   }
 
   const withFinancials = ensureFaPoolMinimum(
     initializeFinancialsForLeague(baseRecord, input.rng),
     input.rng
   )
+  const withStaff = initializeStaffForLeague(withFinancials, input.rng)
   return {
-    ...withFinancials,
-    ownerGoals: generateOwnerGoals(withFinancials),
+    ...withStaff,
+    ownerGoals: generateOwnerGoals(withStaff),
   }
 }

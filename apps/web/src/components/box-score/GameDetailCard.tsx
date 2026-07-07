@@ -108,15 +108,45 @@ export function GameDetailCard({
             />
           </div>
             <div className="grid gap-2">
-              {result.meta.homeSynergy ? (
+              {result.meta.homeOffSynergy ? (
                 <SynergyRow
                   abbrev={homeTeam.abbrev}
+                  label="offense"
+                  synergy={result.meta.homeOffSynergy}
+                />
+              ) : null}
+              {result.meta.homeDefSynergy ? (
+                <SynergyRow
+                  abbrev={homeTeam.abbrev}
+                  label="defense"
+                  synergy={result.meta.homeDefSynergy}
+                />
+              ) : null}
+              {result.meta.awayOffSynergy ? (
+                <SynergyRow
+                  abbrev={awayTeam.abbrev}
+                  label="offense"
+                  synergy={result.meta.awayOffSynergy}
+                />
+              ) : null}
+              {result.meta.awayDefSynergy ? (
+                <SynergyRow
+                  abbrev={awayTeam.abbrev}
+                  label="defense"
+                  synergy={result.meta.awayDefSynergy}
+                />
+              ) : null}
+              {!result.meta.homeOffSynergy && result.meta.homeSynergy ? (
+                <SynergyRow
+                  abbrev={homeTeam.abbrev}
+                  label="lineup"
                   synergy={result.meta.homeSynergy}
                 />
               ) : null}
-              {result.meta.awaySynergy ? (
+              {!result.meta.awayOffSynergy && result.meta.awaySynergy ? (
                 <SynergyRow
                   abbrev={awayTeam.abbrev}
+                  label="lineup"
                   synergy={result.meta.awaySynergy}
                 />
               ) : null}
@@ -190,9 +220,11 @@ function InsightMetric({ label, value }: { label: string; value: string }) {
 
 function SynergyRow({
   abbrev,
+  label,
   synergy,
 }: {
   abbrev: string
+  label: string
   synergy: SynergyBreakdown
 }) {
   const detail = [...synergy.bonuses, ...synergy.penalties].slice(0, 2).join(" · ")
@@ -200,7 +232,9 @@ function SynergyRow({
   return (
     <div className="rounded-md border bg-muted/10 px-3 py-2 text-xs">
       <div className="flex items-center justify-between gap-3">
-        <span className="font-medium">{abbrev} lineup fit</span>
+        <span className="font-medium">
+          {abbrev} {label} fit
+        </span>
         <span className="font-semibold">
           {synergy.grade} ({synergy.score})
         </span>

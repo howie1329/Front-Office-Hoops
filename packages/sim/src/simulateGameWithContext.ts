@@ -3,11 +3,16 @@ import type {
   ScheduleGame,
   SeasonState,
   SimulateGameContext,
+  StaffMember,
   TeamFinancials,
   TeamWithRoster,
 } from "@workspace/shared/types"
 
-import { deriveCoachingPhilosophy } from "./gameSim/coachingPhilosophy"
+import {
+  coachingQualityEfficiencyShift,
+  derivePhilosophyFromStaff,
+  staffAlignmentEfficiencyShift,
+} from "./staff"
 import { updateTeamMomentumMap } from "./gameSim/momentum"
 import {
   getFatigueEfficiencyPenalty,
@@ -22,6 +27,7 @@ export type ExtendedSimulateGameContext = SimulateGameContext & {
   gameType?: ScheduleGame["gameType"]
   scheduleState?: SeasonState
   teamFinancials?: TeamFinancials[]
+  staff?: StaffMember[]
 }
 
 function getCoachingLevel(
@@ -53,6 +59,7 @@ export function simulateGameWithContext(
   const rng = createRng(rngSeed)
   const gameType = context.gameType ?? "regular"
   const scheduleState = context.scheduleState
+  const staff = context.staff ?? []
 
   const homeFatigue = scheduleState
     ? getTeamScheduleFatigue(home.id, scheduleState, context.day)
@@ -84,8 +91,12 @@ export function simulateGameWithContext(
         : gameType === "exhibition"
           ? 8
           : 0,
-      homePhilosophy: deriveCoachingPhilosophy(homeCoachingLevel),
-      awayPhilosophy: deriveCoachingPhilosophy(awayCoachingLevel),
+      homePhilosophy: derivePhilosophyFromStaff(staff, home.id),
+      awayPhilosophy: derivePhilosophyFromStaff(staff, away.id),
+      homeStaffAlignmentShift: staffAlignmentEfficiencyShift(staff, home.id),
+      awayStaffAlignmentShift: staffAlignmentEfficiencyShift(staff, away.id),
+      homeCoachingQualityShift: coachingQualityEfficiencyShift(homeCoachingLevel),
+      awayCoachingQualityShift: coachingQualityEfficiencyShift(awayCoachingLevel),
       homeMomentum: scheduleState?.teamMomentum?.[home.id],
       awayMomentum: scheduleState?.teamMomentum?.[away.id],
       homeStreak: getTeamStreak(scheduleState, home.id),

@@ -29,6 +29,8 @@ function mockTeamFinance(mode: TeamFinancials["strategy"]["mode"]): TeamFinancia
     scoutingLevel: 5,
     coachingLevel: 5,
     developmentLevel: 5,
+    staffBudget: 6,
+    staffPayroll: 0,
     tradeExceptions: [],
     deadCapCharges: [],
   }

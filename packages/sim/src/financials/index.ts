@@ -38,6 +38,7 @@ export {
 export * from "./spendingProfiles"
 export * from "./assessSeasonFinances"
 export * from "./freeAgency"
+export * from "./contractExtensions"
 export * from "./contracts/createContract"
 export * from "./contracts/processContracts"
 export * from "./teamStrategy"

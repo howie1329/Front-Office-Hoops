@@ -31,6 +31,7 @@ import { beginPlayoffs } from "../src/beginPlayoffs"
 import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 import { makeTestPlayer, makeTestRatings } from "./helpers/playerRatings"
+import { pastStaffPhaseState } from "./helpers/offseason"
 
 function createTestPlayer(overrides: Partial<Player> = {}): Player {
   const { ratings: ratingOverrides, ...rest } = overrides
@@ -79,7 +80,6 @@ function createTestTeam(players: Player[]): TeamWithRoster {
     name: "Test Team",
     abbrev: "TST",
     overall: 60,
-    pace: 100,
     players,
   }
 }
@@ -513,7 +513,9 @@ describe("preseason progression phase", () => {
     ).toThrow("offseason")
 
     state = beginOffseason(state)
-    const prepared = prepareDraft(advanceToDraftPhase(state))
+    const prepared = prepareDraft(
+      advanceToDraftPhase(pastStaffPhaseState(state, league)),
+    )
     const completed = simDraftUntilComplete(prepared, [])
     const trimmed = applyAiRosterTrimming(
       completed.seasonState.teams,

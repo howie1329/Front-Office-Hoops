@@ -71,7 +71,7 @@ export function RosterCard({
           <div>
             <CardTitle>Roster</CardTitle>
             <CardDescription>
-              {roster.abbrev} · {roster.overall} OVR · {roster.pace} pace
+              {roster.abbrev} · {roster.overall} OVR
               {roster.divisionId ? ` · ${roster.divisionId}` : null}
             </CardDescription>
           </div>

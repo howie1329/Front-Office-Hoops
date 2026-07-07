@@ -18,6 +18,7 @@ import { seedPlayoffTeams } from "../src/playoffs/seedTeams"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 import { isRegularSeasonComplete } from "../src/isRegularSeasonComplete"
 import { deriveUserPlayoffResult } from "../src/deriveUserPlayoffResult"
+import { pastStaffPhaseState } from "./helpers/offseason"
 
 describe("playoffs", () => {
   it("seeds top 8 teams per conference for a 30-team league", () => {
@@ -79,7 +80,9 @@ describe("playoffs", () => {
     const userTeamId = state.teams[0]!.id
     state = beginOffseason(state)
     expect(state.phase).toBe("offseason")
-    const prepared = prepareDraft(advanceToDraftPhase(state))
+    const prepared = prepareDraft(
+      advanceToDraftPhase(pastStaffPhaseState(state, league)),
+    )
     const completed = simDraftUntilComplete(prepared, [])
     const trimmed = applyAiRosterTrimming(
       completed.seasonState.teams,

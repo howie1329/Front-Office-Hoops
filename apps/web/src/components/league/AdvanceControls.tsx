@@ -5,7 +5,6 @@ import type {
   AdvanceStopReason,
   AdvanceTarget,
 } from "@workspace/sim"
-import { Button } from "@workspace/ui/components/button"
 import {
   Card,
   CardContent,
@@ -13,14 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 
+import { AdvanceSplitButton } from "@/components/league/AdvanceSplitButton"
 import type { LeagueStatus, SaveStatus } from "@/hooks/useLeague"
 
 type AdvanceControlsProps = {
@@ -35,14 +28,6 @@ type AdvanceControlsProps = {
   title?: string
   description?: string
 }
-
-const bulkTargets: { value: AdvanceTarget; label: string }[] = [
-  { value: "week", label: "Advance 1 week" },
-  { value: "month_end", label: "Until month end" },
-  { value: "trade_deadline", label: "Until trade deadline" },
-  { value: "playoffs", label: "Until playoffs" },
-  { value: "regular_season_end", label: "Rest of regular season" },
-]
 
 export function AdvanceControls({
   state,
@@ -78,53 +63,12 @@ export function AdvanceControls({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {canAdvance ? (
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              className="sm:flex-1"
-              onClick={() => onAdvance("day", "stopAtUserGames")}
-              disabled={!state || status === "loading"}
-            >
-              Advance 1 day
-            </Button>
-
-            {phase !== "playoffs" ? (
-              <Select
-                onValueChange={(value) =>
-                  onAdvance(value as AdvanceTarget, "runThrough")
-                }
-              >
-                <SelectTrigger className="sm:w-[220px]">
-                  <SelectValue placeholder="Play until…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {bulkTargets.map((target) => (
-                    <SelectItem key={target.value} value={target.value}>
-                      {target.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : null}
-          </div>
-        ) : null}
-
-        {phase === "playoffs" ? (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => onAdvance("day", "runThrough")}
-              disabled={!state}
-            >
-              Sim playoff day
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={onSimPlayoffs}
-              disabled={!state || !onSimPlayoffs}
-            >
-              Sim all playoffs
-            </Button>
-          </div>
+          <AdvanceSplitButton
+            phase={phase}
+            disabled={!state || status === "loading"}
+            onAdvance={onAdvance}
+            onSimPlayoffs={onSimPlayoffs}
+          />
         ) : null}
 
         {lastAdvanceResult ? (
@@ -193,7 +137,13 @@ function stopReasonLabel(reason: AdvanceStopReason): string {
       return "playoffs ready"
     case "begin_regular_season":
       return "regular season ready"
+    case "begin_offseason":
+      return "offseason ready"
     case "draft_pick":
       return "draft pick on the clock"
+    case "draft_incomplete":
+      return "draft incomplete"
+    case "roster_under_limit":
+      return "roster under limit"
   }
 }

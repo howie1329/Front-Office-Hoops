@@ -42,3 +42,8 @@ export type FreeAgentOffer = {
   firstYearSalary: number
   signingException?: SigningException
 }
+
+export type ExtensionOffer = {
+  years: number
+  firstYearSalary: number
+}

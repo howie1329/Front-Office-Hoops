@@ -6,9 +6,11 @@ export {
 } from "./teamStrength"
 export { simulateTeamMatchup } from "./simulateTeamMatchup"
 export {
-  deriveCoachingPhilosophy,
   computeLineupSynergy,
+  computeOffensiveSynergy,
+  computeDefensiveSynergy,
   computeTeamMomentum,
+  philosophyPaceModifier,
   updateTeamMomentumMap,
 } from "./gameSim"
 export { generatePlayers, generateTeamWithRoster } from "./generatePlayers"
@@ -52,6 +54,19 @@ export {
   completeFreeAgencyPhase,
 } from "./offseason/phases"
 export { completeReSigningPhase } from "./offseason/reSigning"
+export { completeStaffPhase } from "./offseason/staffPhase"
+export {
+  applyStaffBudgetsFromOwners,
+  derivePhilosophyFromStaff,
+  getHeadCoachPace,
+  getStaffByRole,
+  getTeamStaff,
+  hireStaff,
+  fireStaff,
+  extendStaffContract,
+  initializeStaffForLeague,
+  syncLeagueStaffFinancials,
+} from "./staff"
 export { startNextSeason } from "./startNextSeason"
 export type {
   StartNextSeasonInput,
@@ -93,6 +108,7 @@ export {
 } from "./draft/simAiPick"
 export {
   releasePlayer,
+  canReleasePlayer,
   applyAiRosterTrimming,
   getTeamRosterSize,
 } from "./roster/rosterManagement"
@@ -129,6 +145,10 @@ export {
   getCapSpace,
   getCurrentSalary,
   getYearsRemaining,
+  canExtendContract,
+  extendContract,
+  getExtensionBounds,
+  getExtensionEligibilityReason,
 } from "./financials"
 export { getTeamDeadCapPayroll } from "./financials/deadCap"
 export type { SignValidationResult } from "./financials/freeAgency"
@@ -148,6 +168,7 @@ export { getFairSalary, getContractAssetValueBreakdown, calculatePlayerValue } f
 export { createLeagueLogEntry, appendLeagueLog } from "./leagueLog"
 export { advanceSeason, advanceLeague } from "./advance/advanceSeason"
 export type {
+  AdvanceEvent,
   AdvancePolicy,
   AdvanceResult,
   AdvanceStopReason,
@@ -162,7 +183,7 @@ export {
   getDisplayedSkillRating,
   resolveScoutingLevel,
 } from "./scouting/displayedRatings"
-export { deriveOverall, getSkillRatings } from "./playerRatings"
+export { deriveOverall, getSkillRatings, deriveTeamOverall, deriveTeamOffense, deriveTeamDefense } from "./playerRatings"
 export {
   getTeamScheduleFatigue,
   getFatigueEfficiencyPenalty,

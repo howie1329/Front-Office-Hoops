@@ -1,6 +1,7 @@
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
 
 import appCss from "@workspace/ui/globals.css?url"
+import { Toaster } from "@workspace/ui/components/sonner"
 
 import { ThemeProvider } from "@/components/theme-provider"
 
@@ -43,6 +44,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <ThemeProvider defaultTheme="dark" storageKey="foh:theme">
           {children}
+          <Toaster richColors position="top-right" />
         </ThemeProvider>
         <Scripts />
       </body>

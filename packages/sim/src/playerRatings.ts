@@ -37,7 +37,10 @@ export function deriveUsage(overall: number, index: number): number {
   return Math.min(16, Math.max(4, Math.round(6 + overall / 15)))
 }
 
-export function deriveTeamOverall(players: Player[]): number {
+function weightedRotationAverage(
+  players: Player[],
+  getValue: (player: Player) => number,
+): number {
   const rotation = selectRotation(players)
   const totalMinutes = rotation.reduce((sum, entry) => sum + entry.minutes, 0)
 
@@ -45,12 +48,56 @@ export function deriveTeamOverall(players: Player[]): number {
     return 50
   }
 
-  const weightedOverall = rotation.reduce(
-    (sum, entry) => sum + entry.player.ratings.overall * entry.minutes,
+  const weighted = rotation.reduce(
+    (sum, entry) => sum + getValue(entry.player) * entry.minutes,
     0,
   )
 
-  return Math.round(weightedOverall / totalMinutes)
+  return weighted / totalMinutes
+}
+
+export function deriveTeamOverall(players: Player[]): number {
+  return Math.round(
+    weightedRotationAverage(players, (player) => player.ratings.overall),
+  )
+}
+
+export function deriveTeamOffense(players: Player[]): number {
+  return Math.round(
+    weightedRotationAverage(players, (player) => {
+      const {
+        threePoint,
+        midRange,
+        inside,
+        passing,
+        ballHandling,
+        offensiveIQ,
+        freeThrow,
+      } = player.ratings
+
+      return (
+        (threePoint +
+          midRange +
+          inside +
+          passing +
+          ballHandling +
+          offensiveIQ +
+          freeThrow) /
+        7
+      )
+    }),
+  )
+}
+
+export function deriveTeamDefense(players: Player[]): number {
+  return Math.round(
+    weightedRotationAverage(players, (player) => {
+      const reachBonus = ((player.reachRating ?? 55) - 55) * 0.08
+      return (
+        player.ratings.defense + player.ratings.defensiveIQ * 0.35 + reachBonus
+      )
+    }),
+  )
 }
 
 export function getRosterIndex(player: Player, players: Player[]): number {

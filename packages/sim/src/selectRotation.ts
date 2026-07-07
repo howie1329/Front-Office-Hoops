@@ -166,7 +166,6 @@ export function selectRotation(players: Player[]): RotationEntry[] {
     name: "Rotation",
     abbrev: "ROT",
     overall: 0,
-    pace: 100,
     players,
   }
   const gameRotation = createGameRotation(team)

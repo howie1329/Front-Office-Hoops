@@ -72,6 +72,32 @@ export function validateRosterFloor(
   return { ok: true }
 }
 
+export function canReleasePlayer(
+  teams: TeamWithRoster[],
+  input: { teamId: string; playerId: string },
+): { ok: true } | { ok: false; reason: string } {
+  const team = teams.find((entry) => entry.id === input.teamId)
+  if (!team) {
+    return { ok: false, reason: "Team not found" }
+  }
+
+  const player = team.players.find((entry) => entry.id === input.playerId)
+  if (!player) {
+    return { ok: false, reason: "Player not found on team" }
+  }
+
+  const nextPlayers = team.players.filter(
+    (entry) => entry.id !== input.playerId,
+  )
+  const floorValidation = validateRosterFloor(nextPlayers)
+
+  if (!floorValidation.ok) {
+    return floorValidation
+  }
+
+  return { ok: true }
+}
+
 export function releasePlayer(
   teams: TeamWithRoster[],
   freeAgentPool: Player[],
