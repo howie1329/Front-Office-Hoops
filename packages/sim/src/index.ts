@@ -148,6 +148,7 @@ export { getFairSalary, getContractAssetValueBreakdown, calculatePlayerValue } f
 export { createLeagueLogEntry, appendLeagueLog } from "./leagueLog"
 export { advanceSeason, advanceLeague } from "./advance/advanceSeason"
 export type {
+  AdvanceEvent,
   AdvancePolicy,
   AdvanceResult,
   AdvanceStopReason,

@@ -59,28 +59,12 @@ function phaseLabel(phase: SeasonState["phase"]): string {
 export function SeasonPhaseCard({
   state,
   championTeamId,
-  canBeginRegularSeason,
-  canBeginPlayoffs,
-  canBeginOffseason,
-  canSimAiReSignings,
-  canProceedToDraft,
   canPrepareDraft,
-  canProceedToFreeAgency,
-  canSimAiFreeAgency,
-  canStartNextSeason,
   rosterOverLimit,
   cutsNeeded,
   error,
-  onBeginRegularSeason,
   onSkipRemainingExhibitions,
-  onBeginPlayoffs,
-  onBeginOffseason,
-  onCompleteReSignings,
-  onAdvanceToDraft,
   onPrepareDraft,
-  onAdvanceToFreeAgency,
-  onCompleteFreeAgency,
-  onStartNextSeason,
 }: SeasonPhaseCardProps) {
   const championName = championTeamId ? teamName(state, championTeamId) : null
   const calendar = getCurrentCalendar(state)
@@ -93,20 +77,20 @@ export function SeasonPhaseCard({
         </CardTitle>
         <CardDescription>
           {state.phase === "preseason"
-            ? "Run exhibition games, cut camp invites to 15, then begin the regular season."
+            ? "Run exhibition games and cut camp invites to 15 before the regular season date."
             : state.phase === "regular"
-              ? "Finish the regular season, then begin the playoffs."
+              ? "Advance through the regular season calendar toward the playoffs."
               : state.phase === "playoffs"
                 ? "Sim playoff games from the bracket page."
                 : state.phase === "offseason" &&
                     (state.offseasonPhase ?? "re_signing") === "re_signing"
-                  ? "Re-sign your own expiring players, then let AI teams handle their re-signings."
+                  ? "Re-sign your own expiring players before the draft window opens."
                   : state.phase === "offseason" &&
                       state.offseasonPhase === "draft"
                     ? "Prepare and run the draft before free agency opens."
                     : state.phase === "offseason" &&
                         state.offseasonPhase === "free_agency"
-                      ? "Sign free agents, trim your roster to 15, then start the next season."
+                      ? "Sign free agents and trim your roster to 15 before the next preseason."
                       : championName
                         ? `${championName} won the championship.`
                         : "Champion crowned."}
@@ -151,38 +135,15 @@ export function SeasonPhaseCard({
               <Button variant="secondary" onClick={onSkipRemainingExhibitions}>
                 Skip remaining exhibitions
               </Button>
-              {canBeginRegularSeason ? (
-                <Button onClick={onBeginRegularSeason}>
-                  Begin regular season
-                </Button>
-              ) : null}
               <Button variant="outline" asChild>
                 <Link to="/league/team">Manage roster</Link>
               </Button>
             </>
           ) : null}
 
-          {canBeginPlayoffs ? (
-            <Button onClick={onBeginPlayoffs}>Begin playoffs</Button>
-          ) : null}
-
           {state.phase === "playoffs" ? (
             <Button variant="secondary" asChild>
               <Link to="/league/playoffs">View playoff bracket</Link>
-            </Button>
-          ) : null}
-
-          {canBeginOffseason ? (
-            <Button onClick={onBeginOffseason}>Begin offseason</Button>
-          ) : null}
-
-          {canSimAiReSignings ? (
-            <Button onClick={onCompleteReSignings}>Sim AI re-signings</Button>
-          ) : null}
-
-          {canProceedToDraft ? (
-            <Button variant="secondary" onClick={onAdvanceToDraft}>
-              Proceed to draft
             </Button>
           ) : null}
 
@@ -195,24 +156,6 @@ export function SeasonPhaseCard({
           !state.draftState.completed ? (
             <Button variant="secondary" asChild>
               <Link to="/league/draft">Go to draft</Link>
-            </Button>
-          ) : null}
-
-          {canProceedToFreeAgency ? (
-            <Button onClick={onAdvanceToFreeAgency}>
-              Proceed to free agency
-            </Button>
-          ) : null}
-
-          {canSimAiFreeAgency ? (
-            <Button variant="secondary" onClick={onCompleteFreeAgency}>
-              Sim AI free agency
-            </Button>
-          ) : null}
-
-          {canStartNextSeason ? (
-            <Button onClick={() => void onStartNextSeason()}>
-              Start Season {state.season + 1}
             </Button>
           ) : null}
 

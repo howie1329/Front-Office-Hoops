@@ -43,6 +43,28 @@ function fillUserRoster(league: ReturnType<typeof createLeague>) {
   return next
 }
 
+function trimUserRoster(league: ReturnType<typeof createLeague>) {
+  let next = league
+
+  while (getUserRosterSize(next) > ROSTER_MAX) {
+    const userTeam = next.seasonState.teams.find(
+      (team) => team.id === next.userTeamId
+    )
+    const player = userTeam?.players[userTeam.players.length - 1]
+    if (!player) {
+      throw new Error("Expected user players to trim roster")
+    }
+
+    next = applyLeagueCommand(next, {
+      type: "releasePlayer",
+      playerId: player.id,
+    })
+    expectLeagueInvariants(next)
+  }
+
+  return next
+}
+
 describe("league invariants", () => {
   it("survives five deterministic mini-league seasons through the command flow", () => {
     let league = createLeague({ skipPreseason: true,
@@ -59,6 +81,9 @@ describe("league invariants", () => {
       if (league.seasonState.phase === "preseason") {
         if (getUserRosterSize(league) < ROSTER_MAX) {
           league = fillUserRoster(league)
+        }
+        if (getUserRosterSize(league) > ROSTER_MAX) {
+          league = trimUserRoster(league)
         }
 
         league = applyLeagueCommand(league, {

@@ -18,6 +18,7 @@ import type {
   LeagueSummary,
   TradeProposal,
 } from "@workspace/shared/types"
+import { toast } from "sonner"
 
 import {
   clearActiveLeagueId,
@@ -355,6 +356,11 @@ export function useLeague() {
 
       try {
         scheduleSave(applyLeagueCommand(current, command))
+        if (command.type === "executeTrade" || command.type === "acceptTradeOffer") {
+          toast.success("Trade accepted", {
+            description: "The transaction has been processed.",
+          })
+        }
       } catch (commandError: unknown) {
         setError(
           commandError instanceof Error
@@ -469,8 +475,8 @@ export function useLeague() {
     beginRegularSeason: () => dispatch({ type: "beginRegularSeason" }),
     skipRemainingExhibitions: () =>
       dispatch({ type: "skipRemainingExhibitions" }),
-    simDay: () => advance("day", "stopAtUserGames"),
-    simWeek: () => advance("week", "stopAtUserGames"),
+    simDay: () => advance("day", "runThrough"),
+    simWeek: () => advance("week", "runThrough"),
     simSeason: () => dispatch({ type: "simSeason" }),
     startNextSeason: startNextSeasonAction,
     persistLeague,

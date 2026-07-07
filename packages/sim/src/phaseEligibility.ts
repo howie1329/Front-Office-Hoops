@@ -89,10 +89,10 @@ export function getPhaseEligibility(
           reason: "Preseason exhibition games are not complete",
         }
       }
-      if (userRosterSize > CAMP_ROSTER_MAX) {
+      if (userRosterSize > ROSTER_MAX) {
         return {
           allowed: false,
-          reason: `Cut roster to ${CAMP_ROSTER_MAX} players before starting the regular season`,
+          reason: `Cut roster to ${ROSTER_MAX} players before starting the regular season`,
         }
       }
       if (userRosterSize < ROSTER_MIN) {

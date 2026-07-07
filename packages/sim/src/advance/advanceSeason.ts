@@ -1,15 +1,30 @@
-import type { LeagueRecord, Rng, SeasonState } from "@workspace/shared/types"
+import type { Game, LeagueRecord, Rng, SeasonState } from "@workspace/shared/types"
 
 import {
   getCurrentCalendar,
   getMonthEndDay,
   getTradeDeadlineAdvanceStopDay,
 } from "../calendar"
+import { beginPlayoffs } from "../beginPlayoffs"
+import { beginRegularSeason } from "../preseason/beginRegularSeason"
 import { isUserOnClock } from "../draft/prepareDraft"
 import { getAllPhaseEligibility } from "../phaseEligibility"
 import { isPreseasonComplete } from "../preseason/isPreseasonComplete"
 import { simulateDay } from "../simulateDay"
 import { simulateLeagueRegularDay } from "../simulateRegularDay"
+import { completeReSigningPhase } from "../offseason/reSigning"
+import {
+  advanceToFreeAgencyPhase,
+  completeFreeAgencyPhase,
+} from "../offseason/phases"
+import { ensureFaPoolMinimum, processOffseasonFinancials } from "../financials"
+import { archivePlayerCareerSnapshots } from "../playerProfiles"
+import { evaluateOwnerGoals } from "../owners"
+import { assignSeasonAwards } from "../awards"
+import { derivePlayerSeasonProfiles } from "../playerSeasonProfiles"
+import { beginOffseason } from "../beginOffseason"
+import { startNextSeason } from "../startNextSeason"
+import { generateOwnerGoals } from "../owners"
 
 export type AdvanceTarget =
   | "day"
@@ -26,15 +41,43 @@ export type AdvanceStopReason =
   | "user_game"
   | "target_reached"
   | "roster_cuts"
+  | "roster_under_limit"
   | "begin_playoffs"
   | "begin_regular_season"
+  | "begin_offseason"
   | "draft_pick"
+  | "draft_incomplete"
+
+export type AdvanceEvent =
+  | {
+      type: "game_result"
+      gameId: string
+      won: boolean
+      homeTeamId: string
+      awayTeamId: string
+      homeScore: number
+      awayScore: number
+    }
+  | {
+      type: "phase_started"
+      phase:
+        | "preseason"
+        | "regular"
+        | "playoffs"
+        | "offseason"
+        | "re_signing"
+        | "draft"
+        | "free_agency"
+    }
+  | { type: "trade_deadline_passed" }
+  | { type: "champion_crowned"; teamId: string }
 
 export type AdvanceResult = {
   state: SeasonState
   daysSimmed: number
   gamesSimmed: number
   stoppedReason?: AdvanceStopReason
+  events?: AdvanceEvent[]
 }
 
 export type AdvanceOptions = {
@@ -90,11 +133,6 @@ function getInterruptReason(
     return null
   }
 
-  const eligibility = getAllPhaseEligibility({
-    ...league,
-    seasonState: state,
-  })
-
   if (state.phase === "preseason") {
     if (isPreseasonComplete(state)) {
       const userTeam = league.userTeamId
@@ -103,14 +141,7 @@ function getInterruptReason(
       if (userTeam && userTeam.players.length > 15) {
         return "roster_cuts"
       }
-      if (eligibility.beginRegularSeason?.allowed) {
-        return "begin_regular_season"
-      }
     }
-  }
-
-  if (eligibility.beginPlayoffs.allowed) {
-    return "begin_playoffs"
   }
 
   if (
@@ -121,7 +152,244 @@ function getInterruptReason(
     return "draft_pick"
   }
 
+  if (
+    state.phase === "offseason" &&
+    state.offseasonPhase === "draft" &&
+    state.currentDay >= getCurrentCalendar(state).milestones.freeAgencyStartDay &&
+    !state.draftState?.completed
+  ) {
+    return "draft_incomplete"
+  }
+
   return null
+}
+
+function userGameEvents(
+  league: LeagueRecord,
+  games: Game[],
+): AdvanceEvent[] {
+  if (!league.userTeamId) {
+    return []
+  }
+
+  return games
+    .filter(
+      (game) =>
+        game.homeTeamId === league.userTeamId ||
+        game.awayTeamId === league.userTeamId,
+    )
+    .map((game) => {
+      const userIsHome = game.homeTeamId === league.userTeamId
+      const homeScore = game.result.homeScore
+      const awayScore = game.result.awayScore
+      const won = userIsHome ? homeScore > awayScore : awayScore > homeScore
+
+      return {
+        type: "game_result" as const,
+        gameId: game.id,
+        won,
+        homeTeamId: game.homeTeamId,
+        awayTeamId: game.awayTeamId,
+        homeScore,
+        awayScore,
+      }
+    })
+}
+
+function crossedTradeDeadline(
+  before: SeasonState,
+  after: SeasonState,
+): boolean {
+  if (before.season !== after.season) {
+    return false
+  }
+
+  const deadline = getCurrentCalendar(before).milestones.tradeDeadlineDay
+  return before.currentDay <= deadline && after.currentDay > deadline
+}
+
+function beginOffseasonForLeague(league: LeagueRecord, rng: Rng): LeagueRecord {
+  const completedLeague = archivePlayerCareerSnapshots(
+    evaluateOwnerGoals(assignSeasonAwards(league))
+  )
+  const profiles = derivePlayerSeasonProfiles(
+    completedLeague.seasonState.teams,
+    completedLeague.seasonState.playerSeasonStats,
+    completedLeague.seasonState.games.length,
+    completedLeague.seasonState.season
+  )
+  const nextState = beginOffseason(completedLeague.seasonState, profiles)
+
+  return processOffseasonFinancials(
+    {
+      ...completedLeague,
+      seasonState: nextState,
+      playerSeasonProfiles: [
+        ...completedLeague.playerSeasonProfiles.filter(
+          (entry) => entry.season !== completedLeague.seasonState.season
+        ),
+        ...profiles,
+      ],
+    },
+    rng
+  )
+}
+
+function startNextSeasonForLeague(league: LeagueRecord, rng: Rng): LeagueRecord {
+  const result = startNextSeason({
+    seasonState: league.seasonState,
+    userTeamId: league.userTeamId,
+    freeAgentPool: league.freeAgentPool,
+    rng,
+    playerSeasonStats: league.seasonState.playerSeasonStats,
+    playerSeasonProfiles: league.playerSeasonProfiles,
+    seasonHistory: league.seasonHistory,
+    league: {
+      contracts: league.contracts,
+      leagueFinancials: league.leagueFinancials,
+      teamFinancials: league.teamFinancials,
+      spendingProfileEvents: league.spendingProfileEvents,
+      draftPickAssets: league.draftPickAssets,
+    },
+  })
+
+  const updated = {
+    ...league,
+    seasonState: result.seasonState,
+    seasonHistory: [...league.seasonHistory, result.historyEntry],
+    freeAgentPool: result.freeAgentPool,
+    contracts: result.contracts,
+    leagueFinancials: result.leagueFinancials,
+    teamFinancials: result.teamFinancials,
+    draftPickAssets: result.draftPickAssets,
+    playerDevelopmentRecords: [
+      ...league.playerDevelopmentRecords,
+      ...result.playerDevelopmentRecords,
+    ],
+    developmentReports: [...league.developmentReports, result.developmentReport],
+    retiredPlayers: [...league.retiredPlayers, ...result.retiredPlayers],
+  }
+
+  return {
+    ...updated,
+    ownerGoals: [
+      ...updated.ownerGoals.filter(
+        (goal) => goal.season !== updated.seasonState.season
+      ),
+      ...generateOwnerGoals(updated),
+    ],
+  }
+}
+
+function reconcileCalendarPhase(
+  league: LeagueRecord,
+  rng: Rng,
+): { league: LeagueRecord; events: AdvanceEvent[]; stoppedReason?: AdvanceStopReason } {
+  let current = league
+  const events: AdvanceEvent[] = []
+
+  for (let i = 0; i < 5; i++) {
+    const state = current.seasonState
+    const milestones = getCurrentCalendar(state).milestones
+    const eligibility = getAllPhaseEligibility(current)
+
+    if (state.phase === "preseason" && state.currentDay >= milestones.regularSeasonStartDay) {
+      if (eligibility.beginRegularSeason.allowed) {
+        current = beginRegularSeason(current, rng)
+        events.push({ type: "phase_started", phase: "regular" })
+        continue
+      }
+
+      const userTeam = current.userTeamId
+        ? state.teams.find((team) => team.id === current.userTeamId)
+        : null
+      if (userTeam && userTeam.players.length > 15) {
+        return { league: current, events, stoppedReason: "roster_cuts" }
+      }
+      return { league: current, events, stoppedReason: "roster_under_limit" }
+    }
+
+    if (state.phase === "regular" && eligibility.beginPlayoffs.allowed) {
+      current = {
+        ...current,
+        seasonState: beginPlayoffs(state),
+      }
+      events.push({ type: "phase_started", phase: "playoffs" })
+      continue
+    }
+
+    if (state.phase === "complete" && state.playoffBracket?.championTeamId) {
+      events.push({
+        type: "champion_crowned",
+        teamId: state.playoffBracket.championTeamId,
+      })
+
+      if (eligibility.beginOffseason.allowed) {
+        current = beginOffseasonForLeague(current, rng)
+        events.push(
+          { type: "phase_started", phase: "offseason" },
+          { type: "phase_started", phase: "re_signing" },
+        )
+        continue
+      }
+    }
+
+    if (state.phase === "offseason") {
+      const offseasonPhase = state.offseasonPhase ?? "re_signing"
+
+      if (
+        offseasonPhase === "re_signing" &&
+        state.currentDay >= milestones.draftDay
+      ) {
+        current = completeReSigningPhase(current, rng)
+        events.push({ type: "phase_started", phase: "draft" })
+        continue
+      }
+
+      if (
+        offseasonPhase === "draft" &&
+        state.currentDay >= milestones.freeAgencyStartDay
+      ) {
+        if (!state.draftState?.completed) {
+          return { league: current, events, stoppedReason: "draft_incomplete" }
+        }
+
+        current = ensureFaPoolMinimum(
+          {
+            ...current,
+            seasonState: advanceToFreeAgencyPhase(state),
+          },
+          rng,
+        )
+        events.push({ type: "phase_started", phase: "free_agency" })
+        continue
+      }
+
+      if (
+        offseasonPhase === "free_agency" &&
+        state.currentDay >= milestones.nextSeasonStartDay
+      ) {
+        current = completeFreeAgencyPhase(current, rng)
+        if (eligibility.startNextSeason.allowed) {
+          current = startNextSeasonForLeague(current, rng)
+          events.push({ type: "phase_started", phase: "preseason" })
+          continue
+        }
+
+        const userTeam = current.userTeamId
+          ? state.teams.find((team) => team.id === current.userTeamId)
+          : null
+        if (userTeam && userTeam.players.length > 15) {
+          return { league: current, events, stoppedReason: "roster_cuts" }
+        }
+        return { league: current, events, stoppedReason: "roster_under_limit" }
+      }
+    }
+
+    break
+  }
+
+  return { league: current, events }
 }
 
 function resolveTargetDay(state: SeasonState, target: AdvanceTarget): number {
@@ -242,9 +510,26 @@ export function advanceLeague(
   let current = league
   let daysSimmed = 0
   let gamesSimmed = 0
+  const events: AdvanceEvent[] = []
   const maxIterations = 500
 
   for (let iteration = 0; iteration < maxIterations; iteration++) {
+    const startReconciled = reconcileCalendarPhase(current, rng)
+    current = startReconciled.league
+    events.push(...startReconciled.events)
+    if (startReconciled.stoppedReason) {
+      return {
+        league: current,
+        result: {
+          state: current.seasonState,
+          daysSimmed,
+          gamesSimmed,
+          stoppedReason: startReconciled.stoppedReason,
+          events,
+        },
+      }
+    }
+
     const currentDay = current.seasonState.currentDay
 
     if (
@@ -258,6 +543,7 @@ export function advanceLeague(
           daysSimmed,
           gamesSimmed,
           stoppedReason: "user_game",
+          events,
         },
       }
     }
@@ -272,15 +558,38 @@ export function advanceLeague(
             daysSimmed,
             gamesSimmed,
             stoppedReason: interrupt,
+            events,
           },
         }
       }
     }
 
     const gamesBefore = current.seasonState.games.length
+    const stateBefore = current.seasonState
     current = simulateLeagueRegularDay(current, rng, currentDay)
+    const newGames = current.seasonState.games.slice(gamesBefore)
     daysSimmed += 1
-    gamesSimmed += current.seasonState.games.length - gamesBefore
+    gamesSimmed += newGames.length
+    events.push(...userGameEvents(current, newGames))
+    if (crossedTradeDeadline(stateBefore, current.seasonState)) {
+      events.push({ type: "trade_deadline_passed" })
+    }
+
+    const reconciled = reconcileCalendarPhase(current, rng)
+    current = reconciled.league
+    events.push(...reconciled.events)
+    if (reconciled.stoppedReason) {
+      return {
+        league: current,
+        result: {
+          state: current.seasonState,
+          daysSimmed,
+          gamesSimmed,
+          stoppedReason: reconciled.stoppedReason,
+          events,
+        },
+      }
+    }
 
     if (
       shouldStopForTarget(current.seasonState, options.target, targetDay)
@@ -292,6 +601,7 @@ export function advanceLeague(
             state: current.seasonState,
             daysSimmed,
             gamesSimmed,
+            events,
           },
         }
       }
@@ -303,6 +613,7 @@ export function advanceLeague(
             state: current.seasonState,
             daysSimmed,
             gamesSimmed,
+            events,
           },
         }
       }
@@ -318,6 +629,7 @@ export function advanceLeague(
             daysSimmed,
             gamesSimmed,
             stoppedReason: "target_reached",
+            events,
           },
         }
       }
@@ -330,6 +642,7 @@ export function advanceLeague(
       state: current.seasonState,
       daysSimmed,
       gamesSimmed,
+      events,
     },
   }
 }

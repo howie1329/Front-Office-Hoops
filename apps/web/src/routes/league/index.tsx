@@ -6,30 +6,33 @@ import {
   useReactTable,
 } from "@tanstack/react-table"
 import type { ColumnDef, SortingState } from "@tanstack/react-table"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
-import { playerName } from "@/components/box-score/playerName"
-import { AdvanceControls } from "@/components/league/AdvanceControls"
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import {
-  formatGameLine,
   formatScheduledLine,
   teamName,
-  winPct,
 } from "@/components/league/lib/teamFormat"
 import { useLeagueContext } from "@/contexts/LeagueContext"
+import type { LeagueStatus, SaveStatus } from "@/hooks/useLeague"
 import { useTeamFinancials } from "@/hooks/useTeamFinancials"
-import { getCurrentCalendar } from "@workspace/sim"
+import { getCurrentCalendar, isPreseasonComplete } from "@workspace/sim"
+import type {
+  AdvanceEvent,
+  AdvancePolicy,
+  AdvanceResult,
+  AdvanceTarget,
+} from "@workspace/sim"
 import { LEAGUE_TEAM_COUNT } from "@workspace/shared/constants"
 import type {
   Player,
   PlayerSeasonStats,
-  PreseasonDevelopmentReport,
   ScheduleGame,
   SeasonPhase,
   SeasonState,
   Standing,
 } from "@workspace/shared/types"
+import { AdvanceSplitButton } from "@/components/league/AdvanceSplitButton"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -39,6 +42,7 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 import { cn } from "@workspace/ui/lib/utils"
+import { toast } from "sonner"
 import {
   Table,
   TableBody,
@@ -61,7 +65,6 @@ function LeagueDashboardPage() {
     error,
     myTeam,
     phase,
-    championTeamId,
     canBeginRegularSeason,
     canBeginPlayoffs,
     canBeginOffseason,
@@ -74,7 +77,6 @@ function LeagueDashboardPage() {
     rosterOverLimit,
     cutsNeeded,
     beginRegularSeason,
-    skipRemainingExhibitions,
     beginPlayoffs,
     beginOffseason,
     completeReSignings,
@@ -118,21 +120,20 @@ function LeagueDashboardPage() {
     const standingsRows = getConferenceStandingsRows(seasonState, userTeamId)
     const rosterRows = getRosterRows(seasonState, userTeamId)
     const nextGames = seasonState.schedule
-      .filter((game) => game.status === "scheduled")
+      .filter(
+        (game) =>
+          game.status === "scheduled" &&
+          userTeamId !== null &&
+          (game.homeTeamId === userTeamId || game.awayTeamId === userTeamId)
+      )
       .sort((a, b) => a.day - b.day || a.id.localeCompare(b.id))
       .slice(0, 16)
-    const recentGames = seasonState.games
-      .slice()
-      .sort((a, b) => b.day - a.day || b.id.localeCompare(a.id))
-      .slice(0, 5)
-
     return {
       myStanding,
       rank,
       rosterRows,
       standingsRows,
       nextGames,
-      recentGames,
     }
   }, [myTeam, seasonState])
 
@@ -141,10 +142,13 @@ function LeagueDashboardPage() {
   }
 
   const isMiniLeague = seasonState.teams.length < LEAGUE_TEAM_COUNT
+  const cutsRequired =
+    rosterOverLimit &&
+    (phase !== "preseason" || isPreseasonComplete(seasonState))
   const urgentItems = getUrgentItems({
     phase,
     error,
-    rosterOverLimit,
+    rosterOverLimit: cutsRequired,
     cutsNeeded,
     pendingTradeOfferCount,
     canBeginRegularSeason,
@@ -157,13 +161,35 @@ function LeagueDashboardPage() {
     canSimAiFreeAgency,
     canStartNextSeason,
   })
-  const latestDevelopmentReport =
-    phase === "preseason" && league?.developmentReports.length
-      ? league.developmentReports[league.developmentReports.length - 1]
-      : null
+
+  useEffect(() => {
+    if (!lastAdvanceResult) {
+      return
+    }
+
+    for (const event of lastAdvanceResult.events ?? []) {
+      showAdvanceEventToast(event, seasonState)
+    }
+
+    if (lastAdvanceResult.stoppedReason) {
+      showAdvanceStopToast(lastAdvanceResult, cutsNeeded)
+    }
+  }, [cutsNeeded, lastAdvanceResult, seasonState])
+
+  useEffect(() => {
+    if (error) {
+      toast.error("Action blocked", {
+        description: error,
+      })
+    }
+  }, [error])
+
+  const handleAdvance = (target: AdvanceTarget, policy?: AdvancePolicy) => {
+    advance(target, policy)
+  }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
       {isMiniLeague ? (
         <Card className="shrink-0">
           <CardHeader>
@@ -177,7 +203,7 @@ function LeagueDashboardPage() {
       ) : null}
 
       <div className="-m-px min-h-0 flex-1 overflow-y-auto p-px">
-        <div className="flex min-h-0 min-w-0 flex-col gap-4 xl:overflow-y-auto xl:p-px">
+        <div className="flex min-h-0 min-w-0 flex-col gap-3 xl:overflow-y-auto xl:p-px">
           <OperationsHeader
             state={seasonState}
             leagueName={league?.name ?? "League"}
@@ -190,44 +216,21 @@ function LeagueDashboardPage() {
             capSpace={financials?.capSpace ?? null}
             rosterCount={myTeam?.players.length ?? null}
             cutsNeeded={cutsNeeded}
-            rosterOverLimit={rosterOverLimit}
+            rosterOverLimit={cutsRequired}
             urgentCount={urgentItems.length}
           />
 
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <ScheduleRail
-              state={seasonState}
-              userTeamId={myTeam?.id ?? null}
-              games={dashboard?.nextGames ?? []}
-            />
-            <AdvanceControls
-              state={seasonState}
-              phase={phase}
-              status={status}
-              saveStatus={saveStatus}
-              error={error}
-              lastAdvanceResult={lastAdvanceResult}
-              onAdvance={advance}
-              onSimPlayoffs={simulatePlayoffs}
-              title="Advance"
-              description={`Run ${league?.name ?? "the league"} from the schedule rail.`}
-            />
-          </div>
-
-          <div className="grid min-h-0 gap-4 2xl:grid-cols-[minmax(320px,0.42fr)_minmax(0,0.58fr)]">
-            <ConferenceStandingsTable
-              rows={dashboard?.standingsRows ?? []}
-              userTeamId={myTeam?.id ?? null}
-            />
-            <RosterOverviewTable rows={dashboard?.rosterRows ?? []} />
-          </div>
-
-          <LeagueNotesCard
+          <ScheduleRail
             state={seasonState}
-            championTeamId={championTeamId}
-            urgentItems={urgentItems}
-            recentGames={dashboard?.recentGames ?? []}
-            developmentReport={latestDevelopmentReport}
+            phase={phase}
+            status={status}
+            saveStatus={saveStatus}
+            error={error}
+            lastAdvanceResult={lastAdvanceResult}
+            userTeamId={myTeam?.id ?? null}
+            games={dashboard?.nextGames ?? []}
+            rosterOverLimit={cutsRequired}
+            cutsNeeded={cutsNeeded}
             canBeginRegularSeason={canBeginRegularSeason}
             canBeginPlayoffs={canBeginPlayoffs}
             canBeginOffseason={canBeginOffseason}
@@ -237,8 +240,9 @@ function LeagueDashboardPage() {
             canProceedToFreeAgency={canProceedToFreeAgency}
             canSimAiFreeAgency={canSimAiFreeAgency}
             canStartNextSeason={canStartNextSeason}
+            onAdvance={handleAdvance}
+            onSimPlayoffs={simulatePlayoffs}
             onBeginRegularSeason={beginRegularSeason}
-            onSkipRemainingExhibitions={skipRemainingExhibitions}
             onBeginPlayoffs={beginPlayoffs}
             onBeginOffseason={beginOffseason}
             onCompleteReSignings={completeReSignings}
@@ -248,6 +252,14 @@ function LeagueDashboardPage() {
             onCompleteFreeAgency={completeFreeAgency}
             onStartNextSeason={() => void startNextSeason()}
           />
+
+          <div className="grid min-h-0 gap-3 lg:grid-cols-[minmax(210px,0.24fr)_minmax(0,0.76fr)]">
+            <ConferenceStandingsTable
+              rows={dashboard?.standingsRows ?? []}
+              userTeamId={myTeam?.id ?? null}
+            />
+            <RosterOverviewTable rows={dashboard?.rosterRows ?? []} />
+          </div>
         </div>
       </div>
     </div>
@@ -286,8 +298,8 @@ function OperationsHeader({
   const calendar = getCurrentCalendar(state)
 
   return (
-    <section className="rounded-lg border bg-muted/20 px-4 py-3">
-      <div className="flex flex-col gap-3">
+    <section className="rounded-lg border bg-muted/20 px-3 py-2">
+      <div className="flex flex-col gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-base font-medium">{leagueName}</h1>
@@ -331,7 +343,9 @@ function OperationsHeader({
                 ? "-"
                 : rosterOverLimit
                   ? `${rosterCount}/15 · cut ${cutsNeeded}`
-                  : `${rosterCount}/15`
+                  : state.phase === "preseason"
+                    ? `${rosterCount}/21 camp`
+                    : `${rosterCount}/15`
             }
             tone={rosterOverLimit ? "urgent" : undefined}
           />
@@ -356,7 +370,7 @@ function HeaderStat({
   tone?: "urgent"
 }) {
   return (
-    <div className="rounded-md border bg-background px-3 py-2">
+    <div className="rounded-md border bg-background px-3 py-1.5">
       <p className="text-muted-foreground">{label}</p>
       <p
         className={
@@ -373,28 +387,141 @@ function HeaderStat({
 
 function ScheduleRail({
   state,
+  phase,
+  status,
+  saveStatus,
+  error,
+  lastAdvanceResult,
   userTeamId,
   games,
+  rosterOverLimit,
+  cutsNeeded,
+  canBeginRegularSeason,
+  canBeginPlayoffs,
+  canBeginOffseason,
+  canSimAiReSignings,
+  canProceedToDraft,
+  canPrepareDraft,
+  canProceedToFreeAgency,
+  canSimAiFreeAgency,
+  canStartNextSeason,
+  onAdvance,
+  onSimPlayoffs,
+  onBeginRegularSeason,
+  onBeginPlayoffs,
+  onBeginOffseason,
+  onCompleteReSignings,
+  onAdvanceToDraft,
+  onPrepareDraft,
+  onAdvanceToFreeAgency,
+  onCompleteFreeAgency,
+  onStartNextSeason,
 }: {
   state: SeasonState
+  phase: SeasonPhase
+  status: LeagueStatus
+  saveStatus: SaveStatus
+  error: string | null
+  lastAdvanceResult: AdvanceResult | null
   userTeamId: string | null
   games: ScheduleGame[]
+  rosterOverLimit: boolean
+  cutsNeeded: number
+  canBeginRegularSeason: boolean
+  canBeginPlayoffs: boolean
+  canBeginOffseason: boolean
+  canSimAiReSignings: boolean
+  canProceedToDraft: boolean
+  canPrepareDraft: boolean
+  canProceedToFreeAgency: boolean
+  canSimAiFreeAgency: boolean
+  canStartNextSeason: boolean
+  onAdvance: (target: AdvanceTarget, policy?: AdvancePolicy) => void
+  onSimPlayoffs?: () => void
+  onBeginRegularSeason: () => void
+  onBeginPlayoffs: () => void
+  onBeginOffseason: () => void
+  onCompleteReSignings: () => void
+  onAdvanceToDraft: () => void
+  onPrepareDraft: () => void
+  onAdvanceToFreeAgency: () => void
+  onCompleteFreeAgency: () => void
+  onStartNextSeason: () => void
 }) {
+  const remainingGames = state.schedule.filter(
+    (game) => game.status === "scheduled"
+  ).length
+  const canAdvance =
+    phase === "regular" || phase === "preseason" || phase === "playoffs"
+  const showControls = phase !== "complete" && phase !== "offseason"
+
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Schedule rail</CardTitle>
-        <CardDescription>
-          Upcoming league games from the current day pointer.
-        </CardDescription>
+    <Card size="sm">
+      <CardHeader className="border-b py-2 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <CardTitle>Team schedule</CardTitle>
+          <CardDescription>
+            Upcoming games for the selected team.
+          </CardDescription>
+        </div>
+        {showControls && canAdvance ? (
+          <AdvanceSplitButton
+            className="lg:min-w-[280px]"
+            phase={phase}
+            size="sm"
+            disabled={status === "loading"}
+            onAdvance={onAdvance}
+            onSimPlayoffs={onSimPlayoffs}
+          />
+        ) : null}
       </CardHeader>
-      <CardContent className="min-w-0">
-        {games.length > 0 ? (
+      <CardContent className="flex min-w-0 flex-col gap-2">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span>Day {state.currentDay}</span>
+          <span>{state.games.length} played</span>
+          <span>{remainingGames} league games left</span>
+          {saveStatus === "saving" ? <span>Saving...</span> : null}
+          {saveStatus === "saved" ? <span>Saved locally</span> : null}
+        </div>
+        {lastAdvanceResult ? (
+          <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            Simulated {lastAdvanceResult.daysSimmed} day
+            {lastAdvanceResult.daysSimmed === 1 ? "" : "s"} ·{" "}
+            {lastAdvanceResult.gamesSimmed} game
+            {lastAdvanceResult.gamesSimmed === 1 ? "" : "s"}
+          </p>
+        ) : null}
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        <ScheduleGateActions
+          state={state}
+          rosterOverLimit={rosterOverLimit}
+          cutsNeeded={cutsNeeded}
+          canBeginRegularSeason={canBeginRegularSeason}
+          canBeginPlayoffs={canBeginPlayoffs}
+          canBeginOffseason={canBeginOffseason}
+          canSimAiReSignings={canSimAiReSignings}
+          canProceedToDraft={canProceedToDraft}
+          canPrepareDraft={canPrepareDraft}
+          canProceedToFreeAgency={canProceedToFreeAgency}
+          canSimAiFreeAgency={canSimAiFreeAgency}
+          canStartNextSeason={canStartNextSeason}
+          onBeginRegularSeason={onBeginRegularSeason}
+          onBeginPlayoffs={onBeginPlayoffs}
+          onBeginOffseason={onBeginOffseason}
+          onCompleteReSignings={onCompleteReSignings}
+          onAdvanceToDraft={onAdvanceToDraft}
+          onPrepareDraft={onPrepareDraft}
+          onAdvanceToFreeAgency={onAdvanceToFreeAgency}
+          onCompleteFreeAgency={onCompleteFreeAgency}
+          onStartNextSeason={onStartNextSeason}
+        />
+        {userTeamId === null ? (
+          <p className="text-xs text-muted-foreground">
+            Pick a team to show its schedule.
+          </p>
+        ) : games.length > 0 ? (
           <div className="flex gap-2 overflow-x-auto pb-1">
             {games.map((game) => {
-              const isUserGame =
-                userTeamId !== null &&
-                (game.homeTeamId === userTeamId || game.awayTeamId === userTeamId)
               const isCurrentDay = game.day === state.currentDay
 
               return (
@@ -402,33 +529,184 @@ function ScheduleRail({
                   key={game.id}
                   to="/league/calendar"
                   className={cn(
-                    "min-w-36 rounded-md border bg-muted/20 px-3 py-2 text-xs transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
-                    isCurrentDay && "border-foreground/40 bg-background",
-                    isUserGame && "bg-background"
+                    "min-w-36 rounded-md border bg-muted/20 px-3 py-1.5 text-xs transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+                    isCurrentDay && "border-foreground/40 bg-background"
                   )}
                 >
                   <span className="block text-muted-foreground">
-                    Day {game.day}
+                    {formatCalendarDay(state, game.day)}
                   </span>
                   <span className="mt-0.5 block truncate font-medium">
                     {formatScheduledLine(state, game)}
                   </span>
-                  {isUserGame ? (
-                    <span className="mt-1 block text-[0.625rem] text-muted-foreground">
-                      Your game
-                    </span>
-                  ) : null}
+                  <span className="mt-1 block text-[0.625rem] text-muted-foreground">
+                    Day {game.day}
+                  </span>
                 </Link>
               )
             })}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
-            No scheduled games remain.
+            No scheduled games remain for your team.
           </p>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function ScheduleGateActions({
+  state,
+  rosterOverLimit,
+  cutsNeeded,
+  canBeginRegularSeason,
+  canBeginPlayoffs,
+  canBeginOffseason,
+  canSimAiReSignings,
+  canProceedToDraft,
+  canPrepareDraft,
+  canProceedToFreeAgency,
+  canSimAiFreeAgency,
+  canStartNextSeason,
+  onBeginRegularSeason,
+  onBeginPlayoffs,
+  onBeginOffseason,
+  onCompleteReSignings,
+  onAdvanceToDraft,
+  onPrepareDraft,
+  onAdvanceToFreeAgency,
+  onCompleteFreeAgency,
+  onStartNextSeason,
+}: {
+  state: SeasonState
+  rosterOverLimit: boolean
+  cutsNeeded: number
+  canBeginRegularSeason: boolean
+  canBeginPlayoffs: boolean
+  canBeginOffseason: boolean
+  canSimAiReSignings: boolean
+  canProceedToDraft: boolean
+  canPrepareDraft: boolean
+  canProceedToFreeAgency: boolean
+  canSimAiFreeAgency: boolean
+  canStartNextSeason: boolean
+  onBeginRegularSeason: () => void
+  onBeginPlayoffs: () => void
+  onBeginOffseason: () => void
+  onCompleteReSignings: () => void
+  onAdvanceToDraft: () => void
+  onPrepareDraft: () => void
+  onAdvanceToFreeAgency: () => void
+  onCompleteFreeAgency: () => void
+  onStartNextSeason: () => void
+}) {
+  const showGate =
+    rosterOverLimit ||
+    canBeginRegularSeason ||
+    canBeginPlayoffs ||
+    canBeginOffseason ||
+    canSimAiReSignings ||
+    canProceedToDraft ||
+    canPrepareDraft ||
+    canProceedToFreeAgency ||
+    canSimAiFreeAgency ||
+    canStartNextSeason ||
+    state.phase === "playoffs" ||
+    state.phase === "offseason" ||
+    state.phase === "complete"
+
+  if (!showGate) {
+    return null
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 px-2 py-1.5 text-xs">
+      {rosterOverLimit ? (
+        <>
+          <span className="font-medium text-destructive">
+            Cut {cutsNeeded} player{cutsNeeded === 1 ? "" : "s"}
+          </span>
+          <Button variant="destructive" size="sm" asChild>
+            <Link to="/league/team">Manage roster</Link>
+          </Button>
+        </>
+      ) : null}
+
+      {canBeginRegularSeason ? (
+        <Button size="sm" onClick={onBeginRegularSeason}>
+          Begin regular season
+        </Button>
+      ) : null}
+
+      {canBeginPlayoffs ? (
+        <Button size="sm" onClick={onBeginPlayoffs}>
+          Begin playoffs
+        </Button>
+      ) : null}
+
+      {state.phase === "playoffs" ? (
+        <Button variant="secondary" size="sm" asChild>
+          <Link to="/league/playoffs">View bracket</Link>
+        </Button>
+      ) : null}
+
+      {canBeginOffseason ? (
+        <Button size="sm" onClick={onBeginOffseason}>
+          Begin offseason
+        </Button>
+      ) : null}
+
+      {canSimAiReSignings ? (
+        <Button size="sm" onClick={onCompleteReSignings}>
+          Sim AI re-signings
+        </Button>
+      ) : null}
+
+      {canProceedToDraft ? (
+        <Button variant="secondary" size="sm" onClick={onAdvanceToDraft}>
+          Proceed to draft
+        </Button>
+      ) : null}
+
+      {canPrepareDraft ? (
+        <Button size="sm" onClick={onPrepareDraft}>
+          Prepare draft
+        </Button>
+      ) : null}
+
+      {state.phase === "offseason" &&
+      state.draftState &&
+      !state.draftState.completed ? (
+        <Button variant="secondary" size="sm" asChild>
+          <Link to="/league/draft">Go to draft</Link>
+        </Button>
+      ) : null}
+
+      {canProceedToFreeAgency ? (
+        <Button size="sm" onClick={onAdvanceToFreeAgency}>
+          Proceed to free agency
+        </Button>
+      ) : null}
+
+      {canSimAiFreeAgency ? (
+        <Button variant="secondary" size="sm" onClick={onCompleteFreeAgency}>
+          Sim AI free agency
+        </Button>
+      ) : null}
+
+      {canStartNextSeason ? (
+        <Button size="sm" onClick={onStartNextSeason}>
+          Start Season {state.season + 1}
+        </Button>
+      ) : null}
+
+      {state.phase === "complete" || state.phase === "offseason" ? (
+        <Button variant="outline" size="sm" asChild>
+          <Link to="/league/history">View history</Link>
+        </Button>
+      ) : null}
+    </div>
   )
 }
 
@@ -437,7 +715,6 @@ type StandingsRow = {
   rank: number
   team: string
   record: string
-  pct: string
   wins: number
   losses: number
 }
@@ -473,10 +750,6 @@ function ConferenceStandingsTable({
           a.original.wins - b.original.wins ||
           b.original.losses - a.original.losses,
       },
-      {
-        accessorKey: "pct",
-        header: "PCT",
-      },
     ],
     []
   )
@@ -490,14 +763,11 @@ function ConferenceStandingsTable({
   })
 
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader className="border-b">
         <CardTitle>Conference standings</CardTitle>
-        <CardDescription>
-          The table for your team&apos;s side of the league.
-        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-h-[44vh] overflow-y-auto">
         <SortableTable
           table={table}
           emptyLabel="No standings available."
@@ -588,15 +858,11 @@ function RosterOverviewTable({ rows }: { rows: RosterRow[] }) {
   })
 
   return (
-    <Card>
+    <Card size="sm">
       <CardHeader className="border-b">
         <CardTitle>Roster</CardTitle>
-        <CardDescription>
-          Per-game averages from completed games. Ratings stay visible before
-          stats exist.
-        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-h-[44vh] overflow-y-auto">
         <SortableTable table={table} emptyLabel="No roster selected." />
       </CardContent>
     </Card>
@@ -618,7 +884,7 @@ function SortableTable<TData>({
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <TableHead key={header.id}>
+              <TableHead key={header.id} className="h-8 px-2">
                 {header.isPlaceholder ? null : (
                   <button
                     type="button"
@@ -649,7 +915,7 @@ function SortableTable<TData>({
           table.getRowModel().rows.map((row) => (
             <TableRow key={row.id} className={rowClassName?.(row)}>
               {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
+                <TableCell key={cell.id} className="px-2 py-1.5">
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}
@@ -667,180 +933,6 @@ function SortableTable<TData>({
         )}
       </TableBody>
     </Table>
-  )
-}
-
-function LeagueNotesCard({
-  state,
-  championTeamId,
-  urgentItems,
-  recentGames,
-  developmentReport,
-  canBeginRegularSeason,
-  canBeginPlayoffs,
-  canBeginOffseason,
-  canSimAiReSignings,
-  canProceedToDraft,
-  canPrepareDraft,
-  canProceedToFreeAgency,
-  canSimAiFreeAgency,
-  canStartNextSeason,
-  onBeginRegularSeason,
-  onSkipRemainingExhibitions,
-  onBeginPlayoffs,
-  onBeginOffseason,
-  onCompleteReSignings,
-  onAdvanceToDraft,
-  onPrepareDraft,
-  onAdvanceToFreeAgency,
-  onCompleteFreeAgency,
-  onStartNextSeason,
-}: {
-  state: SeasonState
-  championTeamId: string | null
-  urgentItems: UrgentItem[]
-  recentGames: SeasonState["games"]
-  developmentReport: PreseasonDevelopmentReport | null
-  canBeginRegularSeason: boolean
-  canBeginPlayoffs: boolean
-  canBeginOffseason: boolean
-  canSimAiReSignings: boolean
-  canProceedToDraft: boolean
-  canPrepareDraft: boolean
-  canProceedToFreeAgency: boolean
-  canSimAiFreeAgency: boolean
-  canStartNextSeason: boolean
-  onBeginRegularSeason: () => void
-  onSkipRemainingExhibitions: () => void
-  onBeginPlayoffs: () => void
-  onBeginOffseason: () => void
-  onCompleteReSignings: () => void
-  onAdvanceToDraft: () => void
-  onPrepareDraft: () => void
-  onAdvanceToFreeAgency: () => void
-  onCompleteFreeAgency: () => void
-  onStartNextSeason: () => void
-}) {
-  const calendar = getCurrentCalendar(state)
-  const championName = championTeamId ? teamName(state, championTeamId) : null
-
-  return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>League notes</CardTitle>
-        <CardDescription>
-          Results, blockers, and season gates. This area can host generated
-          league events later.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.55fr)]">
-        <div className="flex flex-col gap-3">
-          <div className="grid gap-2 md:grid-cols-2">
-            <NoteMetric label="Trade deadline" value={getCurrentCalendar({
-              ...state,
-              currentDay: calendar.milestones.tradeDeadlineDay,
-            }).date.label} />
-            <NoteMetric
-              label="Season state"
-              value={
-                championName
-                  ? `${championName} won the title`
-                  : phaseDescription(state.phase, state.offseasonPhase)
-              }
-            />
-          </div>
-
-          {urgentItems.length > 0 ? (
-            <div className="grid gap-2 md:grid-cols-2">
-              {urgentItems.map((item) => (
-                <div
-                  key={item.label}
-                  className={cn(
-                    "rounded-md border bg-muted/20 px-3 py-2 text-xs",
-                    item.tone === "urgent" &&
-                      "border-destructive/40 bg-destructive/10 text-destructive"
-                  )}
-                >
-                  <p className="font-medium">{item.label}</p>
-                  <p
-                    className={cn(
-                      "mt-0.5 text-muted-foreground",
-                      item.tone === "urgent" && "text-destructive"
-                    )}
-                  >
-                    {item.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              No blockers. Advance when you are done reviewing the roster and
-              standings.
-            </p>
-          )}
-
-          <PhaseActions
-            state={state}
-            canBeginRegularSeason={canBeginRegularSeason}
-            canBeginPlayoffs={canBeginPlayoffs}
-            canBeginOffseason={canBeginOffseason}
-            canSimAiReSignings={canSimAiReSignings}
-            canProceedToDraft={canProceedToDraft}
-            canPrepareDraft={canPrepareDraft}
-            canProceedToFreeAgency={canProceedToFreeAgency}
-            canSimAiFreeAgency={canSimAiFreeAgency}
-            canStartNextSeason={canStartNextSeason}
-            onBeginRegularSeason={onBeginRegularSeason}
-            onSkipRemainingExhibitions={onSkipRemainingExhibitions}
-            onBeginPlayoffs={onBeginPlayoffs}
-            onBeginOffseason={onBeginOffseason}
-            onCompleteReSignings={onCompleteReSignings}
-            onAdvanceToDraft={onAdvanceToDraft}
-            onPrepareDraft={onPrepareDraft}
-            onAdvanceToFreeAgency={onAdvanceToFreeAgency}
-            onCompleteFreeAgency={onCompleteFreeAgency}
-            onStartNextSeason={onStartNextSeason}
-          />
-        </div>
-
-        <div className="flex flex-col gap-3">
-          <div>
-            <p className="text-sm font-medium">Recent results</p>
-            <div className="mt-2 flex flex-col gap-1">
-              {recentGames.length > 0 ? (
-                recentGames.map((game) => (
-                  <Button
-                    key={game.id}
-                    variant="ghost"
-                    className="h-auto justify-start px-2 py-1.5 text-left font-normal"
-                    asChild
-                  >
-                    <Link
-                      to="/league/games/$gameId"
-                      params={{ gameId: game.id }}
-                    >
-                      {formatGameLine(state, game)}
-                    </Link>
-                  </Button>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Results appear after you simulate the first day.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {developmentReport ? (
-            <DevelopmentReportSummary
-              report={developmentReport}
-              seasonState={state}
-            />
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
   )
 }
 
@@ -916,51 +1008,51 @@ function getUrgentItems({
   if (canBeginRegularSeason) {
     items.push({
       label: "Preseason complete",
-      description: "Begin the regular season when your roster is set.",
+      description: "Advance the calendar to enter the regular season.",
     })
   }
   if (canBeginPlayoffs) {
     items.push({
       label: "Regular season complete",
       description:
-        "Begin playoffs when you are done reviewing final standings.",
+        "Advance the calendar to open the playoffs.",
     })
   }
   if (canBeginOffseason) {
     items.push({
       label: "Season complete",
       description:
-        "Begin the offseason to handle re-signings, draft, and free agency.",
+        "Advance the calendar to enter the offseason.",
     })
   }
   if (canSimAiReSignings) {
     items.push({
-      label: "AI re-signings ready",
+      label: "Re-signing window open",
       description:
-        "Your re-signing window is complete. Sim AI re-signings to continue.",
+        "Handle your expiring players before the draft window opens.",
     })
   }
   if (canProceedToDraft || canPrepareDraft) {
     items.push({
-      label: "Draft gate",
+      label: "Draft window",
       description: canPrepareDraft
         ? "Prepare the draft class before opening the draft room."
-        : "Proceed to the draft when re-signings are complete.",
+        : "Advance the calendar to reach the draft window.",
     })
   }
   if (canProceedToFreeAgency || canSimAiFreeAgency) {
     items.push({
-      label: "Free agency gate",
+      label: "Free agency window",
       description: canSimAiFreeAgency
-        ? "Finish your signings, then let AI teams complete free agency."
-        : "Proceed to free agency when the draft is complete.",
+        ? "Finish your signings before the next preseason date."
+        : "Complete the draft before free agency opens.",
     })
   }
   if (canStartNextSeason) {
     items.push({
       label: "Next season ready",
       description:
-        "Start the next season once your roster and cap sheet are set.",
+        "Advance the calendar once your roster and cap sheet are set.",
     })
   }
   if (phase === "playoffs" && items.length === 0) {
@@ -974,220 +1066,117 @@ function getUrgentItems({
   return items
 }
 
-function NoteMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
-      <p className="text-muted-foreground">{label}</p>
-      <p className="mt-0.5 font-medium">{value}</p>
-    </div>
-  )
+function showAdvanceEventToast(event: AdvanceEvent, state: SeasonState) {
+  switch (event.type) {
+    case "game_result": {
+      const home = teamName(state, event.homeTeamId)
+      const away = teamName(state, event.awayTeamId)
+      const result = event.won ? "Win" : "Loss"
+
+      toast(event.won ? "You won" : "You lost", {
+        description: `${result}: ${away} ${event.awayScore}, ${home} ${event.homeScore}`,
+      })
+      return
+    }
+
+    case "phase_started": {
+      type PhaseStartedEvent = Extract<
+        AdvanceEvent,
+        { type: "phase_started" }
+      >
+      const labels: Record<PhaseStartedEvent["phase"], string> = {
+        preseason: "Preseason started",
+        regular: "Regular season started",
+        playoffs: "Playoffs started",
+        offseason: "Offseason started",
+        re_signing: "Re-signing window opened",
+        draft: "Draft window opened",
+        free_agency: "Free agency opened",
+      }
+
+      toast.success(labels[event.phase])
+      return
+    }
+
+    case "trade_deadline_passed":
+      toast("Trade deadline passed", {
+        description: "Trades are now closed until the offseason.",
+      })
+      return
+
+    case "champion_crowned":
+      toast.success("Champion crowned", {
+        description: `${teamName(state, event.teamId)} won the championship.`,
+      })
+      return
+  }
 }
 
-function PhaseActions({
-  state,
-  canBeginRegularSeason,
-  canBeginPlayoffs,
-  canBeginOffseason,
-  canSimAiReSignings,
-  canProceedToDraft,
-  canPrepareDraft,
-  canProceedToFreeAgency,
-  canSimAiFreeAgency,
-  canStartNextSeason,
-  onBeginRegularSeason,
-  onSkipRemainingExhibitions,
-  onBeginPlayoffs,
-  onBeginOffseason,
-  onCompleteReSignings,
-  onAdvanceToDraft,
-  onPrepareDraft,
-  onAdvanceToFreeAgency,
-  onCompleteFreeAgency,
-  onStartNextSeason,
-}: {
-  state: SeasonState
-  canBeginRegularSeason: boolean
-  canBeginPlayoffs: boolean
-  canBeginOffseason: boolean
-  canSimAiReSignings: boolean
-  canProceedToDraft: boolean
-  canPrepareDraft: boolean
-  canProceedToFreeAgency: boolean
-  canSimAiFreeAgency: boolean
-  canStartNextSeason: boolean
-  onBeginRegularSeason: () => void
-  onSkipRemainingExhibitions: () => void
-  onBeginPlayoffs: () => void
-  onBeginOffseason: () => void
-  onCompleteReSignings: () => void
-  onAdvanceToDraft: () => void
-  onPrepareDraft: () => void
-  onAdvanceToFreeAgency: () => void
-  onCompleteFreeAgency: () => void
-  onStartNextSeason: () => void
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {state.phase === "preseason" ? (
-        <>
-          <Button variant="secondary" size="sm" onClick={onSkipRemainingExhibitions}>
-            Skip exhibitions
-          </Button>
-          {canBeginRegularSeason ? (
-            <Button size="sm" onClick={onBeginRegularSeason}>
-              Begin regular season
-            </Button>
-          ) : null}
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/league/team">Manage roster</Link>
-          </Button>
-        </>
-      ) : null}
+function showAdvanceStopToast(result: AdvanceResult, cutsNeeded: number) {
+  switch (result.stoppedReason) {
+    case "roster_cuts":
+      toast.error("Roster cuts required", {
+        description: `Cut ${Math.max(cutsNeeded, 1)} player${
+          cutsNeeded === 1 ? "" : "s"
+        } before advancing.`,
+        action: {
+          label: "Manage roster",
+          onClick: () => {
+            window.location.href = "/league/team"
+          },
+        },
+      })
+      return
 
-      {canBeginPlayoffs ? (
-        <Button size="sm" onClick={onBeginPlayoffs}>
-          Begin playoffs
-        </Button>
-      ) : null}
+    case "roster_under_limit":
+      toast.error("Roster under limit", {
+        description: "Add players before advancing to the next phase.",
+        action: {
+          label: "Manage roster",
+          onClick: () => {
+            window.location.href = "/league/team"
+          },
+        },
+      })
+      return
 
-      {state.phase === "playoffs" ? (
-        <Button variant="secondary" size="sm" asChild>
-          <Link to="/league/playoffs">View bracket</Link>
-        </Button>
-      ) : null}
+    case "draft_pick":
+      toast("You're on the clock", {
+        description: "Make your draft pick before advancing.",
+        action: {
+          label: "Open draft",
+          onClick: () => {
+            window.location.href = "/league/draft"
+          },
+        },
+      })
+      return
 
-      {canBeginOffseason ? (
-        <Button size="sm" onClick={onBeginOffseason}>
-          Begin offseason
-        </Button>
-      ) : null}
+    case "draft_incomplete":
+      toast.error("Draft must be completed", {
+        description: "Finish the draft before free agency opens.",
+        action: {
+          label: "Open draft",
+          onClick: () => {
+            window.location.href = "/league/draft"
+          },
+        },
+      })
+      return
 
-      {canSimAiReSignings ? (
-        <Button size="sm" onClick={onCompleteReSignings}>
-          Sim AI re-signings
-        </Button>
-      ) : null}
+    case "user_game":
+      toast("Game day", {
+        description: "Your team has a game today.",
+      })
+      return
 
-      {canProceedToDraft ? (
-        <Button variant="secondary" size="sm" onClick={onAdvanceToDraft}>
-          Proceed to draft
-        </Button>
-      ) : null}
-
-      {canPrepareDraft ? (
-        <Button size="sm" onClick={onPrepareDraft}>
-          Prepare draft
-        </Button>
-      ) : null}
-
-      {state.phase === "offseason" &&
-      state.draftState &&
-      !state.draftState.completed ? (
-        <Button variant="secondary" size="sm" asChild>
-          <Link to="/league/draft">Go to draft</Link>
-        </Button>
-      ) : null}
-
-      {canProceedToFreeAgency ? (
-        <Button size="sm" onClick={onAdvanceToFreeAgency}>
-          Proceed to free agency
-        </Button>
-      ) : null}
-
-      {canSimAiFreeAgency ? (
-        <Button variant="secondary" size="sm" onClick={onCompleteFreeAgency}>
-          Sim AI free agency
-        </Button>
-      ) : null}
-
-      {canStartNextSeason ? (
-        <Button size="sm" onClick={onStartNextSeason}>
-          Start Season {state.season + 1}
-        </Button>
-      ) : null}
-
-      {state.phase === "complete" || state.phase === "offseason" ? (
-        <Button variant="outline" size="sm" asChild>
-          <Link to="/league/history">View history</Link>
-        </Button>
-      ) : null}
-    </div>
-  )
-}
-
-function DevelopmentReportSummary({
-  report,
-  seasonState,
-}: {
-  report: PreseasonDevelopmentReport
-  seasonState: SeasonState
-}) {
-  const allPlayers = seasonState.teams.flatMap((team) => team.players)
-
-  return (
-    <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs">
-      <p className="text-sm font-medium">Development report</p>
-      <div className="mt-2 grid gap-3">
-        <div>
-          <p className="font-medium">Risers</p>
-          {report.topRisers.length === 0 ? (
-            <p className="text-muted-foreground">No major risers this year.</p>
-          ) : (
-            <ul className="mt-1 flex flex-col gap-1">
-              {report.topRisers.slice(0, 3).map((entry) => (
-                <li key={entry.id} className="flex justify-between gap-3">
-                  <Link
-                    to="/league/players/$playerId"
-                    params={{ playerId: entry.playerId }}
-                    className="hover:underline"
-                  >
-                    {playerName(allPlayers, entry.playerId)}
-                  </Link>
-                  <span>
-                    {entry.overallBefore} → {entry.overallAfter} (
-                    {entry.overallAfter - entry.overallBefore > 0 ? "+" : ""}
-                    {entry.overallAfter - entry.overallBefore})
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div>
-          <p className="font-medium">Fallers</p>
-          {report.topFallers.length === 0 ? (
-            <p className="text-muted-foreground">No major fallers this year.</p>
-          ) : (
-            <ul className="mt-1 flex flex-col gap-1">
-              {report.topFallers.slice(0, 3).map((entry) => (
-                <li key={entry.id} className="flex justify-between gap-3">
-                  <Link
-                    to="/league/players/$playerId"
-                    params={{ playerId: entry.playerId }}
-                    className="hover:underline"
-                  >
-                    {playerName(allPlayers, entry.playerId)}
-                  </Link>
-                  <span>
-                    {entry.overallBefore} → {entry.overallAfter}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        {report.retirements.length > 0 ? (
-          <div>
-            <p className="font-medium">Retirements ({report.retirements.length})</p>
-            <p className="text-muted-foreground">
-              {report.retirements.length} player
-              {report.retirements.length === 1 ? "" : "s"} retired this preseason.
-            </p>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  )
+    case "target_reached":
+    case "begin_playoffs":
+    case "begin_regular_season":
+    case "begin_offseason":
+    case undefined:
+      return
+  }
 }
 
 function getConferenceStandingsRows(
@@ -1212,11 +1201,14 @@ function getConferenceStandingsRows(
       rank: index + 1,
       team: teamName(state, standing.teamId),
       record: `${standing.wins}-${standing.losses}`,
-      pct: winPct(standing.wins, standing.losses),
       wins: standing.wins,
       losses: standing.losses,
     }))
     .filter((row) => allowedTeamIds.has(row.teamId))
+}
+
+function formatCalendarDay(state: SeasonState, day: number): string {
+  return getCurrentCalendar({ ...state, currentDay: day }).date.label
 }
 
 function getRosterRows(
@@ -1282,29 +1274,4 @@ function phaseLabel(phase: SeasonPhase): string {
   if (phase === "complete") return "Season complete"
   if (phase === "offseason") return "Offseason"
   return "Regular season"
-}
-
-function phaseDescription(
-  phase: SeasonPhase,
-  offseasonPhase: SeasonState["offseasonPhase"]
-): string {
-  if (phase === "preseason") {
-    return "Run exhibitions, cut to 15, then start the regular season"
-  }
-  if (phase === "regular") {
-    return "Advance through the regular season schedule"
-  }
-  if (phase === "playoffs") {
-    return "Postseason bracket is active"
-  }
-  if (phase === "offseason" && offseasonPhase === "draft") {
-    return "Draft stage is active"
-  }
-  if (phase === "offseason" && offseasonPhase === "free_agency") {
-    return "Free agency stage is active"
-  }
-  if (phase === "offseason") {
-    return "Re-signing stage is active"
-  }
-  return "Season complete"
 }
