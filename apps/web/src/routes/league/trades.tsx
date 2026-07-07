@@ -14,9 +14,19 @@ import type {
   TradeValidationResult,
 } from "@workspace/shared/types"
 import {
+  AI_ACCEPT_BAD,
+  AI_ACCEPT_CLOSE,
+  AI_ACCEPT_MIN_NET,
+} from "@workspace/shared/financialConstants"
+import {
   evaluateTrade,
+  getContractAssetValueBreakdown,
   getCurrentSalary,
+  getFairSalary,
+  getPickValueFromCache,
   getPlayerContract,
+  getSeasonFinancials,
+  makeItWork,
   validateTrade,
   wouldAiAcceptTrade,
 } from "@workspace/sim"
@@ -70,7 +80,7 @@ export const Route = createFileRoute("/league/trades")({
 const NONE = "none"
 
 function LeagueTradesPage() {
-  const { league, seasonState, userTeamId, myTeam, executeTrade } =
+  const { league, seasonState, userTeamId, myTeam, executeTrade, acceptTradeOffer, rejectTradeOffer } =
     useLeagueContext()
   const search = Route.useSearch()
   const [targetTeamId, setTargetTeamId] = useState(search.targetTeamId ?? "")
@@ -143,6 +153,10 @@ function LeagueTradesPage() {
     userTeamId,
   ])
 
+  const targetMode =
+    league?.teamFinancials.find((entry) => entry.teamId === targetTeamId)
+      ?.strategy.mode ?? "buying"
+
   if (!league || !seasonState || !userTeamId || !myTeam) {
     return (
       <Card>
@@ -192,8 +206,138 @@ function LeagueTradesPage() {
     setMessage(null)
   }
 
+  function applySuggestedBalance() {
+    if (!proposal || !targetTeamId || !league) {
+      return
+    }
+    const balanced = makeItWork(league, proposal, targetTeamId)
+    if (!balanced) {
+      setMessage("No legal balance found with current assets.")
+      return
+    }
+    setOutgoingPlayerIds(balanced.from.playerIds)
+    setIncomingPlayerIds(balanced.to.playerIds)
+    setOutgoingPickIds(balanced.from.pickIds ?? [])
+    setIncomingPickIds(balanced.to.pickIds ?? [])
+    setMessage("Suggested balance applied.")
+  }
+
+  const pendingOffers =
+    league.pendingTradeOffers?.filter(
+      (offer) =>
+        offer.status === "pending" &&
+        (offer.toTeamId === userTeamId || offer.fromTeamId === userTeamId),
+    ) ?? []
+
+  const seasonFinancials = getSeasonFinancials(
+    league.leagueFinancials,
+    seasonState.season,
+  )
+  const assetBreakdown: Array<{
+    label: string
+    side: "send" | "receive"
+    value: number
+  }> = []
+
+  if (targetTeamId) {
+    for (const player of outgoingPlayers) {
+      const contract = getPlayerContract(league.contracts, player)
+      assetBreakdown.push({
+        label: playerLabel(player),
+        side: "send",
+        value: getContractAssetValueBreakdown({
+          player,
+          contract,
+          expectedSalary: getFairSalary(player, seasonFinancials, league),
+          mode: "buying",
+        }).total,
+      })
+    }
+
+    for (const player of incomingPlayers) {
+      const contract = getPlayerContract(league.contracts, player)
+      assetBreakdown.push({
+        label: playerLabel(player),
+        side: "receive",
+        value: getContractAssetValueBreakdown({
+          player,
+          contract,
+          expectedSalary: getFairSalary(player, seasonFinancials, league),
+          mode: targetMode,
+        }).total,
+      })
+    }
+
+    for (const pick of outgoingPicks) {
+      assetBreakdown.push({
+        label: pickLabel(pick, seasonState),
+        side: "send",
+        value: getPickValueFromCache(
+          pick,
+          league.draftClassCache,
+          league,
+          userTeamId,
+          "buying",
+        ),
+      })
+    }
+
+    for (const pick of incomingPicks) {
+      assetBreakdown.push({
+        label: pickLabel(pick, seasonState),
+        side: "receive",
+        value: getPickValueFromCache(
+          pick,
+          league.draftClassCache,
+          league,
+          targetTeamId,
+          targetMode,
+        ),
+      })
+    }
+  }
+
   return (
     <div className="-m-px flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-px">
+      {pendingOffers.length > 0 ? (
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>Pending offers</CardTitle>
+            <CardDescription>
+              AI teams have proposed trades waiting on your decision.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2 py-4">
+            {pendingOffers.map((offer) => (
+              <div
+                key={offer.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/10 px-3 py-2 text-sm"
+              >
+                <span>
+                  {teamName(seasonState, offer.fromTeamId)} proposed a trade ·
+                  expires day {offer.expiresDay}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => rejectTradeOffer(offer.id)}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => acceptTradeOffer(offer.id)}
+                  >
+                    Accept
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
       <TradeWorkspaceHeader
         seasonState={seasonState}
         userTeamId={userTeamId}
@@ -208,6 +352,7 @@ function LeagueTradesPage() {
           setMessage(null)
         }}
         onClear={clearTrade}
+        onSuggestBalance={applySuggestedBalance}
         onComplete={() => {
           if (!proposal) {
             return
@@ -298,6 +443,7 @@ function LeagueTradesPage() {
           evaluations={evaluations}
           outgoingSalary={sumSalary(outgoingPlayers, salary)}
           incomingSalary={sumSalary(incomingPlayers, salary)}
+          assetBreakdown={assetBreakdown}
           message={message}
         />
       </div>
@@ -319,6 +465,7 @@ function TradeWorkspaceHeader({
   canExecute,
   onTargetTeamChange,
   onClear,
+  onSuggestBalance,
   onComplete,
 }: {
   seasonState: SeasonState
@@ -329,6 +476,7 @@ function TradeWorkspaceHeader({
   canExecute: boolean
   onTargetTeamChange: (teamId: string) => void
   onClear: () => void
+  onSuggestBalance: () => void
   onComplete: () => void
 }) {
   return (
@@ -389,6 +537,9 @@ function TradeWorkspaceHeader({
             : "Choose a partner to open their roster and picks."}
         </div>
         <div className="flex flex-wrap items-end gap-2 lg:justify-end">
+          <Button variant="outline" onClick={onSuggestBalance} disabled={!targetTeamId}>
+            Suggest balance
+          </Button>
           <Button variant="outline" onClick={onClear}>
             Clear trade
           </Button>
@@ -604,6 +755,7 @@ function TradeCheckPanel({
   evaluations,
   outgoingSalary,
   incomingSalary,
+  assetBreakdown,
   message,
 }: {
   seasonState: SeasonState
@@ -614,6 +766,7 @@ function TradeCheckPanel({
   evaluations: TradeEvaluation[]
   outgoingSalary: number
   incomingSalary: number
+  assetBreakdown: Array<{ label: string; side: "send" | "receive"; value: number }>
   message: string | null
 }) {
   const userEvaluation = evaluations.find(
@@ -700,6 +853,33 @@ function TradeCheckPanel({
             }
           />
         </div>
+
+        {targetEvaluation ? (
+          <AiAcceptThresholdBar netValue={targetEvaluation.netValue} />
+        ) : null}
+
+        {assetBreakdown.length > 0 ? (
+          <div className="rounded-md border">
+            <div className="border-b px-3 py-2 text-sm font-medium">
+              Asset value breakdown
+            </div>
+            <div className="grid gap-1 p-2">
+              {assetBreakdown.map((row) => (
+                <div
+                  key={`${row.side}_${row.label}`}
+                  className="flex items-center justify-between gap-3 rounded-md bg-muted/10 px-3 py-2 text-sm"
+                >
+                  <span className="truncate">
+                    {row.side === "send" ? "Send" : "Receive"} · {row.label}
+                  </span>
+                  <span className="font-medium tabular-nums">
+                    {row.value.toFixed(1)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {message ? (
           <p className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
@@ -813,6 +993,53 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex min-h-9 items-center justify-between gap-3 rounded-md border bg-muted/10 px-3 py-2">
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right font-medium tabular-nums">{value}</span>
+    </div>
+  )
+}
+
+function AiAcceptThresholdBar({ netValue }: { netValue: number }) {
+  const min = AI_ACCEPT_BAD - 1
+  const max = AI_ACCEPT_MIN_NET + 3
+  const range = max - min
+  const position = Math.max(0, Math.min(100, ((netValue - min) / range) * 100))
+  const acceptPosition = ((AI_ACCEPT_MIN_NET - min) / range) * 100
+  const closePosition = ((AI_ACCEPT_CLOSE - min) / range) * 100
+
+  return (
+    <div className="grid gap-2 rounded-md border bg-muted/10 p-3">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="text-muted-foreground">AI accept bar</span>
+        <span className="font-medium tabular-nums">{netValue.toFixed(1)} net</span>
+      </div>
+      <div className="relative h-3 overflow-hidden rounded-full bg-muted">
+        <div
+          className="absolute inset-y-0 left-0 bg-destructive/30"
+          style={{ width: `${closePosition}%` }}
+        />
+        <div
+          className="absolute inset-y-0 bg-amber-500/30"
+          style={{
+            left: `${closePosition}%`,
+            width: `${acceptPosition - closePosition}%`,
+          }}
+        />
+        <div
+          className="absolute inset-y-0 bg-emerald-500/35"
+          style={{
+            left: `${acceptPosition}%`,
+            right: 0,
+          }}
+        />
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-foreground"
+          style={{ left: `${position}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-[11px] text-muted-foreground">
+        <span>Reject ({AI_ACCEPT_BAD})</span>
+        <span>Close ({AI_ACCEPT_CLOSE})</span>
+        <span>Accept ({AI_ACCEPT_MIN_NET}+)</span>
+      </div>
     </div>
   )
 }

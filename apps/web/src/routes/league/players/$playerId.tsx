@@ -46,6 +46,11 @@ import {
   skillLabel,
 } from "@/components/league/lib/scouting"
 import {
+  getNextContractOptionLabel,
+  getTradableRestrictionLabel,
+} from "@/components/league/lib/contractLabels"
+import { getPlayerMoodHints } from "@/components/league/lib/moodHints"
+import {
   Table,
   TableBody,
   TableCell,
@@ -178,6 +183,18 @@ function PlayerProfilePage() {
   const scoutingNote = isMyRosterPlayer
     ? "Exact ratings for your roster."
     : "Scouted ratings — precision depends on your scouting budget."
+  const moodHints =
+    player && teamFinance
+      ? getPlayerMoodHints(player.mood, {
+          isOwnRoster: isMyRosterPlayer,
+          teamScoutingLevel: getTeamScoutingLevel(teamFinance),
+        })
+      : null
+  const optionLabel = getNextContractOptionLabel(contract, yearsRemaining)
+  const tradableLabel = getTradableRestrictionLabel(
+    contract,
+    seasonState.currentDay,
+  )
 
   return (
     <div className="-m-px flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-px">
@@ -237,11 +254,16 @@ function PlayerProfilePage() {
               contractSalary={getCurrentSalary(contract)}
               yearsRemaining={yearsRemaining}
               contractLabel={contractSummary(contract, yearsRemaining)}
+              optionLabel={optionLabel}
+              tradableLabel={tradableLabel}
               draftInfoLabel={draftLabel(player)}
               teamLabel={
                 player.teamId ? teamName(seasonState, player.teamId) : "None"
               }
             />
+          ) : null}
+          {player ? (
+            <PlayerMoodCard hints={moodHints} scoutingNote={scoutingNote} />
           ) : null}
           <TimelineCard awards={awards} transactions={transactions} />
         </div>
@@ -590,6 +612,8 @@ function ContractCard({
   contractSalary,
   yearsRemaining,
   contractLabel,
+  optionLabel,
+  tradableLabel,
   draftInfoLabel,
   teamLabel,
 }: {
@@ -597,6 +621,8 @@ function ContractCard({
   contractSalary: number
   yearsRemaining: number
   contractLabel: string
+  optionLabel: string | null
+  tradableLabel: string | null
   draftInfoLabel: string
   teamLabel: string
 }) {
@@ -609,6 +635,10 @@ function ContractCard({
       <CardContent className="grid gap-2 py-4">
         <InfoRow label="Team" value={teamLabel} />
         <InfoRow label="Contract" value={contractLabel} />
+        {optionLabel ? <InfoRow label="Option" value={optionLabel} /> : null}
+        {tradableLabel ? (
+          <InfoRow label="Trade status" value={tradableLabel} />
+        ) : null}
         <InfoRow label="Salary" value={formatMoney(contractSalary)} />
         <InfoRow label="Years remaining" value={String(yearsRemaining)} />
         <InfoRow label="Draft" value={draftInfoLabel} />
@@ -627,6 +657,46 @@ function ContractCard({
           value={String(player.reachRating ?? "—")}
         />
         <InfoRow label="Peak age" value={String(player.peakAge)} />
+      </CardContent>
+    </Card>
+  )
+}
+
+function PlayerMoodCard({
+  hints,
+  scoutingNote,
+}: {
+  hints: ReturnType<typeof getPlayerMoodHints>
+  scoutingNote: string
+}) {
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Player mood</CardTitle>
+        <CardDescription>{scoutingNote}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 py-4">
+        {hints ? (
+          hints.map((row) => (
+            <div
+              key={row.label}
+              className="rounded-md border bg-muted/10 px-3 py-2"
+            >
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="font-medium">{row.label}</span>
+                <span className="tabular-nums text-muted-foreground">
+                  {row.value}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{row.hint}</p>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Limited intel — increase scouting to learn what this player values in
+            contract talks.
+          </p>
+        )}
       </CardContent>
     </Card>
   )

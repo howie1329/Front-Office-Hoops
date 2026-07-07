@@ -7,7 +7,7 @@ import {
   syncPlayersAfterContractChanges,
 } from "./assessSeasonFinances"
 import { applyAiCapBehavior } from "./ai/capCuts"
-import { expireOneYearContracts } from "./contracts/processContracts"
+import { expireOneYearContracts, processContractOptions } from "./contracts/processContracts"
 import { attachRookieContract } from "./freeAgency"
 import {
   generateInitialContractsForLeague,
@@ -43,13 +43,20 @@ export * from "./contracts/processContracts"
 export * from "./teamStrategy"
 export { processAiReSignings } from "./ai/reSignings"
 export { applyAiCapBehavior } from "./ai/capCuts"
+export { runMarketAuction } from "./market/normalizeDemands"
+export {
+  scoreBidForPlayer,
+  pickAuctionWinner,
+  adjustAskFromBids,
+} from "./market/bidScoring"
 
 export function processOffseasonFinancials(
   league: LeagueRecord,
-  _rng: Rng
+  rng: Rng,
 ): LeagueRecord {
   let current = updateAllTeamStrategies(league)
   current = assessLeagueSeasonFinances(current, current.seasonState)
+  current = processContractOptions(current, rng)
   current = expireOneYearContracts(current)
   return current
 }

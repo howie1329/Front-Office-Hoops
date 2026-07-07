@@ -5,6 +5,8 @@ import type {
   Player,
 } from "@workspace/shared/types"
 
+import { seedPlayerMood } from "../playerValue/moodSeed"
+
 export function convertProspectToPlayer(
   prospect: DraftProspect,
   pick: DraftPick,
@@ -31,6 +33,8 @@ export function convertProspectToPlayer(
     activeContractId: null,
     seasonsWithTeam: 0,
     yearsOfService: 0,
+    mood: seedPlayerMood(prospect.id),
+    performanceDrift: 0,
   }
 }
 
@@ -56,5 +60,7 @@ export function convertProspectToFreeAgent(prospect: DraftProspect): Player {
     activeContractId: null,
     seasonsWithTeam: 0,
     yearsOfService: Math.max(0, prospect.age - 19),
+    mood: seedPlayerMood(prospect.id),
+    performanceDrift: 0,
   }
 }

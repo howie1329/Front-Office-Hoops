@@ -9,37 +9,24 @@ import {
   getPlayerValueBreakdown,
 } from "../src/playerValue"
 
-import { makeTestRatings } from "./helpers/playerRatings"
+import { makeTestPlayer, makeTestRatings } from "./helpers/playerRatings"
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
-  return {
+  const { ratings: ratingOverrides, ...rest } = overrides
+  return makeTestPlayer({
     id: "p_value",
     teamId: "t_value",
     firstName: "Value",
     lastName: "Player",
     age: 24,
-    peakAge: 29,
-    heightInches: 78,
-    weightLbs: 210,
-    wingspanInches: 80,
-    reachRating: 58,
-    position: "SG",
     ratings: makeTestRatings({
       overall: 60,
       potential: 70,
       usage: 16,
-      ...(overrides.ratings ?? {}),
+      ...(ratingOverrides ?? {}),
     }),
-    tags: [],
-    status: "active",
-    injury: null,
-    draftInfo: null,
-    activeContractId: null,
-    seasonsWithTeam: 2,
-    yearsOfService: 2,
-    ...overrides,
-    archetype: overrides.archetype ?? "scoring_guard",
-  }
+    ...rest,
+  })
 }
 
 describe("player value", () => {

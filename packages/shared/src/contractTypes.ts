@@ -34,6 +34,7 @@ export type Contract = {
   options?: ContractOption[]
   status: ContractStatus
   signedSeason: number
+  tradableAfterDay?: number | null
 }
 
 export type FreeAgentOffer = {

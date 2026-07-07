@@ -94,3 +94,19 @@ export const TOLERANCE_OFFER_MULTIPLIER: Record<TaxTolerance, number> = {
   competitive: 1.08,
   all_in: 1.15,
 }
+
+export const REPEATER_TAX_SEASONS = 3
+export const REPEATER_SURCHARGE = 1.0
+export const DEAD_CAP_STRETCH_YEARS = 2
+export const TRADE_MORATORIUM_GAMES = 14
+export const TRADE_VALUE_EXPONENT = 7
+export const AI_ACCEPT_MIN_NET = 0
+export const AI_ACCEPT_CLOSE = -2
+export const AI_ACCEPT_BAD = -5
+export const AI_TRADE_MAX_IMBALANCE = 15
+export const AI_TRADE_OFFER_EXPIRY_DAYS = 3
+export const MARKET_AUCTION_ROUNDS = 50
+export const PERFORMANCE_DRIFT_MAX = 3
+export const PERFORMANCE_DRIFT_MIN_MINUTES = 500
+export const CONTENDING_FA_BID_BONUS = 0.15
+export const CONTENDING_TRADE_FIT_TOLERANCE = -1

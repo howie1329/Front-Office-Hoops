@@ -23,9 +23,12 @@ function mockTeamFinance(mode: TeamFinancials["strategy"]["mode"]): TeamFinancia
     lastTaxBill: null,
     mleUsed: 0,
     mleRemaining: 12,
+    roomMleUsed: 0,
+    roomMleRemaining: 8,
     wasUnderCapThisYear: true,
     scoutingLevel: 5,
     tradeExceptions: [],
+    deadCapCharges: [],
   }
 }
 

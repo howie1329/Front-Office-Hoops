@@ -18,37 +18,23 @@ import {
   getTeamPayroll,
 } from "../../src/financials"
 import { simulatePlayoffs } from "../../src/simulatePlayoffs"
-import { makeTestRatings } from "../helpers/playerRatings"
+import { makeTestPlayer, makeTestRatings } from "../helpers/playerRatings"
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
-  return {
+  const { ratings: ratingOverrides, ...rest } = overrides
+  return makeTestPlayer({
     id: "p_test_young",
-    teamId: "t_test",
-    firstName: "Test",
-    lastName: "Player",
     age: 20,
-    peakAge: 29,
-    heightInches: 78,
-    weightLbs: 210,
-    wingspanInches: 80,
-    reachRating: 58,
-    position: "SG",
     ratings: makeTestRatings({
       overall: 78,
       potential: 88,
       usage: 20,
-      ...(overrides.ratings ?? {}),
+      ...(ratingOverrides ?? {}),
     }),
-    tags: [],
-    status: "active",
-    injury: null,
-    draftInfo: null,
-    activeContractId: null,
     seasonsWithTeam: 1,
     yearsOfService: 1,
-    ...overrides,
-    archetype: overrides.archetype ?? "scoring_guard",
-  }
+    ...rest,
+  })
 }
 
 function completeSeasonToOffseason(

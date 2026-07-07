@@ -7,6 +7,10 @@ import { derivePeakAgeFallback } from "./development/generatePeakAge"
 import { ensureDraftPickAssets } from "./draft/generateDraftOrder"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
 import { deriveReachRating } from "./playerGeneration/physicalProfile"
+import {
+  DEFAULT_PLAYER_MOOD,
+  seedPlayerMood,
+} from "./playerValue/moodSeed"
 
 function normalizePlayer(player: Player): Player {
   const peakAge =
@@ -35,6 +39,8 @@ function normalizePlayer(player: Player): Player {
       fuzz: player.ratings.fuzz ?? emptyFuzz(),
     },
     tags: nextTags,
+    mood: player.mood ?? seedPlayerMood(player.id) ?? DEFAULT_PLAYER_MOOD,
+    performanceDrift: player.performanceDrift ?? 0,
     status:
       player.status === "injured" && !player.injury ? "active" : player.status,
     injury: player.injury ?? null,
@@ -95,12 +101,24 @@ export function normalizeLeagueRecord(record: LeagueRecord): LeagueRecord {
       normalizedState.season + 1
     ),
     tradeHistory: record.tradeHistory ?? [],
+    pendingTradeOffers: record.pendingTradeOffers ?? [],
+    draftClassCache: record.draftClassCache ?? null,
     leagueLog: record.leagueLog ?? [],
     owners: record.owners ?? [],
     ownerGoals: record.ownerGoals ?? [],
     seasonAwards: record.seasonAwards ?? [],
     playerCareerSnapshots: record.playerCareerSnapshots ?? [],
     playerSeasonProfiles: record.playerSeasonProfiles ?? [],
+    teamFinancials: (record.teamFinancials ?? []).map((teamFinance) => ({
+      ...teamFinance,
+      deadCapCharges: teamFinance.deadCapCharges ?? [],
+      roomMleUsed: teamFinance.roomMleUsed ?? 0,
+      roomMleRemaining:
+        teamFinance.roomMleRemaining ??
+        record.leagueFinancials?.bySeason?.[normalizedState.season]?.mleRoom ??
+        0,
+      tradeExceptions: teamFinance.tradeExceptions ?? [],
+    })),
     seasonState: normalizedState,
     rngNonce: record.rngNonce ?? 0,
     saveVersion: SAVE_VERSION,

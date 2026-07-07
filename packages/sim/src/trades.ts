@@ -1,9 +1,21 @@
 import { ROSTER_MAX, ROSTER_MIN } from "@workspace/shared/constants"
+import {
+  AI_ACCEPT_BAD,
+  AI_ACCEPT_CLOSE,
+  AI_ACCEPT_MIN_NET,
+  AI_TRADE_MAX_IMBALANCE,
+  AI_TRADE_OFFER_EXPIRY_DAYS,
+  CONTENDING_TRADE_FIT_TOLERANCE,
+  TRADE_MORATORIUM_GAMES,
+  TRADE_VALUE_EXPONENT,
+} from "@workspace/shared/financialConstants"
 import type {
   Contract,
   DraftPickAsset,
   LeagueRecord,
+  PendingTradeOffer,
   Player,
+  Rng,
   TeamMode,
   TeamWithRoster,
   TradeEvaluation,
@@ -12,18 +24,24 @@ import type {
   TradeValidationResult,
 } from "@workspace/shared/types"
 
-import { deriveTeamOverall } from "./playerRatings"
-import { getContractAssetValueBreakdown } from "./playerValue"
+import { canTradeOnDate } from "./calendar"
+import { getPickValueFromCache } from "./draft/pickValues"
 import { getSeasonFinancials } from "./financials/capMath"
+import { buildFairSalary } from "./financials/ai/offers"
+import {
+  consumeTradeExceptions,
+  createTradeException,
+  getAvailableTpeAmount,
+} from "./financials/tradeExceptions"
 import {
   getCurrentSalary,
   getPlayerContract,
   getTeamPayroll,
   getYearsRemaining,
 } from "./financials/payroll"
-import { buildFairSalary } from "./financials/ai/offers"
-import { canTradeOnDate } from "./calendar"
 import { createLeagueLogEntry } from "./leagueLog"
+import { deriveTeamOverall } from "./playerRatings"
+import { getContractAssetValueBreakdown } from "./playerValue"
 import {
   findPlayersOnTeam,
   findTeam,
@@ -31,7 +49,7 @@ import {
 
 const SALARY_MATCH_MULTIPLIER = 1.25
 const SALARY_MATCH_BUFFER = 0.1
-const AI_ACCEPT_TOLERANCE = 4
+const INCOMING_INJURY_DISCOUNT = 0.85
 
 type TradeContext = {
   fromTeam: TeamWithRoster
@@ -49,11 +67,11 @@ function unique(values: string[]): string[] {
 function findPicks(
   league: LeagueRecord,
   teamId: string,
-  pickIds: string[]
+  pickIds: string[],
 ): DraftPickAsset[] {
   const ids = new Set(pickIds)
   return league.draftPickAssets.filter(
-    (pick) => ids.has(pick.id) && pick.currentTeamId === teamId
+    (pick) => ids.has(pick.id) && pick.currentTeamId === teamId,
   )
 }
 
@@ -66,7 +84,7 @@ function getTeamMode(league: LeagueRecord, teamId: string): TeamMode {
 
 function getContext(
   league: LeagueRecord,
-  proposal: TradeProposal
+  proposal: TradeProposal,
 ): TradeContext | TradeValidationResult {
   if (proposal.from.teamId === proposal.to.teamId) {
     return { ok: false, reason: "Trade teams must be different" }
@@ -121,7 +139,7 @@ function getContext(
 
 function validatePlayerContracts(
   league: LeagueRecord,
-  players: Player[]
+  players: Player[],
 ): TradeValidationResult {
   for (const player of players) {
     if (player.status !== "active") {
@@ -131,6 +149,13 @@ function validatePlayerContracts(
     const contract = getPlayerContract(league.contracts, player)
     if (!contract || contract.status !== "active") {
       return { ok: false, reason: "All traded players need active contracts" }
+    }
+
+    if (
+      contract.tradableAfterDay != null &&
+      contract.tradableAfterDay > league.seasonState.currentDay
+    ) {
+      return { ok: false, reason: "Player is in trade moratorium period" }
     }
   }
 
@@ -164,8 +189,28 @@ function sumSalary(league: LeagueRecord, players: Player[]): number {
   return players.reduce(
     (sum, player) =>
       sum + getCurrentSalary(getPlayerContract(league.contracts, player)),
-    0
+    0,
   )
+}
+
+function getMaxAbsorbableIncomingSalary({
+  payroll,
+  salaryCap,
+  outgoingSalary,
+  tradeExceptions,
+}: {
+  payroll: number
+  salaryCap: number
+  outgoingSalary: number
+  tradeExceptions: LeagueRecord["teamFinancials"][number]["tradeExceptions"]
+}): number {
+  const capRoomAfterOutgoing = Math.max(
+    0,
+    salaryCap - (payroll - outgoingSalary),
+  )
+  const baseMatch =
+    outgoingSalary * SALARY_MATCH_MULTIPLIER + SALARY_MATCH_BUFFER
+  return capRoomAfterOutgoing + baseMatch + getAvailableTpeAmount(tradeExceptions)
 }
 
 function canAbsorbIncomingSalary({
@@ -173,44 +218,51 @@ function canAbsorbIncomingSalary({
   salaryCap,
   outgoingSalary,
   incomingSalary,
+  tradeExceptions,
 }: {
   payroll: number
   salaryCap: number
   outgoingSalary: number
   incomingSalary: number
+  tradeExceptions: LeagueRecord["teamFinancials"][number]["tradeExceptions"]
 }): boolean {
-  const capRoomAfterOutgoing = Math.max(
-    0,
-    salaryCap - (payroll - outgoingSalary)
-  )
-  if (capRoomAfterOutgoing >= incomingSalary) {
-    return true
-  }
-
   return (
     incomingSalary <=
-    outgoingSalary * SALARY_MATCH_MULTIPLIER + SALARY_MATCH_BUFFER
+    getMaxAbsorbableIncomingSalary({
+      payroll,
+      salaryCap,
+      outgoingSalary,
+      tradeExceptions,
+    })
   )
 }
 
 function validateSalaryMatching(
   league: LeagueRecord,
-  context: TradeContext
+  context: TradeContext,
 ): TradeValidationResult {
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
-    league.seasonState.season
+    league.seasonState.season,
   )
   const fromOutgoing = sumSalary(league, context.fromPlayers)
   const fromIncoming = sumSalary(league, context.toPlayers)
   const toOutgoing = sumSalary(league, context.toPlayers)
   const toIncoming = sumSalary(league, context.fromPlayers)
 
+  const fromFinance = league.teamFinancials.find(
+    (entry) => entry.teamId === context.fromTeam.id,
+  )
+  const toFinance = league.teamFinancials.find(
+    (entry) => entry.teamId === context.toTeam.id,
+  )
+
   const fromCanTrade = canAbsorbIncomingSalary({
     payroll: getTeamPayroll(context.fromTeam.id, league.contracts),
     salaryCap: seasonFinancials.salaryCap,
     outgoingSalary: fromOutgoing,
     incomingSalary: fromIncoming,
+    tradeExceptions: fromFinance?.tradeExceptions ?? [],
   })
   if (!fromCanTrade) {
     return { ok: false, reason: "Trade fails salary matching for sending team" }
@@ -221,6 +273,7 @@ function validateSalaryMatching(
     salaryCap: seasonFinancials.salaryCap,
     outgoingSalary: toOutgoing,
     incomingSalary: toIncoming,
+    tradeExceptions: toFinance?.tradeExceptions ?? [],
   })
   if (!toCanTrade) {
     return {
@@ -234,7 +287,7 @@ function validateSalaryMatching(
 
 export function validateTrade(
   league: LeagueRecord,
-  proposal: TradeProposal
+  proposal: TradeProposal,
 ): TradeValidationResult {
   if (!canTradeOnDate(league.seasonState)) {
     return { ok: false, reason: "Trades are closed until the offseason" }
@@ -261,28 +314,16 @@ export function validateTrade(
   return validateSalaryMatching(league, context)
 }
 
-function getTeamWinPct(league: LeagueRecord, teamId: string): number {
-  const standing = league.seasonState.standings.find(
-    (entry) => entry.teamId === teamId
-  )
-  if (!standing) {
-    return 0.5
-  }
-
-  const games = standing.wins + standing.losses
-  return games === 0 ? 0.5 : standing.wins / games
-}
-
 function rosterFitValue(
   team: TeamWithRoster,
   player: Player,
-  mode: TeamMode
+  mode: TeamMode,
 ): number {
   const positionCount = team.players.filter(
-    (entry) => entry.position === player.position
+    (entry) => entry.position === player.position,
   ).length
   const archetypeCount = team.players.filter(
-    (entry) => entry.archetype === player.archetype
+    (entry) => entry.archetype === player.archetype,
   ).length
   let value = 0
 
@@ -307,7 +348,7 @@ function rosterFitValue(
 function strategyPlayerAdjustment(
   mode: TeamMode,
   player: Player,
-  contract: Contract | undefined
+  contract: Contract | undefined,
 ): number {
   const salary = getCurrentSalary(contract)
   const yearsRemaining = getYearsRemaining(contract)
@@ -343,85 +384,86 @@ function strategyPlayerAdjustment(
 function valuePlayerForTeam(
   league: LeagueRecord,
   team: TeamWithRoster,
-  player: Player
+  player: Player,
+  options: { incoming?: boolean } = {},
 ): number {
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
-    league.seasonState.season
+    league.seasonState.season,
   )
   const mode = getTeamMode(league, team.id)
   const contract = getPlayerContract(league.contracts, player)
-  const expectedSalary = buildFairSalary(player, seasonFinancials)
-  const baseValue = getContractAssetValueBreakdown({
-    player,
-    contract,
-    expectedSalary,
-    mode,
-  }).total
-
-  return (
-    baseValue +
+  const expectedSalary = buildFairSalary(player, seasonFinancials, league)
+  let value =
+    getContractAssetValueBreakdown({
+      player,
+      contract,
+      expectedSalary,
+      mode,
+    }).total +
     strategyPlayerAdjustment(mode, player, contract) +
     rosterFitValue(team, player, mode)
-  )
-}
 
-function strategyPickMultiplier(mode: TeamMode, pick: DraftPickAsset): number {
-  switch (mode) {
-    case "selling":
-      return pick.round === 1 ? 1.35 : 1.2
-    case "buying":
-      return pick.round === 1 ? 0.95 : 0.9
-    case "contending":
-      return pick.season <= 2 ? 0.8 : 0.65
+  if (options.incoming && (player.status === "injured" || player.injury)) {
+    value *= INCOMING_INJURY_DISCOUNT
   }
+
+  return value
 }
 
 function valuePickForTeam(
   league: LeagueRecord,
   teamId: string,
-  pick: DraftPickAsset
+  pick: DraftPickAsset,
 ): number {
   const mode = getTeamMode(league, teamId)
-  const winPct = getTeamWinPct(league, pick.originalTeamId)
-  const teamQualityDiscount =
-    pick.round === 1 ? (1 - winPct) * 28 : (1 - winPct) * 7
-  const baseValue = pick.round === 1 ? 18 : 5
-  const yearsAway = Math.max(0, pick.season - (league.seasonState.season + 1))
-  const distanceMultiplier = Math.max(0.55, 1 - yearsAway * 0.12)
-
-  return (
-    (baseValue + teamQualityDiscount) *
-    distanceMultiplier *
-    strategyPickMultiplier(mode, pick)
+  return getPickValueFromCache(
+    pick,
+    league.draftClassCache,
+    league,
+    teamId,
+    mode,
   )
+}
+
+function bundleAssetValues(values: number[]): number {
+  if (values.length === 0) {
+    return 0
+  }
+
+  const bundled = values.reduce(
+    (sum, value) => sum + Math.max(0, value) ** TRADE_VALUE_EXPONENT,
+    0,
+  )
+  return bundled ** (1 / TRADE_VALUE_EXPONENT)
 }
 
 function valuePlayersForTeam(
   league: LeagueRecord,
   team: TeamWithRoster,
-  players: Player[]
+  players: Player[],
+  options: { incoming?: boolean } = {},
 ): number {
-  return players.reduce(
-    (sum, player) => sum + valuePlayerForTeam(league, team, player),
-    0
+  return bundleAssetValues(
+    players.map((player) =>
+      valuePlayerForTeam(league, team, player, options),
+    ),
   )
 }
 
 function valuePicksForTeam(
   league: LeagueRecord,
   teamId: string,
-  picks: DraftPickAsset[]
+  picks: DraftPickAsset[],
 ): number {
-  return picks.reduce(
-    (sum, pick) => sum + valuePickForTeam(league, teamId, pick),
-    0
+  return bundleAssetValues(
+    picks.map((pick) => valuePickForTeam(league, teamId, pick)),
   )
 }
 
 export function evaluateTrade(
   league: LeagueRecord,
-  proposal: TradeProposal
+  proposal: TradeProposal,
 ): TradeEvaluation[] {
   const context = getContext(league, proposal)
   if ("ok" in context) {
@@ -429,14 +471,16 @@ export function evaluateTrade(
   }
 
   const fromIncomingValue =
-    valuePlayersForTeam(league, context.fromTeam, context.toPlayers) +
-    valuePicksForTeam(league, context.fromTeam.id, context.toPicks)
+    valuePlayersForTeam(league, context.fromTeam, context.toPlayers, {
+      incoming: true,
+    }) + valuePicksForTeam(league, context.fromTeam.id, context.toPicks)
   const fromOutgoingValue =
     valuePlayersForTeam(league, context.fromTeam, context.fromPlayers) +
     valuePicksForTeam(league, context.fromTeam.id, context.fromPicks)
   const toIncomingValue =
-    valuePlayersForTeam(league, context.toTeam, context.fromPlayers) +
-    valuePicksForTeam(league, context.toTeam.id, context.fromPicks)
+    valuePlayersForTeam(league, context.toTeam, context.fromPlayers, {
+      incoming: true,
+    }) + valuePicksForTeam(league, context.toTeam.id, context.fromPicks)
   const toOutgoingValue =
     valuePlayersForTeam(league, context.toTeam, context.toPlayers) +
     valuePicksForTeam(league, context.toTeam.id, context.toPicks)
@@ -457,10 +501,32 @@ export function evaluateTrade(
   ]
 }
 
+function getAiAcceptThreshold(mode: TeamMode): number {
+  switch (mode) {
+    case "selling":
+      return AI_ACCEPT_BAD
+    case "contending":
+      return AI_ACCEPT_CLOSE + CONTENDING_TRADE_FIT_TOLERANCE
+    case "buying":
+      return AI_ACCEPT_MIN_NET
+  }
+}
+
+function aiRejectReason(mode: TeamMode): string {
+  switch (mode) {
+    case "selling":
+      return "They want draft picks or cap relief"
+    case "contending":
+      return "They need more win-now value"
+    case "buying":
+      return "Other team rejects the trade value"
+  }
+}
+
 export function wouldAiAcceptTrade(
   league: LeagueRecord,
   proposal: TradeProposal,
-  aiTeamId: string
+  aiTeamId: string,
 ): TradeValidationResult {
   const validation = validateTrade(league, proposal)
   if (!validation.ok) {
@@ -468,21 +534,15 @@ export function wouldAiAcceptTrade(
   }
 
   const evaluation = evaluateTrade(league, proposal).find(
-    (entry) => entry.teamId === aiTeamId
+    (entry) => entry.teamId === aiTeamId,
   )
   if (!evaluation) {
     return { ok: false, reason: "AI team is not part of this trade" }
   }
 
-  if (evaluation.netValue < -AI_ACCEPT_TOLERANCE) {
-    const mode = getTeamMode(league, aiTeamId)
-    if (mode === "selling") {
-      return { ok: false, reason: "They want draft picks or cap relief" }
-    }
-    if (mode === "contending") {
-      return { ok: false, reason: "They need more win-now value" }
-    }
-    return { ok: false, reason: "Other team rejects the trade value" }
+  const mode = getTeamMode(league, aiTeamId)
+  if (evaluation.netValue < getAiAcceptThreshold(mode)) {
+    return { ok: false, reason: aiRejectReason(mode) }
   }
 
   return { ok: true }
@@ -491,7 +551,7 @@ export function wouldAiAcceptTrade(
 function tradePlayer(
   player: Player,
   fromTeamId: string,
-  toTeamId: string
+  toTeamId: string,
 ): Player {
   if (player.teamId !== fromTeamId) {
     return player
@@ -507,7 +567,7 @@ function tradePlayer(
 function updateTeamPlayers(
   team: TeamWithRoster,
   outgoingIds: Set<string>,
-  incomingPlayers: Player[]
+  incomingPlayers: Player[],
 ): TeamWithRoster {
   const players = [
     ...team.players.filter((player) => !outgoingIds.has(player.id)),
@@ -524,7 +584,8 @@ function updateTeamPlayers(
 function tradeContract(
   contract: Contract,
   playerIds: Set<string>,
-  newTeamId: string
+  newTeamId: string,
+  tradableAfterDay: number,
 ): Contract {
   if (!playerIds.has(contract.playerId) || contract.status !== "active") {
     return contract
@@ -533,13 +594,14 @@ function tradeContract(
   return {
     ...contract,
     teamId: newTeamId,
+    tradableAfterDay,
   }
 }
 
 function tradePick(
   pick: DraftPickAsset,
   pickIds: Set<string>,
-  newTeamId: string
+  newTeamId: string,
 ): DraftPickAsset {
   if (!pickIds.has(pick.id)) {
     return pick
@@ -551,17 +613,84 @@ function tradePick(
   }
 }
 
+function applyTradeExceptionsForTeam({
+  teamId,
+  outgoingSalary,
+  incomingSalary,
+  teamFinancials,
+}: {
+  teamId: string
+  outgoingSalary: number
+  incomingSalary: number
+  teamFinancials: LeagueRecord["teamFinancials"]
+}): LeagueRecord["teamFinancials"] {
+  const gap = Math.max(0, incomingSalary - outgoingSalary)
+  if (gap <= 0) {
+    return teamFinancials
+  }
+
+  return teamFinancials.map((entry) => {
+    if (entry.teamId !== teamId) {
+      return entry
+    }
+
+    const consumed = consumeTradeExceptions(entry.tradeExceptions, gap)
+    return {
+      ...entry,
+      tradeExceptions: consumed.tradeExceptions,
+    }
+  })
+}
+
+function createOutgoingTradeExceptions({
+  teamId,
+  outgoingSalary,
+  incomingSalary,
+  teamFinancials,
+  season,
+}: {
+  teamId: string
+  outgoingSalary: number
+  incomingSalary: number
+  teamFinancials: LeagueRecord["teamFinancials"]
+  season: number
+}): LeagueRecord["teamFinancials"] {
+  const unmatched = Math.max(0, outgoingSalary - incomingSalary)
+  if (unmatched <= 0) {
+    return teamFinancials
+  }
+
+  return teamFinancials.map((entry) => {
+    if (entry.teamId !== teamId) {
+      return entry
+    }
+
+    return {
+      ...entry,
+      tradeExceptions: [
+        ...entry.tradeExceptions,
+        createTradeException({
+          teamId,
+          amount: unmatched,
+          season,
+          description: "Created from salary-mismatch trade",
+        }),
+      ],
+    }
+  })
+}
+
 function createTradeHistoryEntry(
   league: LeagueRecord,
   proposal: TradeProposal,
-  context: TradeContext
+  context: TradeContext,
 ) {
   const evaluations = evaluateTrade(league, proposal)
   const fromEvaluation = evaluations.find(
-    (entry) => entry.teamId === context.fromTeam.id
+    (entry) => entry.teamId === context.fromTeam.id,
   )
   const toEvaluation = evaluations.find(
-    (entry) => entry.teamId === context.toTeam.id
+    (entry) => entry.teamId === context.toTeam.id,
   )
 
   return {
@@ -597,7 +726,7 @@ function createTradeHistoryEntry(
 
 export function executeTrade(
   league: LeagueRecord,
-  proposal: TradeProposal
+  proposal: TradeProposal,
 ): LeagueRecord {
   const validation = validateTrade(league, proposal)
   if (!validation.ok) {
@@ -614,11 +743,46 @@ export function executeTrade(
   const fromPickIds = new Set(context.fromPicks.map((pick) => pick.id))
   const toPickIds = new Set(context.toPicks.map((pick) => pick.id))
   const playersToFrom = context.toPlayers.map((player) =>
-    tradePlayer(player, context.toTeam.id, context.fromTeam.id)
+    tradePlayer(player, context.toTeam.id, context.fromTeam.id),
   )
   const playersToTo = context.fromPlayers.map((player) =>
-    tradePlayer(player, context.fromTeam.id, context.toTeam.id)
+    tradePlayer(player, context.fromTeam.id, context.toTeam.id),
   )
+  const tradableAfterDay =
+    league.seasonState.currentDay + TRADE_MORATORIUM_GAMES
+
+  const fromOutgoingSalary = sumSalary(league, context.fromPlayers)
+  const fromIncomingSalary = sumSalary(league, context.toPlayers)
+  const toOutgoingSalary = sumSalary(league, context.toPlayers)
+  const toIncomingSalary = sumSalary(league, context.fromPlayers)
+
+  let teamFinancials = league.teamFinancials
+  teamFinancials = applyTradeExceptionsForTeam({
+    teamId: context.fromTeam.id,
+    outgoingSalary: fromOutgoingSalary,
+    incomingSalary: fromIncomingSalary,
+    teamFinancials,
+  })
+  teamFinancials = applyTradeExceptionsForTeam({
+    teamId: context.toTeam.id,
+    outgoingSalary: toOutgoingSalary,
+    incomingSalary: toIncomingSalary,
+    teamFinancials,
+  })
+  teamFinancials = createOutgoingTradeExceptions({
+    teamId: context.fromTeam.id,
+    outgoingSalary: fromOutgoingSalary,
+    incomingSalary: fromIncomingSalary,
+    teamFinancials,
+    season: league.seasonState.season,
+  })
+  teamFinancials = createOutgoingTradeExceptions({
+    teamId: context.toTeam.id,
+    outgoingSalary: toOutgoingSalary,
+    incomingSalary: toIncomingSalary,
+    teamFinancials,
+    season: league.seasonState.season,
+  })
 
   const tradeHistoryEntry = createTradeHistoryEntry(league, proposal, context)
   const [fromHistory, toHistory] = tradeHistoryEntry.teams
@@ -643,15 +807,31 @@ export function executeTrade(
 
   return {
     ...league,
+    teamFinancials,
     contracts: league.contracts.map((contract) => {
-      const tradedFrom = tradeContract(contract, fromIds, context.toTeam.id)
-      return tradeContract(tradedFrom, toIds, context.fromTeam.id)
+      const tradedFrom = tradeContract(
+        contract,
+        fromIds,
+        context.toTeam.id,
+        tradableAfterDay,
+      )
+      return tradeContract(
+        tradedFrom,
+        toIds,
+        context.fromTeam.id,
+        tradableAfterDay,
+      )
     }),
     draftPickAssets: league.draftPickAssets.map((pick) => {
       const tradedFrom = tradePick(pick, fromPickIds, context.toTeam.id)
       return tradePick(tradedFrom, toPickIds, context.fromTeam.id)
     }),
     tradeHistory: [...league.tradeHistory, tradeHistoryEntry],
+    pendingTradeOffers: league.pendingTradeOffers.filter(
+      (offer) =>
+        offer.status !== "pending" ||
+        !proposalMatchesExecutedTrade(offer.proposal, proposal),
+    ),
     leagueLog: [...league.leagueLog, logEntry],
     seasonState: {
       ...league.seasonState,
@@ -668,10 +848,33 @@ export function executeTrade(
   }
 }
 
+function proposalMatchesExecutedTrade(
+  pending: TradeProposal,
+  executed: TradeProposal,
+): boolean {
+  return (
+    pending.from.teamId === executed.from.teamId &&
+    pending.to.teamId === executed.to.teamId &&
+    sameAssetIds(pending.from.playerIds, executed.from.playerIds) &&
+    sameAssetIds(pending.to.playerIds, executed.to.playerIds) &&
+    sameAssetIds(pending.from.pickIds ?? [], executed.from.pickIds ?? []) &&
+    sameAssetIds(pending.to.pickIds ?? [], executed.to.pickIds ?? [])
+  )
+}
+
+function sameAssetIds(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false
+  }
+  const sortedLeft = [...left].sort()
+  const sortedRight = [...right].sort()
+  return sortedLeft.every((value, index) => value === sortedRight[index])
+}
+
 export function proposeTrade(
   league: LeagueRecord,
   proposal: TradeProposal,
-  aiTeamId?: string
+  aiTeamId?: string,
 ): TradeResult {
   const validation = aiTeamId
     ? wouldAiAcceptTrade(league, proposal, aiTeamId)
@@ -683,5 +886,272 @@ export function proposeTrade(
   return {
     proposal,
     evaluations: evaluateTrade(league, proposal),
+  }
+}
+
+function normalizeProposalForAiTeam(
+  proposal: TradeProposal,
+  aiTeamId: string,
+): TradeProposal {
+  if (proposal.from.teamId === aiTeamId) {
+    return proposal
+  }
+
+  return {
+    from: proposal.to,
+    to: proposal.from,
+  }
+}
+
+export function makeItWork(
+  league: LeagueRecord,
+  proposal: TradeProposal,
+  aiTeamId: string,
+): TradeProposal | null {
+  const normalized = normalizeProposalForAiTeam(proposal, aiTeamId)
+  if (wouldAiAcceptTrade(league, normalized, aiTeamId).ok) {
+    return normalized
+  }
+
+  const aiTeam = findTeam(league, aiTeamId)
+  if (!aiTeam) {
+    return null
+  }
+
+  const aiPicks = league.draftPickAssets
+    .filter((pick) => pick.currentTeamId === aiTeamId)
+    .sort((a, b) => {
+      if (a.round !== b.round) {
+        return a.round - b.round
+      }
+      return a.season - b.season
+    })
+
+  let working: TradeProposal = {
+    from: { ...normalized.from, pickIds: [...(normalized.from.pickIds ?? [])] },
+    to: { ...normalized.to, pickIds: [...(normalized.to.pickIds ?? [])] },
+  }
+
+  for (const pick of aiPicks) {
+    if ((working.from.pickIds ?? []).includes(pick.id)) {
+      continue
+    }
+
+    working = {
+      ...working,
+      from: {
+        ...working.from,
+        pickIds: [...(working.from.pickIds ?? []), pick.id],
+      },
+    }
+
+    if (wouldAiAcceptTrade(league, working, aiTeamId).ok) {
+      return working
+    }
+  }
+
+  const expendablePlayers = [...aiTeam.players]
+    .filter((player) => !(working.from.playerIds ?? []).includes(player.id))
+    .sort((a, b) => a.ratings.overall - b.ratings.overall)
+
+  for (const player of expendablePlayers.slice(0, 2)) {
+    working = {
+      ...working,
+      from: {
+        ...working.from,
+        playerIds: [...working.from.playerIds, player.id],
+      },
+    }
+
+    if (wouldAiAcceptTrade(league, working, aiTeamId).ok) {
+      return working
+    }
+  }
+
+  return null
+}
+
+function buildAiTradeProposal(
+  league: LeagueRecord,
+  aiTeamId: string,
+  userTeamId: string,
+  rng: Rng,
+): TradeProposal | null {
+  const aiTeam = findTeam(league, aiTeamId)
+  const userTeam = findTeam(league, userTeamId)
+  if (!aiTeam || !userTeam) {
+    return null
+  }
+
+  const aiMode = getTeamMode(league, aiTeamId)
+  const aiPlayers = [...aiTeam.players].sort((a, b) => {
+    switch (aiMode) {
+      case "selling":
+        return b.ratings.potential - a.ratings.potential
+      case "contending":
+        return b.ratings.overall - a.ratings.overall
+      case "buying":
+        return b.age - a.age
+    }
+  })
+  const userPlayers = [...userTeam.players].sort(
+    (a, b) => b.ratings.overall - a.ratings.overall,
+  )
+
+  const offeredPlayer = aiPlayers[rng.int(0, Math.min(4, aiPlayers.length - 1))]
+  const requestedPlayer = userPlayers[rng.int(0, Math.min(4, userPlayers.length - 1))]
+  if (!offeredPlayer || !requestedPlayer) {
+    return null
+  }
+
+  const baseProposal: TradeProposal = {
+    from: {
+      teamId: aiTeamId,
+      playerIds: [offeredPlayer.id],
+    },
+    to: {
+      teamId: userTeamId,
+      playerIds: [requestedPlayer.id],
+    },
+  }
+
+  return makeItWork(league, baseProposal, aiTeamId) ?? baseProposal
+}
+
+function createPendingOffer(
+  league: LeagueRecord,
+  proposal: TradeProposal,
+  initiatorTeamId: string,
+): PendingTradeOffer {
+  return {
+    id: `trade_offer_${league.seasonState.season}_${league.seasonState.currentDay}_${league.pendingTradeOffers.length + 1}`,
+    fromTeamId: proposal.from.teamId,
+    toTeamId: proposal.to.teamId,
+    proposal,
+    createdDay: league.seasonState.currentDay,
+    expiresDay:
+      league.seasonState.currentDay + AI_TRADE_OFFER_EXPIRY_DAYS,
+    status: "pending",
+    initiatorTeamId,
+  }
+}
+
+export function expirePendingTradeOffers(league: LeagueRecord): LeagueRecord {
+  const currentDay = league.seasonState.currentDay
+
+  return {
+    ...league,
+    pendingTradeOffers: league.pendingTradeOffers.map((offer) =>
+      offer.status === "pending" && offer.expiresDay <= currentDay
+        ? { ...offer, status: "expired" }
+        : offer,
+    ),
+  }
+}
+
+export function runAiTradeMarket(
+  league: LeagueRecord,
+  rng: Rng,
+): LeagueRecord {
+  if (!canTradeOnDate(league.seasonState) || !league.userTeamId) {
+    return league
+  }
+
+  const aiTeams = league.seasonState.teams.filter(
+    (team) => team.id !== league.userTeamId,
+  )
+  if (aiTeams.length === 0) {
+    return league
+  }
+
+  let current = league
+  const attempts = Math.min(2, aiTeams.length)
+
+  for (let index = 0; index < attempts; index++) {
+    const aiTeam = aiTeams[rng.int(0, aiTeams.length - 1)]!
+    const proposal = buildAiTradeProposal(
+      current,
+      aiTeam.id,
+      league.userTeamId,
+      rng,
+    )
+    if (!proposal) {
+      continue
+    }
+
+    const evaluation = evaluateTrade(current, proposal).find(
+      (entry) => entry.teamId === league.userTeamId,
+    )
+    if (
+      !evaluation ||
+      evaluation.netValue < -AI_TRADE_MAX_IMBALANCE ||
+      !wouldAiAcceptTrade(current, proposal, aiTeam.id).ok
+    ) {
+      continue
+    }
+
+    const duplicate = current.pendingTradeOffers.some(
+      (offer) =>
+        offer.status === "pending" &&
+        offer.fromTeamId === proposal.from.teamId &&
+        offer.toTeamId === proposal.to.teamId &&
+        sameAssetIds(offer.proposal.from.playerIds, proposal.from.playerIds) &&
+        sameAssetIds(offer.proposal.to.playerIds, proposal.to.playerIds),
+    )
+    if (duplicate) {
+      continue
+    }
+
+    current = {
+      ...current,
+      pendingTradeOffers: [
+        ...current.pendingTradeOffers,
+        createPendingOffer(current, proposal, aiTeam.id),
+      ],
+    }
+  }
+
+  return current
+}
+
+export function acceptTradeOffer(
+  league: LeagueRecord,
+  offerId: string,
+): LeagueRecord {
+  const offer = league.pendingTradeOffers.find((entry) => entry.id === offerId)
+  if (!offer || offer.status !== "pending") {
+    throw new Error("Trade offer not found or no longer pending")
+  }
+
+  const aiTeamId = offer.initiatorTeamId
+  const acceptance = wouldAiAcceptTrade(league, offer.proposal, aiTeamId)
+  if (!acceptance.ok) {
+    throw new Error(acceptance.reason)
+  }
+
+  const executed = executeTrade(league, offer.proposal)
+
+  return {
+    ...executed,
+    pendingTradeOffers: executed.pendingTradeOffers.map((entry) =>
+      entry.id === offerId ? { ...entry, status: "accepted" } : entry,
+    ),
+  }
+}
+
+export function rejectTradeOffer(
+  league: LeagueRecord,
+  offerId: string,
+): LeagueRecord {
+  const offer = league.pendingTradeOffers.find((entry) => entry.id === offerId)
+  if (!offer || offer.status !== "pending") {
+    throw new Error("Trade offer not found or no longer pending")
+  }
+
+  return {
+    ...league,
+    pendingTradeOffers: league.pendingTradeOffers.map((entry) =>
+      entry.id === offerId ? { ...entry, status: "rejected" } : entry,
+    ),
   }
 }

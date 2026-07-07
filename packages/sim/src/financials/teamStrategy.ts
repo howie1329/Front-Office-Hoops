@@ -224,9 +224,12 @@ export function assignInitialTeamStrategy(
     lastTaxBill: null,
     mleUsed: 0,
     mleRemaining: seasonFinancials.mleNonTaxpayer,
+    roomMleUsed: 0,
+    roomMleRemaining: seasonFinancials.mleRoom,
     wasUnderCapThisYear: true,
     scoutingLevel: 5,
     tradeExceptions: [],
+    deadCapCharges: [],
   }
 
   const mode = proposeTeamMode(signals, mockFinance, seasonFinancials)

@@ -1,6 +1,7 @@
-import type { DraftPickAsset, SeasonState } from "@workspace/shared/types"
+import type { DraftPickAsset, LeagueRecord, SeasonState } from "@workspace/shared/types"
 
 import { createRng } from "../rng"
+import { buildDraftClassCache } from "./pickValues"
 import { generateDraftClass } from "./generateDraftClass"
 import {
   generateDraftOrderFromAssets,
@@ -54,6 +55,27 @@ export function prepareDraft(
       completed: false,
       selections: [],
     },
+  }
+}
+
+export function prepareDraftForLeague(
+  league: LeagueRecord,
+  rngNonce = league.rngNonce,
+): LeagueRecord {
+  const seasonState = prepareDraft(
+    league.seasonState,
+    league.draftPickAssets,
+    rngNonce,
+  )
+  const prospects = seasonState.draftState?.prospects ?? []
+
+  return {
+    ...league,
+    seasonState,
+    draftClassCache: buildDraftClassCache(
+      { ...league, seasonState },
+      prospects,
+    ),
   }
 }
 

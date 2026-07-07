@@ -73,7 +73,6 @@ export function beginRegularSeason(
     state.teams,
     ROSTER_MAX,
     rng,
-    league.userTeamId,
   )
 
   const withCuts = applyCampRosterCuts(

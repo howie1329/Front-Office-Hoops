@@ -16,38 +16,22 @@ import {
   selectRotation,
   simulateRegularDay,
 } from "../src"
-import { makeTestRatings } from "./helpers/playerRatings"
+import { makeTestPlayer, makeTestRatings } from "./helpers/playerRatings"
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
-  const id = overrides.id ?? "p_injury"
-  return {
-    id,
+  const { ratings: ratingOverrides, ...rest } = overrides
+  return makeTestPlayer({
+    id: "p_injury",
     teamId: "t_injury",
     firstName: "Injury",
-    lastName: id,
-    age: 27,
-    peakAge: 29,
-    heightInches: 78,
-    weightLbs: 210,
-    wingspanInches: 80,
-    reachRating: 58,
-    position: "SG",
-    archetype: "scoring_guard",
     ratings: makeTestRatings({
       overall: 70,
       potential: 70,
       usage: 18,
-      ...(overrides.ratings ?? {}),
+      ...(ratingOverrides ?? {}),
     }),
-    tags: [],
-    status: "active",
-    injury: null,
-    draftInfo: null,
-    activeContractId: null,
-    seasonsWithTeam: 2,
-    yearsOfService: 2,
-    ...overrides,
-  }
+    ...rest,
+  })
 }
 
 function makeTeam(players: Player[]): TeamWithRoster {

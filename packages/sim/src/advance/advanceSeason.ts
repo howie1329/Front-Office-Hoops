@@ -1,4 +1,4 @@
-import type { LeagueRecord, SeasonState } from "@workspace/shared/types"
+import type { LeagueRecord, Rng, SeasonState } from "@workspace/shared/types"
 
 import {
   getCurrentCalendar,
@@ -9,6 +9,7 @@ import { isUserOnClock } from "../draft/prepareDraft"
 import { getAllPhaseEligibility } from "../phaseEligibility"
 import { isPreseasonComplete } from "../preseason/isPreseasonComplete"
 import { simulateDay } from "../simulateDay"
+import { simulateLeagueRegularDay } from "../simulateRegularDay"
 
 export type AdvanceTarget =
   | "day"
@@ -228,4 +229,107 @@ export function advanceSeason(
   }
 
   return { state: nextState, daysSimmed, gamesSimmed }
+}
+
+export function advanceLeague(
+  league: LeagueRecord,
+  options: AdvanceOptions,
+  rng: Rng,
+): { league: LeagueRecord; result: AdvanceResult } {
+  const policy = resolvePolicy(options.target, options.policy)
+  const userTeamId = options.userTeamId ?? league.userTeamId
+  const targetDay = resolveTargetDay(league.seasonState, options.target)
+  let current = league
+  let daysSimmed = 0
+  let gamesSimmed = 0
+  const maxIterations = 500
+
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    const currentDay = current.seasonState.currentDay
+
+    if (
+      policy === "stopAtUserGames" &&
+      dayHasUserGame(current.seasonState, currentDay, userTeamId)
+    ) {
+      return {
+        league: current,
+        result: {
+          state: current.seasonState,
+          daysSimmed,
+          gamesSimmed,
+          stoppedReason: "user_game",
+        },
+      }
+    }
+
+    if (policy === "runThrough") {
+      const interrupt = getInterruptReason(current, current.seasonState)
+      if (interrupt) {
+        return {
+          league: current,
+          result: {
+            state: current.seasonState,
+            daysSimmed,
+            gamesSimmed,
+            stoppedReason: interrupt,
+          },
+        }
+      }
+    }
+
+    const gamesBefore = current.seasonState.games.length
+    current = simulateLeagueRegularDay(current, rng, currentDay)
+    daysSimmed += 1
+    gamesSimmed += current.seasonState.games.length - gamesBefore
+
+    if (
+      shouldStopForTarget(current.seasonState, options.target, targetDay)
+    ) {
+      if (options.target === "day" || options.target === "next_stop") {
+        return {
+          league: current,
+          result: {
+            state: current.seasonState,
+            daysSimmed,
+            gamesSimmed,
+          },
+        }
+      }
+
+      if (options.target === "week" && daysSimmed >= 7) {
+        return {
+          league: current,
+          result: {
+            state: current.seasonState,
+            daysSimmed,
+            gamesSimmed,
+          },
+        }
+      }
+
+      if (
+        options.target !== "week" &&
+        current.seasonState.currentDay >= targetDay
+      ) {
+        return {
+          league: current,
+          result: {
+            state: current.seasonState,
+            daysSimmed,
+            gamesSimmed,
+            stoppedReason: "target_reached",
+          },
+        }
+      }
+    }
+  }
+
+  return {
+    league: current,
+    result: {
+      state: current.seasonState,
+      daysSimmed,
+      gamesSimmed,
+    },
+  }
 }

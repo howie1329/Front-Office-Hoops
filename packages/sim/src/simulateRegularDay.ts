@@ -1,13 +1,15 @@
-import type { ScheduleGame, SeasonState } from "@workspace/shared/types"
+import type { LeagueRecord, Rng, ScheduleGame, SeasonState } from "@workspace/shared/types"
 
 import { getCurrentCalendar } from "./calendar"
 import { derivePlayerSeasonStats } from "./derivePlayerSeasonStats"
 import { deriveStandings } from "./deriveStandings"
+import { expirePendingTradeOffers, runAiTradeMarket } from "./trades"
 import { advanceInjuriesForDay, applyPostGameInjuries } from "./injuries"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
 import { createRng } from "./rng"
 import { getFatigueInjuryMultiplier, getTeamScheduleFatigue } from "./schedule/fatigue"
 import { applyCampDevelopmentForDay } from "./preseason/campDevelopment"
+import { simulateDay } from "./simulateDay"
 import { simulateGameWithContext } from "./simulateGameWithContext"
 
 function gameTypeForEntry(game: ScheduleGame): ScheduleGame["gameType"] {
@@ -171,4 +173,22 @@ export function simulateRegularDay(
     ...withCampDevelopment,
     currentDay: snapDayAfterRegularSeason(withCampDevelopment),
   }
+}
+
+export function simulateLeagueRegularDay(
+  league: LeagueRecord,
+  rng: Rng,
+  day: number = league.seasonState.currentDay,
+): LeagueRecord {
+  const seasonState = simulateDay(league.seasonState, day, league.rngNonce)
+
+  let updated: LeagueRecord = {
+    ...league,
+    seasonState,
+  }
+
+  updated = expirePendingTradeOffers(updated)
+  updated = runAiTradeMarket(updated, rng)
+
+  return updated
 }

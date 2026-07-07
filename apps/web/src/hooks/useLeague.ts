@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
   applyLeagueCommand,
-  advanceSeason,
+  advanceLeague,
   createLeague,
   createRng,
   normalizeLeagueRecord,
@@ -397,19 +397,16 @@ export function useLeague() {
       }
 
       try {
-        const result = advanceSeason(current.seasonState, {
+        const result = advanceLeague(current, {
           target,
           policy,
           userTeamId: current.userTeamId,
           league: current,
           rngNonce: current.rngNonce,
-        })
-        setLastAdvanceResult(result)
-        scheduleSave({
-          ...current,
-          seasonState: result.state,
-        })
-        return result
+        }, createRng(`${current.rngNonce}:${target}`))
+        setLastAdvanceResult(result.result)
+        scheduleSave(result.league)
+        return result.result
       } catch (commandError: unknown) {
         setError(
           commandError instanceof Error
@@ -458,6 +455,10 @@ export function useLeague() {
       dispatch({ type: "signFreeAgent", playerId, offer }),
     executeTrade: (proposal: TradeProposal) =>
       dispatch({ type: "executeTrade", proposal }),
+    acceptTradeOffer: (offerId: string) =>
+      dispatch({ type: "acceptTradeOffer", offerId }),
+    rejectTradeOffer: (offerId: string) =>
+      dispatch({ type: "rejectTradeOffer", offerId }),
     simulateCurrentPlayoffRound: () =>
       dispatch({ type: "simulateCurrentPlayoffRound" }),
     simulatePlayoffs: () => dispatch({ type: "simulatePlayoffs" }),

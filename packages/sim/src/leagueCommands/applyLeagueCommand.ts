@@ -1,7 +1,7 @@
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
 import { archivePlayerCareerSnapshots } from "../playerProfiles"
-import { advanceSeason } from "../advance/advanceSeason"
+import { advanceLeague } from "../advance/advanceSeason"
 import {
   beginRegularSeason,
   skipRemainingExhibitions,
@@ -13,7 +13,7 @@ import { beginPlayoffs } from "../beginPlayoffs"
 import { evaluateOwnerGoals, generateOwnerGoals } from "../owners"
 import { simAiPick, simToUserPick } from "../draft/simAiPick"
 import { makeDraftPick } from "../draft/makeDraftPick"
-import { prepareDraft } from "../draft/prepareDraft"
+import { prepareDraftForLeague } from "../draft/prepareDraft"
 import {
   advanceToDraftPhase,
   advanceToFreeAgencyPhase,
@@ -21,7 +21,12 @@ import {
 } from "../offseason/phases"
 import { completeReSigningPhase } from "../offseason/reSigning"
 import { ensureFaPoolMinimum, processOffseasonFinancials } from "../financials"
-import { executeTrade, wouldAiAcceptTrade } from "../trades"
+import {
+  acceptTradeOffer,
+  executeTrade,
+  rejectTradeOffer,
+  wouldAiAcceptTrade,
+} from "../trades"
 import { signFreeAgent } from "../financials/freeAgency"
 import { normalizeLeagueRecord } from "../normalizeLeague"
 import { assertPhaseEligibility } from "../phaseEligibility"
@@ -90,38 +95,43 @@ function applyLeagueCommandInternal(
   const resolvedRng = rng ?? commandRng(league, command)
 
   switch (command.type) {
-    case "advance":
-      return {
-        ...league,
-        seasonState: advanceSeason(league.seasonState, {
-          target: command.target,
-          userTeamId: league.userTeamId,
-          league,
-          rngNonce: league.rngNonce,
-        }).state,
-      }
+    case "advance": {
+      const { league: advanced } = advanceLeague(league, {
+        target: command.target,
+        userTeamId: league.userTeamId,
+        league,
+        rngNonce: league.rngNonce,
+      }, resolvedRng)
+      return advanced
+    }
 
-    case "simDay":
-      return {
-        ...league,
-        seasonState: advanceSeason(league.seasonState, {
+    case "simDay": {
+      const { league: advanced } = advanceLeague(
+        league,
+        {
           target: "day",
           userTeamId: league.userTeamId,
           league,
           rngNonce: league.rngNonce,
-        }).state,
-      }
+        },
+        resolvedRng,
+      )
+      return advanced
+    }
 
-    case "simWeek":
-      return {
-        ...league,
-        seasonState: advanceSeason(league.seasonState, {
+    case "simWeek": {
+      const { league: advanced } = advanceLeague(
+        league,
+        {
           target: "week",
           userTeamId: league.userTeamId,
           league,
           rngNonce: league.rngNonce,
-        }).state,
-      }
+        },
+        resolvedRng,
+      )
+      return advanced
+    }
 
     case "simSeason":
       return {
@@ -199,14 +209,7 @@ function applyLeagueCommandInternal(
       }
 
     case "prepareDraft":
-      return {
-        ...league,
-        seasonState: prepareDraft(
-          league.seasonState,
-          league.draftPickAssets,
-          league.rngNonce
-        ),
-      }
+      return prepareDraftForLeague(league, league.rngNonce)
 
     case "makeDraftPick": {
       const result = makeDraftPick(
@@ -294,6 +297,18 @@ function applyLeagueCommandInternal(
         }
       }
       return executeTrade(league, command.proposal)
+
+    case "acceptTradeOffer":
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before accepting a trade offer")
+      }
+      return acceptTradeOffer(league, command.offerId)
+
+    case "rejectTradeOffer":
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before rejecting a trade offer")
+      }
+      return rejectTradeOffer(league, command.offerId)
 
     case "startNextSeason": {
       const result = startNextSeason({

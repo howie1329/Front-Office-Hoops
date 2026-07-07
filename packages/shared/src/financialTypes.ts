@@ -54,6 +54,14 @@ export type TradeException = {
   originDescription: string
 }
 
+export type DeadCapCharge = {
+  id: string
+  playerId: string
+  amount: number
+  seasonsRemaining: number
+  origin: "waive" | "stretch"
+}
+
 export type TeamFinancials = {
   teamId: string
   spendingProfile: TeamSpendingProfile
@@ -66,7 +74,10 @@ export type TeamFinancials = {
   mleUsed: number
   mleRemaining: number
   wasUnderCapThisYear: boolean
+  roomMleUsed: number
+  roomMleRemaining: number
   tradeExceptions: TradeException[]
+  deadCapCharges: DeadCapCharge[]
 }
 
 export type SpendingProfileEvent = {

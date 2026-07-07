@@ -60,6 +60,8 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
       2
     ),
     tradeHistory: [],
+    pendingTradeOffers: [],
+    draftClassCache: null,
     leagueLog: [],
     owners,
     ownerGoals: [],
