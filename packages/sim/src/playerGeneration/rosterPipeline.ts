@@ -9,7 +9,6 @@ import type {
 
 import {
   generatePlayerProfile,
-  potentialGapForAge,
 } from "./generatePlayerProfile"
 import { clampRating, deriveTeamOverall, deriveUsage } from "../playerRatings"
 
@@ -235,18 +234,6 @@ function generateAge(kind: SlotSpec["age"], rng: Rng): number {
   }
 }
 
-function potentialForSlot(
-  age: number,
-  archetype: GenerationArchetype,
-  rng: Rng
-) {
-  if (archetype === "rebuilding" && age <= 24) {
-    return { min: 8, max: 18 }
-  }
-
-  return potentialGapForAge(age, rng)
-}
-
 function buildPlayerFromProfile(
   team: Team,
   index: number,
@@ -261,6 +248,8 @@ function buildPlayerFromProfile(
     peakAge: profile.peakAge,
     heightInches: profile.heightInches,
     weightLbs: profile.weightLbs,
+    wingspanInches: profile.wingspanInches,
+    reachRating: profile.reachRating,
     position: profile.position,
     archetype: profile.archetype,
     ratings: profile.ratings,
@@ -288,8 +277,8 @@ function generateTierOffsetPlayers(team: Team, rng: Rng): Player[] {
       position,
       rng,
       usedNames,
-      potentialGap: potentialGapForAge(age, rng),
       usageIndex: index,
+      scoutingLevel: 9,
     })
 
     players.push(buildPlayerFromProfile(team, index, profile))
@@ -320,9 +309,9 @@ function generateArchetypePlayers(
       position,
       rng,
       usedNames,
-      potentialGap: potentialForSlot(age, archetype, rng),
       usageIndex: index,
       skillVariance: { min: -3, max: 3 },
+      scoutingLevel: 9,
     })
 
     players.push(buildPlayerFromProfile(team, index, profile))

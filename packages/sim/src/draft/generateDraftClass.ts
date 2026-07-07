@@ -1,15 +1,19 @@
 import {
   RATING_MAX,
-  RATING_MIN,
   ROOKIE_AGE_MAX,
+  ROOKIE_OVERALL_BASE,
+  ROOKIE_OVERALL_MIN,
+  ROOKIE_POTENTIAL_GAP_MIN,
 } from "@workspace/shared/constants"
 import type {
   DraftProspect,
   PlayerPosition,
+  ProspectType,
   Rng,
 } from "@workspace/shared/types"
 
 import { generatePlayerProfile } from "../playerGeneration/generatePlayerProfile"
+import { pickProspectType } from "../playerGeneration/correlationBundles"
 import { clampRating } from "../playerRatings"
 import { getDraftClassSize } from "./isDraftRequired"
 
@@ -62,23 +66,21 @@ function buildPositionBag(count: number, rng: Rng): PlayerPosition[] {
 
 function pickTargetOverall(strength: DraftClassStrength, rng: Rng): number {
   return Math.max(
-    RATING_MIN,
-    Math.min(72, clampRating(rng.normal(55 + strength.overallOffset, 7)))
+    ROOKIE_OVERALL_MIN,
+    Math.min(72, clampRating(rng.normal(ROOKIE_OVERALL_BASE + strength.overallOffset, 7))),
   )
 }
 
-function pickPotentialGap(
+function pickProspectTypeForDraft(
   targetOverall: number,
-  strength: DraftClassStrength,
-  rng: Rng
-): number {
+  rng: Rng,
+): ProspectType {
   const readyNowRolePlayer = targetOverall >= 55 && rng.next() < 0.2
   if (readyNowRolePlayer) {
-    return rng.int(2, 6)
+    return "polish"
   }
 
-  const gap = Math.round(rng.normal(10 + strength.potentialOffset, 5))
-  return Math.max(2, Math.min(24, gap))
+  return pickProspectType(rng, "draft")
 }
 
 function ageBonus(age: number): number {
@@ -107,7 +109,7 @@ export function generateDraftClass(
   teamCount: number,
   year: number,
   _baseSeed: string,
-  rng: Rng
+  rng: Rng,
 ): DraftProspect[] {
   const classSize = getDraftClassSize(teamCount)
   const strength = pickDraftClassStrength(rng)
@@ -119,17 +121,31 @@ export function generateDraftClass(
     const position = positions[index]!
     const age = pickRookieAge(rng)
     const baseRating = pickTargetOverall(strength, rng)
-    const potentialGap = pickPotentialGap(baseRating, strength, rng)
+    const prospectType = pickProspectTypeForDraft(baseRating, rng)
     const profile = generatePlayerProfile({
       age,
       targetOverall: baseRating,
       position,
       rng,
       usedNames,
-      potentialGap: { min: potentialGap, max: potentialGap },
       archetypeContext: "draft",
+      prospectType,
       usageIndex: 0,
+      scoutingLevel: 3,
     })
+    const readyNow = prospectType === "polish" && baseRating >= 55
+    const potential = readyNow
+      ? Math.min(
+          RATING_MAX,
+          profile.ratings.overall + rng.int(2, 6),
+        )
+      : Math.min(
+          RATING_MAX,
+          Math.max(
+            profile.ratings.overall + ROOKIE_POTENTIAL_GAP_MIN,
+            profile.ratings.potential,
+          ),
+        )
 
     const prospect = {
       id: `raw_prospect_${year}_${String(index + 1).padStart(3, "0")}`,
@@ -139,14 +155,17 @@ export function generateDraftClass(
       peakAge: profile.peakAge,
       heightInches: profile.heightInches,
       weightLbs: profile.weightLbs,
+      wingspanInches: profile.wingspanInches,
+      reachRating: profile.reachRating,
       position: profile.position,
       archetype: profile.archetype,
+      prospectType: profile.prospectType,
       ratings: {
         ...profile.ratings,
-        potential: Math.min(RATING_MAX, profile.ratings.potential),
+        potential,
         usage: 8,
       },
-      tags: [],
+      tags: [prospectType],
     }
 
     prospects.push({

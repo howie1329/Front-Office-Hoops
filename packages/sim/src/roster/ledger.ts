@@ -8,6 +8,7 @@ import type {
 import { attachRookieContractsForDraftSelections } from "../financials"
 import { waivePlayerContract } from "../financials/contracts/processContracts"
 import { appendLeagueLog, createLeagueLogEntry } from "../leagueLog"
+import { deriveTeamOverall } from "../playerRatings"
 import { releasePlayer } from "./rosterManagement"
 
 export function findPlayer(
@@ -60,6 +61,36 @@ export function getUserRosterSize(league: LeagueRecord): number {
     league.seasonState.teams.find((team) => team.id === league.userTeamId)
       ?.players.length ?? 0
   )
+}
+
+export function cutCampInviteFromTeam(
+  league: LeagueRecord,
+  input: { teamId: string; playerId: string },
+): LeagueRecord {
+  const updated = waivePlayerContract(league, input.playerId)
+  const team = updated.seasonState.teams.find((entry) => entry.id === input.teamId)
+  if (!team) {
+    throw new Error(`Team not found: ${input.teamId}`)
+  }
+
+  const nextPlayers = team.players.filter((entry) => entry.id !== input.playerId)
+  const nextTeams = updated.seasonState.teams.map((entry) =>
+    entry.id === input.teamId
+      ? {
+          ...entry,
+          players: nextPlayers,
+          overall: deriveTeamOverall(nextPlayers),
+        }
+      : entry,
+  )
+
+  return {
+    ...updated,
+    seasonState: {
+      ...updated.seasonState,
+      teams: nextTeams,
+    },
+  }
 }
 
 export function releasePlayerFromTeam(

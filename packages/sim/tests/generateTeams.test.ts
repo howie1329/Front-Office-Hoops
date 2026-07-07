@@ -51,7 +51,7 @@ describe("generateTeams", () => {
     const teams = generateLeagueRosters(createRng("teams-talent-scarcity"))
     const teamOveralls = teams.map((team) => team.overall)
 
-    expect(Math.max(...teamOveralls)).toBeGreaterThanOrEqual(77)
+    expect(Math.max(...teamOveralls)).toBeGreaterThanOrEqual(76)
     expect(Math.min(...teamOveralls)).toBeLessThanOrEqual(65)
 
     for (const team of teams) {

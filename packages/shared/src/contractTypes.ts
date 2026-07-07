@@ -1,4 +1,8 @@
-export type ContractType = "standard" | "rookie_scale" | "minimum"
+export type ContractType =
+  | "standard"
+  | "rookie_scale"
+  | "minimum"
+  | "non_guaranteed"
 
 export type SigningException =
   | "cap_room"

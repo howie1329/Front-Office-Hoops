@@ -1,10 +1,66 @@
 import { CAMP_EXTRA_PLAYERS } from "@workspace/shared/constants"
-import type { Player, Rng, TeamWithRoster } from "@workspace/shared/types"
+import type { LeagueRecord, Player, Rng, TeamWithRoster } from "@workspace/shared/types"
 
-import { generatePlayerProfile, potentialGapForAge } from "../playerGeneration/generatePlayerProfile"
+import { waiveContract } from "../financials/contracts/createContract"
+import { generatePlayerProfile } from "../playerGeneration/generatePlayerProfile"
 import { finalizeRosterUsage } from "../playerGeneration/rosterPipeline"
+import { deriveTeamOverall } from "../playerRatings"
 import { computeAiCutScore, validateRosterFloor } from "../roster/rosterManagement"
 import type { PlayerPosition } from "@workspace/shared/types"
+
+export function isCampPlayerForSeason(playerId: string, season: number): boolean {
+  return playerId.includes(`_camp_s${season}_`)
+}
+
+export function purgeCampFringePlayers(
+  league: Pick<LeagueRecord, "seasonState" | "contracts" | "freeAgentPool">,
+  season: number,
+): Pick<LeagueRecord, "seasonState" | "contracts" | "freeAgentPool"> {
+  const campPlayerIds = new Set<string>()
+
+  for (const player of league.freeAgentPool) {
+    if (player.tags?.includes("camp_invite")) {
+      campPlayerIds.add(player.id)
+    }
+  }
+
+  for (const team of league.seasonState.teams) {
+    for (const player of team.players) {
+      if (
+        player.tags?.includes("camp_invite") &&
+        !isCampPlayerForSeason(player.id, season)
+      ) {
+        campPlayerIds.add(player.id)
+      }
+    }
+  }
+
+  const contracts = league.contracts.map((contract) =>
+    campPlayerIds.has(contract.playerId) && contract.status === "active"
+      ? waiveContract(contract)
+      : contract,
+  )
+
+  const teams = league.seasonState.teams.map((team) => {
+    const players = team.players.filter((player) => !campPlayerIds.has(player.id))
+    return {
+      ...team,
+      players,
+      overall: deriveTeamOverall(players),
+    }
+  })
+
+  return {
+    seasonState: {
+      ...league.seasonState,
+      teams,
+    },
+    contracts,
+    freeAgentPool: league.freeAgentPool.filter(
+      (player) => !campPlayerIds.has(player.id),
+    ),
+  }
+}
 
 const CAMP_POSITIONS: PlayerPosition[] = [
   "SG",
@@ -30,9 +86,11 @@ function buildCampPlayer(
     position,
     rng,
     usedNames,
-    potentialGap: potentialGapForAge(age, rng),
     usageIndex: team.players.length + index,
-    skillVariance: { min: -4, max: 4 },
+    skillVariance: { min: -5, max: 5 },
+    archetypeContext: "camp",
+    prospectType: "camp_fringe",
+    scoutingLevel: 9,
   })
 
   return {
@@ -44,6 +102,8 @@ function buildCampPlayer(
     peakAge: profile.peakAge,
     heightInches: profile.heightInches,
     weightLbs: profile.weightLbs,
+    wingspanInches: profile.wingspanInches,
+    reachRating: profile.reachRating,
     position: profile.position,
     archetype: profile.archetype,
     ratings: profile.ratings,

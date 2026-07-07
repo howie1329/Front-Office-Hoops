@@ -76,6 +76,10 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           label="MLE remaining"
           value={formatMoney(teamFinance.mleRemaining)}
         />
+        <CapMetric
+          label="Scouting level"
+          value={`${teamFinance.scoutingLevel} / 10`}
+        />
       </CardContent>
     </Card>
   )

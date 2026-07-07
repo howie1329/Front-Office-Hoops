@@ -1,6 +1,7 @@
 import {
   DEVELOPMENT_START_AGE,
   GROWTH_RATE_SCALE,
+  IQ_SKILL_KEYS,
   REGRESSION_RAMP_YEARS,
   SKILL_KEYS,
 } from "@workspace/shared/constants"
@@ -9,12 +10,26 @@ import type { Player, Rng, SkillKey } from "@workspace/shared/types"
 import type { SkillDeltas } from "./types"
 
 const PER_SKILL_DECLINE_RATE: Record<SkillKey, number> = {
-  stamina: 2.0,
+  threePoint: 0.8,
+  midRange: 0.8,
+  freeThrow: 0.5,
   inside: 1.5,
-  defense: 1.2,
-  rebounding: 1.2,
-  shooting: 0.8,
   passing: 0.5,
+  ballHandling: 0.7,
+  rebounding: 1.2,
+  defense: 1.2,
+  stamina: 2.0,
+  offensiveIQ: 0.4,
+  defensiveIQ: 0.4,
+}
+
+const IQ_GROWTH_CAPS: Record<number, number> = {
+  19: 5,
+  20: 4.5,
+  21: 4,
+  22: 3.5,
+  23: 3,
+  24: 2.5,
 }
 
 function ageGrowthFactor(age: number): number {
@@ -31,9 +46,13 @@ function declineVariance(rng: Rng): number {
   return 0.8 + rng.next() * 0.4
 }
 
+function iqGrowthCap(age: number): number {
+  if (age >= 25) return 1.5
+  return IQ_GROWTH_CAPS[age] ?? 2
+}
+
 export function computeBaseSkillDeltas(player: Player, rng: Rng): SkillDeltas {
   const { age, peakAge, ratings } = player
-  const potential = ratings.potential
   const deltas = {} as SkillDeltas
 
   if (age < peakAge) {
@@ -45,8 +64,16 @@ export function computeBaseSkillDeltas(player: Player, rng: Rng): SkillDeltas {
 
     for (const skill of SKILL_KEYS) {
       const currentSkill = ratings[skill]
-      const headroom = Math.max(0, potential - currentSkill)
-      deltas[skill] = baseGrowthRate * headroom * skillVariance(rng)
+      const isIq = IQ_SKILL_KEYS.includes(skill as never)
+      const headroom = isIq
+        ? Math.max(0, 85 - currentSkill)
+        : Math.max(0, 90 - currentSkill)
+      const growthMultiplier = isIq ? 1.35 : 1
+      const cap = isIq ? iqGrowthCap(age) : 3.5
+      deltas[skill] = Math.min(
+        cap,
+        baseGrowthRate * headroom * skillVariance(rng) * growthMultiplier,
+      )
     }
 
     return deltas

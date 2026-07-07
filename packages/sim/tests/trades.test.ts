@@ -55,6 +55,33 @@ function lowestSalaryPlayer(
   })[0]!
 }
 
+function closestSalaryMatch(
+  league: LeagueRecord,
+  teamA: TeamWithRoster,
+  teamB: TeamWithRoster,
+): { playerA: Player; playerB: Player } {
+  const salary = (player: Player) =>
+    league.contracts.find((contract) => contract.id === player.activeContractId)
+      ?.yearlySalaries[0] ?? 0
+
+  let bestPair = {
+    playerA: teamA.players[0]!,
+    playerB: teamB.players[0]!,
+    delta: Number.POSITIVE_INFINITY,
+  }
+
+  for (const playerA of teamA.players) {
+    for (const playerB of teamB.players) {
+      const delta = Math.abs(salary(playerA) - salary(playerB))
+      if (delta < bestPair.delta) {
+        bestPair = { playerA, playerB, delta }
+      }
+    }
+  }
+
+  return { playerA: bestPair.playerA, playerB: bestPair.playerB }
+}
+
 function makeProposal(
   teamA: TeamWithRoster,
   playersA: Player[],
@@ -78,11 +105,11 @@ describe("trades", () => {
     const league = createTradeLeague()
     const teamA = league.seasonState.teams[0]!
     const teamB = league.seasonState.teams[1]!
-    const playerA = lowestSalaryPlayer(league, teamA)
-    const playerB = lowestSalaryPlayer(league, teamB)
+    const { playerA, playerB } = closestSalaryMatch(league, teamA, teamB)
     const proposal = makeProposal(teamA, [playerA], teamB, [playerB])
 
-    expect(validateTrade(league, proposal).ok).toBe(true)
+    const validation = validateTrade(league, proposal)
+    expect(validation.ok, !validation.ok ? validation.reason : "").toBe(true)
 
     const updated = executeTrade(league, proposal)
     const updatedTeamA = updated.seasonState.teams.find(
@@ -285,8 +312,7 @@ describe("trades", () => {
     const league = createTradeLeague()
     const teamA = league.seasonState.teams[0]!
     const teamB = league.seasonState.teams[1]!
-    const playerA = lowestSalaryPlayer(league, teamA)
-    const playerB = lowestSalaryPlayer(league, teamB)
+    const { playerA, playerB } = closestSalaryMatch(league, teamA, teamB)
     const pickA = league.draftPickAssets.find(
       (pick) => pick.currentTeamId === teamA.id && pick.round === 1
     )!

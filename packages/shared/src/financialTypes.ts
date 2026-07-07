@@ -58,6 +58,7 @@ export type TeamFinancials = {
   teamId: string
   spendingProfile: TeamSpendingProfile
   strategy: TeamStrategy
+  scoutingLevel: number
   cashReserves: number
   debt: number
   consecutiveTaxSeasons: number

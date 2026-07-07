@@ -9,6 +9,7 @@ import {
   getRosterRoleCounts,
   getScarceRolePenalty,
 } from "../src/roster/rosterBalance"
+import { makeTestRatings } from "./helpers/playerRatings"
 
 function makePlayer(overrides: Partial<Player> = {}): Player {
   const id = overrides.id ?? "p_test"
@@ -21,18 +22,15 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     peakAge: 29,
     heightInches: 78,
     weightLbs: 210,
+    wingspanInches: 80,
+    reachRating: 58,
     position: "SG",
-    ratings: {
+    ratings: makeTestRatings({
       overall: 76,
       potential: 76,
-      shooting: 76,
-      inside: 76,
-      passing: 76,
-      rebounding: 76,
-      defense: 76,
-      stamina: 76,
       usage: 20,
-    },
+      ...(overrides.ratings ?? {}),
+    }),
     tags: [],
     status: "active",
     injury: null,

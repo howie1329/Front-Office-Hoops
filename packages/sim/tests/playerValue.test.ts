@@ -9,6 +9,8 @@ import {
   getPlayerValueBreakdown,
 } from "../src/playerValue"
 
+import { makeTestRatings } from "./helpers/playerRatings"
+
 function makePlayer(overrides: Partial<Player> = {}): Player {
   return {
     id: "p_value",
@@ -19,18 +21,15 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
     peakAge: 29,
     heightInches: 78,
     weightLbs: 210,
+    wingspanInches: 80,
+    reachRating: 58,
     position: "SG",
-    ratings: {
+    ratings: makeTestRatings({
       overall: 60,
       potential: 70,
-      shooting: 60,
-      inside: 60,
-      passing: 60,
-      rebounding: 60,
-      defense: 60,
-      stamina: 60,
       usage: 16,
-    },
+      ...(overrides.ratings ?? {}),
+    }),
     tags: [],
     status: "active",
     injury: null,
@@ -87,20 +86,20 @@ describe("player value", () => {
     const specialist = makePlayer({
       position: "SF",
       archetype: "three_and_d_wing",
-      ratings: {
+      ratings: makeTestRatings({
         ...makePlayer().ratings,
-        shooting: 70,
+        threePoint: 70,
         defense: 70,
-      },
+      }),
     })
     const mismatched = makePlayer({
       position: "SF",
       archetype: "three_and_d_wing",
-      ratings: {
+      ratings: makeTestRatings({
         ...makePlayer().ratings,
-        shooting: 54,
+        threePoint: 54,
         defense: 56,
-      },
+      }),
     })
 
     expect(getPlayerValueBreakdown(specialist).archetypeValue).toBeGreaterThan(

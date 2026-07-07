@@ -13,6 +13,7 @@ import {
   generateInitialContractsForLeague,
   applyInitialContractsToPlayers,
   generateInitialContract,
+  createNonGuaranteedContract,
   normalizeInitialContractsForLeague,
 } from "./contracts/createContract"
 import {
@@ -20,6 +21,7 @@ import {
   initializeTeamFinancials,
 } from "./spendingProfiles"
 import { getSeasonFinancials } from "./capMath"
+import { isCampPlayerForSeason } from "../preseason/campPlayers"
 import {
   assignInitialTeamStrategy,
   updateAllTeamStrategies,
@@ -161,7 +163,21 @@ export function attachMissingRosterContracts(
       }
 
       contracts.push(
-        generateInitialContract(player, team.id, season, seasonFinancials, rng),
+        player.tags.includes("camp_invite") &&
+          isCampPlayerForSeason(player.id, season)
+          ? createNonGuaranteedContract(
+              player,
+              team.id,
+              season,
+              seasonFinancials,
+            )
+          : generateInitialContract(
+              player,
+              team.id,
+              season,
+              seasonFinancials,
+              rng,
+            ),
       )
       activePlayerIds.add(player.id)
     }

@@ -24,6 +24,7 @@ function mockTeamFinance(mode: TeamFinancials["strategy"]["mode"]): TeamFinancia
     mleUsed: 0,
     mleRemaining: 12,
     wasUnderCapThisYear: true,
+    scoutingLevel: 5,
     tradeExceptions: [],
   }
 }

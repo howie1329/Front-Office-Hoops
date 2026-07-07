@@ -82,6 +82,8 @@ function LeagueTeamPage() {
             contracts={league.contracts}
             showRelease={isOffseason}
             onReleasePlayer={releasePlayer}
+            isOwnRoster
+            teamScoutingLevel={financials?.teamFinance?.scoutingLevel}
           />
         </div>
 
@@ -95,7 +97,7 @@ function LeagueTeamPage() {
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground">
                 Release players, re-sign your own free agents, and fill out a
-                12-man roster before the next season.
+                15-man roster before the next season.
               </CardContent>
             </Card>
           ) : null}

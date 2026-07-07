@@ -2,6 +2,11 @@ import { createFileRoute } from "@tanstack/react-router"
 
 import { useLeagueContext } from "@/contexts/LeagueContext"
 import { teamName } from "@/components/league/lib/teamFormat"
+import {
+  getTeamScoutingLevel,
+  getViewRatings,
+  prospectTypeLabel,
+} from "@/components/league/lib/scouting"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -25,6 +30,7 @@ export const Route = createFileRoute("/league/draft")({
 
 function LeagueDraftPage() {
   const {
+    league,
     seasonState,
     userTeamId,
     isUserOnClock,
@@ -51,6 +57,10 @@ function LeagueDraftPage() {
   const { draftState } = seasonState
   const currentPick = draftState.order[draftState.currentPickIndex]
   const availableProspects = draftState.prospects
+  const teamFinance = userTeamId
+    ? league?.teamFinancials.find((entry) => entry.teamId === userTeamId)
+    : undefined
+  const scoutingLevel = getTeamScoutingLevel(teamFinance)
 
   if (draftState.completed) {
     return (
@@ -116,22 +126,37 @@ function LeagueDraftPage() {
               <TableRow>
                 <TableHead>Player</TableHead>
                 <TableHead>Pos</TableHead>
+                <TableHead>Archetype</TableHead>
+                <TableHead>Type</TableHead>
                 <TableHead>Age</TableHead>
+                <TableHead>Size</TableHead>
                 <TableHead>OVR</TableHead>
                 <TableHead>POT</TableHead>
                 {isUserOnClock ? <TableHead /> : null}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {availableProspects.map((prospect) => (
+              {availableProspects.map((prospect) => {
+                const viewRatings = getViewRatings(prospect.ratings, {
+                  isDraftProspect: true,
+                  teamScoutingLevel: scoutingLevel,
+                })
+
+                return (
                 <TableRow key={prospect.id}>
                   <TableCell>
                     {prospect.firstName} {prospect.lastName}
                   </TableCell>
                   <TableCell>{prospect.position}</TableCell>
+                  <TableCell>{prospect.archetype.replaceAll("_", " ")}</TableCell>
+                  <TableCell>{prospectTypeLabel(prospect.prospectType)}</TableCell>
                   <TableCell>{prospect.age}</TableCell>
-                  <TableCell>{prospect.ratings.overall}</TableCell>
-                  <TableCell>{prospect.ratings.potential}</TableCell>
+                  <TableCell>
+                    {formatHeight(prospect.heightInches)} ·{" "}
+                    {prospect.wingspanInches ?? prospect.heightInches + 2}" ws
+                  </TableCell>
+                  <TableCell>{viewRatings.overall}</TableCell>
+                  <TableCell>{viewRatings.potential}</TableCell>
                   {isUserOnClock ? (
                     <TableCell className="text-right">
                       <Button
@@ -143,7 +168,7 @@ function LeagueDraftPage() {
                     </TableCell>
                   ) : null}
                 </TableRow>
-              ))}
+              )})}
             </TableBody>
           </Table>
         </CardContent>
@@ -193,4 +218,10 @@ function LeagueDraftPage() {
       ) : null}
     </div>
   )
+}
+
+function formatHeight(inches: number): string {
+  const feet = Math.floor(inches / 12)
+  const remainder = inches % 12
+  return `${feet}'${remainder}"`
 }

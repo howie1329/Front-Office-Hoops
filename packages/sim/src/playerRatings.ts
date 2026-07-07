@@ -1,5 +1,11 @@
-import { RATING_MAX, RATING_MIN, ROTATION_SIZE } from "@workspace/shared/constants"
-import type { Player, PlayerRatings } from "@workspace/shared/types"
+import {
+  RATING_MAX,
+  RATING_MIN,
+  ROTATION_SIZE,
+  SKILL_KEYS,
+} from "@workspace/shared/constants"
+import type { Player, PlayerRatings, SkillKey } from "@workspace/shared/types"
+import { OVERALL_SKILL_WEIGHTS } from "@workspace/shared/skillRatings"
 
 import { selectRotation } from "./selectRotation"
 
@@ -8,17 +14,18 @@ export function clampRating(value: number): number {
 }
 
 export function deriveOverall(
-  ratings: Omit<PlayerRatings, "overall" | "potential" | "usage">,
+  ratings: Omit<PlayerRatings, "overall" | "potential" | "usage" | "fuzz">,
 ): number {
-  return clampRating(
-    (ratings.shooting +
-      ratings.inside +
-      ratings.passing +
-      ratings.rebounding +
-      ratings.defense +
-      ratings.stamina) /
-      6,
+  const totalWeight = SKILL_KEYS.reduce(
+    (sum, key) => sum + OVERALL_SKILL_WEIGHTS[key],
+    0,
   )
+  const weighted = SKILL_KEYS.reduce(
+    (sum, key) => sum + ratings[key] * OVERALL_SKILL_WEIGHTS[key],
+    0,
+  )
+
+  return clampRating(weighted / totalWeight)
 }
 
 export function deriveUsage(overall: number, index: number): number {
@@ -53,17 +60,35 @@ export function getRosterIndex(player: Player, players: Player[]): number {
   return sorted.findIndex((entry) => entry.id === player.id)
 }
 
+export function getSkillRatings(
+  ratings: PlayerRatings,
+): Record<SkillKey, number> {
+  return {
+    threePoint: ratings.threePoint,
+    midRange: ratings.midRange,
+    freeThrow: ratings.freeThrow,
+    inside: ratings.inside,
+    passing: ratings.passing,
+    ballHandling: ratings.ballHandling,
+    rebounding: ratings.rebounding,
+    defense: ratings.defense,
+    stamina: ratings.stamina,
+    offensiveIQ: ratings.offensiveIQ,
+    defensiveIQ: ratings.defensiveIQ,
+  }
+}
+
 export function recalculatePlayerRatings(
   player: Player,
   players: Player[],
 ): Player["ratings"] {
-  const { shooting, inside, passing, rebounding, defense, stamina } = player.ratings
-  const skillRatings = { shooting, inside, passing, rebounding, defense, stamina }
-  const overall = deriveOverall(skillRatings)
+  const skills = getSkillRatings(player.ratings)
+  const overall = deriveOverall(skills)
   const rosterIndex = getRosterIndex(player, players)
 
   return {
-    ...skillRatings,
+    ...skills,
+    fuzz: player.ratings.fuzz,
     overall,
     potential: player.ratings.potential,
     usage: deriveUsage(overall, rosterIndex),

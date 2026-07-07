@@ -5,7 +5,7 @@ import { getCurrentCalendar } from "../calendar"
 import { derivePlayerSeasonStats } from "../derivePlayerSeasonStats"
 import { deriveStandings } from "../deriveStandings"
 import { assertPhaseEligibility } from "../phaseEligibility"
-import { releasePlayerFromTeam } from "../roster/ledger"
+import { cutCampInviteFromTeam, releasePlayerFromTeam } from "../roster/ledger"
 import { simulateDay } from "../simulateDay"
 import { trimTeamsToRegularRoster } from "./campPlayers"
 import { hasRemainingExhibitions } from "./isPreseasonComplete"
@@ -25,17 +25,15 @@ function applyCampRosterCuts(
         continue
       }
 
-      const stillOnTeam = next.seasonState.teams
-        .find((entry) => entry.id === team.id)
-        ?.players.some((entry) => entry.id === player.id)
-      if (!stillOnTeam) {
-        continue
-      }
-
-      next = releasePlayerFromTeam(next, {
-        teamId: team.id,
-        playerId: player.id,
-      })
+      next = player.tags?.includes("camp_invite")
+        ? cutCampInviteFromTeam(next, {
+            teamId: team.id,
+            playerId: player.id,
+          })
+        : releasePlayerFromTeam(next, {
+            teamId: team.id,
+            playerId: player.id,
+          })
     }
   }
 
