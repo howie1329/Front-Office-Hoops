@@ -28,7 +28,6 @@ import {
   wouldAiAcceptTrade,
 } from "../trades"
 import { signFreeAgent } from "../financials/freeAgency"
-import { normalizeLeagueRecord } from "../normalizeLeague"
 import { assertPhaseEligibility } from "../phaseEligibility"
 import { applyDraftSelections, releasePlayerFromTeam } from "../roster/ledger"
 import { simulateCurrentPlayoffRound } from "../simulateCurrentPlayoffRound"
@@ -325,7 +324,7 @@ function applyLeagueCommandInternal(
         },
       })
 
-      const updated = normalizeLeagueRecord({
+      const updated = {
         ...league,
         seasonState: result.seasonState,
         seasonHistory: [...league.seasonHistory, result.historyEntry],
@@ -334,7 +333,7 @@ function applyLeagueCommandInternal(
         leagueFinancials: result.leagueFinancials,
         teamFinancials: result.teamFinancials,
         draftPickAssets: result.draftPickAssets,
-      })
+      }
 
       return {
         ...updated,

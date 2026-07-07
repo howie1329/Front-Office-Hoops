@@ -99,7 +99,6 @@ export {
   releasePlayerFromTeam,
 } from "./roster/ledger"
 export { deriveUserPlayoffResult } from "./deriveUserPlayoffResult"
-export { normalizeLeagueRecord, normalizeSeasonState } from "./normalizeLeague"
 export { createInitialSeason } from "./createInitialSeason"
 export { createLeague } from "./createLeague"
 export type { CreateLeagueInput } from "./createLeague"

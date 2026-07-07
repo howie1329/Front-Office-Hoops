@@ -150,6 +150,6 @@ A pragmatic sequence for future work:
 ## Versioning
 
 - **App version:** `0.0.1` (early prototype)
-- **Save version:** `10` (`SAVE_VERSION` in shared types)
+- **Save version:** `12` (`SAVE_VERSION` in shared types)
 
-Increment `SAVE_VERSION` and add normalization logic whenever persisted shape changes.
+Bump `SAVE_VERSION` when the persisted schema changes. No migration layer — clear local saves after breaking changes.

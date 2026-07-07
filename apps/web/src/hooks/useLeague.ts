@@ -5,7 +5,6 @@ import {
   advanceLeague,
   createLeague,
   createRng,
-  normalizeLeagueRecord,
 } from "@workspace/sim"
 import type {
   AdvancePolicy,
@@ -52,7 +51,7 @@ async function resolveActiveLeagueRecord(): Promise<{
   }
 
   setActiveLeagueId(record.id)
-  return { record: normalizeLeagueRecord(record), saves }
+  return { record, saves }
 }
 
 export function useLeague() {
@@ -211,7 +210,7 @@ export function useLeague() {
         throw new Error("League not found")
       }
 
-      return activateLeagueRecord(normalizeLeagueRecord(record))
+      return activateLeagueRecord(record)
     },
     [activateLeagueRecord, flushPendingSave]
   )
@@ -241,7 +240,7 @@ export function useLeague() {
 
       const nextRecord = await getLeague(nextSaves[0].id)
       if (nextRecord) {
-        await activateLeagueRecord(normalizeLeagueRecord(nextRecord))
+        await activateLeagueRecord(nextRecord)
       } else {
         clearActiveLeagueId()
         setActiveLeagueIdState(null)
