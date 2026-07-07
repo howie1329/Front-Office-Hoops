@@ -48,6 +48,7 @@ export function createSeriesScheduleGame(
     homeTeamId: matchup.homeTeamId,
     awayTeamId: matchup.awayTeamId,
     status: "scheduled",
+    gameType: "playoff",
     seriesId: series.id,
     playoffRound: series.round,
   }

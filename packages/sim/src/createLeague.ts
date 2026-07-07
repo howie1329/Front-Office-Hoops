@@ -19,6 +19,7 @@ export type CreateLeagueInput = {
   userTeamId?: string | null
   id?: string
   useMiniLeague?: boolean
+  skipPreseason?: boolean
 }
 
 function createLeagueId(): string {
@@ -30,7 +31,13 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     input.teams ??
     (input.useMiniLeague ? SAMPLE_ROSTERS : generateLeagueRosters(input.rng))
   const now = new Date().toISOString()
-  const seasonState = createInitialSeason(teams, input.baseSeed, input.rng)
+  const seasonState = createInitialSeason(
+    teams,
+    input.baseSeed,
+    input.rng,
+    1,
+    { skipPreseason: input.skipPreseason },
+  )
   const owners = initializeOwners(teams, input.rng)
 
   const baseRecord: LeagueRecord = {

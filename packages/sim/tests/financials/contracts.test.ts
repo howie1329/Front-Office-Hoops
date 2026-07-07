@@ -54,7 +54,7 @@ function makePlayer(overrides: Partial<Player> = {}): Player {
 }
 
 function completeSeasonToOffseason(
-  league = createLeague({
+  league = createLeague({ skipPreseason: true,
     name: "Contract Draft Test",
     baseSeed: "contract-draft",
     rng: createRng("contract-draft"),
@@ -146,7 +146,7 @@ describe("contracts", () => {
   })
 
   it("normalizes opening contracts into plausible payroll and salary tiers", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Normalized Contracts",
       baseSeed: "normalized-contracts",
       rng: createRng("normalized-contracts"),
@@ -180,7 +180,7 @@ describe("contracts", () => {
   })
 
   it("keeps full-league opening payrolls below runaway levels", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Full League Payroll",
       baseSeed: "full-league-payroll",
       rng: createRng("full-league-payroll"),
@@ -195,7 +195,7 @@ describe("contracts", () => {
   })
 
   it("keeps full-league opening payrolls above realistic minimum bands", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Full League Payroll Floor",
       baseSeed: "full-league-payroll-floor",
       rng: createRng("full-league-payroll-floor"),
@@ -210,7 +210,7 @@ describe("contracts", () => {
   })
 
   it("does not leave generated young starters on minimum contracts", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Young Starter Contracts",
       baseSeed: "young-starter-contracts",
       rng: createRng("young-starter-contracts"),

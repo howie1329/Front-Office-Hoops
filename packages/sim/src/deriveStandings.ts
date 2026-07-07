@@ -78,7 +78,9 @@ export function deriveStandings(
     teams.map((team) => [team.id, createEmptyStanding(team.id, season)]),
   )
 
-  const sortedGames = [...games].sort(compareGames)
+  const sortedGames = [...games]
+    .filter((game) => game.gameType !== "exhibition")
+    .sort(compareGames)
 
   for (const game of sortedGames) {
     applyGameResult(standingsByTeam, game)

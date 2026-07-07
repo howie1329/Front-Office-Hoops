@@ -11,7 +11,7 @@ type LeagueTab = {
 const tabs: LeagueTab[] = [
   { to: "/league", label: "Dashboard", exact: true },
   { to: "/league/standings", label: "Standings" },
-  { to: "/league/schedule", label: "Schedule" },
+  { to: "/league/calendar", label: "Calendar" },
   { to: "/league/playoffs", label: "Playoffs" },
   { to: "/league/draft", label: "Draft" },
   { to: "/league/team", label: "My Team" },

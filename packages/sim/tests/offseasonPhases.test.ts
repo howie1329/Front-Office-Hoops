@@ -16,7 +16,7 @@ import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 
 function createOffseasonLeague() {
-  const league = createLeague({
+  const league = createLeague({ skipPreseason: true,
     name: "Offseason Phase Test",
     baseSeed: "offseason-phase",
     rng: createRng("offseason-phase"),

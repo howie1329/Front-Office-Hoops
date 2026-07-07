@@ -109,7 +109,8 @@ export function advanceInjuriesForDay(
 export function applyPostGameInjuriesToTeam(
   team: TeamWithRoster,
   playerStats: PlayerGameStats[],
-  rng: Rng
+  rng: Rng,
+  riskMultiplier = 1,
 ): TeamWithRoster {
   const activeCount = team.players.filter(
     (player) => player.status === "active"
@@ -134,7 +135,7 @@ export function applyPostGameInjuriesToTeam(
         return player
       }
 
-      if (rng.next() >= calculateInjuryRisk(player, line.minutes)) {
+      if (rng.next() >= calculateInjuryRisk(player, line.minutes) * riskMultiplier) {
         return player
       }
 
@@ -155,15 +156,29 @@ export function applyPostGameInjuries(
     homePlayerStats: PlayerGameStats[]
     awayPlayerStats: PlayerGameStats[]
   },
-  rng: Rng
+  rng: Rng,
+  options?: {
+    homeRiskMultiplier?: number
+    awayRiskMultiplier?: number
+  },
 ): TeamWithRoster[] {
   return teams.map((team) => {
     if (team.id === gameTeams.homeTeamId) {
-      return applyPostGameInjuriesToTeam(team, gameTeams.homePlayerStats, rng)
+      return applyPostGameInjuriesToTeam(
+        team,
+        gameTeams.homePlayerStats,
+        rng,
+        options?.homeRiskMultiplier ?? 1,
+      )
     }
 
     if (team.id === gameTeams.awayTeamId) {
-      return applyPostGameInjuriesToTeam(team, gameTeams.awayPlayerStats, rng)
+      return applyPostGameInjuriesToTeam(
+        team,
+        gameTeams.awayPlayerStats,
+        rng,
+        options?.awayRiskMultiplier ?? 1,
+      )
     }
 
     return team

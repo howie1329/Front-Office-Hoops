@@ -12,5 +12,12 @@ export function simulateDay(
     return simulatePlayoffDay(state, day, rngNonce)
   }
 
-  return simulateRegularDay(state, day, rngNonce)
+  if (state.phase === "preseason" || state.phase === "regular") {
+    return simulateRegularDay(state, day, rngNonce)
+  }
+
+  return {
+    ...state,
+    currentDay: day + 1,
+  }
 }

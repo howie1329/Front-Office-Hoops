@@ -97,12 +97,14 @@ function buildScoringComponents({
   offense,
   defense,
   homeCourtPoints,
+  fatiguePenalty = 0,
   rng,
 }: {
   possessions: number
   offense: RotationEntry[]
   defense: RotationEntry[]
   homeCourtPoints: number
+  fatiguePenalty?: number
   rng: Rng
 }): TeamStatComponents {
   const off = averageRatings(offense)
@@ -148,7 +150,8 @@ function buildScoringComponents({
       ratingFactor(off.passing) * 0.012 -
       defenseFactor * 0.035 +
       staminaFactor * 0.008 +
-      benchDrag +
+      benchDrag -
+      fatiguePenalty +
       rng.normal(0, 0.018),
     0.44,
     0.62
@@ -159,7 +162,8 @@ function buildScoringComponents({
       ratingFactor(off.passing) * 0.008 -
       defenseFactor * 0.018 +
       staminaFactor * 0.006 +
-      benchDrag * 0.55 +
+      benchDrag * 0.55 -
+      fatiguePenalty * 0.8 +
       rng.normal(0, 0.022),
     0.28,
     0.45
@@ -281,6 +285,24 @@ function toTeamGameStats(
   }
 }
 
+function applyMinuteReduction(
+  rotation: RotationEntry[],
+  reduction: number,
+): RotationEntry[] {
+  if (reduction <= 0) {
+    return rotation
+  }
+
+  return rotation.map((entry, index) => {
+    const isStarter = index < 5
+    const minuteCut = isStarter ? reduction : Math.round(reduction * 0.35)
+    return {
+      ...entry,
+      minutes: Math.max(0, entry.minutes - minuteCut),
+    }
+  })
+}
+
 export function simulateTeamMatchup(
   input: TeamMatchupInput,
   rng: Rng
@@ -289,8 +311,14 @@ export function simulateTeamMatchup(
   const homeCourtAdvantage =
     input.homeCourtAdvantage ?? DEFAULT_HOME_COURT_ADVANTAGE
 
-  const homeRotation = selectRotation(home.players)
-  const awayRotation = selectRotation(away.players)
+  const homeRotation = applyMinuteReduction(
+    selectRotation(home.players),
+    input.homeMinuteReduction ?? 0,
+  )
+  const awayRotation = applyMinuteReduction(
+    selectRotation(away.players),
+    input.awayMinuteReduction ?? 0,
+  )
   const possessions = estimatePossessions(home.pace, away.pace, rng)
 
   const homeStats = buildScoringComponents({
@@ -298,6 +326,7 @@ export function simulateTeamMatchup(
     offense: homeRotation,
     defense: awayRotation,
     homeCourtPoints: homeCourtAdvantage,
+    fatiguePenalty: input.homeFatiguePenalty ?? 0,
     rng,
   })
   const awayStats = buildScoringComponents({
@@ -305,6 +334,7 @@ export function simulateTeamMatchup(
     offense: awayRotation,
     defense: homeRotation,
     homeCourtPoints: 0,
+    fatiguePenalty: input.awayFatiguePenalty ?? 0,
     rng,
   })
 

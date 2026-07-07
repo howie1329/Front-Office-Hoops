@@ -56,7 +56,7 @@ function ratings(
 
 describe("roster management", () => {
   it("blocks releases that would leave fewer than six players", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Roster Floor",
       baseSeed: "roster-floor",
       rng: createRng("roster-floor"),
@@ -76,7 +76,7 @@ describe("roster management", () => {
   })
 
   it("blocks releases that would remove the last player at a position", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Position Floor",
       baseSeed: "position-floor",
       rng: createRng("position-floor"),
@@ -97,7 +97,7 @@ describe("roster management", () => {
   })
 
   it("tracks grouped roster role counts and needs", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Role Counts",
       baseSeed: "role-counts",
       rng: createRng("role-counts"),
@@ -112,7 +112,7 @@ describe("roster management", () => {
   })
 
   it("rewards needed roles and protects scarce roles", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Role Needs",
       baseSeed: "role-needs",
       rng: createRng("role-needs"),

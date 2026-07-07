@@ -11,7 +11,7 @@ import { startNextSeason } from "../../src/startNextSeason"
 
 describe("offseason financial flow", () => {
   it("seeds new leagues with a baseline free agent pool", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Seeded FA Pool",
       baseSeed: "seeded-fa",
       rng: createRng("seeded-fa"),
@@ -26,7 +26,7 @@ describe("offseason financial flow", () => {
   })
 
   it("tops up the free agent pool when it falls below the minimum", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Top Up FA Pool",
       baseSeed: "top-up-fa",
       rng: createRng("top-up-fa"),
@@ -43,7 +43,7 @@ describe("offseason financial flow", () => {
   })
 
   it("opens offseason by expiring contracts without AI re-signing immediately", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Offseason Financials",
       baseSeed: "offseason-financials",
       rng: createRng("offseason-financials"),
@@ -87,7 +87,7 @@ describe("offseason financial flow", () => {
   })
 
   it("fills short AI rosters during free agency", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "AI FA Fill",
       baseSeed: "ai-fa-fill",
       rng: createRng("ai-fa-fill"),
@@ -140,11 +140,11 @@ describe("offseason financial flow", () => {
     expect(
       completed.seasonState.teams.find((team) => team.id === shortTeam.id)
         ?.players,
-    ).toHaveLength(12)
+    ).toHaveLength(15)
   })
 
   it("can start the next season after completed free agency", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Start Season Two",
       baseSeed: "start-season-two",
       rng: createRng("start-season-two"),
@@ -190,6 +190,6 @@ describe("offseason financial flow", () => {
     })
 
     expect(next.seasonState.season).toBe(2)
-    expect(next.seasonState.phase).toBe("regular")
+    expect(next.seasonState.phase).toBe("preseason")
   })
 })

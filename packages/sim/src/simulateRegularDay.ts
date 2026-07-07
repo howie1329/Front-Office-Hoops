@@ -1,15 +1,45 @@
-import type { SeasonState } from "@workspace/shared/types"
+import type { ScheduleGame, SeasonState } from "@workspace/shared/types"
 
+import { getCurrentCalendar } from "./calendar"
 import { derivePlayerSeasonStats } from "./derivePlayerSeasonStats"
 import { deriveStandings } from "./deriveStandings"
 import { advanceInjuriesForDay, applyPostGameInjuries } from "./injuries"
+import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
 import { createRng } from "./rng"
-import { simulateGame } from "./simulateGame"
+import { getFatigueInjuryMultiplier, getTeamScheduleFatigue } from "./schedule/fatigue"
+import { simulateGameWithContext } from "./simulateGameWithContext"
+
+function gameTypeForEntry(game: ScheduleGame): ScheduleGame["gameType"] {
+  return game.gameType ?? "regular"
+}
+
+function matchesCurrentPhase(
+  game: ScheduleGame,
+  phase: SeasonState["phase"],
+): boolean {
+  const gameType = gameTypeForEntry(game)
+  if (phase === "preseason") {
+    return gameType === "exhibition"
+  }
+  if (phase === "regular") {
+    return gameType === "regular"
+  }
+  return false
+}
+
+function snapDayAfterRegularSeason(state: SeasonState): number {
+  if (!isRegularSeasonComplete(state)) {
+    return state.currentDay
+  }
+
+  const milestones = getCurrentCalendar(state).milestones
+  return Math.max(state.currentDay, milestones.playoffsStartDay)
+}
 
 export function simulateRegularDay(
   state: SeasonState,
   day: number = state.currentDay,
-  rngNonce = 0
+  rngNonce = 0,
 ): SeasonState {
   const teamsAfterRecovery = advanceInjuriesForDay(state.teams)
   const stateWithRecoveredPlayers = {
@@ -17,23 +47,32 @@ export function simulateRegularDay(
     teams: teamsAfterRecovery,
   }
   const scheduledGames = state.schedule.filter(
-    (game) => !game.seriesId && game.day === day && game.status === "scheduled"
+    (game) =>
+      !game.seriesId &&
+      game.day === day &&
+      game.status === "scheduled" &&
+      matchesCurrentPhase(game, state.phase),
   )
 
   if (scheduledGames.length === 0) {
-    return {
+    const emptyState = {
       ...stateWithRecoveredPlayers,
       currentDay: day + 1,
       standings: deriveStandings(
         stateWithRecoveredPlayers.teams,
-        state.games,
-        state.season
+        stateWithRecoveredPlayers.games,
+        state.season,
       ),
       playerSeasonStats: derivePlayerSeasonStats(
         stateWithRecoveredPlayers.teams,
-        state.games,
-        state.season
+        stateWithRecoveredPlayers.games,
+        state.season,
       ),
+    }
+
+    return {
+      ...emptyState,
+      currentDay: snapDayAfterRegularSeason(emptyState),
     }
   }
 
@@ -50,15 +89,25 @@ export function simulateRegularDay(
     }
 
     const gameId = `g_${state.season}_${scheduledGame.id}`
-    const game = simulateGame(home, away, {
+    const game = simulateGameWithContext(home, away, {
       season: state.season,
       day: scheduledGame.day,
       gameId,
       baseSeed: state.baseSeed,
       rngNonce,
+      gameType: scheduledGame.gameType,
+      scheduleState: stateWithRecoveredPlayers,
     })
 
     newGames.push(game)
+    const homeRiskMultiplier = getFatigueInjuryMultiplier(
+      getTeamScheduleFatigue(home.id, stateWithRecoveredPlayers, scheduledGame.day),
+      scheduledGame.gameType,
+    )
+    const awayRiskMultiplier = getFatigueInjuryMultiplier(
+      getTeamScheduleFatigue(away.id, stateWithRecoveredPlayers, scheduledGame.day),
+      scheduledGame.gameType,
+    )
     teams = applyPostGameInjuries(
       teams,
       {
@@ -67,11 +116,15 @@ export function simulateRegularDay(
         homePlayerStats: game.result.homePlayerStats,
         awayPlayerStats: game.result.awayPlayerStats,
       },
-      createRng(`${state.baseSeed}:injuries:${game.id}:nonce:${rngNonce}`)
+      createRng(`${state.baseSeed}:injuries:${game.id}:nonce:${rngNonce}`),
+      {
+        homeRiskMultiplier,
+        awayRiskMultiplier,
+      },
     )
 
     const scheduleIndex = newSchedule.findIndex(
-      (entry) => entry.id === scheduledGame.id
+      (entry) => entry.id === scheduledGame.id,
     )
     if (scheduleIndex >= 0) {
       newSchedule[scheduleIndex] = {
@@ -92,17 +145,18 @@ export function simulateRegularDay(
     playerSeasonStats: [],
   }
 
-  return {
+  const withDerived = {
     ...nextState,
-    standings: deriveStandings(
-      nextState.teams,
-      nextState.games,
-      nextState.season
-    ),
+    standings: deriveStandings(nextState.teams, nextState.games, nextState.season),
     playerSeasonStats: derivePlayerSeasonStats(
       nextState.teams,
       nextState.games,
-      nextState.season
+      nextState.season,
     ),
+  }
+
+  return {
+    ...withDerived,
+    currentDay: snapDayAfterRegularSeason(withDerived),
   }
 }

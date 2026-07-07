@@ -25,6 +25,7 @@ import { Route as LeaguePickTeamRouteImport } from './routes/league/pick-team'
 import { Route as LeagueHistoryRouteImport } from './routes/league/history'
 import { Route as LeagueDraftRouteImport } from './routes/league/draft'
 import { Route as LeagueCreateRouteImport } from './routes/league/create'
+import { Route as LeagueCalendarRouteImport } from './routes/league/calendar'
 import { Route as LeaguePlayersPlayerIdRouteImport } from './routes/league/players/$playerId'
 import { Route as LeagueGamesGameIdRouteImport } from './routes/league/games/$gameId'
 
@@ -108,6 +109,11 @@ const LeagueCreateRoute = LeagueCreateRouteImport.update({
   path: '/create',
   getParentRoute: () => LeagueRouteRoute,
 } as any)
+const LeagueCalendarRoute = LeagueCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
 const LeaguePlayersPlayerIdRoute = LeaguePlayersPlayerIdRouteImport.update({
   id: '/players/$playerId',
   path: '/players/$playerId',
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/league': typeof LeagueRouteRouteWithChildren
   '/season-lab': typeof SeasonLabRoute
   '/sim-lab': typeof SimLabRoute
+  '/league/calendar': typeof LeagueCalendarRoute
   '/league/create': typeof LeagueCreateRoute
   '/league/draft': typeof LeagueDraftRoute
   '/league/history': typeof LeagueHistoryRoute
@@ -143,6 +150,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/season-lab': typeof SeasonLabRoute
   '/sim-lab': typeof SimLabRoute
+  '/league/calendar': typeof LeagueCalendarRoute
   '/league/create': typeof LeagueCreateRoute
   '/league/draft': typeof LeagueDraftRoute
   '/league/history': typeof LeagueHistoryRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/league': typeof LeagueRouteRouteWithChildren
   '/season-lab': typeof SeasonLabRoute
   '/sim-lab': typeof SimLabRoute
+  '/league/calendar': typeof LeagueCalendarRoute
   '/league/create': typeof LeagueCreateRoute
   '/league/draft': typeof LeagueDraftRoute
   '/league/history': typeof LeagueHistoryRoute
@@ -186,6 +195,7 @@ export interface FileRouteTypes {
     | '/league'
     | '/season-lab'
     | '/sim-lab'
+    | '/league/calendar'
     | '/league/create'
     | '/league/draft'
     | '/league/history'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/'
     | '/season-lab'
     | '/sim-lab'
+    | '/league/calendar'
     | '/league/create'
     | '/league/draft'
     | '/league/history'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/league'
     | '/season-lab'
     | '/sim-lab'
+    | '/league/calendar'
     | '/league/create'
     | '/league/draft'
     | '/league/history'
@@ -362,6 +374,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeagueCreateRouteImport
       parentRoute: typeof LeagueRouteRoute
     }
+    '/league/calendar': {
+      id: '/league/calendar'
+      path: '/calendar'
+      fullPath: '/league/calendar'
+      preLoaderRoute: typeof LeagueCalendarRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
     '/league/players/$playerId': {
       id: '/league/players/$playerId'
       path: '/players/$playerId'
@@ -380,6 +399,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface LeagueRouteRouteChildren {
+  LeagueCalendarRoute: typeof LeagueCalendarRoute
   LeagueCreateRoute: typeof LeagueCreateRoute
   LeagueDraftRoute: typeof LeagueDraftRoute
   LeagueHistoryRoute: typeof LeagueHistoryRoute
@@ -397,6 +417,7 @@ interface LeagueRouteRouteChildren {
 }
 
 const LeagueRouteRouteChildren: LeagueRouteRouteChildren = {
+  LeagueCalendarRoute: LeagueCalendarRoute,
   LeagueCreateRoute: LeagueCreateRoute,
   LeagueDraftRoute: LeagueDraftRoute,
   LeagueHistoryRoute: LeagueHistoryRoute,

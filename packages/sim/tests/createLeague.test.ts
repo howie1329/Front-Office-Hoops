@@ -8,7 +8,7 @@ import { SAMPLE_ROSTERS } from "../src/sampleRosters"
 
 describe("createLeague", () => {
   it("returns a league record with initial season state", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       id: "league_test",
       name: "Test League",
       baseSeed: "league-seed",

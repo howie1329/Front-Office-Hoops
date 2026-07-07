@@ -2,7 +2,8 @@ import type { ReactNode } from "react"
 import { createContext, useContext, useMemo } from "react"
 
 import { ROSTER_MAX } from "@workspace/shared/constants"
-import type { TeamWithRoster } from "@workspace/shared/types"
+import type { SeasonPhase, TeamWithRoster } from "@workspace/shared/types"
+import type { AdvanceResult } from "@workspace/sim"
 import {
   getAllPhaseEligibility,
   getCurrentCalendar,
@@ -18,13 +19,15 @@ type LeagueContextValue = ReturnType<typeof useLeague> & {
   needsPickTeam: boolean
   isReady: boolean
   myTeam: TeamWithRoster | null
-  phase: "regular" | "playoffs" | "complete" | "offseason"
+  phase: SeasonPhase
+  isPreseason: boolean
   isRegularComplete: boolean
   isPlayoffs: boolean
   isSeasonComplete: boolean
   isOffseason: boolean
   offseasonPhase: "re_signing" | "draft" | "free_agency" | null
   championTeamId: string | null
+  canBeginRegularSeason: boolean
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
   canSimAiReSignings: boolean
@@ -37,6 +40,7 @@ type LeagueContextValue = ReturnType<typeof useLeague> & {
   cutsNeeded: number
   canStartNextSeason: boolean
   calendar: ReturnType<typeof getCurrentCalendar> | null
+  lastAdvanceResult: AdvanceResult | null
 }
 
 const LeagueContext = createContext<LeagueContextValue | null>(null)
@@ -49,11 +53,12 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     const myTeam =
       seasonState && leagueState.userTeamId
         ? (seasonState.teams.find(
-            (team) => team.id === leagueState.userTeamId
+            (team) => team.id === leagueState.userTeamId,
           ) ?? null)
         : null
 
     const phase = seasonState?.phase ?? "regular"
+    const isPreseason = phase === "preseason"
     const isRegularComplete = seasonState
       ? isRegularSeasonComplete(seasonState)
       : false
@@ -85,12 +90,14 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         leagueState.status === "ready" && leagueState.userTeamId !== null,
       myTeam,
       phase,
+      isPreseason,
       isRegularComplete,
       isPlayoffs,
       isSeasonComplete,
       isOffseason,
       offseasonPhase,
       championTeamId,
+      canBeginRegularSeason: eligibility?.beginRegularSeason.allowed ?? false,
       canBeginPlayoffs: eligibility?.beginPlayoffs.allowed ?? false,
       canBeginOffseason: eligibility?.beginOffseason.allowed ?? false,
       canSimAiReSignings: eligibility?.simAiReSignings.allowed ?? false,

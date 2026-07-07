@@ -217,8 +217,10 @@ describe("derivePlayerSeasonStats", () => {
       SAMPLE_ROSTERS,
       "pss-integration",
       createRng("season"),
+      1,
+      { skipPreseason: true },
     )
-    const afterDay = simulateDay(season, 1)
+    const afterDay = simulateDay(season, season.currentDay)
 
     const manual = derivePlayerSeasonStats(
       afterDay.teams,

@@ -10,6 +10,10 @@ export type TeamMatchupInput = {
   home: TeamWithRoster
   away: TeamWithRoster
   homeCourtAdvantage?: number
+  homeFatiguePenalty?: number
+  awayFatiguePenalty?: number
+  homeMinuteReduction?: number
+  awayMinuteReduction?: number
 }
 
 export type TeamMatchupMeta = {
@@ -90,6 +94,7 @@ export type {
   LeagueCalendarState,
   CalendarDate,
   SeasonMilestones,
+  Weekday,
 } from "./calendarTypes"
 
 export type {
@@ -104,6 +109,7 @@ export type {
 
 export type {
   Game,
+  GameType,
   PlayerSeasonStats,
   PlayoffBracket,
   PlayoffRound,

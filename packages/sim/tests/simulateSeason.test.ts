@@ -22,10 +22,12 @@ describe("simulateSeason", () => {
       SAMPLE_ROSTERS,
       "season-full",
       createRng("season-init"),
+      1,
+      { skipPreseason: true },
     )
     const first = simulateSeason(season)
     const second = simulateSeason(
-      createInitialSeason(SAMPLE_ROSTERS, "season-full", createRng("season-init")),
+      createInitialSeason(SAMPLE_ROSTERS, "season-full", createRng("season-init"), 1, { skipPreseason: true }),
     )
 
     expect(second).toEqual(first)

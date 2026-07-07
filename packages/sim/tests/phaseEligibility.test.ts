@@ -8,6 +8,7 @@ import {
   createLeague,
   createRng,
   getPhaseEligibility,
+  getCurrentCalendar,
   prepareDraft,
   simDraftUntilComplete,
   simulateSeason,
@@ -17,7 +18,7 @@ import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 
 function createOffseasonLeague() {
-  const league = createLeague({
+  const league = createLeague({ skipPreseason: true,
     name: "Phase Eligibility Test",
     baseSeed: "phase-eligibility",
     rng: createRng("phase-eligibility"),
@@ -36,22 +37,17 @@ function createOffseasonLeague() {
 
 describe("phaseEligibility", () => {
   it("allows beginPlayoffs when regular season is complete and calendar permits", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Playoffs Gate",
       baseSeed: "playoffs-gate",
       rng: createRng("playoffs-gate"),
       useMiniLeague: true,
     })
     const completed = simulateSeason(league.seasonState)
-    const maxRegularDay = Math.max(
-      ...completed.schedule
-        .filter((game) => !game.seriesId)
-        .map((game) => game.day),
-      1
-    )
+    const milestones = getCurrentCalendar(completed).milestones
     const readyForPlayoffs = {
       ...completed,
-      currentDay: Math.max(completed.currentDay, maxRegularDay + 1),
+      currentDay: Math.max(completed.currentDay, milestones.playoffsStartDay),
     }
 
     const result = getPhaseEligibility(
@@ -64,7 +60,7 @@ describe("phaseEligibility", () => {
   })
 
   it("blocks beginPlayoffs before regular season completes", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Playoffs Blocked",
       baseSeed: "playoffs-blocked",
       rng: createRng("playoffs-blocked"),
@@ -174,7 +170,7 @@ describe("phaseEligibility", () => {
         ...freeAgency,
         teams: trimmed.teams.map((team) =>
           team.id === league.userTeamId
-            ? { ...team, players: team.players.slice(0, 12) }
+            ? { ...team, players: team.players.slice(0, 15) }
             : team
         ),
       },

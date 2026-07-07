@@ -3,7 +3,7 @@ import { useMemo } from "react"
 
 import { GameLog } from "@/components/league/GameLog"
 import { SeasonPhaseCard } from "@/components/league/SeasonPhaseCard"
-import { SimControls } from "@/components/league/SimControls"
+import { AdvanceControls } from "@/components/league/AdvanceControls"
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import {
   formatGameLine,
@@ -52,6 +52,7 @@ function LeagueDashboardPage() {
     myTeam,
     phase,
     championTeamId,
+    canBeginRegularSeason,
     canBeginPlayoffs,
     canBeginOffseason,
     canSimAiReSignings,
@@ -62,6 +63,8 @@ function LeagueDashboardPage() {
     canStartNextSeason,
     rosterOverLimit,
     cutsNeeded,
+    beginRegularSeason,
+    skipRemainingExhibitions,
     beginPlayoffs,
     beginOffseason,
     completeReSignings,
@@ -69,11 +72,10 @@ function LeagueDashboardPage() {
     prepareDraft,
     advanceToFreeAgency,
     completeFreeAgency,
+    advance,
+    lastAdvanceResult,
     simulatePlayoffs,
     startNextSeason,
-    simDay,
-    simWeek,
-    simSeason,
   } = useLeagueContext()
 
   const financials = useTeamFinancials(league, myTeam?.id ?? null)
@@ -137,6 +139,7 @@ function LeagueDashboardPage() {
     error,
     rosterOverLimit,
     cutsNeeded,
+    canBeginRegularSeason,
     canBeginPlayoffs,
     canBeginOffseason,
     canSimAiReSignings,
@@ -203,7 +206,7 @@ function LeagueDashboardPage() {
             rows={dashboard?.standingsWindow ?? []}
           />
 
-          {phase === "regular" ? (
+          {phase === "regular" || phase === "preseason" ? (
             <GameLog
               state={seasonState}
               getGameHref={(gameId) => `/league/games/${gameId}`}
@@ -215,6 +218,7 @@ function LeagueDashboardPage() {
           <SeasonPhaseCard
             state={seasonState}
             championTeamId={championTeamId}
+            canBeginRegularSeason={canBeginRegularSeason}
             canBeginPlayoffs={canBeginPlayoffs}
             canBeginOffseason={canBeginOffseason}
             canSimAiReSignings={canSimAiReSignings}
@@ -226,6 +230,8 @@ function LeagueDashboardPage() {
             rosterOverLimit={rosterOverLimit}
             cutsNeeded={cutsNeeded}
             error={error}
+            onBeginRegularSeason={beginRegularSeason}
+            onSkipRemainingExhibitions={skipRemainingExhibitions}
             onBeginPlayoffs={beginPlayoffs}
             onBeginOffseason={beginOffseason}
             onCompleteReSignings={completeReSignings}
@@ -236,21 +242,17 @@ function LeagueDashboardPage() {
             onStartNextSeason={() => void startNextSeason()}
           />
 
-          <SimControls
+          <AdvanceControls
             state={seasonState}
             phase={phase}
             status={status}
             saveStatus={saveStatus}
             error={error}
-            seed={league?.name ?? ""}
-            onSeedChange={() => {}}
-            onSimDay={simDay}
-            onSimWeek={simWeek}
-            onSimSeason={simSeason}
-            onSimPlayoffDay={simDay}
+            lastAdvanceResult={lastAdvanceResult}
+            onAdvance={advance}
             onSimPlayoffs={simulatePlayoffs}
             title="Advance league"
-            description={`Advance ${league?.name ?? "your league"} by day, week, or full season.`}
+            description={`Advance ${league?.name ?? "your league"} by day or run bulk simulation through your games.`}
           />
 
           <RecentResultsCard
@@ -383,7 +385,7 @@ function AttentionCard({ items }: { items: UrgentItem[] }) {
             <Link to="/league/standings">Full standings</Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/league/schedule">Schedule</Link>
+            <Link to="/league/calendar">Calendar</Link>
           </Button>
           <Button variant="outline" size="sm" asChild>
             <Link to="/league/trades">Trades</Link>
@@ -518,7 +520,7 @@ function ScheduleSnapshotCard({
           <p className="text-muted-foreground">No scheduled games remain.</p>
         )}
         <Button variant="outline" size="sm" className="mt-1 w-fit" asChild>
-          <Link to="/league/schedule">Open schedule</Link>
+          <Link to="/league/calendar">Open calendar</Link>
         </Button>
       </CardContent>
     </Card>
@@ -659,6 +661,9 @@ function getPrimaryAction(items: UrgentItem[], phase: SeasonPhase): string {
   if (items.length > 0) {
     return items[0]?.label ?? "Review"
   }
+  if (phase === "preseason") {
+    return "Preseason"
+  }
   if (phase === "playoffs") {
     return "Sim playoffs"
   }
@@ -682,6 +687,7 @@ function getUrgentItems({
   error,
   rosterOverLimit,
   cutsNeeded,
+  canBeginRegularSeason,
   canBeginPlayoffs,
   canBeginOffseason,
   canSimAiReSignings,
@@ -695,6 +701,7 @@ function getUrgentItems({
   error: string | null
   rosterOverLimit: boolean
   cutsNeeded: number
+  canBeginRegularSeason: boolean
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
   canSimAiReSignings: boolean
@@ -713,11 +720,24 @@ function getUrgentItems({
       tone: "urgent",
     })
   }
-  if (rosterOverLimit) {
+  if (phase === "preseason" && rosterOverLimit) {
+    items.push({
+      label: "Camp roster cuts",
+      description: `Cut ${cutsNeeded} player${cutsNeeded === 1 ? "" : "s"} to reach a 15-man roster before the regular season.`,
+      tone: "urgent",
+    })
+  }
+  if (phase !== "preseason" && rosterOverLimit) {
     items.push({
       label: "Roster over limit",
       description: `Release ${cutsNeeded} player${cutsNeeded === 1 ? "" : "s"} before starting the next season.`,
       tone: "urgent",
+    })
+  }
+  if (canBeginRegularSeason) {
+    items.push({
+      label: "Preseason complete",
+      description: "Begin the regular season when your roster is set.",
     })
   }
   if (canBeginPlayoffs) {

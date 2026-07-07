@@ -21,7 +21,7 @@ import { deriveUserPlayoffResult } from "../src/deriveUserPlayoffResult"
 
 describe("playoffs", () => {
   it("seeds top 8 teams per conference for a 30-team league", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Playoff Seed Test",
       baseSeed: "playoff-seed",
       rng: createRng("playoff-seed"),
@@ -38,7 +38,7 @@ describe("playoffs", () => {
   })
 
   it("creates 16 first-round series for a 30-team league", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Playoff Bracket Test",
       baseSeed: "playoff-bracket",
       rng: createRng("playoff-bracket"),
@@ -58,7 +58,7 @@ describe("playoffs", () => {
   })
 
   it("runs a 6-team regular season into playoffs and starts the next season", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Mini Playoff Loop",
       baseSeed: "mini-playoff",
       rng: createRng("mini-playoff-schedule"),
@@ -97,13 +97,13 @@ describe("playoffs", () => {
       rng: createRng("mini-playoff-next"),
     })
     expect(next.seasonState.season).toBe(2)
-    expect(next.seasonState.phase).toBe("regular")
+    expect(next.seasonState.phase).toBe("preseason")
     expect(next.historyEntry.championTeamId).toBe(state.playoffBracket?.championTeamId)
     expect(next.historyEntry.userPlayoffResult).toBeTruthy()
   })
 
   it("derives missed playoffs for non-playoff teams", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Missed Playoffs",
       baseSeed: "missed-playoffs",
       rng: createRng("missed-playoffs"),

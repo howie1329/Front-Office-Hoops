@@ -42,24 +42,33 @@ function normalizeTeams(state: SeasonState): SeasonState {
 
 export function normalizeSeasonState(state: SeasonState): SeasonState {
   const withTeams = normalizeTeams(state)
-
-  if (withTeams.phase) {
-    return withTeams
+  const withSchedule = {
+    ...withTeams,
+    schedule: withTeams.schedule.map((game) => ({
+      ...game,
+      gameType:
+        game.gameType ??
+        (game.seriesId ? ("playoff" as const) : ("regular" as const)),
+    })),
   }
 
-  if (withTeams.playoffBracket?.championTeamId) {
-    return { ...withTeams, phase: "complete" }
+  if (withSchedule.phase) {
+    return withSchedule
   }
 
-  if (withTeams.playoffBracket) {
-    return { ...withTeams, phase: "playoffs" }
+  if (withSchedule.playoffBracket?.championTeamId) {
+    return { ...withSchedule, phase: "complete" }
   }
 
-  if (isRegularSeasonComplete({ ...withTeams, phase: "regular" })) {
-    return { ...withTeams, phase: "regular" }
+  if (withSchedule.playoffBracket) {
+    return { ...withSchedule, phase: "playoffs" }
   }
 
-  return { ...withTeams, phase: "regular" }
+  if (isRegularSeasonComplete({ ...withSchedule, phase: "regular" })) {
+    return { ...withSchedule, phase: "regular" }
+  }
+
+  return { ...withSchedule, phase: "regular" }
 }
 
 export function normalizeLeagueRecord(record: LeagueRecord): LeagueRecord {

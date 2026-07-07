@@ -172,7 +172,7 @@ describe("injuries", () => {
   })
 
   it("persists injuries through regular day simulation", () => {
-    const league = createLeague({
+    const league = createLeague({ skipPreseason: true,
       name: "Injury Persistence",
       baseSeed: "injury-persistence",
       rng: createRng("injury-persistence"),

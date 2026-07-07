@@ -19,7 +19,7 @@ import { createInitialSeason } from "./createInitialSeason"
 import { ensureDraftPickAssets } from "./draft/generateDraftOrder"
 import { isDraftRequired } from "./draft/isDraftRequired"
 import { finalizeSeason } from "./finalizeSeason"
-import { prepareNewSeasonFinancials } from "./financials"
+import { prepareNewSeasonFinancials, attachMissingRosterContracts } from "./financials"
 import {
   applyAiRosterTrimming,
   validateRostersForSeasonStart,
@@ -167,12 +167,26 @@ export function startNextSeason(
 
   const finalized = finalizeSeason(stateForArchive)
   const historyEntry = archiveSeason(finalized, userTeamId)
-  const nextSeasonState = createInitialSeason(
+  let nextSeasonState = createInitialSeason(
     financialBundle.seasonState.teams,
     finalized.baseSeed,
     rng,
-    newSeason
+    newSeason,
   )
+
+  if (league) {
+    const withCampContracts = attachMissingRosterContracts(
+      {
+        seasonState: nextSeasonState,
+        contracts: financialBundle.contracts,
+        leagueFinancials: financialBundle.leagueFinancials,
+        teamFinancials: financialBundle.teamFinancials,
+      },
+      rng,
+    )
+    nextSeasonState = withCampContracts.seasonState
+    financialBundle.contracts = withCampContracts.contracts
+  }
   const draftPickAssets = ensureDraftPickAssets(
     financialBundle.draftPickAssets,
     nextSeasonState.teams.map((team) => team.id),

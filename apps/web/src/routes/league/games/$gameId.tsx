@@ -38,7 +38,7 @@ function LeagueGameDetailPage() {
             This game is not in your saved league yet.
           </p>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/league/schedule">Back to schedule</Link>
+            <Link to="/league/calendar">Back to calendar</Link>
           </Button>
         </CardContent>
       </Card>
