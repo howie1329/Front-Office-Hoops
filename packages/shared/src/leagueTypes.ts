@@ -21,7 +21,7 @@ import type { SeasonAward } from "./awardTypes"
 import type { SeasonHistoryEntry, SeasonState } from "./seasonTypes"
 import type { PendingTradeOffer, TradeHistoryEntry } from "./tradeTypes"
 
-export const SAVE_VERSION = 13 as const
+export const SAVE_VERSION = 14 as const
 
 export type DraftClassCache = {
   season: number

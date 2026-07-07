@@ -30,6 +30,14 @@ export type TeamStatComponents = {
 
 type StatKey = keyof Omit<TeamStatComponents, "points">
 
+const STAR_CONCENTRATION_EXPONENT = 1.35
+
+function amplifyScoringWeight(weight: number, entry: RotationEntry): number {
+  const { usage, overall } = entry.player.ratings
+  const starFactor = Math.pow((usage / 60) * (overall / 70), STAR_CONCENTRATION_EXPONENT)
+  return weight * Math.max(0.5, starFactor)
+}
+
 function weightedDistribute(
   total: number,
   weights: number[],
@@ -78,13 +86,14 @@ function twoPointWeight(entry: RotationEntry): number {
   const { inside, midRange, usage, offensiveIQ } = entry.player.ratings
   const physical = physicalInsideModifier(playerPhysical(entry))
   const archetype = getArchetypeSimModifier(entry.player.archetype, "twoPa")
-  return (
+  return amplifyScoringWeight(
     entry.minutes *
-    usage *
-    (inside * 0.55 + midRange * 0.45) *
-    (1 + offensiveIQ * 0.003) *
-    physical *
-    archetype
+      usage *
+      (inside * 0.55 + midRange * 0.45) *
+      (1 + offensiveIQ * 0.003) *
+      physical *
+      archetype,
+    entry,
   )
 }
 
@@ -92,19 +101,23 @@ function threePointWeight(entry: RotationEntry): number {
   const { threePoint, midRange, usage, offensiveIQ } = entry.player.ratings
   const perimeterBias = Math.max(30, threePoint + (threePoint - midRange) * 0.6)
   const archetype = getArchetypeSimModifier(entry.player.archetype, "threePa")
-  return (
+  return amplifyScoringWeight(
     entry.minutes *
-    usage *
-    perimeterBias *
-    (1 + offensiveIQ * 0.002) *
-    archetype
+      usage *
+      perimeterBias *
+      (1 + offensiveIQ * 0.002) *
+      archetype,
+    entry,
   )
 }
 
 function freeThrowWeight(entry: RotationEntry): number {
   const { inside, freeThrow, usage } = entry.player.ratings
   const archetype = getArchetypeSimModifier(entry.player.archetype, "fta")
-  return entry.minutes * usage * (inside * 0.45 + freeThrow * 0.55) * archetype
+  return amplifyScoringWeight(
+    entry.minutes * usage * (inside * 0.45 + freeThrow * 0.55) * archetype,
+    entry,
+  )
 }
 
 function reboundWeight(entry: RotationEntry): number {

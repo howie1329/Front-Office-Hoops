@@ -1,4 +1,11 @@
 import type {
+  CoachingPhilosophy,
+  GameSimSegmentMeta,
+  SynergyBreakdown,
+  TeamMomentumState,
+} from "./gameSimTypes"
+import type { GameType } from "./seasonTypes"
+import type {
   PlayerGameStats,
   QuarterScores,
   TeamWithRoster,
@@ -14,6 +21,13 @@ export type TeamMatchupInput = {
   awayFatiguePenalty?: number
   homeMinuteReduction?: number
   awayMinuteReduction?: number
+  homePhilosophy?: CoachingPhilosophy
+  awayPhilosophy?: CoachingPhilosophy
+  homeMomentum?: TeamMomentumState
+  awayMomentum?: TeamMomentumState
+  homeStreak?: number
+  awayStreak?: number
+  gameType?: GameType
 }
 
 export type TeamMatchupMeta = {
@@ -25,6 +39,12 @@ export type TeamMatchupMeta = {
   awayRotationQuality?: RotationQuality
   homeTeamStats?: TeamGameStats
   awayTeamStats?: TeamGameStats
+  overtimes?: number
+  segments?: GameSimSegmentMeta[]
+  homeSynergy?: SynergyBreakdown
+  awaySynergy?: SynergyBreakdown
+  homeMomentumApplied?: number
+  awayMomentumApplied?: number
 }
 
 export type RotationQuality = {
@@ -165,6 +185,22 @@ export type {
   PotentialRange,
   PlayerInjuryHistory,
 } from "./developmentTypes"
+
+export type {
+  CoachingOffense,
+  CoachingPace,
+  CoachingPhilosophy,
+  CoachingRotation,
+  GameSimSegmentMeta,
+  LineupSynergyGrade,
+  SegmentKind,
+  SynergyBreakdown,
+  TeamMomentumState,
+} from "./gameSimTypes"
+
+export { DEFAULT_TEAM_MOMENTUM } from "./gameSimTypes"
+
+export type { HeadCoach } from "./coachTypes"
 
 export type {
   TradeEvaluation,

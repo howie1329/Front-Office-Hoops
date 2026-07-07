@@ -1,6 +1,7 @@
 import type {
   Game,
   PlayerGameStats,
+  SynergyBreakdown,
   TeamGameStats,
   TeamWithRoster,
 } from "@workspace/shared/types"
@@ -66,7 +67,11 @@ export function GameDetailCard({
                 Day {game.day}: {awayTeam.abbrev} @ {homeTeam.abbrev}
               </CardTitle>
               <CardDescription>
-                Final ·{" "}
+                Final
+                {(result.meta.overtimes ?? 0) > 0
+                  ? ` · ${result.meta.overtimes} OT`
+                  : ""}{" "}
+                ·{" "}
                 {winner ? `${winner.name} over ${loser?.name}` : "No winner"}
               </CardDescription>
             </div>
@@ -102,8 +107,20 @@ export function GameDetailCard({
               result={result}
             />
           </div>
-          <div className="grid gap-2">
-            <TeamContextRow
+            <div className="grid gap-2">
+              {result.meta.homeSynergy ? (
+                <SynergyRow
+                  abbrev={homeTeam.abbrev}
+                  synergy={result.meta.homeSynergy}
+                />
+              ) : null}
+              {result.meta.awaySynergy ? (
+                <SynergyRow
+                  abbrev={awayTeam.abbrev}
+                  synergy={result.meta.awaySynergy}
+                />
+              ) : null}
+              <TeamContextRow
               abbrev={awayTeam.abbrev}
               score={result.awayScore}
               offensiveRating={result.meta.awayOffRtg}
@@ -167,6 +184,30 @@ function InsightMetric({ label, value }: { label: string; value: string }) {
     <div className="rounded-md border bg-muted/10 px-3 py-2">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-0.5 truncate text-sm font-medium">{value}</div>
+    </div>
+  )
+}
+
+function SynergyRow({
+  abbrev,
+  synergy,
+}: {
+  abbrev: string
+  synergy: SynergyBreakdown
+}) {
+  const detail = [...synergy.bonuses, ...synergy.penalties].slice(0, 2).join(" · ")
+
+  return (
+    <div className="rounded-md border bg-muted/10 px-3 py-2 text-xs">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-medium">{abbrev} lineup fit</span>
+        <span className="font-semibold">
+          {synergy.grade} ({synergy.score})
+        </span>
+      </div>
+      {detail ? (
+        <div className="mt-1 text-muted-foreground">{detail}</div>
+      ) : null}
     </div>
   )
 }

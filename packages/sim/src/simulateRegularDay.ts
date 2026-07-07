@@ -1,4 +1,4 @@
-import type { LeagueRecord, Rng, ScheduleGame, SeasonState } from "@workspace/shared/types"
+import type { LeagueRecord, Rng, ScheduleGame, SeasonState, TeamFinancials } from "@workspace/shared/types"
 
 import { getCurrentCalendar } from "./calendar"
 import { derivePlayerSeasonStats } from "./derivePlayerSeasonStats"
@@ -10,7 +10,7 @@ import { createRng } from "./rng"
 import { getFatigueInjuryMultiplier, getTeamScheduleFatigue } from "./schedule/fatigue"
 import { applyCampDevelopmentForDay } from "./preseason/campDevelopment"
 import { simulateDay } from "./simulateDay"
-import { simulateGameWithContext } from "./simulateGameWithContext"
+import { simulateGameWithContext, updateMomentumAfterGame } from "./simulateGameWithContext"
 
 function gameTypeForEntry(game: ScheduleGame): ScheduleGame["gameType"] {
   return game.gameType ?? "regular"
@@ -43,6 +43,7 @@ export function simulateRegularDay(
   state: SeasonState,
   day: number = state.currentDay,
   rngNonce = 0,
+  options?: { teamFinancials?: TeamFinancials[] },
 ): SeasonState {
   const teamsAfterRecovery = advanceInjuriesForDay(state.teams)
   const stateWithRecoveredPlayers = {
@@ -100,6 +101,7 @@ export function simulateRegularDay(
       rngNonce,
       gameType: scheduledGame.gameType,
       scheduleState: stateWithRecoveredPlayers,
+      teamFinancials: options?.teamFinancials,
     })
 
     newGames.push(game)
@@ -138,7 +140,7 @@ export function simulateRegularDay(
     }
   }
 
-  const nextState: SeasonState = {
+  let nextState: SeasonState = {
     ...stateWithRecoveredPlayers,
     teams,
     schedule: newSchedule,
@@ -146,6 +148,11 @@ export function simulateRegularDay(
     currentDay: day + 1,
     standings: [],
     playerSeasonStats: [],
+    teamMomentum: stateWithRecoveredPlayers.teamMomentum ?? {},
+  }
+
+  for (const game of newGames.slice(state.games.length)) {
+    nextState = updateMomentumAfterGame(nextState, game)
   }
 
   const withDerived = {
@@ -180,7 +187,9 @@ export function simulateLeagueRegularDay(
   rng: Rng,
   day: number = league.seasonState.currentDay,
 ): LeagueRecord {
-  const seasonState = simulateDay(league.seasonState, day, league.rngNonce)
+  const seasonState = simulateDay(league.seasonState, day, league.rngNonce, {
+    teamFinancials: league.teamFinancials,
+  })
 
   let updated: LeagueRecord = {
     ...league,

@@ -35,7 +35,7 @@ Current implementation status and planned work. This reflects the codebase as of
 | ---------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- |
 | Seeded RNG                   | ✅     | Reproducible games                                                                                          |
 | Team strength model          | ✅     | Component-based offense/defense, pace, home court                                                           |
-| Game simulation              | ✅     | Aggregate component sim: possessions, attempts, shooting, rebounds, turnovers, scores, quarters, box scores |
+| Game simulation              | ✅     | Segment-based sim: Q1–Q4, OT, synergy, momentum, blowouts, coach philosophy |
 | Player stat allocation       | ✅     | Allocates attempts/makes/free throws/rebounds/etc. from usage, skills, and minutes                          |
 | Rotation planning            | ✅     | Role-based auto rotations, target minutes, stamina adjustment, future user-minute contract                  |
 | Schedule generation          | ✅     | 6-team mini and 30-team full                                                                                |

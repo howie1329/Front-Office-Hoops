@@ -42,16 +42,24 @@ Team-level pace and player ratings (`shooting`, `inside`, `passing`, `rebounding
 
 ```
 selectRotation(players)
-    → estimate shared possessions from both teams' pace + noise
-    → generate team stat components
-    → reconcile score and team totals
-    → resolve ties with overtime bonus
-    → distributeQuarterScores
+    → simulateRegulation (Q1–Q4 segments with synergy, momentum, philosophy)
+    → simulateOvertime if tied
+    → merge segment minutes
     → allocatePlayerStats from attempts/makes/free throws/rebounds/etc.
     → TeamMatchupResult
 ```
 
-**Home court advantage** defaults to +3 points (`DEFAULT_HOME_COURT_ADVANTAGE`) and is applied during scoring component generation.
+Each regulation segment simulates possessions independently with:
+
+- coach philosophy (pace, offense focus, rotation depth)
+- archetype lineup synergy grades
+- team momentum / streak modifiers
+- blowout-aware Q4 rotations
+- crunch-time shot selection in close Q4 games
+
+**Home court advantage** defaults to +3 points (`DEFAULT_HOME_COURT_ADVANTAGE`), split across regulation quarters.
+
+**Overtime** runs real OT segments (no random tie-break bonus). `meta.overtimes` records how many periods were played.
 
 **Rotation**: `createAutoRotationPlan` assigns roles (`star`, `starter`, `sixth_man`, `rotation`, `bench`) and target minutes. `createGameRotation` converts that plan into game rotation entries. `selectRotation` preserves the legacy player+minutes API and filters to active players, with a last-resort non-free-agent fallback if a roster drops below five active players.
 
