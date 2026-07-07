@@ -62,9 +62,14 @@ export {
   generateAiFreeAgencyMarketOffers,
   generateAiStaffMarketOffers,
   getContractOffersForCandidate,
+  getPlayerOfferAttemptsRemaining,
   getReSigningAttemptsRemaining,
+  isPlayerOfferBlocked,
+  resetPlayerOfferNegotiations,
   submitPlayerContractOffer,
+  submitPlayerExtensionOffer,
   submitStaffContractOffer,
+  fillAiRostersAfterFreeAgency,
 } from "./contracts/offerMarket"
 export {
   getPlayerContractMarketValue,

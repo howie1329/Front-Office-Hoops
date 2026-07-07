@@ -367,8 +367,8 @@ export function useLeague() {
         if (command.type === "releasePlayer") {
           toast.success("Player released")
         }
-        if (command.type === "extendContract") {
-          toast.success("Contract extended")
+        if (command.type === "submitPlayerExtensionOffer") {
+          toast.success("Extension offer submitted")
         }
       } catch (commandError: unknown) {
         setError(
@@ -470,18 +470,14 @@ export function useLeague() {
     simToUserPick: () => dispatch({ type: "simToUserPick" }),
     releasePlayer: (playerId: string) =>
       dispatch({ type: "releasePlayer", playerId }),
-    extendContract: (playerId: string, offer: ExtensionOffer) =>
-      dispatch({ type: "extendContract", playerId, offer }),
-    hireStaff: (staffId: string, offer: StaffOffer) =>
-      dispatch({ type: "hireStaff", staffId, offer }),
+    submitPlayerExtensionOffer: (playerId: string, offer: ExtensionOffer) =>
+      dispatch({ type: "submitPlayerExtensionOffer", playerId, offer }),
     submitStaffContractOffer: (staffId: string, offer: StaffOffer) =>
       dispatch({ type: "submitStaffContractOffer", staffId, offer }),
     advanceStaffMarketDay: () => dispatch({ type: "advanceStaffMarketDay" }),
     fireStaff: (staffId: string) => dispatch({ type: "fireStaff", staffId }),
     extendStaffContract: (staffId: string, offer: StaffExtensionOffer) =>
       dispatch({ type: "extendStaffContract", staffId, offer }),
-    signFreeAgent: (playerId: string, offer: FreeAgentOffer) =>
-      dispatch({ type: "signFreeAgent", playerId, offer }),
     submitPlayerContractOffer: (playerId: string, offer: FreeAgentOffer) =>
       dispatch({ type: "submitPlayerContractOffer", playerId, offer }),
     advanceFreeAgencyMarketDay: () =>

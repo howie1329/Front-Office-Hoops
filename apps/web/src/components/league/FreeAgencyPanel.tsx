@@ -8,8 +8,10 @@ import type {
 import {
   canSignPlayer,
   getContractOffersForCandidate,
+  getPlayerOfferAttemptsRemaining,
   getPlayerContractMarketValue,
   getReSigningAttemptsRemaining,
+  isPlayerOfferBlocked,
 } from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
@@ -126,7 +128,7 @@ export function FreeAgencyPanel({
                   <TableHead>Age</TableHead>
                   <TableHead>Expected</TableHead>
                   <TableHead>Offers</TableHead>
-                  {mode === "re_sign" ? <TableHead>Attempts</TableHead> : null}
+                  <TableHead>Attempts</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -134,7 +136,7 @@ export function FreeAgencyPanel({
                 {sorted.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={mode === "re_sign" ? 8 : 7}
+                      colSpan={8}
                       className="text-sm text-muted-foreground"
                     >
                       {emptyMessage}
@@ -159,7 +161,21 @@ export function FreeAgencyPanel({
                   const attemptsRemaining =
                     mode === "re_sign"
                       ? getReSigningAttemptsRemaining(league, player.id, teamId)
-                      : null
+                      : getPlayerOfferAttemptsRemaining(
+                          league,
+                          player.id,
+                          teamId,
+                          "free_agency",
+                        )
+                  const isBlocked =
+                    mode === "re_sign"
+                      ? attemptsRemaining === 0
+                      : isPlayerOfferBlocked(
+                          league,
+                          player.id,
+                          teamId,
+                          "free_agency",
+                        )
 
                   return (
                     <TableRow key={player.id}>
@@ -176,16 +192,14 @@ export function FreeAgencyPanel({
                       <TableCell className="text-xs text-muted-foreground">
                         {bestOfferText}
                       </TableCell>
-                      {mode === "re_sign" ? (
-                        <TableCell className="tabular-nums">
-                          {attemptsRemaining}
-                        </TableCell>
-                      ) : null}
+                      <TableCell className="tabular-nums">
+                        {isBlocked ? "Cooldown" : attemptsRemaining}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={attemptsRemaining === 0}
+                          disabled={isBlocked}
                           onClick={() => openOffer(player)}
                         >
                           {mode === "re_sign" ? "Offer" : "Offer"}

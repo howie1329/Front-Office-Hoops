@@ -26,12 +26,14 @@ import {
   nullableNumberSort,
 } from "@/components/league/lib/tableSort"
 import {
-  type ColumnDef,
-  type SortingState,
   SortableTable,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
+} from "@/components/league/SortableTable"
+import type {
+  ColumnDef,
+  SortingState,
 } from "@/components/league/SortableTable"
 import {
   AlertDialog,

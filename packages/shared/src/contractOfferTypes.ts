@@ -2,7 +2,11 @@ import type { SigningException } from "./contractTypes"
 
 export type ContractCandidateType = "player" | "staff"
 
-export type ContractMarketPhase = "re_signing" | "staff" | "free_agency"
+export type ContractMarketPhase =
+  | "re_signing"
+  | "staff"
+  | "free_agency"
+  | "extension"
 
 export type ContractOfferStatus =
   | "pending"
@@ -32,6 +36,7 @@ export type ReSigningNegotiation = {
   candidateType: ContractCandidateType
   candidateId: string
   teamId: string
+  phase: ContractMarketPhase
   attemptsUsed: number
   maxAttempts: number
   status: ReSigningNegotiationStatus

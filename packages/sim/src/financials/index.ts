@@ -42,9 +42,7 @@ export * from "./contractExtensions"
 export * from "./contracts/createContract"
 export * from "./contracts/processContracts"
 export * from "./teamStrategy"
-export { processAiReSignings } from "./ai/reSignings"
 export { applyAiCapBehavior } from "./ai/capCuts"
-export { runMarketAuction } from "./market/normalizeDemands"
 export {
   scoreBidForPlayer,
   pickAuctionWinner,

@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
-import { canExtendContract, getExtensionBounds } from "@workspace/sim"
+import {
+  canExtendContract,
+  getExtensionBounds,
+  getPlayerOfferAttemptsRemaining,
+  isPlayerOfferBlocked,
+} from "@workspace/sim"
 import type { ExtensionOffer, LeagueRecord } from "@workspace/shared/types"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -59,13 +64,19 @@ export function ExtendContractDialog({
   const validation = bounds
     ? canExtendContract(league, teamId, playerId, offer)
     : null
+  const attemptsRemaining = open
+    ? getPlayerOfferAttemptsRemaining(league, playerId, teamId, "extension")
+    : 3
+  const isBlocked = open
+    ? isPlayerOfferBlocked(league, playerId, teamId, "extension")
+    : false
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       {bounds ? (
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Extend {playerName}</DialogTitle>
+            <DialogTitle>Extension offer for {playerName}</DialogTitle>
             <DialogDescription>
               New years are added after the current contract. First-year extension
               salary applies when the current deal ends.
@@ -79,6 +90,10 @@ export function ExtendContractDialog({
               <OfferMetric
                 label="Current salary"
                 value={formatMoney(currentSalary)}
+              />
+              <OfferMetric
+                label="Attempts"
+                value={isBlocked ? "Cooldown" : String(attemptsRemaining)}
               />
             </div>
 
@@ -124,6 +139,11 @@ export function ExtendContractDialog({
                 Extension offer is valid under current CBA rules.
               </p>
             ) : null}
+            {isBlocked ? (
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+                This player will not discuss another extension until the offseason.
+              </p>
+            ) : null}
           </div>
 
           <DialogFooter>
@@ -131,10 +151,10 @@ export function ExtendContractDialog({
               Cancel
             </Button>
             <Button
-              disabled={!validation?.ok}
+              disabled={!validation?.ok || isBlocked}
               onClick={() => onConfirm(playerId, offer)}
             >
-              Extend for {formatMoney(salary)} × {years} yr
+              Submit {formatMoney(salary)} × {years} yr offer
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3,13 +3,15 @@
 ## Summary
 
 The contract market replaces automatic acceptance with an offer evaluation layer
-shared by player re-signing, player free agency, and staff week.
+shared by player re-signing, player free agency, player extensions, and staff
+week.
 
 The system separates three concerns:
 
 - Market value: what a candidate expects to earn.
 - Offer evaluation: whether a specific offer is strong enough.
-- Period rules: how re-signing, staff week, and free agency resolve offers.
+- Period rules: how re-signing, staff week, free agency, and extensions resolve
+  offers.
 
 ## Data Model
 
@@ -17,10 +19,10 @@ The system separates three concerns:
 Each offer records candidate type, candidate id, team id, phase, years,
 first-year salary, status, created day, and optional resolution metadata.
 
-`LeagueRecord.reSigningNegotiations` tracks three-attempt negotiations for
-re-signing. A failed re-signing negotiation does not remove the player from the
-free-agent pool; it only prevents more re-signing attempts by that team during
-the re-signing period.
+`LeagueRecord.reSigningNegotiations` tracks three-attempt player negotiations
+by phase. A failed negotiation acts as the cooldown for that player/team/phase.
+Re-signing and extension offers resolve immediately. Free-agent offers resolve
+on market-day advancement.
 
 ## Phase Rules
 
@@ -31,6 +33,13 @@ the re-signing period.
 - Accepted offers sign the player through the existing signing path.
 - Declined offers increment attempts used.
 - Three declined offers mark the negotiation as failed.
+
+### Extensions
+
+- Extension offers use the same player evaluation model.
+- Offers validate against existing extension eligibility and salary bounds.
+- Accepted offers extend the contract through the existing extension commit path.
+- Three declined offers block extension talks until the offseason reset.
 
 ### Staff Week
 
@@ -47,6 +56,11 @@ the re-signing period.
 - User free-agent offers are pending offers.
 - Advancing a free-agency market day resolves active offers.
 - Accepted players sign through the existing free-agent signing path.
+- Declined user offers increment attempts.
+- Three declined offers block that player/team free-agent negotiation until the
+  next free-agency market reset.
+- The legacy auction pass is removed. End-of-phase AI roster cleanup may still
+  commit signings directly, but it is not a bidding system.
 
 ## Evaluation Inputs
 
@@ -56,6 +70,7 @@ The v1 evaluator intentionally stays simple:
 - Contract length.
 - Current-team loyalty for player re-signing.
 - Market timing so candidates can wait on decent offers.
+- Extension context through existing extension bounds.
 
 Strong offers can be accepted immediately. Competitive but not overwhelming
 open-market offers can remain pending. Weak offers are declined or beaten by
@@ -69,7 +84,15 @@ The UI should show enough information for the user to make a real decision:
 - Best active offer.
 - Offer form with cap/budget validation.
 - Re-signing attempts remaining.
+- Free-agency and extension attempts/cooldown state.
 - Market-day advance action for staff week and free agency.
+
+## Legacy Cleanup
+
+User-facing screens should submit offers. They should not directly call instant
+signing, hiring, or extension commands. Low-level commit functions remain in the
+simulation engine only so accepted offers can safely update rosters, contracts,
+staff assignments, financials, and logs.
 
 ## Testing Expectations
 
@@ -77,6 +100,8 @@ Simulation tests should cover:
 
 - Re-signing acceptance.
 - Re-signing declined attempts and three-attempt lockout.
+- Extension acceptance and three-attempt cooldown.
+- Free-agency declined attempts and three-attempt cooldown.
 - Staff/free-agent market-day acceptance.
 - Candidate waiting on acceptable open-market offers.
 - Existing cap, roster, role, and staff budget validation.

@@ -10,6 +10,7 @@ import {
   getPlayerContractMarketValue,
   getStaffContractMarketValue,
 } from "./marketValue"
+import { getExtensionBounds } from "../financials/contractExtensions"
 
 export type ContractOfferDecision = {
   result: "accept" | "wait" | "decline"
@@ -49,7 +50,7 @@ function playerFitScore(
 }
 
 function timingScore(phase: ContractMarketPhase, currentDay: number): number {
-  if (phase === "re_signing") {
+  if (phase === "re_signing" || phase === "extension") {
     return 8
   }
   return clamp(currentDay * 1.5, 0, 10)
@@ -61,8 +62,15 @@ export function evaluatePlayerContractOffer(
   offer: ContractOffer,
 ): ContractOfferDecision {
   const market = getPlayerContractMarketValue(league, player)
-  const salaryRatio = market.expectedSalary > 0
-    ? offer.firstYearSalary / market.expectedSalary
+  const expectedSalary =
+    offer.phase === "extension"
+      ? Math.min(
+          market.expectedSalary,
+          getExtensionBounds(league, player.id)?.maxSalary ?? market.expectedSalary,
+        )
+      : market.expectedSalary
+  const salaryRatio = expectedSalary > 0
+    ? offer.firstYearSalary / expectedSalary
     : 1
   const score = clamp(
     salaryRatio * 70 +
@@ -73,10 +81,10 @@ export function evaluatePlayerContractOffer(
     110,
   )
 
-  if (offer.phase === "re_signing") {
+  if (offer.phase === "re_signing" || offer.phase === "extension") {
     return score >= 78
-      ? { result: "accept", score, reason: "Offer met re-signing expectations" }
-      : { result: "decline", score, reason: "Offer below re-signing expectations" }
+      ? { result: "accept", score, reason: "Offer met player expectations" }
+      : { result: "decline", score, reason: "Offer below player expectations" }
   }
 
   if (score >= 90) {

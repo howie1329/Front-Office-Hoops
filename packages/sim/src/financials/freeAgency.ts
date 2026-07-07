@@ -25,7 +25,6 @@ import { deriveTeamOverall } from "../playerRatings"
 import { generateFreeAgents } from "../generateFreeAgents"
 import { createLeagueLogEntry } from "../leagueLog"
 import { findPlayer } from "../roster/ledger"
-import { runMarketAuction } from "./market/normalizeDemands"
 
 export type SignValidationResult =
   | { ok: true; signingException: FreeAgentOffer["signingException"] }
@@ -336,13 +335,6 @@ export function signFreeAgent(
       teams,
     },
   }
-}
-
-export function processAiFreeAgency(
-  league: LeagueRecord,
-  rng: Rng
-): LeagueRecord {
-  return runMarketAuction(league, rng)
 }
 
 export function attachRookieContract(

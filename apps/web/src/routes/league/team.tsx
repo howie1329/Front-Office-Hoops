@@ -29,7 +29,7 @@ function LeagueTeamPage() {
     rosterOverLimit,
     cutsNeeded,
     releasePlayer,
-    extendContract,
+    submitPlayerExtensionOffer,
   } = useLeagueContext()
   const financials = useTeamFinancials(league, userTeamId)
 
@@ -57,9 +57,7 @@ function LeagueTeamPage() {
         offense={deriveTeamOffense(myTeam.players)}
         defense={deriveTeamDefense(myTeam.players)}
         payroll={
-          financials?.payroll === undefined || financials?.payroll === null
-            ? "-"
-            : formatMoney(financials.payroll)
+          financials ? formatMoney(financials.payroll) : "-"
         }
         capSpace={capSpace.label}
         capSpaceTone={capSpace.tone}
@@ -78,7 +76,7 @@ function LeagueTeamPage() {
           teamScoutingLevel={financials?.teamFinance?.scoutingLevel}
           currentDay={seasonState.currentDay}
           onReleasePlayer={releasePlayer}
-          onExtendContract={extendContract}
+          onExtendContract={submitPlayerExtensionOffer}
         />
       </div>
     </div>

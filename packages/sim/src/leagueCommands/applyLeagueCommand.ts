@@ -28,13 +28,13 @@ import {
   rejectTradeOffer,
   wouldAiAcceptTrade,
 } from "../trades"
-import { signFreeAgent } from "../financials/freeAgency"
-import { extendContract } from "../financials/contractExtensions"
-import { extendStaffContract, fireStaff, hireStaff } from "../staff"
+import { extendStaffContract, fireStaff } from "../staff"
 import {
   advanceFreeAgencyMarketDay,
   advanceStaffMarketDay,
+  resetPlayerOfferNegotiations,
   submitPlayerContractOffer,
+  submitPlayerExtensionOffer,
   submitStaffContractOffer,
 } from "../contracts/offerMarket"
 import { assertPhaseEligibility } from "../phaseEligibility"
@@ -194,18 +194,21 @@ function applyLeagueCommandInternal(
         profiles
       )
       return beginStaffMarket(
-        processOffseasonFinancials(
-          {
-            ...completedLeague,
-            seasonState: nextState,
-            playerSeasonProfiles: [
-              ...completedLeague.playerSeasonProfiles.filter(
-                (entry) => entry.season !== completedLeague.seasonState.season
-              ),
-              ...profiles,
-            ],
-          },
-          resolvedRng
+        resetPlayerOfferNegotiations(
+          processOffseasonFinancials(
+            {
+              ...completedLeague,
+              seasonState: nextState,
+              playerSeasonProfiles: [
+                ...completedLeague.playerSeasonProfiles.filter(
+                  (entry) => entry.season !== completedLeague.seasonState.season
+                ),
+                ...profiles,
+              ],
+            },
+            resolvedRng
+          ),
+          ["extension", "re_signing"],
         ),
         resolvedRng
       )
@@ -269,21 +272,6 @@ function applyLeagueCommandInternal(
       })
     }
 
-    case "signFreeAgent": {
-      if (!league.userTeamId) {
-        throw new Error(
-          "User team must be selected before signing a free agent"
-        )
-      }
-
-      return signFreeAgent(
-        league,
-        league.userTeamId,
-        command.playerId,
-        command.offer
-      )
-    }
-
     case "submitPlayerContractOffer": {
       if (!league.userTeamId) {
         throw new Error(
@@ -299,36 +287,19 @@ function applyLeagueCommandInternal(
       )
     }
 
-    case "extendContract": {
+    case "submitPlayerExtensionOffer": {
       if (!league.userTeamId) {
         throw new Error(
-          "User team must be selected before extending a contract"
+          "User team must be selected before submitting an extension offer"
         )
       }
 
-      return extendContract(
+      return submitPlayerExtensionOffer(
         league,
         league.userTeamId,
         command.playerId,
         command.offer
       )
-    }
-
-    case "hireStaff": {
-      if (!league.userTeamId) {
-        throw new Error("User team must be selected before hiring staff")
-      }
-
-      const result = hireStaff(
-        league,
-        league.userTeamId,
-        command.staffId,
-        command.offer,
-      )
-      if (!result.ok) {
-        throw new Error(result.reason)
-      }
-      return result.league
     }
 
     case "submitStaffContractOffer": {

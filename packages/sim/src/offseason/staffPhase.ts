@@ -1,9 +1,6 @@
 import { COLLEGE_PROMOTION_THRESHOLD, STAFF_RATING_MAX } from "@workspace/shared/constants"
-import type { LeagueRecord, Rng, StaffMember, StaffOffer, StaffRole } from "@workspace/shared/types"
+import type { LeagueRecord, Rng, StaffMember } from "@workspace/shared/types"
 
-import { hireStaff } from "../staff/hireStaff"
-import { getStaffByRole, STAFF_ROLES, syncLeagueStaffFinancials } from "../staff/deriveTeamStaff"
-import { getStaffPayroll } from "../staff/staffPayroll"
 import { generateAiStaffMarketOffers, resolveContractMarketDay } from "../contracts/offerMarket"
 
 function clampRating(value: number): number {
@@ -48,89 +45,13 @@ export function progressCollegeCoaches(collegeCoaches: StaffMember[]): {
   return { collegeCoaches: remaining, promoted }
 }
 
-function cheapestOfferForCoach(coach: StaffMember): StaffOffer {
-  const base = 0.5 + coach.ratings.overall * 0.15
-  return {
-    years: 1,
-    firstYearSalary: Math.round(base * 10) / 10,
-  }
-}
-
-function pickCandidateForRole(
-  league: LeagueRecord,
-  role: StaffRole,
-  rng: Rng,
-): StaffMember | undefined {
-  const market = league.staff.filter(
-    (entry) => entry.teamId === null && entry.role === role,
-  )
-  const college = league.collegeCoaches.filter(
-    (entry) =>
-      entry.role === role && entry.ratings.overall >= COLLEGE_PROMOTION_THRESHOLD,
-  )
-
-  const pool = [...market, ...college]
-  if (pool.length === 0) {
-    return undefined
-  }
-
-  pool.sort((a, b) => b.ratings.overall - a.ratings.overall)
-  const top = pool.slice(0, Math.min(5, pool.length))
-  return top[rng.int(0, top.length - 1)]
-}
-
 export function processAiStaffMoves(league: LeagueRecord, rng: Rng): LeagueRecord {
-  let current = league
-
-  const { collegeCoaches, promoted } = progressCollegeCoaches(current.collegeCoaches)
-  current = {
-    ...current,
+  const { collegeCoaches, promoted } = progressCollegeCoaches(league.collegeCoaches)
+  return generateAiStaffMarketOffers({
+    ...league,
     collegeCoaches,
-    staff: [...current.staff, ...promoted],
-  }
-
-  for (const team of current.seasonState.teams) {
-    if (team.id === current.userTeamId) {
-      continue
-    }
-
-    for (const role of STAFF_ROLES) {
-      if (getStaffByRole(current.staff, team.id, role)) {
-        continue
-      }
-
-      const candidate = pickCandidateForRole(current, role, rng)
-      if (!candidate) {
-        continue
-      }
-
-      const teamFinance = current.teamFinancials.find(
-        (entry) => entry.teamId === team.id,
-      )
-      if (!teamFinance) {
-        continue
-      }
-
-      const offer = cheapestOfferForCoach(candidate)
-      const payroll = getStaffPayroll(
-        team.id,
-        current.staffContracts,
-        current.seasonState.season,
-      )
-      const offerTotal = offer.firstYearSalary
-
-      if (payroll + offerTotal > teamFinance.staffBudget) {
-        continue
-      }
-
-      const result = hireStaff(current, team.id, candidate.id, offer)
-      if (result.ok) {
-        current = result.league
-      }
-    }
-  }
-
-  return syncLeagueStaffFinancials(current)
+    staff: [...league.staff, ...promoted],
+  }, rng)
 }
 
 export function advanceToReSigningPhase(
@@ -154,6 +75,7 @@ export function completeStaffPhase(
   league: LeagueRecord,
   rng: Rng,
 ): LeagueRecord {
+  void rng
   if (league.seasonState.phase !== "offseason") {
     throw new Error("Staff phase can only be completed during the offseason")
   }
@@ -163,14 +85,13 @@ export function completeStaffPhase(
   }
 
   const withResolvedOffers = resolveContractMarketDay(league, "staff")
-  const withAiMoves = processAiStaffMoves(withResolvedOffers, rng)
 
   return {
-    ...withAiMoves,
-    seasonState: advanceToReSigningPhase(withAiMoves.seasonState),
+    ...withResolvedOffers,
+    seasonState: advanceToReSigningPhase(withResolvedOffers.seasonState),
   }
 }
 
 export function beginStaffMarket(league: LeagueRecord, rng: Rng): LeagueRecord {
-  return generateAiStaffMarketOffers(league, rng)
+  return processAiStaffMoves(league, rng)
 }
