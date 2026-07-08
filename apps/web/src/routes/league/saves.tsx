@@ -17,9 +17,6 @@ function LeagueSavesPage() {
     deleteLeague,
     error,
   } = useLeagueContext()
-  const activeSave = saves.find((save) => save.id === activeLeagueId) ?? null
-  const activeLeaguePath = activeSave?.userTeamId ? "/league" : "/league/pick-team"
-
   return (
     <main className="min-h-svh bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-5 sm:px-6 lg:px-8">
@@ -31,11 +28,6 @@ function LeagueSavesPage() {
             <Button variant="ghost" size="sm" asChild>
               <Link to="/">Home</Link>
             </Button>
-            {activeSave ? (
-              <Button variant="outline" size="sm" asChild>
-                <Link to={activeLeaguePath}>Back to league</Link>
-              </Button>
-            ) : null}
             <Button size="sm" asChild>
               <Link to="/league/create">Create league</Link>
             </Button>
