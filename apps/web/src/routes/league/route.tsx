@@ -16,7 +16,6 @@ import {
   HistoryIcon,
   Home01Icon,
   RankingIcon,
-  SaveIcon,
   StrategyIcon,
   TradeUpIcon,
   UserGroupIcon,
@@ -75,7 +74,7 @@ function LeagueLayout() {
   const isCreate = pathname === "/league/create"
   const isPickTeam = pathname === "/league/pick-team"
   const isSaves = pathname === "/league/saves"
-  const isSetupRoute = isCreate || isPickTeam || (isSaves && needsPickTeam)
+  const isSetupRoute = isCreate || isPickTeam || isSaves
 
   if (status === "loading") {
     return (
@@ -195,7 +194,6 @@ const sidebarNavGroups: SidebarNavGroup[] = [
     label: "Office",
     items: [
       { to: "/league/history", label: "History", icon: HistoryIcon },
-      { to: "/league/saves", label: "Saves", icon: SaveIcon },
     ],
   },
 ]
