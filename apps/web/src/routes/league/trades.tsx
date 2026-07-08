@@ -8,6 +8,7 @@ import type {
   DraftPickAsset,
   PendingTradeOffer,
   Player,
+  PlayerSeasonStats,
   SeasonState,
   TeamMode,
   TradeEvaluation,
@@ -27,6 +28,7 @@ import {
   getPickValueFromCache,
   getPlayerContract,
   getSeasonFinancials,
+  getYearsRemaining,
   makeItWork,
   validateTrade,
   wouldAiAcceptTrade,
@@ -321,8 +323,10 @@ function LeagueTradesPage() {
       </Card>
 
       {activeTab === "incoming" ? (
-        <IncomingOffersPanel
+          <IncomingOffersPanel
+          league={league}
           seasonState={seasonState}
+          seasonFinancials={seasonFinancials}
           userTeamId={userTeamId}
           offers={pendingOffers}
           onAccept={acceptTradeOffer}
@@ -420,13 +424,17 @@ function LeagueTradesPage() {
 }
 
 function IncomingOffersPanel({
+  league,
   seasonState,
+  seasonFinancials,
   userTeamId,
   offers,
   onAccept,
   onReject,
 }: {
+  league: NonNullable<ReturnType<typeof useLeagueContext>["league"]>
   seasonState: SeasonState
+  seasonFinancials: ReturnType<typeof getSeasonFinancials>
   userTeamId: string
   offers: PendingTradeOffer[]
   onAccept: (offerId: string) => void
@@ -455,49 +463,132 @@ function IncomingOffersPanel({
             offer.proposal.from.teamId === userTeamId
               ? offer.proposal.to
               : offer.proposal.from
+          const offerEvaluation = evaluateTrade(league, offer.proposal)
+          const userEvaluation = offerEvaluation.find(
+            (entry) => entry.teamId === userTeamId,
+          )
+          const sendAssets = tradeSideAssets({
+            side: youSend,
+            league,
+            seasonState,
+            seasonFinancials,
+          })
+          const receiveAssets = tradeSideAssets({
+            side: youReceive,
+            league,
+            seasonState,
+            seasonFinancials,
+          })
 
           return (
             <div
               key={offer.id}
-              className="grid gap-3 rounded-lg border bg-card p-4 lg:grid-cols-[1fr_auto]"
+              className="grid gap-4 rounded-lg border bg-card p-4"
             >
-              <div className="grid gap-2">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-sm font-medium">
                     {teamName(seasonState, offer.initiatorTeamId)} proposed a trade
                   </h2>
                   <Badge variant="outline">Expires day {offer.expiresDay}</Badge>
+                  {userEvaluation ? (
+                    <Badge
+                      variant={
+                        userEvaluation.netValue >= 0 ? "secondary" : "destructive"
+                      }
+                    >
+                      Your value {signedNumber(userEvaluation.netValue)}
+                    </Badge>
+                  ) : null}
                 </div>
-                <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                  <PackageLine
-                    label="You send"
-                    players={youSend.playerIds.length}
-                    picks={youSend.pickIds?.length ?? 0}
-                  />
-                  <PackageLine
-                    label="You receive"
-                    players={youReceive.playerIds.length}
-                    picks={youReceive.pickIds?.length ?? 0}
-                  />
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onReject(offer.id)}
+                  >
+                    Reject
+                  </Button>
+                  <Button size="sm" onClick={() => onAccept(offer.id)}>
+                    Accept
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center justify-end gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onReject(offer.id)}
-                >
-                  Reject
-                </Button>
-                <Button size="sm" onClick={() => onAccept(offer.id)}>
-                  Accept
-                </Button>
+
+              <div className="grid gap-3 xl:grid-cols-2">
+                <OfferAssetSection title="You send" assets={sendAssets} />
+                <OfferAssetSection title="You receive" assets={receiveAssets} />
               </div>
             </div>
           )
         })}
       </CardContent>
     </Card>
+  )
+}
+
+function OfferAssetSection({
+  title,
+  assets,
+}: {
+  title: string
+  assets: OfferAsset[]
+}) {
+  const totalValue = assets.reduce((total, asset) => total + asset.value, 0)
+
+  return (
+    <div className="rounded-lg border bg-muted/10">
+      <div className="flex items-center justify-between gap-3 border-b px-3 py-2">
+        <div>
+          <h3 className="text-sm font-medium">{title}</h3>
+          <p className="text-xs text-muted-foreground">
+            {packageSummary(
+              assets.filter((asset) => asset.kind === "player").length,
+              assets.filter((asset) => asset.kind === "pick").length,
+            )}
+          </p>
+        </div>
+        <span className="text-xs font-medium tabular-nums">
+          value {totalValue.toFixed(1)}
+        </span>
+      </div>
+      <div className="divide-y">
+        {assets.length === 0 ? (
+          <p className="px-3 py-3 text-sm text-muted-foreground">
+            No assets included.
+          </p>
+        ) : null}
+        {assets.map((asset) => (
+          <div
+            key={asset.id}
+            className="grid gap-2 px-3 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+          >
+            <div className="min-w-0">
+              <p className="truncate font-medium">{asset.title}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {asset.subtitle}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:text-right">
+              {asset.metrics.map((metric) => (
+                <div key={metric.label}>
+                  <span className="text-muted-foreground">{metric.label}</span>
+                  <span className="ml-1 font-medium tabular-nums text-foreground">
+                    {metric.value}
+                  </span>
+                </div>
+              ))}
+              <div>
+                <span className="text-muted-foreground">Value</span>
+                <span className="ml-1 font-medium tabular-nums text-foreground">
+                  {asset.value.toFixed(1)}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -942,25 +1033,6 @@ function TabButton({
   )
 }
 
-function PackageLine({
-  label,
-  players,
-  picks,
-}: {
-  label: string
-  players: number
-  picks: number
-}) {
-  return (
-    <div className="rounded-md border bg-muted/10 px-3 py-2">
-      <span className="block text-xs text-muted-foreground">{label}</span>
-      <span className="font-medium text-foreground">
-        {packageSummary(players, picks)}
-      </span>
-    </div>
-  )
-}
-
 function CheckMetric({
   label,
   value,
@@ -1065,6 +1137,107 @@ function SelectionCheckbox({
   )
 }
 
+type OfferAsset = {
+  id: string
+  kind: "player" | "pick"
+  title: string
+  subtitle: string
+  metrics: Array<{ label: string; value: string }>
+  value: number
+}
+
+function tradeSideAssets({
+  side,
+  league,
+  seasonState,
+  seasonFinancials,
+}: {
+  side: TradeProposal["from"]
+  league: NonNullable<ReturnType<typeof useLeagueContext>["league"]>
+  seasonState: SeasonState
+  seasonFinancials: ReturnType<typeof getSeasonFinancials>
+}): OfferAsset[] {
+  const team = seasonState.teams.find((entry) => entry.id === side.teamId)
+  const mode =
+    league.teamFinancials.find((entry) => entry.teamId === side.teamId)
+      ?.strategy.mode ?? "buying"
+
+  if (!team) {
+    return []
+  }
+
+  const playerStats = new Map(
+    seasonState.playerSeasonStats.map((stats) => [stats.playerId, stats]),
+  )
+  const playerAssets = side.playerIds.flatMap((playerId) => {
+    const player = team.players.find((entry) => entry.id === playerId)
+    if (!player) {
+      return []
+    }
+
+    const contract = getPlayerContract(league.contracts, player)
+    const value = getContractAssetValueBreakdown({
+      player,
+      contract,
+      expectedSalary: getFairSalary(player, seasonFinancials, league),
+      mode,
+    }).total
+    const stats = playerStats.get(player.id)
+
+    return [
+      {
+        id: player.id,
+        kind: "player" as const,
+        title: playerLabel(player),
+        subtitle: `${player.position} · ${player.age} yrs · ${formatArchetype(
+          player.archetype,
+        )}`,
+        metrics: [
+          { label: "OVR", value: String(player.ratings.overall) },
+          { label: "PTS", value: statAverage(stats, "pts") },
+          { label: "REB", value: statAverage(stats, "reb") },
+          { label: "AST", value: statAverage(stats, "ast") },
+          { label: "Salary", value: formatMoney(getCurrentSalary(contract)) },
+          { label: "Yrs", value: String(getYearsRemaining(contract)) },
+        ],
+        value,
+      },
+    ]
+  })
+
+  const pickAssets = (side.pickIds ?? []).flatMap((pickId) => {
+    const pick = league.draftPickAssets.find((entry) => entry.id === pickId)
+    if (!pick) {
+      return []
+    }
+
+    return [
+      {
+        id: pick.id,
+        kind: "pick" as const,
+        title: pick.round === 1 ? "1st round pick" : "2nd round pick",
+        subtitle: `Season ${pick.season} · from ${teamName(
+          seasonState,
+          pick.originalTeamId,
+        )}`,
+        metrics: [
+          { label: "Round", value: pick.round === 1 ? "1st" : "2nd" },
+          { label: "Season", value: String(pick.season) },
+        ],
+        value: getPickValueFromCache(
+          pick,
+          league.draftClassCache,
+          league,
+          side.teamId,
+          mode,
+        ),
+      },
+    ]
+  })
+
+  return [...playerAssets, ...pickAssets]
+}
+
 function getAssetValueTotal({
   players,
   picks,
@@ -1100,6 +1273,20 @@ function getAssetValueTotal({
       0,
     )
   )
+}
+
+function statAverage(
+  stats: PlayerSeasonStats | undefined,
+  key: "pts" | "reb" | "ast",
+): string {
+  if (!stats || stats.gp <= 0) {
+    return "-"
+  }
+  return (stats[key] / stats.gp).toFixed(1)
+}
+
+function signedNumber(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}`
 }
 
 function packageSummary(players: number, picks: number): string {
