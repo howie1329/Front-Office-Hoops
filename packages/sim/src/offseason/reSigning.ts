@@ -1,6 +1,6 @@
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
-import { processAiReSignings } from "../financials"
+import { processAiReSigningOffers } from "../contracts/offerMarket"
 import { advanceToDraftPhase } from "./phases"
 
 export function completeReSigningPhase(
@@ -15,7 +15,7 @@ export function completeReSigningPhase(
     throw new Error("AI re-signings can only run during re-signing")
   }
 
-  const updated = processAiReSignings(league, rng)
+  const updated = processAiReSigningOffers(league, rng)
 
   return {
     ...updated,

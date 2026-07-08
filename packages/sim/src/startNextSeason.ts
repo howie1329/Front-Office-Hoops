@@ -180,6 +180,8 @@ export function startNextSeason(
         draftPickAssets: financialBundle.draftPickAssets,
         tradeHistory: [],
         pendingTradeOffers: [],
+        contractOffers: [],
+        reSigningNegotiations: [],
         draftClassCache: null,
         leagueLog: [],
         owners: [],

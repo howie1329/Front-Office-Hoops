@@ -1,8 +1,13 @@
 import type { SeasonState } from "@workspace/shared/types"
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
-import { processAiFreeAgency } from "../financials"
 import { getCurrentCalendar } from "../calendar"
+import {
+  advanceFreeAgencyMarketDay,
+  fillAiRostersAfterFreeAgency,
+  generateAiFreeAgencyMarketOffers,
+  resetPlayerOfferNegotiations,
+} from "../contracts/offerMarket"
 
 export function advanceToDraftPhase(state: SeasonState): SeasonState {
   if (state.phase !== "offseason") {
@@ -46,6 +51,22 @@ export function advanceToFreeAgencyPhase(state: SeasonState): SeasonState {
   }
 }
 
+export function advanceLeagueToFreeAgencyPhase(
+  league: LeagueRecord,
+  rng: Rng,
+): LeagueRecord {
+  return generateAiFreeAgencyMarketOffers(
+    resetPlayerOfferNegotiations(
+      {
+        ...league,
+        seasonState: advanceToFreeAgencyPhase(league.seasonState),
+      },
+      ["free_agency"],
+    ),
+    rng,
+  )
+}
+
 export function completeFreeAgencyPhase(
   league: LeagueRecord,
   rng: Rng
@@ -58,5 +79,5 @@ export function completeFreeAgencyPhase(
     throw new Error("AI free agency can only run during free agency")
   }
 
-  return processAiFreeAgency(league, rng)
+  return fillAiRostersAfterFreeAgency(advanceFreeAgencyMarketDay(league, rng), rng)
 }

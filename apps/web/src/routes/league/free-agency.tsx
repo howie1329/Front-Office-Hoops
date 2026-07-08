@@ -20,7 +20,8 @@ function LeagueFreeAgencyPage() {
     userTeamId,
     isOffseason,
     offseasonPhase,
-    signFreeAgent,
+    submitPlayerContractOffer,
+    advanceFreeAgencyMarketDay,
   } = useLeagueContext()
 
   if (!league || !userTeamId) {
@@ -65,7 +66,8 @@ function LeagueFreeAgencyPage() {
       description="Sign external free agents after the draft."
       emptyMessage="No external free agents are currently available."
       mode="external"
-      onSign={signFreeAgent}
+      onOffer={submitPlayerContractOffer}
+      onAdvanceMarketDay={advanceFreeAgencyMarketDay}
     />
   )
 }

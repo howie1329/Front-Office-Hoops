@@ -1,8 +1,13 @@
 import { useMemo, useState } from "react"
 import { COLLEGE_PROMOTION_THRESHOLD } from "@workspace/shared/constants"
 import type { LeagueRecord, StaffMember, StaffRole } from "@workspace/shared/types"
-import { getStaffByRole } from "@workspace/sim"
+import {
+  getContractOffersForCandidate,
+  getStaffByRole,
+  getStaffContractMarketValue,
+} from "@workspace/sim"
 
+import { formatMoney } from "@/components/league/lib/moneyFormat"
 import {
   formatDefensiveScheme,
   formatOffensiveScheme,
@@ -123,14 +128,16 @@ export function HiringPoolPanel({
               <TableHead>Name</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Overall</TableHead>
+              <TableHead>Expected</TableHead>
+              <TableHead>Best offer</TableHead>
               <TableHead>Schemes</TableHead>
-              <TableHead className="text-right">Hire</TableHead>
+              <TableHead className="text-right">Offer</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredPool.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-muted-foreground">
+                <TableCell colSpan={7} className="text-muted-foreground">
                   No coaches match this filter.
                 </TableCell>
               </TableRow>
@@ -140,6 +147,19 @@ export function HiringPoolPanel({
                   getStaffByRole(league.staff, teamId, member.role),
                 )
                 const matchesVacancy = vacantRoles.includes(member.role)
+                const market = getStaffContractMarketValue(member)
+                const sortedOffers = getContractOffersForCandidate(
+                  league,
+                  member.id,
+                  "staff",
+                  "staff",
+                )
+                  .filter((offer) => offer.status === "pending")
+                  .sort((a, b) => b.firstYearSalary - a.firstYearSalary)
+                const bestOfferText =
+                  sortedOffers.length > 0
+                    ? `${formatMoney(sortedOffers[0].firstYearSalary)} x ${sortedOffers[0].years}`
+                    : "None"
 
                 return (
                   <TableRow
@@ -159,6 +179,13 @@ export function HiringPoolPanel({
                     </TableCell>
                     <TableCell>{formatStaffRole(member.role)}</TableCell>
                     <TableCell>{member.ratings.overall}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatMoney(market.lowSalary)}-
+                      {formatMoney(market.highSalary)}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {bestOfferText}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {formatOffensiveScheme(member.preferredOffense)} /{" "}
                       {formatDefensiveScheme(member.preferredDefense)}
@@ -169,7 +196,7 @@ export function HiringPoolPanel({
                         disabled={roleFilled}
                         onClick={() => onHire(member)}
                       >
-                        {roleFilled ? "Role filled" : "Hire"}
+                        {roleFilled ? "Role filled" : "Offer"}
                       </Button>
                     </TableCell>
                   </TableRow>

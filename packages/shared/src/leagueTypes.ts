@@ -1,4 +1,5 @@
 import type { Contract } from "./contractTypes"
+import type { ContractOffer, ReSigningNegotiation } from "./contractOfferTypes"
 import type {
   LeagueFinancials,
   SpendingProfileEvent,
@@ -57,6 +58,8 @@ export type LeagueRecord = League & {
   draftPickAssets: DraftPickAsset[]
   tradeHistory: TradeHistoryEntry[]
   pendingTradeOffers: PendingTradeOffer[]
+  contractOffers: ContractOffer[]
+  reSigningNegotiations: ReSigningNegotiation[]
   draftClassCache: DraftClassCache | null
   leagueLog: LeagueLogEntry[]
   owners: Owner[]

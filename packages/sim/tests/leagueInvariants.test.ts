@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import { ROSTER_MAX } from "@workspace/shared/constants"
 
-import { applyLeagueCommand, createLeague, createRng, getSeasonFinancials } from "../src"
+import {
+  applyLeagueCommand,
+  createLeague,
+  createRng,
+  getSeasonFinancials,
+  signFreeAgent,
+} from "../src"
 import { calculateMinSalary } from "../src/financials/capMath"
 import { expectLeagueInvariants } from "./helpers/leagueInvariants"
 
@@ -26,17 +32,18 @@ function fillUserRoster(league: ReturnType<typeof createLeague>) {
       throw new Error("Expected free agents to fill user roster")
     }
 
-    next = applyLeagueCommand(next, {
-      type: "signFreeAgent",
-      playerId: candidate.id,
-      offer: {
+    next = signFreeAgent(
+      next,
+      next.userTeamId!,
+      candidate.id,
+      {
         firstYearSalary: calculateMinSalary(
           seasonFinancials,
           candidate.yearsOfService
         ),
         years: 1,
       },
-    })
+    )
     expectLeagueInvariants(next)
   }
 

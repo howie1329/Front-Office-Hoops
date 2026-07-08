@@ -15,11 +15,11 @@ import { simAiPick, simToUserPick } from "../draft/simAiPick"
 import { makeDraftPick } from "../draft/makeDraftPick"
 import { prepareDraftForLeague } from "../draft/prepareDraft"
 import {
+  advanceLeagueToFreeAgencyPhase,
   advanceToDraftPhase,
-  advanceToFreeAgencyPhase,
   completeFreeAgencyPhase,
 } from "../offseason/phases"
-import { completeStaffPhase } from "../offseason/staffPhase"
+import { beginStaffMarket, completeStaffPhase } from "../offseason/staffPhase"
 import { completeReSigningPhase } from "../offseason/reSigning"
 import { ensureFaPoolMinimum, processOffseasonFinancials } from "../financials"
 import {
@@ -28,9 +28,15 @@ import {
   rejectTradeOffer,
   wouldAiAcceptTrade,
 } from "../trades"
-import { signFreeAgent } from "../financials/freeAgency"
-import { extendContract } from "../financials/contractExtensions"
-import { extendStaffContract, fireStaff, hireStaff } from "../staff"
+import { extendStaffContract, fireStaff } from "../staff"
+import {
+  advanceFreeAgencyMarketDay,
+  advanceStaffMarketDay,
+  resetPlayerOfferNegotiations,
+  submitPlayerContractOffer,
+  submitPlayerExtensionOffer,
+  submitStaffContractOffer,
+} from "../contracts/offerMarket"
 import { assertPhaseEligibility } from "../phaseEligibility"
 import { applyDraftSelections, releasePlayerFromTeam } from "../roster/ledger"
 import { simulateCurrentPlayoffRound } from "../simulateCurrentPlayoffRound"
@@ -187,17 +193,23 @@ function applyLeagueCommandInternal(
         completedLeague.seasonState,
         profiles
       )
-      return processOffseasonFinancials(
-        {
-          ...completedLeague,
-          seasonState: nextState,
-          playerSeasonProfiles: [
-            ...completedLeague.playerSeasonProfiles.filter(
-              (entry) => entry.season !== completedLeague.seasonState.season
-            ),
-            ...profiles,
-          ],
-        },
+      return beginStaffMarket(
+        resetPlayerOfferNegotiations(
+          processOffseasonFinancials(
+            {
+              ...completedLeague,
+              seasonState: nextState,
+              playerSeasonProfiles: [
+                ...completedLeague.playerSeasonProfiles.filter(
+                  (entry) => entry.season !== completedLeague.seasonState.season
+                ),
+                ...profiles,
+              ],
+            },
+            resolvedRng
+          ),
+          ["extension", "re_signing"],
+        ),
         resolvedRng
       )
     }
@@ -241,11 +253,8 @@ function applyLeagueCommandInternal(
     }
 
     case "advanceToFreeAgency":
-      return ensureFaPoolMinimum(
-        {
-          ...league,
-          seasonState: advanceToFreeAgencyPhase(league.seasonState),
-        },
+      return advanceLeagueToFreeAgencyPhase(
+        ensureFaPoolMinimum(league, resolvedRng),
         resolvedRng
       )
 
@@ -263,14 +272,14 @@ function applyLeagueCommandInternal(
       })
     }
 
-    case "signFreeAgent": {
+    case "submitPlayerContractOffer": {
       if (!league.userTeamId) {
         throw new Error(
-          "User team must be selected before signing a free agent"
+          "User team must be selected before submitting a contract offer"
         )
       }
 
-      return signFreeAgent(
+      return submitPlayerContractOffer(
         league,
         league.userTeamId,
         command.playerId,
@@ -278,14 +287,14 @@ function applyLeagueCommandInternal(
       )
     }
 
-    case "extendContract": {
+    case "submitPlayerExtensionOffer": {
       if (!league.userTeamId) {
         throw new Error(
-          "User team must be selected before extending a contract"
+          "User team must be selected before submitting an extension offer"
         )
       }
 
-      return extendContract(
+      return submitPlayerExtensionOffer(
         league,
         league.userTeamId,
         command.playerId,
@@ -293,22 +302,24 @@ function applyLeagueCommandInternal(
       )
     }
 
-    case "hireStaff": {
+    case "submitStaffContractOffer": {
       if (!league.userTeamId) {
-        throw new Error("User team must be selected before hiring staff")
+        throw new Error("User team must be selected before offering staff")
       }
 
-      const result = hireStaff(
+      return submitStaffContractOffer(
         league,
         league.userTeamId,
         command.staffId,
         command.offer,
       )
-      if (!result.ok) {
-        throw new Error(result.reason)
-      }
-      return result.league
     }
+
+    case "advanceStaffMarketDay":
+      return advanceStaffMarketDay(league, resolvedRng)
+
+    case "advanceFreeAgencyMarketDay":
+      return advanceFreeAgencyMarketDay(league, resolvedRng)
 
     case "fireStaff": {
       if (!league.userTeamId) {

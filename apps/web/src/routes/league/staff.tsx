@@ -35,7 +35,8 @@ function LeagueStaffPage() {
     userTeamId,
     isOffseason,
     offseasonPhase,
-    hireStaff,
+    submitStaffContractOffer,
+    advanceStaffMarketDay,
     fireStaff,
     extendStaffContract,
     completeStaffPhase,
@@ -69,7 +70,7 @@ function LeagueStaffPage() {
   const developmentLevel = teamFinance?.developmentLevel ?? 5
 
   function handleHireConfirm(staffId: string, offer: StaffOffer) {
-    void hireStaff(staffId, offer)
+    void submitStaffContractOffer(staffId, offer)
     setHireTarget(null)
   }
 
@@ -127,9 +128,18 @@ function LeagueStaffPage() {
               <StaffBudgetBar budget={staffBudget} payroll={staffPayroll} />
               {canCompleteStaffPhase ? (
                 <div>
-                  <Button size="sm" onClick={() => void completeStaffPhase()}>
-                    Complete staff phase
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => void advanceStaffMarketDay()}>
+                      Advance staff day
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void completeStaffPhase()}
+                    >
+                      Complete staff phase
+                    </Button>
+                  </div>
                 </div>
               ) : null}
             </>

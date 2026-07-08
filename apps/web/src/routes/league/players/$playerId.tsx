@@ -95,8 +95,8 @@ function PlayerProfilePage() {
     userTeamId,
     offseasonPhase,
     releasePlayer,
-    signFreeAgent,
-    extendContract,
+    submitPlayerContractOffer,
+    submitPlayerExtensionOffer,
   } = useLeagueContext()
   const [activeTab, setActiveTab] = useState<PlayerTab>("scouting")
   const [offerOpen, setOfferOpen] = useState(false)
@@ -132,7 +132,7 @@ function PlayerProfilePage() {
   const snapshots = league.playerCareerSnapshots
     .filter((entry) => entry.playerId === playerId)
     .sort((a, b) => a.season - b.season)
-  const lastDevelopment = (league.playerDevelopmentRecords ?? [])
+  const lastDevelopment = league.playerDevelopmentRecords
     .filter((entry) => entry.playerId === playerId && !entry.retired)
     .sort((a, b) => b.season - a.season)[0]
   const awards = league.seasonAwards.filter(
@@ -309,7 +309,7 @@ function PlayerProfilePage() {
               if (!signValidation?.ok) {
                 return
               }
-              signFreeAgent(player.id, offer)
+              submitPlayerContractOffer(player.id, offer)
               setOfferOpen(false)
             }}
           />
@@ -324,7 +324,7 @@ function PlayerProfilePage() {
             open={extendOpen}
             onClose={() => setExtendOpen(false)}
             onConfirm={(id, extensionOffer) => {
-              extendContract(id, extensionOffer)
+              submitPlayerExtensionOffer(id, extensionOffer)
               setExtendOpen(false)
             }}
           />
@@ -621,9 +621,9 @@ function ContractTab({
         <RailRow label="Size" value={playerSize(player)} />
         <RailRow
           label="Wingspan"
-          value={`${player.wingspanInches ?? player.heightInches + 2}"`}
+          value={`${player.wingspanInches}"`}
         />
-        <RailRow label="Reach" value={String(player.reachRating ?? "—")} />
+        <RailRow label="Reach" value={String(player.reachRating)} />
         <RailRow label="Peak age" value={String(player.peakAge)} />
       </div>
     </section>
@@ -856,7 +856,7 @@ function OfferDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {mode === "re_sign" ? "Re-sign" : "Sign"} {player.firstName}{" "}
+            {mode === "re_sign" ? "Re-sign offer" : "Free-agent offer"} {player.firstName}{" "}
             {player.lastName}
           </DialogTitle>
           <DialogDescription>
@@ -921,7 +921,7 @@ function PlayerMonogram({
   firstName: string
   lastName: string
 }) {
-  const initials = `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase()
+  const initials = `${firstName[0]}${lastName[0]}`.toUpperCase()
   return (
     <div
       aria-hidden
