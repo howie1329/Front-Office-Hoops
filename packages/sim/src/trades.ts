@@ -1,13 +1,8 @@
 import { ROSTER_MAX, ROSTER_MIN } from "@workspace/shared/constants"
 import {
-  AI_ACCEPT_BAD,
-  AI_ACCEPT_CLOSE,
-  AI_ACCEPT_MIN_NET,
   AI_TRADE_MAX_IMBALANCE,
   AI_TRADE_OFFER_EXPIRY_DAYS,
-  CONTENDING_TRADE_FIT_TOLERANCE,
   TRADE_MORATORIUM_GAMES,
-  TRADE_VALUE_EXPONENT,
 } from "@workspace/shared/financialConstants"
 import type {
   Contract,
@@ -25,9 +20,7 @@ import type {
 } from "@workspace/shared/types"
 
 import { canTradeOnDate } from "./calendar"
-import { getPickValueFromCache } from "./draft/pickValues"
 import { getSeasonFinancials } from "./financials/capMath"
-import { buildFairSalary } from "./financials/ai/offers"
 import {
   consumeTradeExceptions,
   createTradeException,
@@ -37,11 +30,10 @@ import {
   getCurrentSalary,
   getPlayerContract,
   getTeamPayroll,
-  getYearsRemaining,
 } from "./financials/payroll"
 import { createLeagueLogEntry } from "./leagueLog"
 import { deriveTeamOverall } from "./playerRatings"
-import { getContractAssetValueBreakdown } from "./playerValue"
+import { evaluateTeamTradeUtility, type TeamTradeUtilityBreakdown } from "./tradeEvaluation"
 import {
   findPlayersOnTeam,
   findTeam,
@@ -49,7 +41,9 @@ import {
 
 const SALARY_MATCH_MULTIPLIER = 1.25
 const SALARY_MATCH_BUFFER = 0.1
-const INCOMING_INJURY_DISCOUNT = 0.85
+const BUYING_ACCEPTANCE_FLOOR = 0
+const CONTENDING_LONG_TERM_TOLERANCE = -3
+const SELLER_FUTURE_COMPENSATION_FLOOR = 8
 
 type TradeContext = {
   fromTeam: TeamWithRoster
@@ -314,213 +308,25 @@ export function validateTrade(
   return validateSalaryMatching(league, context)
 }
 
-function rosterFitValue(
-  team: TeamWithRoster,
-  player: Player,
-  mode: TeamMode,
-): number {
-  const positionCount = team.players.filter(
-    (entry) => entry.position === player.position,
-  ).length
-  const archetypeCount = team.players.filter(
-    (entry) => entry.archetype === player.archetype,
-  ).length
-  let value = 0
-
-  if (positionCount <= 1) {
-    value += mode === "contending" ? 4 : 2.5
-  } else if (positionCount >= 4) {
-    value -= mode === "selling" ? 0.5 : 2
-  }
-
-  if (
-    player.archetype === "three_and_d_wing" ||
-    player.archetype === "rim_protector" ||
-    player.archetype === "lead_guard" ||
-    player.archetype === "stretch_big"
-  ) {
-    value += archetypeCount === 0 ? 2 : 0.75
-  }
-
-  return value
-}
-
-function strategyPlayerAdjustment(
-  mode: TeamMode,
-  player: Player,
-  contract: Contract | undefined,
-): number {
-  const salary = getCurrentSalary(contract)
-  const yearsRemaining = getYearsRemaining(contract)
-  const upside = Math.max(0, player.ratings.potential - player.ratings.overall)
-  const isExpiring = yearsRemaining <= 1
-  const longExpensiveDeal = yearsRemaining >= 3 && salary >= 15
-
-  switch (mode) {
-    case "selling":
-      return (
-        upside * 0.45 +
-        (player.age <= 24 ? 5 : 0) +
-        (isExpiring ? 5 : 0) -
-        (player.age >= 31 ? 6 : 0) -
-        (longExpensiveDeal ? 8 : 0)
-      )
-    case "buying":
-      return (
-        (player.ratings.overall >= 72 ? 4 : 0) +
-        (salary <= 12 && player.ratings.overall >= 68 ? 3 : 0) -
-        (longExpensiveDeal && player.ratings.overall < 74 ? 4 : 0)
-      )
-    case "contending":
-      return (
-        (player.ratings.overall >= 76 ? 9 : 0) +
-        (player.ratings.overall >= 70 ? 4 : 0) -
-        (player.age <= 22 && player.ratings.overall < 68 ? 5 : 0) -
-        upside * 0.15
-      )
-  }
-}
-
-function valuePlayerForTeam(
-  league: LeagueRecord,
-  team: TeamWithRoster,
-  player: Player,
-  options: { incoming?: boolean } = {},
-): number {
-  const seasonFinancials = getSeasonFinancials(
-    league.leagueFinancials,
-    league.seasonState.season,
-  )
-  const mode = getTeamMode(league, team.id)
-  const contract = getPlayerContract(league.contracts, player)
-  const expectedSalary = buildFairSalary(player, seasonFinancials, league)
-  let value =
-    getContractAssetValueBreakdown({
-      player,
-      contract,
-      expectedSalary,
-      mode,
-    }).total +
-    strategyPlayerAdjustment(mode, player, contract) +
-    rosterFitValue(team, player, mode)
-
-  if (options.incoming && (player.status === "injured" || player.injury)) {
-    value *= INCOMING_INJURY_DISCOUNT
-  }
-
-  return value
-}
-
-function valuePickForTeam(
-  league: LeagueRecord,
-  teamId: string,
-  pick: DraftPickAsset,
-): number {
-  const mode = getTeamMode(league, teamId)
-  return getPickValueFromCache(
-    pick,
-    league.draftClassCache,
-    league,
-    teamId,
-    mode,
-  )
-}
-
-function bundleAssetValues(values: number[]): number {
-  if (values.length === 0) {
-    return 0
-  }
-
-  const bundled = values.reduce(
-    (sum, value) => sum + Math.max(0, value) ** TRADE_VALUE_EXPONENT,
-    0,
-  )
-  return bundled ** (1 / TRADE_VALUE_EXPONENT)
-}
-
-function valuePlayersForTeam(
-  league: LeagueRecord,
-  team: TeamWithRoster,
-  players: Player[],
-  options: { incoming?: boolean } = {},
-): number {
-  return bundleAssetValues(
-    players.map((player) =>
-      valuePlayerForTeam(league, team, player, options),
-    ),
-  )
-}
-
-function valuePicksForTeam(
-  league: LeagueRecord,
-  teamId: string,
-  picks: DraftPickAsset[],
-): number {
-  return bundleAssetValues(
-    picks.map((pick) => valuePickForTeam(league, teamId, pick)),
-  )
-}
-
-export function evaluateTrade(
+export function evaluateTradeUtility(
   league: LeagueRecord,
   proposal: TradeProposal,
-): TradeEvaluation[] {
+): Array<{ teamId: string; utility: TeamTradeUtilityBreakdown }> {
   const context = getContext(league, proposal)
-  if ("ok" in context) {
-    return []
-  }
-
-  const fromIncomingValue =
-    valuePlayersForTeam(league, context.fromTeam, context.toPlayers, {
-      incoming: true,
-    }) + valuePicksForTeam(league, context.fromTeam.id, context.toPicks)
-  const fromOutgoingValue =
-    valuePlayersForTeam(league, context.fromTeam, context.fromPlayers) +
-    valuePicksForTeam(league, context.fromTeam.id, context.fromPicks)
-  const toIncomingValue =
-    valuePlayersForTeam(league, context.toTeam, context.fromPlayers, {
-      incoming: true,
-    }) + valuePicksForTeam(league, context.toTeam.id, context.fromPicks)
-  const toOutgoingValue =
-    valuePlayersForTeam(league, context.toTeam, context.toPlayers) +
-    valuePicksForTeam(league, context.toTeam.id, context.toPicks)
-
+  if ("ok" in context) return []
   return [
-    {
-      teamId: context.fromTeam.id,
-      incomingValue: fromIncomingValue,
-      outgoingValue: fromOutgoingValue,
-      netValue: fromIncomingValue - fromOutgoingValue,
-    },
-    {
-      teamId: context.toTeam.id,
-      incomingValue: toIncomingValue,
-      outgoingValue: toOutgoingValue,
-      netValue: toIncomingValue - toOutgoingValue,
-    },
+    { teamId: context.fromTeam.id, utility: evaluateTeamTradeUtility({ league, team: context.fromTeam, outgoingPlayers: context.fromPlayers, incomingPlayers: context.toPlayers, outgoingPicks: context.fromPicks, incomingPicks: context.toPicks }) },
+    { teamId: context.toTeam.id, utility: evaluateTeamTradeUtility({ league, team: context.toTeam, outgoingPlayers: context.toPlayers, incomingPlayers: context.fromPlayers, outgoingPicks: context.toPicks, incomingPicks: context.fromPicks }) },
   ]
 }
 
-function getAiAcceptThreshold(mode: TeamMode): number {
-  switch (mode) {
-    case "selling":
-      return AI_ACCEPT_BAD
-    case "contending":
-      return AI_ACCEPT_CLOSE + CONTENDING_TRADE_FIT_TOLERANCE
-    case "buying":
-      return AI_ACCEPT_MIN_NET
-  }
-}
-
-function aiRejectReason(mode: TeamMode): string {
-  switch (mode) {
-    case "selling":
-      return "They want draft picks or cap relief"
-    case "contending":
-      return "They need more win-now value"
-    case "buying":
-      return "Other team rejects the trade value"
-  }
+export function evaluateTrade(league: LeagueRecord, proposal: TradeProposal): TradeEvaluation[] {
+  return evaluateTradeUtility(league, proposal).map(({ teamId, utility }) => ({
+    teamId,
+    incomingValue: utility.incomingAssetValue,
+    outgoingValue: utility.outgoingAssetValue,
+    netValue: utility.total,
+  }))
 }
 
 export function wouldAiAcceptTrade(
@@ -533,7 +339,7 @@ export function wouldAiAcceptTrade(
     return validation
   }
 
-  const evaluation = evaluateTrade(league, proposal).find(
+  const evaluation = evaluateTradeUtility(league, proposal).find(
     (entry) => entry.teamId === aiTeamId,
   )
   if (!evaluation) {
@@ -541,8 +347,21 @@ export function wouldAiAcceptTrade(
   }
 
   const mode = getTeamMode(league, aiTeamId)
-  if (evaluation.netValue < getAiAcceptThreshold(mode)) {
-    return { ok: false, reason: aiRejectReason(mode) }
+  const utility = evaluation.utility
+  if (utility.dominancePenalty < 0) {
+    return { ok: false, reason: `Rejected: ${utility.reasons.at(-1)}` }
+  }
+  if (mode === "selling") {
+    const futureCompensation = utility.incomingAssetValue - utility.outgoingAssetValue
+    if (utility.total < 0 || futureCompensation < SELLER_FUTURE_COMPENSATION_FLOOR) {
+      return { ok: false, reason: "Rejected: they need meaningful future value or contract relief" }
+    }
+  } else if (mode === "contending") {
+    if (utility.total < CONTENDING_LONG_TERM_TOLERANCE || utility.rotationDelta <= 0) {
+      return { ok: false, reason: "Rejected: this does not improve their projected rotation" }
+    }
+  } else if (utility.total < BUYING_ACCEPTANCE_FLOOR) {
+    return { ok: false, reason: "Rejected: the incoming package does not match the outgoing value" }
   }
 
   return { ok: true }

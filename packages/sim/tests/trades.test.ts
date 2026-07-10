@@ -263,7 +263,7 @@ describe("trades", () => {
     expect(wouldAiAcceptTrade(salaryMatchedLeague, proposal, teamA.id)).toEqual(
       {
         ok: false,
-        reason: "They need more win-now value",
+        reason: "Rejected: this does not improve their projected rotation",
       }
     )
   })
@@ -305,7 +305,7 @@ describe("trades", () => {
         type: "executeTrade",
         proposal: makeProposal(teamB, [teamBBench], teamA, [teamAStar]),
       })
-    ).toThrow("win-now value")
+    ).toThrow("does not improve their projected rotation")
   })
 
   it("moves draft pick ownership and records trade history", () => {

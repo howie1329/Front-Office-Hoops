@@ -8,7 +8,7 @@ row when finished.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| 001 | Replace trade evaluation with projected player, contract, and team utility layers | P1 | L | — | TODO |
+| 001 | Replace trade evaluation with projected player, contract, and team utility layers | P1 | L | — | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED | REJECTED.
 
