@@ -1,43 +1,42 @@
 # Front Office Hoops — Documentation
 
-Documentation for **Front Office Hoops**, a modern basketball GM simulation game inspired by Basketball GM / ZenGM — but not a direct clone.
+Documentation for Front Office Hoops, a simulation-first basketball general-manager game.
 
 ## Quick links
 
-| Document                                    | Description                                        |
-| ------------------------------------------- | -------------------------------------------------- |
-| [Vision](./vision.md)                       | Product goals, principles, and design philosophy   |
-| [Architecture](./architecture.md)           | Monorepo layout, package boundaries, and data flow |
-| [Simulation Engine](./simulation-engine.md) | How games, seasons, and playoffs are simulated     |
-| [Data Model](./data-model.md)               | Domain types, save format, and local persistence   |
-| [Development](./development.md)             | Local setup, scripts, conventions, and testing     |
-| [Roadmap](./roadmap.md)                     | What's built today and what's planned next         |
+| Document | Description |
+| --- | --- |
+| [Vision](./vision.md) | Product goals, principles, and boundaries |
+| [Architecture](./architecture.md) | Monorepo layout, package boundaries, routes, and data flow |
+| [Simulation Engine](./simulation-engine.md) | Game, season, development, playoff, and offseason behavior |
+| [Data Model](./data-model.md) | Domain types, save shape, and browser persistence |
+| [Contract Offer Market](./contract-offer-market.md) | Player and staff negotiation behavior |
+| [Development](./development.md) | Local setup, scripts, conventions, and tests |
+| [Roadmap](./roadmap.md) | Current implementation status and remaining work |
 
 ## Project at a glance
 
-- **Web-first, mobile-friendly, local-first** — runs in the browser with offline-capable saves
-- **TanStack Start + Tailwind + shadcn/ui** — full-stack React app with a shared UI package
-- **TypeScript simulation engine** — pure, testable logic in `@workspace/sim`
-- **IndexedDB / Dexie** — local league saves via `@workspace/db`
-- **Convex** _(planned)_ — optional cloud sync, accounts, realtime, and AI orchestration
-- **Vercel AI SDK** _(planned)_ — AI-generated media, reports, rumors, press conferences
+- **Web-first and mobile-friendly** — a TanStack Start application with responsive league-office workflows.
+- **Local-first** — simulation and league saves run in the browser using IndexedDB/Dexie.
+- **Simulation-first** — pure, seeded TypeScript logic in `@workspace/sim` owns game and league outcomes.
+- **Front-office depth** — rosters, contracts, cap/tax rules, trades, staff, draft, re-signing, free agency, development, and history are implemented.
+- **Optional future services** — Convex cloud features and Vercel AI SDK narrative features remain planned, not integrated.
 
 ## Repository layout
 
 ```
 Front-Office-Hoops/
-├── apps/
-│   └── web/              # TanStack Start web app
+├── apps/web/          # TanStack Start app and UI routes
 ├── packages/
-│   ├── db/               # Dexie / IndexedDB persistence
-│   ├── shared/           # Shared TypeScript types and constants
-│   ├── sim/              # Client-side simulation engine
-│   └── ui/               # shadcn/ui component library
-└── docs/                 # You are here
+│   ├── db/            # Dexie / IndexedDB persistence
+│   ├── shared/        # Shared domain types and constants
+│   ├── sim/           # Pure simulation engine and Vitest tests
+│   └── ui/            # Shared shadcn/ui components
+└── docs/              # Project documentation
 ```
 
 ## Current status
 
-The prototype has a working **league lifecycle**: create a league, pick a team, simulate days/weeks/seasons, view standings and stats, play through playoffs, archive seasons, and manage multiple local saves. The sim engine now includes aggregate box-score simulation, role-based rotations, player archetypes, injuries, development, contracts/cap, draft, re-signing, free agency, and financial AI. Developer **Sim Lab** and **Season Lab** routes exist for engine experimentation.
+The app supports a full local league lifecycle: create a league, choose a team, simulate the regular season and playoffs, manage the roster and staff, navigate re-signing, draft, and free agency, evaluate trades, advance multiple seasons, and review history. The engine also includes seeded game simulation, player development, injuries, archetypes, contracts, financial AI, draft classes, and player value models.
 
-See [Roadmap](./roadmap.md) for the full feature matrix.
+See [Roadmap](./roadmap.md) for the current feature matrix and planned work.

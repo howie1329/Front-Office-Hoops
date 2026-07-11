@@ -39,7 +39,7 @@ Gameplay truth comes from a **deterministic, testable TypeScript engine** (`@wor
 | **Onboard**        | Create a league, pick your team, understand the dashboard    |
 | **Regular season** | Simulate days or weeks, track standings, review box scores   |
 | **Playoffs**       | Bracket progression, series results, champion crowned        |
-| **Offseason**      | Re-signing, draft, free agency, roster moves; trades planned |
+| **Offseason**      | Staff, re-signing, draft, free agency, roster moves, and trades |
 | **Multi-season**   | Season history, legacy tracking, evolving narratives         |
 
 ## Non-goals (for now)
