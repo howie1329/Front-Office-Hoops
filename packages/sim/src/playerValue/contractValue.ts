@@ -5,6 +5,7 @@ import type { Player } from "@workspace/shared/types"
 import { calculateLuxuryTax, calculateSeasonFinancials } from "../financials/capMath"
 import { estimateSalaryFromValue } from "../financials/contracts/createContract"
 import type { ProjectedPlayerValueBreakdown } from "./projectedValue"
+import { assertValidContractGuarantees } from "../financials/contracts/validateContract"
 
 /** One million dollars of discounted surplus is worth 0.55 trade-value points. */
 const SALARY_TO_TRADE_VALUE = 0.55
@@ -60,6 +61,7 @@ export function getContractValueBreakdown(input: ContractValueInput): ContractVa
   if (salaries.length === 0) {
     return { annual: [], optionValue: 0, taxImpact: 0, total: 0 }
   }
+  assertValidContractGuarantees(input.contract!)
 
   const annual = salaries.map((salary, seasonOffset) => {
     const financials = financialsForOffset(input, seasonOffset)
@@ -68,7 +70,12 @@ export function getContractValueBreakdown(input: ContractValueInput): ContractVa
       input.player.yearsOfService + seasonOffset,
       financials,
     )
-    const discountedNet = (expectedContribution - salary) * SALARY_TO_TRADE_VALUE * FUTURE_YEAR_DISCOUNT ** seasonOffset
+    const guaranteed = input.contract?.guaranteedSalaries[seasonOffset] ?? salary
+    const flexibilityCredit = Math.max(0, salary - guaranteed) * 0.2
+    const discountedNet =
+      (expectedContribution - guaranteed + flexibilityCredit) *
+      SALARY_TO_TRADE_VALUE *
+      FUTURE_YEAR_DISCOUNT ** seasonOffset
     return { seasonOffset, salary, expectedContribution, discountedNet }
   })
   const incomingSalary = salaries[0] ?? 0

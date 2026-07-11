@@ -44,8 +44,8 @@ function withRegressionTrade(mode: TeamMode): {
       }),
     },
     contracts: league.contracts.map((contract) => {
-      if (contract.playerId === outgoing.id) return { ...contract, yearlySalaries: [30, 31, 32] }
-      if (contract.playerId === incoming.id) return { ...contract, yearlySalaries: [26] }
+      if (contract.playerId === outgoing.id) return { ...contract, yearlySalaries: [30, 31, 32], guaranteedSalaries: [30, 31, 32] }
+      if (contract.playerId === incoming.id) return { ...contract, yearlySalaries: [26], guaranteedSalaries: [26] }
       return contract
     }),
     teamFinancials: league.teamFinancials.map((financials) => financials.teamId === aiTeam.id ? { ...financials, strategy: { ...financials.strategy, mode } } : financials),

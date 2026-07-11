@@ -9,7 +9,7 @@ import type {
 
 import { getSeasonMilestones } from "./calendar"
 import { sortStandings } from "./deriveStandings"
-import { getTeamPayroll } from "./financials/payroll"
+import { getTeamFinancialPosition } from "./financials/teamFinancialPosition"
 import { getSeasonFinancials } from "./financials/capMath"
 import { createLeagueLogEntry } from "./leagueLog"
 
@@ -124,7 +124,11 @@ export function generateOwnerGoals(league: LeagueRecord): OwnerGoal[] {
 
   return league.seasonState.teams.flatMap((team) => {
     const owner = league.owners.find((entry) => entry.teamId === team.id)
-    const payroll = getTeamPayroll(team.id, league.contracts)
+    const payroll = getTeamFinancialPosition(
+      league,
+      team.id,
+      league.seasonState.season,
+    ).taxPayroll
     const rank = standings.findIndex((entry) => entry.teamId === team.id) + 1
     const goals: OwnerGoal[] = []
 
@@ -201,12 +205,20 @@ function didMeetGoal(league: LeagueRecord, goal: OwnerGoal): boolean {
       return (standing?.wins ?? 0) >= Number(goal.params.wins ?? 0)
     case "avoid_luxury_tax":
       return (
-        getTeamPayroll(goal.teamId, league.contracts) <=
+        getTeamFinancialPosition(
+          league,
+          goal.teamId,
+          league.seasonState.season,
+        ).taxPayroll <=
         seasonFinancials.luxuryTaxLine
       )
     case "reduce_payroll":
       return (
-        getTeamPayroll(goal.teamId, league.contracts) <=
+        getTeamFinancialPosition(
+          league,
+          goal.teamId,
+          league.seasonState.season,
+        ).taxPayroll <=
         Number(goal.params.payroll ?? seasonFinancials.salaryCap)
       )
     case "acquire_picks":

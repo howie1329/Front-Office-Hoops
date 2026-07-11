@@ -159,6 +159,8 @@ export {
   getTeamExpiredFreeAgents,
   getExternalFreeAgents,
   getTeamPayroll,
+  getTeamFinancialPosition,
+  renouncePlayerRights,
   getPlayerContract,
   getSeasonFinancials,
   calculateLuxuryTax,

@@ -2,15 +2,14 @@ import type { Contract } from "@workspace/shared/contractTypes"
 import type { LeagueRecord, Player, SeasonState } from "@workspace/shared/types"
 
 import {
-  calculateLuxuryTax,
   ensureSeasonFinancials,
   getSeasonFinancials,
   roundMoney,
 } from "./capMath"
 import { advanceDeadCapCharges } from "./deadCap"
 import { getTeamPayroll } from "./payroll"
+import { getTeamFinancialPosition } from "./teamFinancialPosition"
 import { calculateSeasonRevenue } from "./spendingProfiles"
-import { REPEATER_TAX_SEASONS } from "@workspace/shared/financialConstants"
 
 function getTeamWins(teamId: string, seasonState: SeasonState): number {
   const standing = seasonState.standings.find(
@@ -38,16 +37,13 @@ export function assessLeagueSeasonFinances(
   )
 
   const teamFinancials = league.teamFinancials.map((teamFinance) => {
-    const payroll = roundMoney(
-      getTeamPayroll(teamFinance.teamId, league.contracts, teamFinance),
+    const position = getTeamFinancialPosition(
+      league,
+      teamFinance.teamId,
+      seasonState.season,
     )
-    const isRepeater = teamFinance.consecutiveTaxSeasons >= REPEATER_TAX_SEASONS
-    const taxBill = calculateLuxuryTax(
-      payroll,
-      seasonFinancials.luxuryTaxLine,
-      seasonFinancials.taxBracketSize,
-      isRepeater,
-    )
+    const payroll = position.taxPayroll
+    const taxBill = position.projectedTax
     const wins = getTeamWins(teamFinance.teamId, seasonState)
     const madePlayoffs = teamMadePlayoffs(teamFinance.teamId, seasonState)
     const revenue = calculateSeasonRevenue(teamFinance, wins, madePlayoffs)
@@ -71,7 +67,7 @@ export function assessLeagueSeasonFinances(
       consecutiveTaxSeasons: isTaxTeam
         ? teamFinance.consecutiveTaxSeasons + 1
         : 0,
-      wasUnderCapThisYear: payroll <= seasonFinancials.salaryCap,
+      wasUnderCapThisYear: position.totalCapCharges <= seasonFinancials.salaryCap,
     }
   })
 
@@ -127,6 +123,9 @@ export function rollFinancialYear(
     roomMleRemaining: seasonFinancials.mleRoom,
     wasUnderCapThisYear: true,
     deadCapCharges: advanceDeadCapCharges(teamFinance.deadCapCharges),
+    capHolds: teamFinance.capHolds.filter(
+      (hold) => hold.season >= newSeason && hold.status === "active",
+    ),
     tradeExceptions: teamFinance.tradeExceptions.filter(
       (tpe) => tpe.expiresSeason >= newSeason,
     ),
@@ -164,6 +163,7 @@ export function advanceContractYears(
     return {
       ...contract,
       yearlySalaries: remaining,
+      guaranteedSalaries: contract.guaranteedSalaries.slice(1),
       options: contract.options
         ?.map((option) => ({ ...option, yearIndex: option.yearIndex - 1 }))
         .filter((option) => option.yearIndex >= 0),

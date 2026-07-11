@@ -12,8 +12,14 @@ import {
   getPlayerContractMarketValue,
   getStaffContractMarketValue,
 } from "./marketValue"
-import { getExtensionBounds } from "../financials/contractExtensions"
+import {
+  getExtensionBounds,
+  getExtensionMarketSalary,
+} from "../financials/contractExtensions"
 import { DEFAULT_PLAYER_MOOD } from "../playerValue/moodSeed"
+import { getProjectedPlayerValueBreakdown } from "../playerValue/projectedValue"
+import { buildSalaryCurve } from "../financials/contracts/createContract"
+import { RAISE_PCT_STANDARD } from "@workspace/shared/financialConstants"
 
 export type ContractOfferDecision = {
   result: "accept" | "wait" | "decline"
@@ -25,6 +31,8 @@ export type ContractOfferDecision = {
 export type ContractOfferBreakdown = {
   salary: number
   years: number
+  security: number
+  endOfContractValue: number
   loyalty: number
   winning: number
   market: number
@@ -54,6 +62,35 @@ function yearsScore(years: number): number {
     return 6
   }
   return 2
+}
+
+function securityScore(
+  offer: ContractOffer,
+  expectedSalary: number,
+  mood: PlayerMood,
+): number {
+  const schedule = buildSalaryCurve(
+    offer.firstYearSalary,
+    offer.years,
+    RAISE_PCT_STANDARD,
+  )
+  const guaranteedTotal = schedule.reduce((sum, salary) => sum + salary, 0)
+  const expectedTotal = expectedSalary * offer.years
+  const securityWeight = 0.7 + mood.money / 250
+  return clamp((guaranteedTotal / Math.max(0.1, expectedTotal)) * 8 * securityWeight, 0, 12)
+}
+
+function endOfContractValueScore(
+  player: Player,
+  offer: ContractOffer,
+): number {
+  const projected = getProjectedPlayerValueBreakdown(player)
+  const finalProjection =
+    projected.projectedSeasons[
+      Math.min(offer.years - 1, projected.projectedSeasons.length - 1)
+    ]?.projectedOverall ?? player.ratings.overall
+  const decline = player.ratings.overall - finalProjection
+  return clamp(4 - decline * 0.8, -4, 5)
 }
 
 function getOfferTeamContext(
@@ -189,13 +226,15 @@ export function evaluatePlayerContractOffer(
   const expectedSalary =
     offer.phase === "extension"
       ? Math.min(
-          market.expectedSalary,
+          getExtensionMarketSalary(league, player.id) ?? market.expectedSalary,
           getExtensionBounds(league, player.id)?.maxSalary ?? market.expectedSalary,
         )
       : market.expectedSalary
   const breakdown: ContractOfferBreakdown = {
     salary: salaryScore(offer.firstYearSalary, expectedSalary, mood),
     years: yearsScore(offer.years),
+    security: securityScore(offer, expectedSalary, mood),
+    endOfContractValue: endOfContractValueScore(player, offer),
     loyalty: loyaltyScore(mood, context, offer.phase),
     winning: winningScore(mood, context),
     market: marketScore(mood, context),
@@ -223,6 +262,8 @@ export function evaluateStaffContractOffer(
   const breakdown: ContractOfferBreakdown = {
     salary: clamp(salaryRatio * 76, 0, 76),
     years: yearsScore(offer.years),
+    security: yearsScore(offer.years),
+    endOfContractValue: 0,
     loyalty: 0,
     winning: 0,
     market: 0,

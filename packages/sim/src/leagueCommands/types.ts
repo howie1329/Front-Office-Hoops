@@ -28,6 +28,7 @@ export type LeagueCommand =
   | { type: "advanceToFreeAgency" }
   | { type: "completeFreeAgency" }
   | { type: "releasePlayer"; playerId: string }
+  | { type: "renouncePlayerRights"; playerId: string }
   | { type: "submitPlayerContractOffer"; playerId: string; offer: FreeAgentOffer }
   | { type: "submitPlayerExtensionOffer"; playerId: string; offer: ExtensionOffer }
   | { type: "submitStaffContractOffer"; staffId: string; offer: StaffOffer }

@@ -26,11 +26,8 @@ import {
   createTradeException,
   getAvailableTpeAmount,
 } from "./financials/tradeExceptions"
-import {
-  getCurrentSalary,
-  getPlayerContract,
-  getTeamPayroll,
-} from "./financials/payroll"
+import { getCurrentSalary, getPlayerContract } from "./financials/payroll"
+import { getTeamFinancialPosition } from "./financials/teamFinancialPosition"
 import { createLeagueLogEntry } from "./leagueLog"
 import { deriveTeamOverall } from "./playerRatings"
 import { evaluateTeamTradeUtility, type TeamTradeUtilityBreakdown } from "./tradeEvaluation"
@@ -235,9 +232,13 @@ function validateSalaryMatching(
   league: LeagueRecord,
   context: TradeContext,
 ): TradeValidationResult {
+  const financialSeason =
+    league.seasonState.phase === "offseason"
+      ? league.seasonState.season + 1
+      : league.seasonState.season
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
-    league.seasonState.season,
+    financialSeason,
   )
   const fromOutgoing = sumSalary(league, context.fromPlayers)
   const fromIncoming = sumSalary(league, context.toPlayers)
@@ -252,7 +253,11 @@ function validateSalaryMatching(
   )
 
   const fromCanTrade = canAbsorbIncomingSalary({
-    payroll: getTeamPayroll(context.fromTeam.id, league.contracts),
+    payroll: getTeamFinancialPosition(
+      league,
+      context.fromTeam.id,
+      financialSeason,
+    ).taxPayroll,
     salaryCap: seasonFinancials.salaryCap,
     outgoingSalary: fromOutgoing,
     incomingSalary: fromIncoming,
@@ -263,7 +268,11 @@ function validateSalaryMatching(
   }
 
   const toCanTrade = canAbsorbIncomingSalary({
-    payroll: getTeamPayroll(context.toTeam.id, league.contracts),
+    payroll: getTeamFinancialPosition(
+      league,
+      context.toTeam.id,
+      financialSeason,
+    ).taxPayroll,
     salaryCap: seasonFinancials.salaryCap,
     outgoingSalary: toOutgoing,
     incomingSalary: toIncoming,

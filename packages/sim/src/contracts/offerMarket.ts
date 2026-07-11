@@ -28,8 +28,11 @@ import {
 import {
   buildExternalFaOffer,
   buildReSignOffer,
+  canAffordOffer,
   getPriorContractSalary,
 } from "../financials/ai/offers"
+import { getTeamFinancialPosition } from "../financials/teamFinancialPosition"
+import { getProjectedPlayerValue } from "../playerValue/projectedValue"
 import {
   getPlayerContractMarketValue,
   getStaffContractMarketValue,
@@ -712,7 +715,11 @@ export function generateAiFreeAgencyMarketOffers(
     }
 
     const candidates = getExternalFreeAgents(current, teamFinance.teamId)
-      .sort((a, b) => b.ratings.overall - a.ratings.overall)
+      .sort(
+        (a, b) =>
+          getProjectedPlayerValue(b, { league: current }) -
+          getProjectedPlayerValue(a, { league: current }),
+      )
       .slice(0, 12)
     const player = candidates[rng.int(0, Math.max(0, candidates.length - 1))]
     if (
@@ -729,6 +736,21 @@ export function generateAiFreeAgencyMarketOffers(
     }
 
     const offer = buildExternalFaOffer(player, teamFinance, seasonFinancials, rng)
+    const position = getTeamFinancialPosition(
+      current,
+      teamFinance.teamId,
+      seasonFinancials.season,
+    )
+    if (
+      !canAffordOffer(
+        teamFinance,
+        position.taxPayroll,
+        offer.firstYearSalary,
+        seasonFinancials,
+      )
+    ) {
+      continue
+    }
     const validation = canSignPlayer(current, teamFinance.teamId, player.id, offer)
     if (!validation.ok) {
       continue
@@ -750,7 +772,7 @@ export function processAiReSigningOffers(
   let current = league
   const seasonFinancials = getSeasonFinancials(
     current.leagueFinancials,
-    current.seasonState.season,
+    current.seasonState.season + 1,
   )
 
   for (const teamId of getAiTeams(current)) {
@@ -761,7 +783,9 @@ export function processAiReSigningOffers(
       continue
     }
     const candidates = getTeamExpiredFreeAgents(current, teamId).sort(
-      (a, b) => b.ratings.overall - a.ratings.overall,
+      (a, b) =>
+        getProjectedPlayerValue(b, { league: current }) -
+        getProjectedPlayerValue(a, { league: current }),
     )
     for (const player of candidates.slice(0, 4)) {
       const priorSalary = getPriorContractSalary(current.contracts, player)
@@ -836,7 +860,7 @@ export function fillAiRostersAfterFreeAgency(
   let current = league
   const seasonFinancials = getSeasonFinancials(
     current.leagueFinancials,
-    current.seasonState.season,
+    current.seasonState.season + 1,
   )
 
   for (const teamFinance of current.teamFinancials) {

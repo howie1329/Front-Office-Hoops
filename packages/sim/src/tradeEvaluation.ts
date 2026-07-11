@@ -2,7 +2,8 @@ import type { DraftPickAsset, LeagueRecord, Player, TeamMode, TeamWithRoster } f
 
 import { getPickValueFromCache } from "./draft/pickValues"
 import { getSeasonFinancials } from "./financials/capMath"
-import { getPlayerContract, getTeamPayroll } from "./financials/payroll"
+import { getPlayerContract } from "./financials/payroll"
+import { getTeamFinancialPosition } from "./financials/teamFinancialPosition"
 import { getContractValueBreakdown } from "./playerValue/contractValue"
 import { getProjectedPlayerValueBreakdown } from "./playerValue/projectedValue"
 import { selectRotation } from "./selectRotation"
@@ -46,16 +47,27 @@ function bundle(values: number[]): number {
 
 function playerAssetValue(league: LeagueRecord, team: TeamWithRoster, player: Player): { total: number; financial: number; projected: ReturnType<typeof getProjectedPlayerValueBreakdown> } {
   const projected = getProjectedPlayerValueBreakdown(player, { league })
-  const financials = getSeasonFinancials(league.leagueFinancials, league.seasonState.season)
+  const financialSeason =
+    league.seasonState.phase === "offseason"
+      ? league.seasonState.season + 1
+      : league.seasonState.season
+  const financials = getSeasonFinancials(league.leagueFinancials, financialSeason)
   const contract = getPlayerContract(league.contracts, player)
   const finance = league.teamFinancials.find((entry) => entry.teamId === team.id)
+  const position = getTeamFinancialPosition(
+    league,
+    team.id,
+    financialSeason,
+  )
+  const existingSalary =
+    contract?.teamId === team.id ? (contract.yearlySalaries[0] ?? 0) : 0
   const financial = getContractValueBreakdown({
     player,
     contract,
     seasonFinancials: financials,
     leagueFinancials: league.leagueFinancials,
     receivingTeamFinancials: finance,
-    receivingTeamPayroll: getTeamPayroll(team.id, league.contracts, finance),
+    receivingTeamPayroll: position.taxPayroll - existingSalary,
     projectedPlayerValue: projected,
   }).total
   return { total: projected.total + financial, financial, projected }

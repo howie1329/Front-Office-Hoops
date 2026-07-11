@@ -41,7 +41,10 @@ export * from "./freeAgency"
 export * from "./contractExtensions"
 export * from "./contracts/createContract"
 export * from "./contracts/processContracts"
+export * from "./contracts/validateContract"
 export * from "./teamStrategy"
+export * from "./teamFinancialPosition"
+export * from "./capHolds"
 export { applyAiCapBehavior } from "./ai/capCuts"
 
 export function processOffseasonFinancials(

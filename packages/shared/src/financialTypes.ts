@@ -62,6 +62,18 @@ export type DeadCapCharge = {
   origin: "waive" | "stretch"
 }
 
+export type CapHoldStatus = "active" | "renounced"
+
+export type CapHold = {
+  id: string
+  playerId: string
+  teamId: string
+  season: number
+  amount: number
+  rightsType: BirdRightsType
+  status: CapHoldStatus
+}
+
 export type TeamFinancials = {
   teamId: string
   spendingProfile: TeamSpendingProfile
@@ -82,6 +94,26 @@ export type TeamFinancials = {
   roomMleRemaining: number
   tradeExceptions: TradeException[]
   deadCapCharges: DeadCapCharge[]
+  capHolds: CapHold[]
+}
+
+export type TeamFinancialPosition = {
+  teamId: string
+  season: number
+  contractPayroll: number
+  deadCap: number
+  capHolds: number
+  totalCapCharges: number
+  capSpace: number
+  taxPayroll: number
+  projectedTax: number
+  isOverCap: boolean
+  isOverTax: boolean
+  roomMleEligible: boolean
+  mleRemaining: number
+  roomMleRemaining: number
+  cashReserves: number
+  debt: number
 }
 
 export type SpendingProfileEvent = {

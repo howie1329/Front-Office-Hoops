@@ -72,6 +72,8 @@ export type MyTeamRosterRow = {
   potential: number
   salary: number
   yearsRemaining: number
+  guaranteedRemaining: number
+  deadCapSchedule: string
   gp: number
   min: number | null
   pts: number | null
@@ -188,6 +190,12 @@ function buildRows({
       potential: viewRatings.potential,
       salary: getCurrentSalary(contract),
       yearsRemaining,
+      guaranteedRemaining:
+        contract?.guaranteedSalaries.reduce((sum, amount) => sum + amount, 0) ?? 0,
+      deadCapSchedule:
+        contract?.guaranteedSalaries
+          .map((amount, index) => `Y${index + 1} ${formatMoney(amount)}`)
+          .join(" · ") ?? "None",
       gp: stats?.gp ?? 0,
       min:
         stats?.gp && stats.min
@@ -585,8 +593,9 @@ function ReleasePlayerDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Release {row?.playerName}?</AlertDialogTitle>
           <AlertDialogDescription>
-            The player will be waived and become a free agent. Dead cap may apply
-            depending on contract terms.
+            The player will be waived and become a free agent. This creates {" "}
+            {formatMoney(row?.guaranteedRemaining ?? 0)} in remaining guaranteed
+            money. Dead-cap schedule: {row?.deadCapSchedule ?? "None"}.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -616,6 +625,10 @@ function BulkReleasePlayersDialog({
 }) {
   const ineligibleCount = Math.max(0, selectedCount - rows.length)
   const playerNames = rows.map((row) => row.playerName).join(", ")
+  const guaranteedTotal = rows.reduce(
+    (sum, row) => sum + row.guaranteedRemaining,
+    0,
+  )
 
   return (
     <AlertDialog
@@ -630,7 +643,8 @@ function BulkReleasePlayersDialog({
           <AlertDialogDescription>
             The selected player{rows.length === 1 ? "" : "s"} will be waived
             and become free agent{rows.length === 1 ? "" : "s"}. Dead cap may
-            apply depending on contract terms.
+            apply depending on contract terms. Total remaining guarantees: {" "}
+            {formatMoney(guaranteedTotal)}.
           </AlertDialogDescription>
         </AlertDialogHeader>
 

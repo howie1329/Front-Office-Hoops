@@ -243,7 +243,7 @@ describe("trades", () => {
       contracts: league.contracts.map((contract) =>
         contract.playerId === teamAStar.id ||
         contract.playerId === teamBBench.id
-          ? { ...contract, yearlySalaries: [10] }
+          ? { ...contract, yearlySalaries: [10], guaranteedSalaries: [10] }
           : contract
       ),
       teamFinancials: league.teamFinancials.map((entry) =>
@@ -284,7 +284,7 @@ describe("trades", () => {
       contracts: league.contracts.map((contract) =>
         contract.playerId === teamAStar.id ||
         contract.playerId === teamBBench.id
-          ? { ...contract, yearlySalaries: [10] }
+          ? { ...contract, yearlySalaries: [10], guaranteedSalaries: [10] }
           : contract
       ),
       teamFinancials: league.teamFinancials.map((entry) =>

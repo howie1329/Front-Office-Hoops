@@ -19,6 +19,7 @@ import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
 import {
   calculateMaxSalary,
   calculateMinSalary,
+  calculateLuxuryTax,
   roundMoney,
 } from "../capMath"
 import { getFairSalary } from "../../playerValue"
@@ -48,12 +49,22 @@ export function canAffordOffer(
   offerSalary: number,
   seasonFinancials: SeasonFinancials,
 ): boolean {
-  const projectedTax =
-    payroll + offerSalary > seasonFinancials.luxuryTaxLine
-      ? payroll + offerSalary - seasonFinancials.luxuryTaxLine
-      : 0
+  const isRepeater = teamFinance.consecutiveTaxSeasons >= 3
+  const currentTax = calculateLuxuryTax(
+    payroll,
+    seasonFinancials.luxuryTaxLine,
+    seasonFinancials.taxBracketSize,
+    isRepeater,
+  )
+  const projectedTax = calculateLuxuryTax(
+    payroll + offerSalary,
+    seasonFinancials.luxuryTaxLine,
+    seasonFinancials.taxBracketSize,
+    isRepeater,
+  )
+  const incrementalTax = Math.max(0, projectedTax - currentTax)
   const projectedCash =
-    teamFinance.cashReserves - offerSalary - projectedTax * 0.5
+    teamFinance.cashReserves - offerSalary - incrementalTax * 0.5
   const floor = TOLERANCE_CASH_FLOOR[teamFinance.spendingProfile.taxTolerance]
   return projectedCash >= floor
 }
