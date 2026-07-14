@@ -21,6 +21,7 @@ import type {
   StaffOffer,
   TradeProposal,
 } from "@workspace/shared/types"
+import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
 import { toast } from "sonner"
 
 import {
@@ -38,7 +39,7 @@ async function resolveActiveLeagueRecord(): Promise<{
   record: LeagueRecord | null
   saves: LeagueSummary[]
 }> {
-  const { getLeague, listLeagues } = await import("@workspace/db")
+  const { deleteLeague, getLeague, listLeagues } = await import("@workspace/db")
   const saves = await listLeagues()
 
   if (saves.length === 0) {
@@ -46,16 +47,38 @@ async function resolveActiveLeagueRecord(): Promise<{
   }
 
   const activeId = getActiveLeagueId()
-  const record =
-    (activeId ? await getLeague(activeId) : undefined) ??
-    (await getLeague(saves[0].id))
+  const orderedSaves = activeId
+    ? [
+        ...saves.filter((save) => save.id === activeId),
+        ...saves.filter((save) => save.id !== activeId),
+      ]
+    : saves
+  let record: LeagueRecord | null = null
+
+  for (const save of orderedSaves) {
+    const candidate = await getLeague(save.id)
+    if (!candidate) {
+      continue
+    }
+
+    const candidateVersion = (candidate as { saveVersion: number }).saveVersion
+    if (candidateVersion !== SAVE_VERSION) {
+      await deleteLeague(candidate.id)
+      continue
+    }
+
+    record = candidate
+    break
+  }
+
+  const compatibleSaves = await listLeagues()
 
   if (!record) {
-    return { record: null, saves }
+    return { record: null, saves: compatibleSaves }
   }
 
   setActiveLeagueId(record.id)
-  return { record, saves }
+  return { record, saves: compatibleSaves }
 }
 
 export function useLeague() {
@@ -470,6 +493,8 @@ export function useLeague() {
     simToUserPick: () => dispatch({ type: "simToUserPick" }),
     releasePlayer: (playerId: string) =>
       dispatch({ type: "releasePlayer", playerId }),
+    renouncePlayerRights: (playerId: string) =>
+      dispatch({ type: "renouncePlayerRights", playerId }),
     submitPlayerExtensionOffer: (playerId: string, offer: ExtensionOffer) =>
       dispatch({ type: "submitPlayerExtensionOffer", playerId, offer }),
     submitStaffContractOffer: (staffId: string, offer: StaffOffer) =>

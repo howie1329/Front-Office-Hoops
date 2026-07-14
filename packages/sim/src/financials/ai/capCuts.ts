@@ -7,9 +7,10 @@ import {
 } from "@workspace/shared/financialConstants"
 
 import { getSeasonFinancials } from "../capMath"
-import { getTeamPayroll, getPlayerContract } from "../payroll"
+import { getPlayerContract } from "../payroll"
+import { getTeamFinancialPosition } from "../teamFinancialPosition"
+import { waivePlayerContract } from "../contracts/processContracts"
 import { releasePlayer } from "../../roster/rosterManagement"
-import { waiveContract } from "../contracts/createContract"
 import {
   calculateRosterKeepValue,
   getContractAssetValueBreakdown,
@@ -113,7 +114,11 @@ export function applyAiCapBehavior(
   let current = league
 
   for (const teamFinance of current.teamFinancials) {
-    let payroll = getTeamPayroll(teamFinance.teamId, current.contracts)
+    let payroll = getTeamFinancialPosition(
+      current,
+      teamFinance.teamId,
+      current.seasonState.season,
+    ).taxPayroll
     const skippedCutIds = new Set<string>()
 
     while (
@@ -153,7 +158,6 @@ export function applyAiCapBehavior(
         }
       }
 
-      const contract = getPlayerContract(current.contracts, cutCandidate)
       let releaseResult: ReturnType<typeof releasePlayer>
       try {
         releaseResult = releasePlayer(
@@ -166,21 +170,24 @@ export function applyAiCapBehavior(
         continue
       }
 
-      current = {
+      current = waivePlayerContract({
         ...current,
         seasonState: {
           ...current.seasonState,
           teams: releaseResult.teams,
         },
         freeAgentPool: releaseResult.freeAgentPool,
-        contracts: contract
-          ? current.contracts.map((entry) =>
-              entry.id === contract.id ? waiveContract(entry) : entry
-            )
-          : current.contracts,
-      }
+      }, cutCandidate.id)
 
-      payroll = getTeamPayroll(teamFinance.teamId, current.contracts)
+      const nextPayroll = getTeamFinancialPosition(
+        current,
+        teamFinance.teamId,
+        current.seasonState.season,
+      ).taxPayroll
+      if (nextPayroll >= payroll) {
+        break
+      }
+      payroll = nextPayroll
     }
   }
 

@@ -21,7 +21,11 @@ import {
 } from "../offseason/phases"
 import { beginStaffMarket, completeStaffPhase } from "../offseason/staffPhase"
 import { completeReSigningPhase } from "../offseason/reSigning"
-import { ensureFaPoolMinimum, processOffseasonFinancials } from "../financials"
+import {
+  ensureFaPoolMinimum,
+  processOffseasonFinancials,
+  renouncePlayerRights,
+} from "../financials"
 import {
   acceptTradeOffer,
   executeTrade,
@@ -270,6 +274,17 @@ function applyLeagueCommandInternal(
         teamId: league.userTeamId,
         playerId: command.playerId,
       })
+    }
+
+    case "renouncePlayerRights": {
+      if (!league.userTeamId) {
+        throw new Error("User team must be selected before renouncing rights")
+      }
+      return renouncePlayerRights(
+        league,
+        league.userTeamId,
+        command.playerId,
+      )
     }
 
     case "submitPlayerContractOffer": {

@@ -54,7 +54,7 @@ apps/web/                 # TanStack Start app
     components/           # Feature components (league, box-score)
     contexts/             # LeagueContext
     hooks/                # useLeague, useLeagueSaves
-    lib/                  # activeLeague localStorage helper
+    lib/                  # active save and UI helpers
 packages/
   sim/src/                # Simulation engine modules
   sim/tests/              # Engine unit tests
@@ -87,7 +87,7 @@ const { saveLeague } = await import("@workspace/db")
 Add shadcn components via the CLI (places files in `packages/ui`):
 
 ```bash
-pnpm dlx shadcn@latest add <component> -c apps/web
+npx shadcn@latest add <component> -c apps/web
 ```
 
 Import from `@workspace/ui/components/<name>`.
@@ -124,8 +124,10 @@ No automated browser tests yet. Manual verification paths:
 
 1. Create league → pick team → simulate days
 2. Complete regular season → begin playoffs → simulate postseason
-3. Start next season → verify history
-4. Multiple saves → switch active save
+3. Complete postseason → staff week → re-signing → draft → free agency → start next season
+4. Execute a trade and verify roster, salary, history, and pending-offer behavior
+5. Start next season → verify history and development
+6. Multiple saves → switch active save
 
 ## Developer routes
 
@@ -142,7 +144,7 @@ Typical workflow:
 
 1. **Types** — extend `packages/shared` if new data shapes are needed
 2. **Engine** — implement logic in `packages/sim` with tests
-3. **Persistence** — update `SAVE_VERSION` when the current save shape changes
+3. **Persistence** — update `SAVE_VERSION` when the current save shape changes; there is no migration layer yet
 4. **Hook** — expose new actions in `useLeague`
 5. **Context** — derive any computed state in `LeagueContext`
 6. **UI** — build route/component in `apps/web`
@@ -161,6 +163,13 @@ No required env vars for local development today. Future additions:
 | ------------------------------------- | --------------------- |
 | `CONVEX_URL`                          | Convex deployment URL |
 | `AI_GATEWAY_API_KEY` or provider keys | Vercel AI SDK         |
+
+## Documentation
+
+Living product and engineering docs are in `docs/`. Dated files under
+`docs/superpowers/` and `plans/` record historical specifications and
+implementation plans; update them only when intentionally revisiting that
+historical decision.
 
 ## Troubleshooting
 

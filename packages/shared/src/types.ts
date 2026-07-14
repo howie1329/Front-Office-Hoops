@@ -245,12 +245,16 @@ export type {
 
 export type {
   BirdRightsType,
+  CapHold,
+  CapHoldStatus,
+  DeadCapCharge,
   LeagueFinancials,
   MarketTier,
   SeasonFinancials,
   SpendingProfileEvent,
   TaxTolerance,
   TeamFinancials,
+  TeamFinancialPosition,
   TeamMode,
   TeamModeSource,
   TeamSpendingProfile,

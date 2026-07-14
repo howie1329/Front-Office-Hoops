@@ -25,6 +25,7 @@ flowchart TB
         Eligibility["phaseEligibility"]
         Ledger["roster/ledger"]
         Engine["game + season atomics"]
+        FrontOffice["contracts + staff + trades"]
     end
 
     subgraph storage ["Client storage"]
@@ -39,6 +40,7 @@ flowchart TB
     Hooks --> DB
     Commands --> Ledger
     Commands --> Engine
+    Commands --> FrontOffice
     Commands --> Eligibility
     Components --> UI
     Sim --> Shared
@@ -54,7 +56,7 @@ flowchart TB
 The TanStack Start application. Responsibilities:
 
 - File-based routing (`src/routes/`)
-- League UI (standings, schedule, roster, playoffs, box scores)
+- League UI (calendar, standings, schedule, roster, staff, contracts, trades, draft, free agency, playoffs, box scores)
 - React context and hooks that bridge UI ↔ sim ↔ db (`useLeague` dispatches `LeagueCommand`s; `LeagueContext` reads `getAllPhaseEligibility`)
 - Developer labs (`/sim-lab`, `/season-lab`)
 
@@ -64,7 +66,7 @@ Key dependencies: `@tanstack/react-start`, `@tanstack/react-router`, Tailwind CS
 
 **Pure TypeScript simulation engine.** No React, no DOM, no IndexedDB.
 
-- **League commands** (`applyLeagueCommand`) — single entry point for app mutations (sim ticks, lifecycle, trades, FA, draft)
+- **League commands** (`applyLeagueCommand`) — single entry point for app mutations (sim ticks, lifecycle, staff, contracts, trades, free agency, and draft)
 - **Phase eligibility** (`getPhaseEligibility`) — shared UI/sim gates for offseason and season transitions
 - **Roster ledger** (`roster/ledger`) — multi-slice player reads and composite writes (release, draft selections + contracts + logs)
 - **Roster generation** (`playerGeneration/rosterPipeline`) — unified tier-offset and archetype-slot team generation
@@ -74,8 +76,8 @@ Key dependencies: `@tanstack/react-start`, `@tanstack/react-router`, Tailwind CS
 - Playoffs (`beginPlayoffs`, `simulatePlayoffs`, bracket logic)
 - League lifecycle (`createLeague`, `startNextSeason`, `archiveSeason`)
 - Procedural generation (`generateTeams`, `generatePlayers`, player archetypes, draft classes, free agents)
-- Aggregate game simulation, rotations, injuries, player/contract value, financial AI
-- Contracts, cap/tax math, re-signing, draft, free agency, team strategy
+- Aggregate game simulation, rotations, injuries, player/contract value, and financial AI
+- Contracts, cap/tax math, re-signing, draft, free agency, staff, trades, and team strategy
 - Seeded RNG (`createRng`) for reproducibility
 
 All exports are functions that take immutable-ish state + an `Rng` and return updated state. Vitest tests cover core behavior.
@@ -109,7 +111,7 @@ import { Button } from "@workspace/ui/components/button"
 Add new components from the repo root:
 
 ```bash
-pnpm dlx shadcn@latest add <component> -c apps/web
+npx shadcn@latest add <component> -c apps/web
 ```
 
 ## Data flow
@@ -118,7 +120,7 @@ pnpm dlx shadcn@latest add <component> -c apps/web
 
 1. `useLeague` mounts → dynamic import `@workspace/db`
 2. `listLeagues()` reads IndexedDB, resolves active save from `localStorage`
-3. Loaded `LeagueRecord` is used as-is (no save migration)
+3. Loaded `LeagueRecord` is used as-is; there is currently no save migration layer
 4. State flows into `LeagueProvider` → route components
 
 ### Simulation tick
@@ -131,7 +133,7 @@ pnpm dlx shadcn@latest add <component> -c apps/web
 
 ### League lifecycle actions
 
-Offseason transitions, draft picks, trades, and free agency use the same command layer. `LeagueContext` exposes `canBeginPlayoffs`, `canStartNextSeason`, etc. by mapping `getAllPhaseEligibility` — the same rules `applyLeagueCommand` enforces before mutating state.
+Offseason transitions, staff actions, contract offers, draft picks, trades, and free agency use the same command layer. `LeagueContext` exposes phase eligibility derived from `getAllPhaseEligibility` — the same rules `applyLeagueCommand` enforces before mutating state.
 
 ### Active save tracking
 
@@ -147,9 +149,15 @@ Offseason transitions, draft picks, trades, and free agency use the same command
 | `/league/pick-team`     | Team selection                              |
 | `/league/saves`         | Save slot management                        |
 | `/league/standings`     | Standings table                             |
-| `/league/schedule`      | Schedule + sim controls                     |
+| `/league/calendar`      | Calendar, schedule, and sim controls        |
+| `/league/schedule`      | Redirects to the calendar                   |
 | `/league/stats`         | Player season stats                         |
 | `/league/team`          | User team roster                            |
+| `/league/staff`         | Staff roster, hiring, budgets, and contracts |
+| `/league/re-signing`    | Expiring-player negotiations                |
+| `/league/free-agency`   | Free-agent market and offers                |
+| `/league/trades`        | Trade workspace and incoming offers         |
+| `/league/draft`         | Draft board and selections                  |
 | `/league/playoffs`      | Playoff bracket                             |
 | `/league/history`       | Past seasons                                |
 | `/league/games/$gameId` | Box score detail                            |

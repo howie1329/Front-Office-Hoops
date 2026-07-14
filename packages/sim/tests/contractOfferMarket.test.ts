@@ -34,7 +34,7 @@ function legalStrongSalary(league: ReturnType<typeof openReSigningLeague>, playe
   const market = getPlayerContractMarketValue(league, player)
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
-    league.seasonState.season,
+    league.seasonState.season + 1,
   )
   const maxSalary = calculateMaxSalary(
     seasonFinancials.salaryCap,
@@ -47,7 +47,7 @@ function legalMinimumSalary(league: ReturnType<typeof openReSigningLeague>, play
   const player = league.freeAgentPool.find((entry) => entry.id === playerId)!
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
-    league.seasonState.season,
+    league.seasonState.season + 1,
   )
   return calculateMinSalary(seasonFinancials, player.yearsOfService)
 }
@@ -74,7 +74,11 @@ function openReSigningLeague() {
       ...league,
       contracts: league.contracts.map((contract) =>
         contract.id === expiringContract.id
-          ? { ...contract, yearlySalaries: [contract.yearlySalaries[0]!] }
+          ? {
+              ...contract,
+              yearlySalaries: [contract.yearlySalaries[0]!],
+              guaranteedSalaries: [contract.yearlySalaries[0]!],
+            }
           : contract,
       ),
       seasonState: {
@@ -106,6 +110,7 @@ function withExtensionLeague(): LeagueRecord {
     startSeason: 1,
     endSeason: 3,
     yearlySalaries: [30, 30, 30],
+    guaranteedSalaries: [30, 30, 30],
     contractType: "standard",
     signingException: "bird",
     status: "active",
@@ -242,6 +247,26 @@ describe("contract offer market", () => {
 
     expect(lowMoney.breakdown.salary).toBeGreaterThan(highMoney.breakdown.salary)
     expect(lowMoney.score).toBeGreaterThan(highMoney.score)
+  })
+
+  it("values the security of the complete offer term", () => {
+    const league = withMoodScenarioLeague()
+    const team = league.seasonState.teams[0]!
+    const player = league.freeAgentPool[0]!
+    const salary = getPlayerContractMarketValue(league, player).expectedSalary
+    const oneYear = evaluatePlayerContractOffer(
+      league,
+      player,
+      { ...playerOfferFor(league, team.id, player.id, salary), years: 1 },
+    )
+    const fourYear = evaluatePlayerContractOffer(
+      league,
+      player,
+      { ...playerOfferFor(league, team.id, player.id, salary), years: 4 },
+    )
+
+    expect(fourYear.breakdown.security).toBeGreaterThan(oneYear.breakdown.security)
+    expect(fourYear.score).toBeGreaterThan(oneYear.score)
   })
 
   it("rewards loyalty for current-team negotiations", () => {
@@ -526,7 +551,7 @@ describe("contract offer market", () => {
     const market = getPlayerContractMarketValue(league, player)
     const seasonFinancials = getSeasonFinancials(
       league.leagueFinancials,
-      league.seasonState.season,
+      league.seasonState.season + 1,
     )
     const maxSalary = calculateMaxSalary(
       seasonFinancials.salaryCap,
@@ -581,7 +606,7 @@ describe("contract offer market", () => {
     )[0]!
     const seasonFinancials = getSeasonFinancials(
       league.leagueFinancials,
-      league.seasonState.season,
+      league.seasonState.season + 1,
     )
     const lowOffer = {
       years: 1,

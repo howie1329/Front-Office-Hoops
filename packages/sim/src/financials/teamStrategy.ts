@@ -17,6 +17,7 @@ import type { Contract, LeagueRecord, TeamWithRoster } from "@workspace/shared/t
 
 import { getCapSpace, roundMoney } from "./capMath"
 import { getTeamPayroll } from "./payroll"
+import { getTeamFinancialPosition } from "./teamFinancialPosition"
 
 export type TeamSignals = {
   teamId: string
@@ -43,10 +44,13 @@ export function deriveTeamSignals(
   team: TeamWithRoster,
   contracts: Contract[],
   seasonFinancials: SeasonFinancials,
-  league?: Pick<LeagueRecord, "seasonState">,
+  league?: LeagueRecord,
 ): TeamSignals {
-  const payroll = roundMoney(getTeamPayroll(team.id, contracts))
-  const capSpace = getCapSpace(payroll, seasonFinancials.salaryCap)
+  const financialPosition = league
+    ? getTeamFinancialPosition(league, team.id, seasonFinancials.season)
+    : null
+  const payroll = financialPosition?.taxPayroll ?? roundMoney(getTeamPayroll(team.id, contracts))
+  const capSpace = financialPosition?.capSpace ?? getCapSpace(payroll, seasonFinancials.salaryCap)
   const avgAge =
     team.players.length === 0
       ? 25
@@ -234,6 +238,7 @@ export function assignInitialTeamStrategy(
     staffPayroll: 0,
     tradeExceptions: [],
     deadCapCharges: [],
+    capHolds: [],
   }
 
   const mode = proposeTeamMode(signals, mockFinance, seasonFinancials)

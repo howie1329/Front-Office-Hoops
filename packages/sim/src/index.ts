@@ -159,6 +159,8 @@ export {
   getTeamExpiredFreeAgents,
   getExternalFreeAgents,
   getTeamPayroll,
+  getTeamFinancialPosition,
+  renouncePlayerRights,
   getPlayerContract,
   getSeasonFinancials,
   calculateLuxuryTax,
@@ -174,6 +176,7 @@ export { getTeamDeadCapPayroll } from "./financials/deadCap"
 export type { SignValidationResult } from "./financials/freeAgency"
 export {
   evaluateTrade,
+  evaluateTradeUtility,
   executeTrade,
   proposeTrade,
   validateTrade,
@@ -184,7 +187,19 @@ export {
   acceptTradeOffer,
   rejectTradeOffer,
 } from "./trades"
-export { getFairSalary, getContractAssetValueBreakdown, calculatePlayerValue } from "./playerValue"
+export {
+  getFairSalary,
+  getContractAssetValueBreakdown,
+  getContractValueBreakdown,
+  getProjectedPlayerValue,
+  getProjectedPlayerValueBreakdown,
+  calculatePlayerValue,
+} from "./playerValue"
+export type {
+  ContractValueBreakdown,
+  ProjectedPlayerValueBreakdown,
+} from "./playerValue"
+export type { TeamTradeUtilityBreakdown } from "./tradeEvaluation"
 export { createLeagueLogEntry, appendLeagueLog } from "./leagueLog"
 export { advanceSeason, advanceLeague } from "./advance/advanceSeason"
 export type {

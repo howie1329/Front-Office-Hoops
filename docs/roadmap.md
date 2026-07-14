@@ -1,155 +1,112 @@
 # Roadmap
 
-Current implementation status and planned work. This reflects the codebase as of the initial documentation pass.
+Current implementation status and planned work. This reflects the codebase as of July 2026.
 
 ## Legend
 
 - ✅ Implemented
 - 🟡 Partial / prototype
 - ⬜ Planned
-- 🚫 Explicitly out of scope (for now)
-
----
+- 🚫 Explicitly out of scope for now
 
 ## Platform and infrastructure
 
-| Feature                     | Status | Notes                                      |
-| --------------------------- | ------ | ------------------------------------------ |
-| TanStack Start web app      | ✅     | `apps/web` with file-based routing         |
-| Tailwind CSS v4             | ✅     | Vite plugin integration                    |
-| shadcn/ui component library | ✅     | `packages/ui` shared package               |
-| Turborepo monorepo          | ✅     | npm workspaces                             |
-| TypeScript throughout       | ✅     | All packages                               |
-| IndexedDB / Dexie saves     | ✅     | `packages/db`, multi-save support          |
-| Convex integration          | ⬜     | Not started                                |
-| Vercel AI SDK               | ⬜     | Not started                                |
-| PWA / offline shell         | ⬜     | `manifest.json` exists; service worker TBD |
-| Cloud save sync             | ⬜     | Depends on Convex                          |
-| User accounts               | ⬜     | Depends on Convex                          |
-
----
+| Feature | Status | Notes |
+| --- | --- | --- |
+| TanStack Start web app | ✅ | `apps/web` with file-based routing |
+| Tailwind CSS v4 | ✅ | Vite plugin integration |
+| shadcn/ui component library | ✅ | Shared `packages/ui` package |
+| Turborepo monorepo | ✅ | npm workspaces |
+| TypeScript throughout | ✅ | All packages |
+| IndexedDB / Dexie saves | ✅ | Multiple local league saves |
+| PWA manifest | 🟡 | Manifest exists; service worker and install flow remain |
+| Convex integration | ⬜ | Cloud backend not started |
+| Cloud save sync | ⬜ | Depends on Convex |
+| User accounts | ⬜ | Depends on Convex |
+| Vercel AI SDK | ⬜ | Narrative layer not started |
 
 ## Simulation engine
 
-| Feature                      | Status | Notes                                                                                                       |
-| ---------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- |
-| Seeded RNG                   | ✅     | Reproducible games                                                                                          |
-| Team strength model          | ✅     | Component-based offense/defense, pace, home court                                                           |
-| Game simulation              | ✅     | Segment-based sim: Q1–Q4, OT, synergy, momentum, blowouts, coach philosophy |
-| Player stat allocation       | ✅     | Allocates attempts/makes/free throws/rebounds/etc. from usage, skills, and minutes                          |
-| Rotation planning            | ✅     | Role-based auto rotations, target minutes, stamina adjustment, future user-minute contract                  |
-| Schedule generation          | ✅     | 6-team mini and 30-team full                                                                                |
-| Day / week simulation        | ✅     | `simulateDay`, `simulateWeek`                                                                               |
-| Full season simulation       | ✅     | `simulateSeason`                                                                                            |
-| Standings derivation         | ✅     | W-L, streak, point differential                                                                             |
-| Player season stats          | ✅     | Aggregated from game logs                                                                                   |
-| Playoffs — bracket           | ✅     | 6-team and 30-team formats                                                                                  |
-| Playoffs — series sim        | ✅     | Best-of-3 and best-of-7                                                                                     |
-| Season archive + history     | ✅     | `archiveSeason`, history table                                                                              |
-| Multi-season progression     | ✅     | `startNextSeason`                                                                                           |
-| Player development / aging   | ✅     | Offseason progression with peak age, role/minutes history, per-skill growth/regression                      |
-| Player archetypes            | ✅     | Position-valid archetypes shape generated ratings, usage, and value                                         |
-| Player value / asset value   | ✅     | Archetype-aware player value plus contract surplus/liability breakdowns                                     |
-| Draft + rookie generation    | ✅     | 2-round draft, archetyped rookie class, rookie-scale contracts, undrafted FA conversion                     |
-| Injuries                     | ✅     | Age/stamina/minutes risk, severity/duration, daily recovery, rotation exclusion                             |
-| Fatigue / minutes management | 🟡     | Stamina affects rotation targets and injury risk; no in-game fatigue substitutions                          |
-| Trades                       | ✅     | Validation/execution, BBGM-like AI acceptance, TPE, pick values, AI market, trade workspace UI |
-| Free agency                  | ✅     | Re-signing phase, FA pool, archetype market auction, player mood, cap exceptions                 |
-| Draft                        | ✅     | Draft board/order/picks/selections and rookie conversion                                                    |
-| Coaching / tactics           | ⬜     | —                                                                                                           |
-| Financials / salary cap      | ✅     | Contracts, cap/tax, repeater tax, dead cap, Room MLE, TPE, options, Bird rights, team strategy              |
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Seeded RNG | ✅ | Reproducible games and league events |
+| Team strength model | ✅ | Offense, defense, pace, home court, and staff effects |
+| Game simulation | ✅ | Segments, overtime, synergy, momentum, blowouts, and philosophy |
+| Player stat allocation | ✅ | Attempts, makes, free throws, rebounds, assists, and defensive stats |
+| Rotation planning | ✅ | Roles, target minutes, stamina, and injury risk |
+| Schedule and calendar | ✅ | 6-team mini and 30-team full formats |
+| Day / week / season simulation | ✅ | Regular season and playoff advancement |
+| Standings and season stats | ✅ | Derived from completed games |
+| Playoffs | ✅ | Brackets with best-of-3 mini and best-of-7 full-league series |
+| Season archive and history | ✅ | Champions, records, and player history |
+| Player development and aging | ✅ | Potential, role/minutes, mentorship, staff, culture, injuries, and retirement |
+| Player archetypes and value | ✅ | Generation, simulation usage, contracts, trades, and AI decisions |
+| Injuries | ✅ | Risk, severity, recovery, and rotation exclusion |
+| Contracts and salary cap | ✅ | Cap/tax, dead cap, exceptions, options, Bird rights, and strategy |
+| Trades | ✅ | Validation, execution, player/pick value, TPE, and AI market offers |
+| Staff management | ✅ | Staff week, hiring, firing, extensions, budgets, and philosophy |
+| Re-signing | ✅ | Offer market, negotiation attempts, and team rights |
+| Draft | ✅ | Draft classes, order, picks, prospects, and rookie contracts |
+| Free agency | ✅ | Offer market, player mood, cap exceptions, and roster filling |
+| In-game fatigue substitutions | ⬜ | Stamina affects planning and risk, but not live substitution decisions |
+| Coaching and tactical controls | 🟡 | Staff philosophy affects the sim; user tactical controls remain future work |
 
----
+## Player-facing league UI
 
-## League UI (player-facing)
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Home / continue league | ✅ | Active save detection |
+| Create league and pick team | ✅ | Full and mini league setup |
+| Save management | ✅ | List, switch, and delete local saves |
+| League dashboard | ✅ | Phase-aware status, actions, and alerts |
+| Calendar and schedule | ✅ | Team calendar, game log, and simulation controls |
+| Standings | ✅ | Sortable standings table |
+| Team roster and player detail | ✅ | Contracts, ratings, value, injuries, and extensions |
+| Player season stats | ✅ | League-wide sortable table |
+| Box scores | ✅ | Game detail, quarter lines, and player stats |
+| Playoff bracket | ✅ | Series progress and results |
+| Season history | ✅ | Past champions, records, trades, and logs |
+| Staff UI | ✅ | Roster, hiring pool, budget, offers, firing, and extensions |
+| Trade UI | ✅ | Trade workspace, value breakdown, AI acceptance, and offer inbox |
+| Re-signing UI | ✅ | Negotiation panel and offer state |
+| Draft UI | 🟡 | Functional; richer prospect presentation remains |
+| Free-agency UI | 🟡 | Functional; negotiation and market polish remains |
+| Mobile-responsive layout | 🟡 | Functional; ongoing polish |
+| Settings / preferences | ⬜ | Not started |
 
-| Feature                  | Status | Notes                                                                     |
-| ------------------------ | ------ | ------------------------------------------------------------------------- |
-| Home / continue league   | ✅     | Active save detection                                                     |
-| Create league            | ✅     | Name + generated teams                                                    |
-| Pick team                | ✅     | User team selection                                                       |
-| Save management          | ✅     | List, switch, delete saves                                                |
-| League dashboard         | ✅     | Phase-aware overview                                                      |
-| Standings                | ✅     | Sortable table                                                            |
-| Schedule + sim controls  | ✅     | Day/week/season buttons                                                   |
-| Team roster view         | ✅     | User team players                                                         |
-| Player season stats      | ✅     | League-wide stats table                                                   |
-| Box scores               | ✅     | Game detail with quarter lines                                            |
-| Playoff bracket          | ✅     | Series progress                                                           |
-| Season history           | ✅     | Past champions and records                                                |
-| Mobile-responsive layout | 🟡     | Functional; polish ongoing                                                |
-| Trade UI                 | ✅     | Trade workspace, value breakdown, AI accept bar, pending offers inbox                                       |
-| Draft UI                 | 🟡     | Basic draft route exists; polish and richer prospect presentation pending                                   |
-| Free agency UI           | 🟡     | Panel exists; mood hints on player page; richer negotiation UX pending                                      |
-| Settings / preferences   | ⬜     | —                                                                         |
+## Developer tools and quality
 
----
+| Feature | Status | Notes |
+| --- | --- | --- |
+| Sim Lab | ✅ | `/sim-lab` single-game playground |
+| Season Lab | ✅ | `/season-lab` season simulation playground |
+| Simulation unit tests | ✅ | `packages/sim/tests/` |
+| Database unit tests | ✅ | `packages/db/tests/` with fake IndexedDB |
+| Browser E2E tests | ⬜ | Not started |
+| Simulation benchmarking | ⬜ | Not started |
 
-## Developer tools
+## Next priorities
 
-| Feature                | Status | Notes                 |
-| ---------------------- | ------ | --------------------- |
-| Sim Lab                | ✅     | `/sim-lab`            |
-| Season Lab             | ✅     | `/season-lab`         |
-| Engine unit tests      | ✅     | `packages/sim/tests/` |
-| DB unit tests          | ✅     | `packages/db/tests/`  |
-| E2E browser tests      | ⬜     | —                     |
-| Sim benchmarking tools | ⬜     | —                     |
+1. Polish roster, player detail, cap sheet, staff, draft, and free-agency workflows.
+2. Improve scouting uncertainty and prospect presentation.
+3. Add export/import for local `LeagueRecord` saves.
+4. Add browser E2E coverage for league creation, simulation, offseason, trades, and save management.
+5. Add PWA/offline-shell polish.
+6. Revisit cloud sync and accounts once the local-first loop is stable.
+7. Add AI-generated narrative only after the engine event and data contracts are stable.
 
----
+## Planned narrative and cloud features
 
-## AI and narrative (planned)
+These are intentionally not part of the current local gameplay loop:
 
-Powered by **Vercel AI SDK** with optional **Convex** backend for API key security.
+- AI post-game recaps, trade rumors, scouting reports, press conferences, and beat reporting.
+- Convex authentication, cloud backups, cross-device saves, realtime rooms, leaderboards, and server-side AI orchestration.
 
-| Feature                | Status | Notes                               |
-| ---------------------- | ------ | ----------------------------------- |
-| Post-game recaps       | ⬜     | Generated from box score context    |
-| Trade rumors           | ⬜     | Based on team needs / cap situation |
-| Press conferences      | ⬜     | Interactive or scripted Q&A         |
-| Scouting reports       | ⬜     | Prospect and opponent previews      |
-| Beat reporter columns  | ⬜     | Periodic league news                |
-| Generated media assets | ⬜     | Images, headlines, social posts     |
-
-**Principle:** AI generates narrative; the engine owns stats and outcomes.
-
----
-
-## Cloud features (planned)
-
-Powered by **Convex**.
-
-| Feature                  | Status | Notes                          |
-| ------------------------ | ------ | ------------------------------ |
-| Authentication           | ⬜     | Account creation and login     |
-| Cloud save backup        | ⬜     | Sync `LeagueRecord` to cloud   |
-| Cross-device play        | ⬜     | Load cloud save on any browser |
-| Realtime league rooms    | ⬜     | Spectate or co-manage          |
-| Leaderboards             | ⬜     | Cross-player comparisons       |
-| AI orchestration backend | ⬜     | Server-side AI calls           |
-
----
-
-## Suggested build order
-
-A pragmatic sequence for future work:
-
-1. **Core UI polish pass** — roster, player detail, cap sheet, injuries, draft/free agency surfaces
-2. **Season role/minutes profile** — MPG, starts, usage, role, missed games for future development logic
-3. **Development modifiers from role/minutes** — young-player opportunity, veteran mentorship refinement, injury impact
-4. **Scouting uncertainty** — displayed vs true potential and prospect scouting reports
-5. **Trades** — asset-value driven player movement with salary matching
-6. **Export/import saves** — JSON download/upload (no cloud dependency)
-7. **Convex auth + cloud sync** — optional account layer
-8. **AI narrative MVP** — post-game recaps via Vercel AI SDK
-9. **PWA polish** — offline shell, install prompt, mobile UX pass
-10. **E2E tests** — Playwright or similar for critical flows
-
----
+The engine remains authoritative for stats, outcomes, contracts, and league state. Future AI output should add narrative without changing simulation truth.
 
 ## Versioning
 
 - **App version:** `0.0.1` (early prototype)
-- **Save version:** `12` (`SAVE_VERSION` in shared types)
+- **Save version:** `16` (`SAVE_VERSION` in `packages/shared/src/leagueTypes.ts`)
 
-Bump `SAVE_VERSION` when the persisted schema changes. No migration layer — clear local saves after breaking changes.
+There is currently no save migration layer. Bump `SAVE_VERSION` when the persisted schema changes and clear local IndexedDB saves during development after breaking changes.

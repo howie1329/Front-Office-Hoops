@@ -29,7 +29,7 @@ Top-level metadata for a save slot.
 | ------------- | ---------------- | ---------------------------------- |
 | `id`          | `string`         | Unique league ID (`league_<uuid>`) |
 | `name`        | `string`         | Display name                       |
-| `saveVersion` | `7`              | Current save schema marker         |
+| `saveVersion` | `16`             | Current save schema marker         |
 | `createdAt`   | ISO string       | Creation timestamp                 |
 | `updatedAt`   | ISO string       | Last save timestamp                |
 | `userTeamId`  | `string \| null` | Player-controlled team             |
@@ -46,6 +46,18 @@ Full save payload = `League` + simulation state.
 | `leagueFinancials` | `LeagueFinancials`     | Cap/tax settings by season                              |
 | `teamFinancials`   | `TeamFinancials[]`     | Team spending profiles, cash/debt, strategy, exceptions |
 | `freeAgentPool`    | `Player[]`             | Unrostered players available in free agency             |
+| `draftPickAssets`  | `DraftPickAsset[]`    | Tradable current and future draft picks                 |
+| `tradeHistory`     | `TradeHistoryEntry[]` | Completed trade records                                  |
+| `pendingTradeOffers` | `PendingTradeOffer[]` | AI and user trade offers awaiting resolution           |
+| `contractOffers`   | `ContractOffer[]`      | Player and staff market offers                           |
+| `reSigningNegotiations` | `ReSigningNegotiation[]` | Player negotiation attempts and cooldowns          |
+| `staff` / `staffContracts` | `StaffMember[]` / `StaffContract[]` | Employed and contracted staff |
+| `owners` / `ownerGoals` | `Owner[]` / `OwnerGoal[]` | Franchise ownership and goals |
+| `leagueLog` / `seasonAwards` | Log and award records | League events and season awards |
+| `playerCareerSnapshots` / `playerSeasonProfiles` | Career and season profile records | Long-term player history |
+| `playerDevelopmentRecords` / `developmentReports` | Development records | Preseason progression and reports |
+| `retiredPlayers`    | `RetirementEntry[]`    | Players removed through retirement                      |
+| `collegeCoaches`    | `StaffMember[]`         | College staff pipeline                                   |
 
 ### `LeagueSummary`
 
@@ -65,8 +77,8 @@ Lightweight listing for save slot UI (no full season state).
 | `playerSeasonStats` | `PlayerSeasonStats[]` | Aggregated player stats                                    |
 | `currentDay`        | `number`              | Simulation cursor                                          |
 | `baseSeed`          | `string`              | League RNG seed                                            |
-| `phase`             | `SeasonPhase`         | `regular` \| `playoffs` \| `complete` \| `offseason`       |
-| `offseasonPhase`    | `OffseasonPhase?`     | During offseason: `re_signing` \| `draft` \| `free_agency` |
+| `phase`             | `SeasonPhase`         | `preseason` \| `regular` \| `playoffs` \| `complete` \| `offseason` |
+| `offseasonPhase`    | `OffseasonPhase?`     | During offseason: `staff` \| `re_signing` \| `draft` \| `free_agency` |
 | `playoffBracket`    | `PlayoffBracket?`     | Present during/after playoffs                              |
 | `draftState`        | `DraftState?`         | Draft board, order, selections, and remaining prospects    |
 
@@ -82,11 +94,11 @@ Archived season snapshot:
 ### `SeasonPhase`
 
 ```
-regular → playoffs → complete → offseason
+preseason → regular → playoffs → complete → offseason
 ```
 
 Offseason applies player development, expires contracts, then advances through
-`re_signing → draft → free_agency` before the next season begins.
+`staff → re_signing → draft → free_agency` before the next season begins.
 
 ## Teams and players
 
@@ -211,7 +223,18 @@ Includes player/team IDs, start/end seasons, yearly salary list, contract type (
 ### Financial state
 
 - `LeagueFinancials` stores base cap assumptions and computed `SeasonFinancials` by season.
-- `TeamFinancials` stores market tier, tax tolerance, current strategy mode (`selling`, `buying`, `contending`), cash/debt, MLE state, and trade exceptions for future trade systems.
+- `TeamFinancials` stores market tier, tax tolerance, current strategy mode (`selling`, `buying`, `contending`), cash/debt, MLE state, cap holds, dead cap, and trade exceptions.
+
+### Staff and trades
+
+`StaffMember` records role, team assignment, ratings, and coaching preferences
+for head coaches, coordinators, and scouting staff. `StaffContract` records staff
+salary and term. Staff budgets and derived philosophy feed team financials,
+development, and game simulation.
+
+Trades use `TradeProposal` sides containing players and draft picks. The engine
+validates roster, salary, timing, and asset rules, records completed trades in
+`tradeHistory`, and stores pending AI/user proposals in `pendingTradeOffers`.
 
 ## Local persistence
 
@@ -231,7 +254,7 @@ Each row is a full `LeagueRecord` JSON document.
 
 ### Save versioning
 
-`SAVE_VERSION` (currently `12`) in `packages/shared/src/leagueTypes.ts` marks the current save shape. There are no legacy saves to migrate — bump the constant when the schema changes and clear local IndexedDB saves during development.
+`SAVE_VERSION` (currently `16`) in `packages/shared/src/leagueTypes.ts` marks the current save shape. There are no legacy saves to migrate — bump the constant when the schema changes and clear local IndexedDB saves during development.
 
 ### Auto-save behavior
 

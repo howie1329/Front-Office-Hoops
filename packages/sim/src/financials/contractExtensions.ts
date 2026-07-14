@@ -6,14 +6,17 @@ import { findPlayer, findPlayerTeam } from "../roster/ledger"
 import {
   buildSalaryCurve,
   createContractId,
+  estimateSalaryFromValue,
 } from "./contracts/createContract"
 import {
   calculateMaxSalary,
   calculateMinSalary,
+  calculateSeasonFinancials,
   getSeasonFinancials,
   roundMoney,
 } from "./capMath"
 import { getPlayerContract, getYearsRemaining } from "./payroll"
+import { getProjectedPlayerValueBreakdown } from "../playerValue/projectedValue"
 
 const EXTENSION_RAISE_PCT = 0.08
 const EXTENSION_MAX_FIRST_YEAR_MULTIPLIER = 1.4
@@ -33,6 +36,35 @@ export type ExtensionBounds = {
 export type ExtensionValidationResult =
   | { ok: true }
   | { ok: false; reason: string }
+
+export function getExtensionMarketSalary(
+  league: LeagueRecord,
+  playerId: string,
+): number | null {
+  const player = findPlayer(league, playerId)
+  if (!player) return null
+  const contract = getPlayerContract(league.contracts, player)
+  if (!contract) return null
+  const yearsRemaining = getYearsRemaining(contract)
+  const targetSeason = league.seasonState.season + yearsRemaining
+  const financials =
+    league.leagueFinancials.bySeason[targetSeason] ??
+    calculateSeasonFinancials(
+      league.leagueFinancials.baseCap,
+      league.leagueFinancials.growthRate,
+      targetSeason,
+    )
+  const projection = getProjectedPlayerValueBreakdown(player)
+  const projectedOverall =
+    projection.projectedSeasons[
+      Math.min(yearsRemaining, projection.projectedSeasons.length - 1)
+    ]?.projectedOverall ?? player.ratings.overall
+  return estimateSalaryFromValue(
+    projectedOverall,
+    player.yearsOfService + yearsRemaining,
+    financials,
+  )
+}
 
 function getCurrentSeason(league: LeagueRecord): number {
   return league.seasonState.season
@@ -287,6 +319,10 @@ export function extendContract(
     ...contract,
     id: createContractId(playerId, contract.endSeason + 1),
     yearlySalaries: [...contract.yearlySalaries, ...extensionSalaries],
+    guaranteedSalaries: [
+      ...contract.guaranteedSalaries,
+      ...extensionSalaries,
+    ],
     endSeason: contract.endSeason + offer.years,
   }
 
