@@ -33,6 +33,7 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
     deadCapPayroll,
     payroll,
     capSpace,
+    capHolds,
     taxBill,
     teamFinance,
     isOverTax,
@@ -67,6 +68,9 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           />
         ) : null}
         <CapMetric label="Total payroll" value={formatMoney(payroll)} />
+        {capHolds > 0 ? (
+          <CapMetric label="Cap holds" value={formatMoney(capHolds)} />
+        ) : null}
         <CapMetric
           label="Staff budget"
           value={formatMoney(teamFinance.staffBudget)}
@@ -131,6 +135,32 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
                   </span>
                 </li>
               ))}
+            </ul>
+          </div>
+        ) : null}
+        {teamFinance.capHolds.some((hold) => hold.status === "active") ? (
+          <div className="rounded-md border bg-muted/20 px-3 py-2">
+            <p className="mb-1 text-muted-foreground">Active cap holds</p>
+            <ul className="space-y-1 text-xs">
+              {teamFinance.capHolds
+                .filter((hold) => hold.status === "active")
+                .map((hold) => {
+                  const player = league.freeAgentPool.find(
+                    (candidate) => candidate.id === hold.playerId,
+                  )
+                  return (
+                    <li key={hold.id} className="flex justify-between gap-3">
+                      <span>
+                        {player
+                          ? `${player.firstName} ${player.lastName}`
+                          : hold.playerId}
+                      </span>
+                      <span>
+                        {formatMoney(hold.amount)} · {hold.rightsType}
+                      </span>
+                    </li>
+                  )
+                })}
             </ul>
           </div>
         ) : null}

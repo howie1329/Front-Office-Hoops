@@ -103,6 +103,7 @@ export function initializeTeamFinancials(
       wasUnderCapThisYear: true,
       tradeExceptions: [],
       deadCapCharges: [],
+      capHolds: [],
     }
   })
 }
@@ -140,5 +141,6 @@ export function resetTeamMleForSeason(
       (tpe) => tpe.expiresSeason > seasonFinancials.season,
     ),
     deadCapCharges: teamFinancials.deadCapCharges,
+    capHolds: teamFinancials.capHolds,
   }
 }

@@ -60,7 +60,11 @@ describe("offseason financial flow", () => {
       ...league,
       contracts: league.contracts.map((contract) =>
         contract.id === expiringContract.id
-          ? { ...contract, yearlySalaries: [contract.yearlySalaries[0]!] }
+          ? {
+              ...contract,
+              yearlySalaries: [contract.yearlySalaries[0]!],
+              guaranteedSalaries: [contract.yearlySalaries[0]!],
+            }
           : contract,
       ),
     }

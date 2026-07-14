@@ -151,7 +151,8 @@ Each new season year, `startNextSeason` applies `applyPreseasonProgression` befo
 - Recalculates `overall`, `usage`, and team `overall`
 - Stores `PlayerDevelopmentRecord` and `PreseasonDevelopmentReport` on the league
 
-`beginOffseason` handles awards and contract phases only — no rating changes until the next season starts.
+`beginOffseason` opens the offseason phase and prepares awards/financial processing;
+rating changes are applied when the next season starts.
 
 ## Injuries
 
@@ -170,20 +171,22 @@ Injured players have `status: "injured"` and an `injury` object with type, descr
 - Optional `teams` or `useMiniLeague` (6-team sample rosters)
 - Optional `userTeamId`
 
-New leagues are created with the current `SAVE_VERSION`. There is no save migration; clear local IndexedDB saves after schema changes during development.
+New leagues are created with the current `SAVE_VERSION` (`16`). There is no save migration; clear local IndexedDB saves after schema changes during development.
 
 ## Offseason loop
 
 Offseason is phased after a champion is crowned:
 
 ```
-complete → beginOffseason → re_signing → draft → free_agency → startNextSeason
+complete → beginOffseason → staff → re_signing → draft → free_agency → startNextSeason
 ```
 
-- **Begin offseason** applies player development, assesses season finances, and expires one-year contracts into the free-agent pool.
+- **Begin offseason** opens staff week and prepares offseason financial state.
+- **Staff week** resolves staff-market offers, supports hiring, firing, and extensions, and carries staff philosophy into team simulation and development.
 - **Re-signing** lets the user negotiate with their own expired players first, then AI teams run re-signing.
 - **Draft** is required after every completed season, including Season 1. Drafted players receive rookie-scale/minimum contracts.
 - **Free agency** opens after the draft; undrafted prospects join the FA pool and the pool is topped up to at least 1.25× team count if thin.
+- **Start next season** applies preseason development and aging, processes roster and contract state, and creates the next calendar and schedule.
 - Teams must start the next season with 12 players. Releases cannot drop a team below 6 players or remove the last player at any primary position.
 
 ## Procedural generation

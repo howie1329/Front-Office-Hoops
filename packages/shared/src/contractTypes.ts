@@ -29,6 +29,8 @@ export type Contract = {
   startSeason: number
   endSeason: number
   yearlySalaries: number[]
+  /** Guaranteed amount for each entry in yearlySalaries. */
+  guaranteedSalaries: number[]
   contractType: ContractType
   signingException: SigningException
   options?: ContractOption[]

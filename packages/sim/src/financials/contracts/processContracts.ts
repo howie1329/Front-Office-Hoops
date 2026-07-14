@@ -1,11 +1,25 @@
 import type { Contract, ContractOption } from "@workspace/shared/contractTypes"
 import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
 
-import { calculateRosterKeepValue } from "../../playerValue"
+import { getFairSalary } from "../../playerValue"
 import { createDeadCapFromWaive } from "../deadCap"
 import { deriveTeamOverall } from "../../playerRatings"
 import { createLeagueLogEntry } from "../../leagueLog"
 import { waiveContract } from "./createContract"
+import { getSeasonFinancials } from "../capMath"
+import { getTeamFinancialPosition } from "../teamFinancialPosition"
+import { addCapHoldForPlayer } from "../capHolds"
+
+export type ContractOptionDecisionReason =
+  | "team_option_bargain"
+  | "team_option_overpay"
+  | "player_option_security"
+  | "player_option_market_upgrade"
+
+type ContractOptionDecision = {
+  exercise: boolean
+  reason: ContractOptionDecisionReason
+}
 
 function getPendingOption(contract: Contract): ContractOption | null {
   if (!contract.options?.length) {
@@ -18,27 +32,52 @@ function shouldExerciseTeamOption(
   player: Player,
   contract: Contract,
   league: LeagueRecord,
-): boolean {
+): ContractOptionDecision {
   const mode =
     league.teamFinancials.find((entry) => entry.teamId === contract.teamId)
       ?.strategy.mode ?? "buying"
-  const keepValue = calculateRosterKeepValue(player, mode)
   const salary = contract.yearlySalaries[0] ?? 0
-  return keepValue >= salary * 0.92
+  const season = league.seasonState.season + 1
+  const fairSalary = getFairSalary(
+    player,
+    getSeasonFinancials(league.leagueFinancials, season),
+    league,
+  )
+  const position = getTeamFinancialPosition(league, contract.teamId, season)
+  const taxCost = position.isOverTax
+    ? Math.max(0, position.projectedTax) * 0.03
+    : 0
+  const modeBuffer = mode === "contending" ? 2 : mode === "selling" ? -1 : 0
+  const exercise = fairSalary + modeBuffer >= salary + taxCost
+  return {
+    exercise,
+    reason: exercise ? "team_option_bargain" : "team_option_overpay",
+  }
 }
 
 function shouldExercisePlayerOption(
   player: Player,
   contract: Contract,
   league: LeagueRecord,
-): boolean {
-  const mode =
+): ContractOptionDecision {
+  const season = league.seasonState.season + 1
+  const salary = contract.yearlySalaries[0] ?? 0
+  const fairSalary = getFairSalary(
+    player,
+    getSeasonFinancials(league.leagueFinancials, season),
+    league,
+  )
+  const loyaltySecurity = (player.mood.loyalty - 50) * 0.025
+  const winningSecurity =
     league.teamFinancials.find((entry) => entry.teamId === contract.teamId)
-      ?.strategy.mode ?? "buying"
-  if (mode === "contending" && player.ratings.overall >= 72) {
-    return true
+      ?.strategy.mode === "contending"
+      ? 0.75
+      : 0
+  const exercise = salary + loyaltySecurity + winningSecurity >= fairSalary
+  return {
+    exercise,
+    reason: exercise ? "player_option_security" : "player_option_market_upgrade",
   }
-  return player.mood.loyalty >= 70
 }
 
 function movePlayerToFreeAgency(player: Player): Player {
@@ -53,7 +92,7 @@ function movePlayerToFreeAgency(player: Player): Player {
 
 export function processContractOptions(
   league: LeagueRecord,
-  rng: Rng,
+  _rng: Rng,
 ): LeagueRecord {
   let contracts = [...league.contracts]
   const declinedPlayerIds = new Set<string>()
@@ -80,14 +119,17 @@ export function processContractOptions(
       continue
     }
 
-    const exercise =
+    const decision =
       pendingOption.type === "team"
         ? shouldExerciseTeamOption(player, contract, league)
-        : shouldExercisePlayerOption(player, contract, league) || rng.next() > 0.35
+        : shouldExercisePlayerOption(player, contract, league)
 
-    if (exercise) {
+    if (decision.exercise) {
+      const guaranteedSalaries = [...contract.guaranteedSalaries]
+      guaranteedSalaries[0] = contract.yearlySalaries[0] ?? 0
       contracts[index] = {
         ...contract,
+        guaranteedSalaries,
         options: contract.options?.filter((option) => option.yearIndex !== 0),
       }
       logEntries.push(
@@ -99,6 +141,7 @@ export function processContractOptions(
           payload: {
             optionType: pendingOption.type,
             decision: "exercised",
+            reasonCode: decision.reason,
           },
         }),
       )
@@ -116,6 +159,7 @@ export function processContractOptions(
         payload: {
           optionType: pendingOption.type,
           decision: "declined",
+          reasonCode: decision.reason,
         },
       }),
     )
@@ -150,7 +194,7 @@ export function processContractOptions(
     .filter((player) => declinedPlayerIds.has(player.id))
     .map(movePlayerToFreeAgency)
 
-  return {
+  let updated: LeagueRecord = {
     ...league,
     contracts,
     leagueLog: logEntries,
@@ -163,6 +207,23 @@ export function processContractOptions(
       teams,
     },
   }
+
+  for (const player of league.seasonState.teams
+    .flatMap((team) => team.players)
+    .filter((candidate) => declinedPlayerIds.has(candidate.id))) {
+    const contract = contracts.find((entry) => entry.playerId === player.id)
+    if (contract) {
+      updated = addCapHoldForPlayer(
+        updated,
+        player,
+        contract.teamId,
+        contract.yearlySalaries[0] ?? 0,
+        league.seasonState.season + 1,
+      )
+    }
+  }
+
+  return updated
 }
 
 export function waivePlayerContract(
@@ -229,7 +290,7 @@ export function expireOneYearContracts(league: LeagueRecord): LeagueRecord {
     ...newFreeAgents,
   ]
 
-  return {
+  let updated: LeagueRecord = {
     ...league,
     contracts,
     freeAgentPool,
@@ -238,4 +299,23 @@ export function expireOneYearContracts(league: LeagueRecord): LeagueRecord {
       teams,
     },
   }
+
+  for (const player of league.seasonState.teams
+    .flatMap((team) => team.players)
+    .filter((candidate) => expiringIds.has(candidate.id))) {
+    const contract = league.contracts.find(
+      (entry) => entry.playerId === player.id && entry.status === "active",
+    )
+    if (contract) {
+      updated = addCapHoldForPlayer(
+        updated,
+        player,
+        contract.teamId,
+        contract.yearlySalaries[0] ?? 0,
+        league.seasonState.season + 1,
+      )
+    }
+  }
+
+  return updated
 }

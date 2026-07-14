@@ -33,6 +33,7 @@ function mockTeamFinance(mode: TeamFinancials["strategy"]["mode"]): TeamFinancia
     staffPayroll: 0,
     tradeExceptions: [],
     deadCapCharges: [],
+    capHolds: [],
   }
 }
 

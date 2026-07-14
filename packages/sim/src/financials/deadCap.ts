@@ -1,8 +1,8 @@
-import { DEAD_CAP_STRETCH_YEARS } from "@workspace/shared/financialConstants"
 import type { Contract } from "@workspace/shared/contractTypes"
 import type { DeadCapCharge } from "@workspace/shared/financialTypes"
 
 import { roundMoney } from "./capMath"
+import { assertValidContractGuarantees } from "./contracts/validateContract"
 
 export function getTeamDeadCapPayroll(charges: DeadCapCharge[]): number {
   return roundMoney(
@@ -14,31 +14,19 @@ export function createDeadCapFromWaive(
   contract: Contract,
   playerId: string,
 ): DeadCapCharge[] {
-  if (contract.contractType === "non_guaranteed") {
-    return []
-  }
-
-  const remaining = roundMoney(
-    contract.yearlySalaries.reduce((sum, salary) => sum + salary, 0),
-  )
-  if (remaining <= 0) {
-    return []
-  }
-
-  const annualHit = roundMoney(remaining / DEAD_CAP_STRETCH_YEARS)
-  const charges: DeadCapCharge[] = []
-
-  for (let index = 0; index < DEAD_CAP_STRETCH_YEARS; index++) {
-    charges.push({
+  assertValidContractGuarantees(contract)
+  return contract.guaranteedSalaries.flatMap((amount, index) => {
+    const rounded = roundMoney(amount)
+    return rounded <= 0
+      ? []
+      : [{
       id: `dead_${contract.id}_${index + 1}`,
       playerId,
-      amount: annualHit,
-      seasonsRemaining: DEAD_CAP_STRETCH_YEARS - index,
-      origin: "stretch",
-    })
-  }
-
-  return charges
+      amount: rounded,
+      seasonsRemaining: index + 1,
+      origin: "waive" as const,
+    }]
+  })
 }
 
 export function advanceDeadCapCharges(charges: DeadCapCharge[]): DeadCapCharge[] {

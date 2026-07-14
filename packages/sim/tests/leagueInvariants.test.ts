@@ -23,7 +23,9 @@ function fillUserRoster(league: ReturnType<typeof createLeague>) {
   let next = league
   const seasonFinancials = getSeasonFinancials(
     next.leagueFinancials,
-    next.seasonState.season
+    next.seasonState.phase === "offseason"
+      ? next.seasonState.season + 1
+      : next.seasonState.season
   )
 
   while (getUserRosterSize(next) < ROSTER_MAX) {

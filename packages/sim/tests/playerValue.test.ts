@@ -6,6 +6,8 @@ import {
   calculateContractValue,
   calculatePlayerValue,
   getContractAssetValueBreakdown,
+  getProjectedPlayerValue,
+  getProjectedPlayerValueBreakdown,
   getPlayerValueBreakdown,
 } from "../src/playerValue"
 
@@ -111,6 +113,7 @@ describe("player value", () => {
         startSeason: 1,
         endSeason: 3,
         yearlySalaries: [12, 13, 14],
+        guaranteedSalaries: [12, 13, 14],
         contractType: "standard",
         signingException: "cap_room",
         status: "active",
@@ -128,6 +131,7 @@ describe("player value", () => {
         startSeason: 1,
         endSeason: 4,
         yearlySalaries: [38, 40, 42, 44],
+        guaranteedSalaries: [38, 40, 42, 44],
         contractType: "standard",
         signingException: "cap_room",
         status: "active",
@@ -139,5 +143,23 @@ describe("player value", () => {
     expect(bargain.surplusValue).toBeGreaterThan(0)
     expect(overpay.surplusValue).toBeLessThan(0)
     expect(bargain.total).toBeGreaterThan(overpay.total)
+  })
+
+  it("keeps a young star materially ahead of an older lower-rated replacement", () => {
+    const youngStar = makePlayer({ age: 25, peakAge: 28, ratings: makeTestRatings({ overall: 87, potential: 89 }) })
+    const olderPlayer = makePlayer({ age: 31, peakAge: 29, ratings: makeTestRatings({ overall: 81, potential: 81 }) })
+
+    expect(getProjectedPlayerValue(youngStar)).toBeGreaterThan(getProjectedPlayerValue(olderPlayer) + 6)
+    expect(getProjectedPlayerValueBreakdown(olderPlayer).projectedSeasons[2]!.projectedOverall).toBeLessThan(81)
+  })
+
+  it("applies bounded directional performance and durability adjustments", () => {
+    const player = makePlayer({ ratings: makeTestRatings({ overall: 74, potential: 78 }) })
+    const hot = { ...player, performanceDrift: 3 }
+    const injured = { ...player, injuryHistory: { totalGamesMissed: 250, majorInjuryCount: 4, lastMajorInjurySeason: 1 } }
+
+    expect(getProjectedPlayerValue(hot)).toBeGreaterThan(getProjectedPlayerValue(player))
+    expect(getProjectedPlayerValue(injured)).toBeLessThan(getProjectedPlayerValue(player))
+    expect(getProjectedPlayerValueBreakdown(hot).projectedSeasons.every((season) => season.projectedOverall >= 40 && season.projectedOverall <= 90)).toBe(true)
   })
 })

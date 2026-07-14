@@ -1,277 +1,209 @@
-import { useState } from "react"
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import type { LeagueSummary, SeasonPhase } from "@workspace/shared/types"
-import { LEAGUE_TEAM_COUNT } from "@workspace/shared/constants"
+import { createFileRoute, Link } from "@tanstack/react-router"
+
 import { Button } from "@workspace/ui/components/button"
 
 import { ModeToggle } from "@/components/ModeToggle"
 import { useLeagueSaves } from "@/hooks/useLeagueSaves"
 
-export const Route = createFileRoute("/")({ component: App })
+export const Route = createFileRoute("/")({ component: LandingPage })
 
-const PHASE_LABELS: Record<SeasonPhase, string> = {
-  preseason: "Preseason",
-  regular: "Regular season",
-  playoffs: "Playoffs",
-  complete: "Season complete",
-  offseason: "Offseason",
-}
+const operatingLoop = [
+  ["Build the league", "Start with 30 teams, set the rules, and take control of one front office."],
+  ["Make the calls", "Keep contracts, staff, trades, and development in one working context."],
+  ["See it through", "Advance from opening night to the draft with the full record of every decision."],
+]
 
-function formatLastPlayed(iso: string): string {
-  const date = new Date(iso)
-  const now = new Date()
-  const time = date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  })
+const standings = [
+  ["01", "Chicago", "48–22", "+6.1"],
+  ["02", "New York", "45–25", "+4.8"],
+  ["03", "Denver", "44–26", "+4.2"],
+  ["04", "Seattle", "41–29", "+2.9"],
+]
 
-  const startOfDay = (value: Date) =>
-    new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime()
-  const dayDiff = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000)
+const ledger = [
+  ["Cap room", "$18.4M"],
+  ["Open spots", "2"],
+  ["Protected picks", "3"],
+]
 
-  if (dayDiff === 0) {
-    return `Today, ${time}`
-  }
+function LandingPage() {
+  const { activeSave, saves, loading } = useLeagueSaves()
+  const continuePath = activeSave?.userTeamId ? "/league" : "/league/pick-team"
 
-  if (dayDiff === 1) {
-    return `Yesterday, ${time}`
-  }
-
-  const sameYear = date.getFullYear() === now.getFullYear()
-  const day = date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  })
-
-  return sameYear ? `${day}, ${time}` : day
-}
-
-function saveMetadata(save: LeagueSummary): string[] {
-  const parts = [`Season ${save.season}`, PHASE_LABELS[save.phase]]
-
-  if (save.teamCount !== LEAGUE_TEAM_COUNT) {
-    parts.push(`${save.teamCount}-team lab`)
-  }
-
-  if (save.teamName) {
-    parts.push(save.teamName)
-
-    if (save.wins !== null && save.losses !== null) {
-      parts.push(`${save.wins}-${save.losses}`)
-    }
-  } else {
-    parts.push("No team selected")
-  }
-
-  return parts
-}
-
-function MetadataLine({ save }: { save: LeagueSummary }) {
   return (
-    <p className="text-xs leading-relaxed text-muted-foreground">
-      {saveMetadata(save).map((part, index) => (
-        <span key={part + String(index)}>
-          {index > 0 ? <span aria-hidden="true"> · </span> : null}
-          {part}
-        </span>
-      ))}
-      <span aria-hidden="true"> · </span>
-      <time dateTime={save.updatedAt}>
-        Last played {formatLastPlayed(save.updatedAt)}
-      </time>
-    </p>
+    <main className="min-h-svh overflow-hidden bg-background text-foreground">
+      <section className="mx-auto w-full max-w-[90rem] px-5 sm:px-8 lg:px-12">
+        <header className="flex min-h-20 items-center justify-between border-b border-border">
+          <Link
+            to="/"
+            className="text-sm font-semibold tracking-[-0.025em] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Front Office Hoops
+          </Link>
+          <nav className="flex items-center gap-1.5" aria-label="Primary">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/league/saves">Saves</Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link to="/league/create">Create league</Link>
+            </Button>
+            <ModeToggle />
+          </nav>
+        </header>
+
+        <div className="grid items-end gap-12 pb-14 pt-18 sm:pb-20 sm:pt-24 lg:grid-cols-[minmax(0,0.78fr)_minmax(26rem,1fr)] lg:gap-20 lg:pb-24 lg:pt-32">
+          <div className="max-w-2xl">
+            <p className="mb-6 text-sm font-medium text-muted-foreground">
+              Basketball simulation, without the spectacle.
+            </p>
+            <h1 className="max-w-[10ch] text-5xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl lg:text-7xl lg:leading-[0.98]">
+              Run the league.
+            </h1>
+            <p className="mt-7 max-w-[56ch] text-base leading-7 text-muted-foreground sm:text-lg sm:leading-8">
+              A serious front-office simulator for the decisions that shape a season—rosters, cap sheets, staff, trades, and everything that follows.
+            </p>
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Button size="lg" className="h-10 px-4 text-sm" asChild>
+                <Link to="/league/create">Create a league</Link>
+              </Button>
+              {activeSave ? (
+                <Button variant="outline" size="lg" className="h-10 px-4 text-sm" asChild>
+                  <Link to={continuePath}>Continue {activeSave.name}</Link>
+                </Button>
+              ) : (
+                <Button variant="outline" size="lg" className="h-10 px-4 text-sm" asChild>
+                  <Link to="/league/saves">{loading ? "Checking saves" : "View your saves"}</Link>
+                </Button>
+              )}
+            </div>
+          </div>
+          <div className="border border-border bg-card p-3 sm:p-4">
+            <ProductPreview />
+          </div>
+        </div>
+      </section>
+
+      <section className="border-y border-border bg-muted/35">
+        <div className="mx-auto grid w-full max-w-[90rem] divide-y divide-border px-5 sm:px-8 md:grid-cols-3 md:divide-x md:divide-y-0 lg:px-12">
+          <Proof label="League format" value="30 teams, one shared history" />
+          <Proof label="Season control" value="Preseason to free agency" />
+          <Proof label="Your saves" value={loading ? "Stored locally" : saves.length ? `${saves.length} local save${saves.length === 1 ? "" : "s"}` : "Stored locally"} />
+        </div>
+      </section>
+
+      <section className="mx-auto grid w-full max-w-[90rem] gap-12 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[0.75fr_1fr] lg:gap-24 lg:px-12 lg:py-36">
+        <div className="max-w-xl">
+          <p className="text-sm font-medium text-muted-foreground">One season. A complete record.</p>
+          <h2 className="mt-5 text-3xl font-semibold tracking-[-0.03em] text-balance sm:text-4xl">
+            Every decision leaves a paper trail.
+          </h2>
+          <p className="mt-5 max-w-[52ch] text-base leading-7 text-muted-foreground">
+            Front Office Hoops keeps the standings, finances, schedule, and next move connected—so advancing the calendar never means losing the context.
+          </p>
+        </div>
+        <ol className="border-t border-border">
+          {operatingLoop.map(([title, body], index) => (
+            <li key={title} className="grid gap-4 border-b border-border py-6 sm:grid-cols-[3rem_1fr] sm:gap-7">
+              <span className="text-sm tabular-nums text-muted-foreground">0{index + 1}</span>
+              <div>
+                <h3 className="text-lg font-semibold tracking-[-0.02em]">{title}</h3>
+                <p className="mt-2 max-w-[52ch] text-sm leading-6 text-muted-foreground">{body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="border-t border-border">
+        <div className="mx-auto grid w-full max-w-[90rem] gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[1fr_0.8fr] lg:items-end lg:gap-24 lg:px-12 lg:py-28">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">Built for the long view.</p>
+            <h2 className="mt-5 max-w-[14ch] text-3xl font-semibold tracking-[-0.03em] text-balance sm:text-4xl">
+              The game is not the interface. The decisions are.
+            </h2>
+          </div>
+          <div className="border-l border-border pl-6 sm:pl-8">
+            <p className="text-base leading-7 text-muted-foreground">
+              Set the rules, choose a team, make the calls, and live with the outcomes. Start a league when you’re ready.
+            </p>
+            <Button size="lg" className="mt-7 h-10 px-4 text-sm" asChild>
+              <Link to="/league/create">Create a league</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+    </main>
   )
 }
 
-function SkeletonBand({ tall }: { tall?: boolean }) {
+function Proof({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      className={`flex items-center justify-between gap-4 rounded-lg ring-1 ring-foreground/10 ${
-        tall ? "p-5" : "p-4"
-      }`}
-    >
-      <div className="flex min-w-0 flex-1 animate-pulse flex-col gap-2 motion-reduce:animate-none">
-        <div
-          className={`rounded-sm bg-muted ${tall ? "h-5 w-48" : "h-4 w-40"}`}
-        />
-        <div className="h-3 w-72 max-w-full rounded-sm bg-muted/70" />
-      </div>
-      <div className="h-8 w-24 animate-pulse rounded-md bg-muted motion-reduce:animate-none" />
+    <div className="py-5 md:px-6 md:first:pl-0 md:last:pr-0">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1.5 text-sm font-medium tracking-[-0.01em]">{value}</p>
     </div>
   )
 }
 
-function App() {
-  const { saves, activeSave, loading, error, retry, switchLeague } =
-    useLeagueSaves()
-  const navigate = useNavigate()
-  const [pendingLoadId, setPendingLoadId] = useState<string | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-
-  const hasSave = saves.length > 0
-  const recentSaves = saves
-    .filter((save) => save.id !== activeSave?.id)
-    .slice(0, 3)
-
-  async function handleLoad(save: LeagueSummary) {
-    setLoadError(null)
-    setPendingLoadId(save.id)
-
-    try {
-      await switchLeague(save.id)
-      void navigate({
-        to: save.userTeamId ? "/league" : "/league/pick-team",
-      })
-    } catch {
-      setLoadError(`Couldn't load "${save.name}". Try again.`)
-    } finally {
-      setPendingLoadId(null)
-    }
-  }
-
+function ProductPreview() {
   return (
-    <main className="min-h-svh bg-background px-4 py-10 text-foreground sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100svh-5rem)] w-full max-w-[880px] flex-col">
-        <header className="flex items-start justify-between gap-4 pb-6">
-          <div className="flex min-w-0 flex-col gap-2">
-            <h1 className="text-sm font-semibold tracking-[0.08em] uppercase">
-              Front Office Hoops
-            </h1>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Basketball GM simulation. Your leagues live on this device.
-            </p>
-          </div>
-          <ModeToggle />
-        </header>
-
-        <div className="border-t border-foreground/10" role="presentation" />
-
-        <section
-          aria-label="Your leagues"
-          className="flex flex-1 flex-col justify-center gap-3 py-8"
-        >
-          {loading ? (
-            <>
-              <SkeletonBand tall />
-              <SkeletonBand />
-              <SkeletonBand />
-            </>
-          ) : null}
-
-          {!loading && error ? (
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg p-5 ring-1 ring-foreground/10">
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Couldn't read your saves</p>
-                <p className="text-xs leading-relaxed text-destructive">
-                  {error}
-                </p>
-              </div>
-              <Button size="lg" variant="outline" onClick={() => void retry()}>
-                Try again
-              </Button>
-            </div>
-          ) : null}
-
-          {!loading && !error && !hasSave ? (
-            <div className="flex flex-col gap-4 rounded-lg p-6 ring-1 ring-foreground/10">
-              <div className="flex flex-col gap-1.5">
-                <h2 className="text-lg font-medium text-balance">
-                  Start your first league
-                </h2>
-                <p className="max-w-[60ch] text-sm leading-relaxed text-muted-foreground">
-                  Create a league, pick the team you'll run, and take over the
-                  front office: roster, trades, draft, finances, and the
-                  schedule from preseason to the title.
-                </p>
-              </div>
-              <div>
-                <Button size="lg" asChild>
-                  <Link to="/league/create">Create your first league</Link>
-                </Button>
-              </div>
-            </div>
-          ) : null}
-
-          {!loading && !error && activeSave ? (
-            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4 rounded-lg bg-card p-5 ring-1 ring-foreground/15">
-              <div className="flex min-w-0 flex-col gap-1">
-                <h2 className="truncate text-xl font-medium tracking-[-0.01em]">
-                  {activeSave.name}
-                </h2>
-                <MetadataLine save={activeSave} />
-              </div>
-              <Button size="lg" asChild>
-                <Link
-                  to={activeSave.userTeamId ? "/league" : "/league/pick-team"}
-                >
-                  {activeSave.userTeamId ? "Continue" : "Finish setup"}
-                </Link>
-              </Button>
-            </div>
-          ) : null}
-
-          {!loading && !error && recentSaves.length > 0 ? (
-            <ul className="flex flex-col gap-3" aria-label="Other saves">
-              {recentSaves.map((save) => (
-                <li
-                  key={save.id}
-                  className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-lg p-4 ring-1 ring-foreground/10 transition-colors duration-150 hover:bg-card motion-reduce:transition-none"
-                >
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <h3 className="truncate text-sm font-medium">
-                      {save.name}
-                    </h3>
-                    <MetadataLine save={save} />
-                  </div>
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    disabled={pendingLoadId !== null}
-                    onClick={() => void handleLoad(save)}
-                  >
-                    {pendingLoadId === save.id ? "Loading…" : "Load"}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {loadError ? (
-            <p role="alert" className="text-xs text-destructive">
-              {loadError}
-            </p>
-          ) : null}
-
-          {!loading && !error && hasSave ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button size="lg" variant="outline" asChild>
-                <Link to="/league/create">Create new league</Link>
-              </Button>
-              <Button size="lg" variant="ghost" asChild>
-                <Link to="/league/saves">
-                  Manage saves
-                  {saves.length > recentSaves.length + (activeSave ? 1 : 0)
-                    ? ` (${saves.length})`
-                    : ""}
-                </Link>
-              </Button>
-            </div>
-          ) : null}
-        </section>
-
-        <footer className="flex items-center justify-between gap-3 border-t border-foreground/10 pt-4 text-xs text-muted-foreground">
-          <span>Developer tools</span>
-          <div className="flex gap-1">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/sim-lab">Sim Lab</Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/season-lab">Season Lab</Link>
-            </Button>
-          </div>
-        </footer>
+    <div className="overflow-hidden bg-foreground text-background">
+      <div className="flex items-center justify-between border-b border-background/15 px-4 py-3 text-[0.6875rem] sm:px-5">
+        <span className="font-semibold tracking-[-0.01em]">North Division</span>
+        <div className="flex items-center gap-3 text-background/60">
+          <span>2027–28</span>
+          <span className="hidden sm:inline">Day 118</span>
+        </div>
       </div>
-    </main>
+      <div className="grid lg:grid-cols-[10.5rem_minmax(0,1fr)]">
+        <aside className="hidden border-r border-background/15 px-3 py-4 lg:block">
+          <p className="px-2 text-[0.625rem] font-medium tracking-[0.08em] text-background/45 uppercase">League office</p>
+          <div className="mt-3 space-y-0.5 text-xs text-background/65">
+            {["Overview", "Schedule", "Transactions", "Roster", "Cap sheet", "Draft", "History"].map((item, index) => (
+              <div key={item} className={`rounded-sm px-2 py-1.5 ${index === 0 ? "bg-background/10 text-background" : ""}`}>{item}</div>
+            ))}
+          </div>
+        </aside>
+        <div className="p-4 sm:p-5">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[0.6875rem] text-background/55">League snapshot</p>
+              <h2 className="mt-1 text-base font-semibold tracking-[-0.02em]">The board before the deadline.</h2>
+            </div>
+            <span className="hidden border border-background/20 px-2 py-1 text-[0.625rem] font-medium sm:inline">Advance day</span>
+          </div>
+          <div className="mt-5 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <section className="border border-background/15">
+              <div className="flex items-center justify-between border-b border-background/15 px-3 py-2.5 text-[0.625rem] text-background/60">
+                <span className="font-medium text-background">Standings watch</span><span>NET RTG</span>
+              </div>
+              <div className="divide-y divide-background/10">
+                {standings.map(([rank, team, record, net]) => (
+                  <div key={team} className="grid grid-cols-[1.7rem_1fr_3.1rem_2.5rem] gap-2 px-3 py-2 text-[0.6875rem] tabular-nums">
+                    <span className="text-background/50">{rank}</span><span className="font-medium">{team}</span><span className="text-background/60">{record}</span><span>{net}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="border border-background/15 p-3">
+              <p className="text-[0.625rem] font-medium text-background/60">Club ledger</p>
+              <div className="mt-4 space-y-3">
+                {ledger.map(([label, value]) => (
+                  <div key={label} className="flex items-baseline justify-between gap-3 text-[0.6875rem]"><span className="text-background/55">{label}</span><span className="font-medium tabular-nums">{value}</span></div>
+                ))}
+              </div>
+              <div className="mt-6 border-t border-background/15 pt-3 text-[0.625rem] text-background/55">Next decision</div>
+              <p className="mt-1 text-[0.6875rem] font-medium">Review trade offers</p>
+            </section>
+          </div>
+          <section className="mt-4 border border-background/15 p-3">
+            <div className="flex items-center justify-between text-[0.625rem]"><span className="font-medium">Schedule window</span><span className="text-background/55">JAN 12–18</span></div>
+            <div className="mt-3 grid grid-cols-7 gap-1.5">
+              {Array.from({ length: 21 }).map((_, index) => <div key={index} className={`h-5 sm:h-6 ${index === 4 || index === 13 ? "bg-background" : index % 3 === 0 ? "bg-background/30" : "bg-background/10"}`} />)}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
   )
 }

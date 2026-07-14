@@ -16,7 +16,6 @@ import {
   HistoryIcon,
   Home01Icon,
   RankingIcon,
-  SaveIcon,
   StrategyIcon,
   TradeUpIcon,
   UserGroupIcon,
@@ -75,7 +74,7 @@ function LeagueLayout() {
   const isCreate = pathname === "/league/create"
   const isPickTeam = pathname === "/league/pick-team"
   const isSaves = pathname === "/league/saves"
-  const isSetupRoute = isCreate || isPickTeam || (isSaves && needsPickTeam)
+  const isSetupRoute = isCreate || isPickTeam || isSaves
 
   if (status === "loading") {
     return (
@@ -128,6 +127,13 @@ function LeagueLayout() {
           phase={phase}
           dayLabel={calendar?.date.label ?? null}
           currentDay={seasonState?.currentDay ?? null}
+          pendingTradeOfferCount={
+            league?.pendingTradeOffers.filter(
+              (offer) =>
+                offer.status === "pending" &&
+                offer.toTeamId === league.userTeamId,
+            ).length ?? 0
+          }
         />
         <SidebarInset className="h-svh min-w-0 overflow-hidden">
           <header className="flex h-12 shrink-0 items-center gap-3 border-b px-4 md:hidden">
@@ -157,6 +163,7 @@ type SidebarNavItem = {
   label: string
   exact?: boolean
   icon: typeof DashboardSquare01Icon
+  badgeKey?: "pendingTrades"
 }
 
 type SidebarNavGroup = {
@@ -186,7 +193,12 @@ const sidebarNavGroups: SidebarNavGroup[] = [
       { to: "/league/staff", label: "Staff", icon: StrategyIcon },
       { to: "/league/re-signing", label: "Re-signing", icon: UserMultiple02Icon },
       { to: "/league/free-agency", label: "Free Agency", icon: UserMultiple02Icon },
-      { to: "/league/trades", label: "Trades", icon: TradeUpIcon },
+      {
+        to: "/league/trades",
+        label: "Trades",
+        icon: TradeUpIcon,
+        badgeKey: "pendingTrades",
+      },
       { to: "/league/draft", label: "Draft", icon: DraftingCompassIcon },
       { to: "/league/stats", label: "Stats", icon: Analytics01Icon },
     ],
@@ -195,7 +207,6 @@ const sidebarNavGroups: SidebarNavGroup[] = [
     label: "Office",
     items: [
       { to: "/league/history", label: "History", icon: HistoryIcon },
-      { to: "/league/saves", label: "Saves", icon: SaveIcon },
     ],
   },
 ]
@@ -210,6 +221,7 @@ type LeagueSidebarProps = {
   phase: "preseason" | "regular" | "playoffs" | "complete" | "offseason"
   dayLabel: string | null
   currentDay: number | null
+  pendingTradeOfferCount: number
 }
 
 function LeagueSidebar({
@@ -222,6 +234,7 @@ function LeagueSidebar({
   phase,
   dayLabel,
   currentDay,
+  pendingTradeOfferCount,
 }: LeagueSidebarProps) {
   const recordLabel = record
     ? `${record.wins}-${record.losses} (${winPct(record.wins, record.losses)})`
@@ -292,6 +305,12 @@ function LeagueSidebar({
                         >
                           <HugeiconsIcon icon={item.icon} strokeWidth={2} />
                           <span>{item.label}</span>
+                          {item.badgeKey === "pendingTrades" &&
+                          pendingTradeOfferCount > 0 ? (
+                            <span className="ml-auto rounded-full bg-sidebar-primary px-1.5 py-0.5 text-[0.625rem] leading-none text-sidebar-primary-foreground group-data-[collapsible=icon]:hidden">
+                              {pendingTradeOfferCount}
+                            </span>
+                          ) : null}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

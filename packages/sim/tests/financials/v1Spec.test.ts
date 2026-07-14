@@ -18,7 +18,7 @@ describe("financial v1 spec mechanics", () => {
     expect(REPEATER_TAX_SEASONS).toBe(3)
   })
 
-  it("creates stretched dead cap on waive", () => {
+  it("creates annual dead cap from guaranteed salary on waive", () => {
     const contract: Contract = {
       id: "c_dead",
       playerId: "p_dead",
@@ -26,6 +26,7 @@ describe("financial v1 spec mechanics", () => {
       startSeason: 1,
       endSeason: 3,
       yearlySalaries: [10, 10, 10],
+      guaranteedSalaries: [10, 10, 10],
       contractType: "standard",
       signingException: "cap_room",
       status: "active",
@@ -33,7 +34,12 @@ describe("financial v1 spec mechanics", () => {
     }
 
     const charges = createDeadCapFromWaive(contract, "p_dead")
-    expect(charges).toHaveLength(2)
+    expect(charges).toHaveLength(3)
+    expect(charges.map((charge) => charge.origin)).toEqual([
+      "waive",
+      "waive",
+      "waive",
+    ])
     expect(getTeamDeadCapPayroll(charges)).toBe(30)
   })
 
@@ -55,6 +61,7 @@ describe("financial v1 spec mechanics", () => {
         ? {
             ...contract,
             yearlySalaries: [seasonFinancials.salaryCap * 0.95],
+            guaranteedSalaries: [seasonFinancials.salaryCap * 0.95],
           }
         : contract,
     )

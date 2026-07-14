@@ -2,14 +2,8 @@ import { Link, useNavigate } from "@tanstack/react-router"
 
 import type { LeagueSummary } from "@workspace/shared/types"
 import { LEAGUE_TEAM_COUNT } from "@workspace/shared/constants"
+import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
 import {
   Table,
   TableBody,
@@ -20,7 +14,10 @@ import {
 } from "@workspace/ui/components/table"
 
 function formatUpdatedAt(iso: string): string {
-  return new Date(iso).toLocaleString()
+  return new Date(iso).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  })
 }
 
 function formatLeagueType(teamCount: number): string {
@@ -28,7 +25,7 @@ function formatLeagueType(teamCount: number): string {
 }
 
 function formatStatus(userTeamId: string | null): string {
-  return userTeamId ? "Ready" : "Needs team pick"
+  return userTeamId ? "Ready" : "Needs team"
 }
 
 type LeagueSavesPanelProps = {
@@ -66,89 +63,93 @@ export function LeagueSavesPanel({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
-          <CardTitle>Saved leagues</CardTitle>
-          <CardDescription>
-            Switch between saves, delete old leagues, or create a new one.
-            Season Lab saves appear here as 6-team lab entries.
-          </CardDescription>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/">Home</Link>
-          </Button>
-          <Button size="sm" asChild>
-            <Link to="/league/create">Create new league</Link>
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {saves.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Updated</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {saves.map((save) => {
-                const isActive = save.id === activeId
+    <div className="rounded-lg border border-border bg-card">
+      {saves.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="px-4">League</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Updated</TableHead>
+              <TableHead className="px-4 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {saves.map((save) => {
+              const isActive = save.id === activeId
+              const primaryAction = isActive
+                ? save.userTeamId
+                  ? "Continue"
+                  : "Finish setup"
+                : "Switch"
 
-                return (
-                  <TableRow
-                    key={save.id}
-                    className={isActive ? "bg-muted/40" : undefined}
-                  >
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
+              return (
+                <TableRow
+                  key={save.id}
+                  className={isActive ? "bg-muted/35" : undefined}
+                >
+                  <TableCell className="px-4 py-3">
+                    <div className="flex min-w-52 flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{save.name}</span>
-                        {isActive ? (
-                          <span className="text-xs text-muted-foreground">
-                            Active
-                          </span>
-                        ) : null}
+                        {isActive ? <Badge variant="secondary">Active</Badge> : null}
                       </div>
-                    </TableCell>
-                    <TableCell>{formatLeagueType(save.teamCount)}</TableCell>
-                    <TableCell>{formatStatus(save.userTeamId)}</TableCell>
-                    <TableCell>{formatUpdatedAt(save.updatedAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {!isActive ? (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => void handleSwitch(save)}
-                          >
-                            Switch
-                          </Button>
-                        ) : null}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => void handleDelete(save)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No saved leagues yet. Create one to get started.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+                      <span className="text-xs text-muted-foreground">
+                        Season {save.season}
+                        {save.teamName ? ` · ${save.teamName}` : ""}
+                        {save.wins !== null && save.losses !== null
+                          ? ` · ${save.wins}-${save.losses}`
+                          : ""}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{formatLeagueType(save.teamCount)}</TableCell>
+                  <TableCell>
+                    <Badge variant={save.userTeamId ? "outline" : "secondary"}>
+                      {formatStatus(save.userTeamId)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatUpdatedAt(save.updatedAt)}
+                  </TableCell>
+                  <TableCell className="px-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant={isActive ? "default" : "secondary"}
+                        size="sm"
+                        onClick={() => void handleSwitch(save)}
+                      >
+                        {primaryAction}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void handleDelete(save)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      ) : (
+        <div className="flex min-h-60 flex-col items-center justify-center gap-4 px-6 py-12 text-center">
+          <div className="max-w-sm">
+            <h2 className="text-base font-medium">No saved leagues yet</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Create a league, pick a team, and your saves will appear here for
+              quick switching.
+            </p>
+          </div>
+          <Button asChild>
+            <Link to="/league/create">Create league</Link>
+          </Button>
+        </div>
+      )}
+    </div>
   )
 }

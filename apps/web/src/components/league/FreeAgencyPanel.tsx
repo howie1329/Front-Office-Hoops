@@ -50,6 +50,7 @@ type FreeAgencyPanelProps = {
   emptyMessage?: string
   mode?: "re_sign" | "external"
   onOffer: (playerId: string, offer: FreeAgentOffer) => void
+  onRenounce?: (playerId: string) => void
   onAdvanceMarketDay?: () => void
 }
 
@@ -62,11 +63,13 @@ export function FreeAgencyPanel({
   emptyMessage = "No free agents are currently available.",
   mode = "external",
   onOffer,
+  onRenounce,
   onAdvanceMarketDay,
 }: FreeAgencyPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [years, setYears] = useState(2)
   const [salary, setSalary] = useState(5)
+  const [renounceId, setRenounceId] = useState<string | null>(null)
 
   const selected = freeAgents.find((player) => player.id === selectedId)
   const offer: FreeAgentOffer = {
@@ -204,6 +207,24 @@ export function FreeAgencyPanel({
                         >
                           {mode === "re_sign" ? "Offer" : "Offer"}
                         </Button>
+                        {mode === "re_sign" &&
+                        onRenounce &&
+                        league.teamFinancials
+                          .find((finance) => finance.teamId === teamId)
+                          ?.capHolds.some(
+                            (hold) =>
+                              hold.playerId === player.id &&
+                              hold.status === "active",
+                          ) ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-1 text-destructive"
+                            onClick={() => setRenounceId(player.id)}
+                          >
+                            Renounce
+                          </Button>
+                        ) : null}
                       </TableCell>
                     </TableRow>
                   )
@@ -289,6 +310,36 @@ export function FreeAgencyPanel({
             </DialogFooter>
           </DialogContent>
         ) : null}
+      </Dialog>
+      <Dialog
+        open={Boolean(renounceId)}
+        onOpenChange={(open) => !open && setRenounceId(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Renounce player rights?</DialogTitle>
+            <DialogDescription>
+              This removes the cap hold and permanently gives up Bird-based
+              re-signing flexibility for this offseason.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenounceId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (renounceId && onRenounce) {
+                  onRenounce(renounceId)
+                }
+                setRenounceId(null)
+              }}
+            >
+              Renounce rights
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </>
   )

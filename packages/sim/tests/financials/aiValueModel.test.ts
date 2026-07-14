@@ -24,6 +24,7 @@ function makeContract(player: Player, salary: number): Contract {
     startSeason: 1,
     endSeason: 1,
     yearlySalaries: [salary],
+    guaranteedSalaries: [salary],
     contractType: "standard",
     signingException: "cap_room",
     status: "active",

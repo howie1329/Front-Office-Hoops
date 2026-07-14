@@ -21,6 +21,7 @@ function LeagueReSigningPage() {
     isOffseason,
     offseasonPhase,
     submitPlayerContractOffer,
+    renouncePlayerRights,
   } = useLeagueContext()
 
   if (!league || !userTeamId) {
@@ -66,6 +67,7 @@ function LeagueReSigningPage() {
       emptyMessage="You do not have any expiring players to re-sign."
       mode="re_sign"
       onOffer={submitPlayerContractOffer}
+      onRenounce={renouncePlayerRights}
     />
   )
 }

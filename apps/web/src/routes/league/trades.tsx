@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import { teamName } from "@/components/league/lib/teamFormat"
 import { useLeagueContext } from "@/contexts/LeagueContext"
 import type {
   DraftPickAsset,
+  PendingTradeOffer,
   Player,
+  PlayerSeasonStats,
   SeasonState,
+  TeamMode,
   TradeEvaluation,
-  TradeHistoryEntry,
   TradeProposal,
   TradeValidationResult,
 } from "@workspace/shared/types"
@@ -26,10 +28,12 @@ import {
   getPickValueFromCache,
   getPlayerContract,
   getSeasonFinancials,
+  getYearsRemaining,
   makeItWork,
   validateTrade,
   wouldAiAcceptTrade,
 } from "@workspace/sim"
+import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -60,6 +64,9 @@ type TradesSearch = {
   incomingPlayerId?: string
 }
 
+type TradeTab = "incoming" | "build"
+type AssetTab = "players" | "picks"
+
 export const Route = createFileRoute("/league/trades")({
   validateSearch: (search: Record<string, unknown>): TradesSearch => {
     const parsed: TradesSearch = {}
@@ -77,18 +84,30 @@ export const Route = createFileRoute("/league/trades")({
   component: LeagueTradesPage,
 })
 
-const NONE = "none"
-
 function LeagueTradesPage() {
-  const { league, seasonState, userTeamId, myTeam, executeTrade, acceptTradeOffer, rejectTradeOffer } =
-    useLeagueContext()
+  const {
+    league,
+    seasonState,
+    userTeamId,
+    myTeam,
+    executeTrade,
+    acceptTradeOffer,
+    rejectTradeOffer,
+  } = useLeagueContext()
   const search = Route.useSearch()
+  const hasBuilderSearch = Boolean(
+    search.targetTeamId || search.outgoingPlayerId || search.incomingPlayerId,
+  )
+  const [activeTab, setActiveTab] = useState<TradeTab>(
+    hasBuilderSearch ? "build" : "incoming",
+  )
+  const [assetTab, setAssetTab] = useState<AssetTab>("players")
   const [targetTeamId, setTargetTeamId] = useState(search.targetTeamId ?? "")
   const [outgoingPlayerIds, setOutgoingPlayerIds] = useState<string[]>(
-    search.outgoingPlayerId ? [search.outgoingPlayerId] : []
+    search.outgoingPlayerId ? [search.outgoingPlayerId] : [],
   )
   const [incomingPlayerIds, setIncomingPlayerIds] = useState<string[]>(
-    search.incomingPlayerId ? [search.incomingPlayerId] : []
+    search.incomingPlayerId ? [search.incomingPlayerId] : [],
   )
   const [outgoingPickIds, setOutgoingPickIds] = useState<string[]>([])
   const [incomingPickIds, setIncomingPickIds] = useState<string[]>([])
@@ -97,25 +116,72 @@ function LeagueTradesPage() {
   useEffect(() => {
     setTargetTeamId(search.targetTeamId ?? "")
     setOutgoingPlayerIds(
-      search.outgoingPlayerId ? [search.outgoingPlayerId] : []
+      search.outgoingPlayerId ? [search.outgoingPlayerId] : [],
     )
     setIncomingPlayerIds(
-      search.incomingPlayerId ? [search.incomingPlayerId] : []
+      search.incomingPlayerId ? [search.incomingPlayerId] : [],
     )
     setOutgoingPickIds([])
     setIncomingPickIds([])
     setMessage(null)
   }, [search.incomingPlayerId, search.outgoingPlayerId, search.targetTeamId])
 
-  const targetTeam = seasonState?.teams.find((team) => team.id === targetTeamId)
-  const userPicks =
-    league?.draftPickAssets.filter(
-      (pick) => pick.currentTeamId === userTeamId
+  const pendingOffers =
+    league?.pendingTradeOffers.filter(
+      (offer) =>
+        offer.status === "pending" &&
+        (offer.toTeamId === userTeamId || offer.fromTeamId === userTeamId),
     ) ?? []
-  const targetPicks =
-    league?.draftPickAssets.filter(
-      (pick) => pick.currentTeamId === targetTeamId
-    ) ?? []
+
+  useEffect(() => {
+    if (pendingOffers.length > 0 && !hasBuilderSearch) {
+      setActiveTab("incoming")
+    }
+  }, [hasBuilderSearch, pendingOffers.length])
+
+  if (!league || !seasonState || !userTeamId || !myTeam) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Trades</CardTitle>
+          <CardDescription>Pick a team before proposing trades.</CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  const activeLeague = league
+  const targetTeam = seasonState.teams.find((team) => team.id === targetTeamId)
+  const userPicks = activeLeague.draftPickAssets.filter(
+    (pick) => pick.currentTeamId === userTeamId,
+  )
+  const targetPicks = activeLeague.draftPickAssets.filter(
+    (pick) => pick.currentTeamId === targetTeamId,
+  )
+  const targetMode =
+    activeLeague.teamFinancials.find((entry) => entry.teamId === targetTeamId)
+      ?.strategy.mode ?? "buying"
+  const seasonFinancials = getSeasonFinancials(
+    activeLeague.leagueFinancials,
+    seasonState.season,
+  )
+
+  function salary(player: Player): number {
+    return getCurrentSalary(getPlayerContract(activeLeague.contracts, player))
+  }
+
+  const outgoingPlayers = myTeam.players.filter((player) =>
+    outgoingPlayerIds.includes(player.id),
+  )
+  const incomingPlayers =
+    targetTeam?.players.filter((player) => incomingPlayerIds.includes(player.id)) ??
+    []
+  const outgoingPicks = userPicks.filter((pick) =>
+    outgoingPickIds.includes(pick.id),
+  )
+  const incomingPicks = targetPicks.filter((pick) =>
+    incomingPickIds.includes(pick.id),
+  )
 
   const proposal = useMemo<TradeProposal | null>(() => {
     if (!userTeamId || !targetTeamId) {
@@ -153,50 +219,37 @@ function LeagueTradesPage() {
     userTeamId,
   ])
 
-  const targetMode =
-    league?.teamFinancials.find((entry) => entry.teamId === targetTeamId)
-      ?.strategy.mode ?? "buying"
-
-  if (!league || !seasonState || !userTeamId || !myTeam) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Trades</CardTitle>
-          <CardDescription>
-            Pick a team before proposing trades.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    )
-  }
-
-  const validation = proposal ? validateTrade(league, proposal) : null
+  const validation = proposal ? validateTrade(activeLeague, proposal) : null
   const aiResponse = proposal
-    ? wouldAiAcceptTrade(league, proposal, targetTeamId)
+    ? wouldAiAcceptTrade(activeLeague, proposal, targetTeamId)
     : null
-  const evaluations = proposal ? evaluateTrade(league, proposal) : []
+  const evaluations = proposal ? evaluateTrade(activeLeague, proposal) : []
   const canExecute = Boolean(validation?.ok && aiResponse?.ok)
-  const outgoingPlayers = myTeam.players.filter((player) =>
-    outgoingPlayerIds.includes(player.id)
+  const userEvaluation = evaluations.find((entry) => entry.teamId === userTeamId)
+  const targetEvaluation = evaluations.find(
+    (entry) => entry.teamId === targetTeamId,
   )
-  const incomingPlayers =
-    targetTeam?.players.filter((player) =>
-      incomingPlayerIds.includes(player.id)
-    ) ?? []
-  const outgoingPicks = userPicks.filter((pick) =>
-    outgoingPickIds.includes(pick.id)
-  )
-  const incomingPicks = targetPicks.filter((pick) =>
-    incomingPickIds.includes(pick.id)
-  )
-  const userEvaluation = evaluations.find(
-    (entry) => entry.teamId === userTeamId
-  )
-  const activeLeague = league
 
-  function salary(player: Player): number {
-    return getCurrentSalary(getPlayerContract(activeLeague.contracts, player))
-  }
+  const outgoingValue =
+    userEvaluation?.outgoingValue ??
+    getAssetValueTotal({
+      players: outgoingPlayers,
+      picks: outgoingPicks,
+      mode: "buying",
+      teamId: userTeamId,
+      league: activeLeague,
+      seasonFinancials,
+    })
+  const incomingValue =
+    userEvaluation?.incomingValue ??
+    getAssetValueTotal({
+      players: incomingPlayers,
+      picks: incomingPicks,
+      mode: targetMode,
+      teamId: targetTeamId,
+      league: activeLeague,
+      seasonFinancials,
+    })
 
   function clearTrade() {
     setOutgoingPlayerIds([])
@@ -207,10 +260,10 @@ function LeagueTradesPage() {
   }
 
   function applySuggestedBalance() {
-    if (!proposal || !targetTeamId || !league) {
+    if (!proposal || !targetTeamId) {
       return
     }
-    const balanced = makeItWork(league, proposal, targetTeamId)
+    const balanced = makeItWork(activeLeague, proposal, targetTeamId)
     if (!balanced) {
       setMessage("No legal balance found with current assets.")
       return
@@ -222,298 +275,351 @@ function LeagueTradesPage() {
     setMessage("Suggested balance applied.")
   }
 
-  const pendingOffers =
-    league.pendingTradeOffers?.filter(
-      (offer) =>
-        offer.status === "pending" &&
-        (offer.toTeamId === userTeamId || offer.fromTeamId === userTeamId),
-    ) ?? []
-
-  const seasonFinancials = getSeasonFinancials(
-    league.leagueFinancials,
-    seasonState.season,
-  )
-  const assetBreakdown: Array<{
-    label: string
-    side: "send" | "receive"
-    value: number
-  }> = []
-
-  if (targetTeamId) {
-    for (const player of outgoingPlayers) {
-      const contract = getPlayerContract(league.contracts, player)
-      assetBreakdown.push({
-        label: playerLabel(player),
-        side: "send",
-        value: getContractAssetValueBreakdown({
-          player,
-          contract,
-          expectedSalary: getFairSalary(player, seasonFinancials, league),
-          mode: "buying",
-        }).total,
-      })
-    }
-
-    for (const player of incomingPlayers) {
-      const contract = getPlayerContract(league.contracts, player)
-      assetBreakdown.push({
-        label: playerLabel(player),
-        side: "receive",
-        value: getContractAssetValueBreakdown({
-          player,
-          contract,
-          expectedSalary: getFairSalary(player, seasonFinancials, league),
-          mode: targetMode,
-        }).total,
-      })
-    }
-
-    for (const pick of outgoingPicks) {
-      assetBreakdown.push({
-        label: pickLabel(pick, seasonState),
-        side: "send",
-        value: getPickValueFromCache(
-          pick,
-          league.draftClassCache,
-          league,
-          userTeamId,
-          "buying",
-        ),
-      })
-    }
-
-    for (const pick of incomingPicks) {
-      assetBreakdown.push({
-        label: pickLabel(pick, seasonState),
-        side: "receive",
-        value: getPickValueFromCache(
-          pick,
-          league.draftClassCache,
-          league,
-          targetTeamId,
-          targetMode,
-        ),
-      })
-    }
-  }
-
   return (
     <div className="-m-px flex h-full min-h-0 flex-col gap-4 overflow-y-auto p-px">
-      {pendingOffers.length > 0 ? (
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle>Pending offers</CardTitle>
-            <CardDescription>
-              AI teams have proposed trades waiting on your decision.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2 py-4">
-            {pendingOffers.map((offer) => (
-              <div
-                key={offer.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/10 px-3 py-2 text-sm"
+      <Card className="shrink-0">
+        <CardHeader className="border-b pb-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>Trades</CardTitle>
+              <CardDescription>
+                Review incoming offers or build a package from team assets.
+              </CardDescription>
+            </div>
+            <div className="flex rounded-md border bg-muted/20 p-1">
+              <TabButton
+                active={activeTab === "incoming"}
+                onClick={() => setActiveTab("incoming")}
               >
-                <span>
-                  {teamName(seasonState, offer.fromTeamId)} proposed a trade ·
-                  expires day {offer.expiresDay}
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => rejectTradeOffer(offer.id)}
-                  >
-                    Reject
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => acceptTradeOffer(offer.id)}
-                  >
-                    Accept
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ) : null}
+                Incoming offers
+                {pendingOffers.length > 0 ? (
+                  <Badge variant="default">{pendingOffers.length}</Badge>
+                ) : null}
+              </TabButton>
+              <TabButton
+                active={activeTab === "build"}
+                onClick={() => setActiveTab("build")}
+              >
+                Build trade
+              </TabButton>
+            </div>
+          </div>
+        </CardHeader>
 
-      <TradeWorkspaceHeader
-        seasonState={seasonState}
-        userTeamId={userTeamId}
-        targetTeamId={targetTeamId}
-        validation={validation}
-        aiResponse={aiResponse}
-        canExecute={canExecute}
-        onTargetTeamChange={(value) => {
-          setTargetTeamId(value)
-          setIncomingPlayerIds([])
-          setIncomingPickIds([])
-          setMessage(null)
-        }}
-        onClear={clearTrade}
-        onSuggestBalance={applySuggestedBalance}
-        onComplete={() => {
-          if (!proposal) {
-            return
-          }
-          executeTrade(proposal)
-          clearTrade()
-          setMessage("Trade completed.")
-        }}
-      />
-
-      <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-          <TradeSideBuilder
-            title="You send"
-            description={teamName(seasonState, userTeamId)}
-            players={myTeam.players}
-            picks={userPicks}
-            selectedPlayerIds={outgoingPlayerIds}
-            selectedPickIds={outgoingPickIds}
-            selectedPlayers={outgoingPlayers}
-            selectedPicks={outgoingPicks}
-            salaryTotal={sumSalary(outgoingPlayers, salary)}
-            value={userEvaluation?.outgoingValue ?? 0}
-            disabled={false}
-            seasonState={seasonState}
-            salary={salary}
-            onAddPlayer={(id) => {
-              setOutgoingPlayerIds((ids) => addUnique(ids, id))
-              setMessage(null)
-            }}
-            onRemovePlayer={(id) => {
-              setOutgoingPlayerIds((ids) => ids.filter((entry) => entry !== id))
-              setMessage(null)
-            }}
-            onAddPick={(id) => {
-              setOutgoingPickIds((ids) => addUnique(ids, id))
-              setMessage(null)
-            }}
-            onRemovePick={(id) => {
-              setOutgoingPickIds((ids) => ids.filter((entry) => entry !== id))
-              setMessage(null)
-            }}
+        {activeTab === "build" ? (
+          <TradeTicketBar
+            outgoingPlayers={outgoingPlayers.length}
+            outgoingPicks={outgoingPicks.length}
+            incomingPlayers={incomingPlayers.length}
+            incomingPicks={incomingPicks.length}
+            outgoingSalary={sumSalary(outgoingPlayers, salary)}
+            incomingSalary={sumSalary(incomingPlayers, salary)}
+            outgoingValue={outgoingValue}
+            incomingValue={incomingValue}
+            validation={validation}
+            aiResponse={aiResponse}
           />
+        ) : null}
+      </Card>
 
-          <TradeSideBuilder
-            title="You receive"
-            description={
-              targetTeam
-                ? teamName(seasonState, targetTeam.id)
-                : "Choose partner"
-            }
-            players={targetTeam?.players ?? []}
-            picks={targetPicks}
-            selectedPlayerIds={incomingPlayerIds}
-            selectedPickIds={incomingPickIds}
-            selectedPlayers={incomingPlayers}
-            selectedPicks={incomingPicks}
-            salaryTotal={sumSalary(incomingPlayers, salary)}
-            value={userEvaluation?.incomingValue ?? 0}
-            disabled={!targetTeam}
-            seasonState={seasonState}
-            salary={salary}
-            onAddPlayer={(id) => {
-              setIncomingPlayerIds((ids) => addUnique(ids, id))
-              setMessage(null)
-            }}
-            onRemovePlayer={(id) => {
-              setIncomingPlayerIds((ids) => ids.filter((entry) => entry !== id))
-              setMessage(null)
-            }}
-            onAddPick={(id) => {
-              setIncomingPickIds((ids) => addUnique(ids, id))
-              setMessage(null)
-            }}
-            onRemovePick={(id) => {
-              setIncomingPickIds((ids) => ids.filter((entry) => entry !== id))
-              setMessage(null)
-            }}
-          />
-        </div>
-
-        <TradeCheckPanel
+      {activeTab === "incoming" ? (
+          <IncomingOffersPanel
+          league={league}
           seasonState={seasonState}
+          seasonFinancials={seasonFinancials}
           userTeamId={userTeamId}
-          targetTeamId={targetTeamId}
-          validation={validation}
-          aiResponse={aiResponse}
-          evaluations={evaluations}
-          outgoingSalary={sumSalary(outgoingPlayers, salary)}
-          incomingSalary={sumSalary(incomingPlayers, salary)}
-          assetBreakdown={assetBreakdown}
-          message={message}
+          offers={pendingOffers}
+          onAccept={acceptTradeOffer}
+          onReject={rejectTradeOffer}
         />
-      </div>
+      ) : (
+        <div className="grid min-h-0 gap-4">
+          <BuildTradeControls
+            seasonState={seasonState}
+            userTeamId={userTeamId}
+            targetTeamId={targetTeamId}
+            assetTab={assetTab}
+            canExecute={canExecute}
+            hasProposal={Boolean(proposal)}
+            onAssetTabChange={setAssetTab}
+            onTargetTeamChange={(teamId) => {
+              setTargetTeamId(teamId)
+              setIncomingPlayerIds([])
+              setIncomingPickIds([])
+              setMessage(null)
+            }}
+            onSuggestBalance={applySuggestedBalance}
+            onClear={clearTrade}
+            onComplete={() => {
+              if (!proposal) {
+                return
+              }
+              executeTrade(proposal)
+              clearTrade()
+              setMessage("Trade completed.")
+            }}
+          />
 
-      <TradeHistoryCard
-        seasonState={seasonState}
-        history={league.tradeHistory}
-      />
+          <div className="grid min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+              <AssetTableCard
+                title="You send"
+                description={teamName(seasonState, userTeamId)}
+                assetTab={assetTab}
+                players={myTeam.players}
+                picks={userPicks}
+                selectedPlayerIds={outgoingPlayerIds}
+                selectedPickIds={outgoingPickIds}
+                seasonState={seasonState}
+                salary={salary}
+                onPlayerToggle={(playerId, checked) => {
+                  setOutgoingPlayerIds((ids) => toggleId(ids, playerId, checked))
+                  setMessage(null)
+                }}
+                onPickToggle={(pickId, checked) => {
+                  setOutgoingPickIds((ids) => toggleId(ids, pickId, checked))
+                  setMessage(null)
+                }}
+              />
+
+              <AssetTableCard
+                title="You receive"
+                description={
+                  targetTeam
+                    ? teamName(seasonState, targetTeam.id)
+                    : "Choose partner"
+                }
+                assetTab={assetTab}
+                players={targetTeam?.players ?? []}
+                picks={targetPicks}
+                selectedPlayerIds={incomingPlayerIds}
+                selectedPickIds={incomingPickIds}
+                seasonState={seasonState}
+                salary={salary}
+                disabled={!targetTeam}
+                onPlayerToggle={(playerId, checked) => {
+                  setIncomingPlayerIds((ids) => toggleId(ids, playerId, checked))
+                  setMessage(null)
+                }}
+                onPickToggle={(pickId, checked) => {
+                  setIncomingPickIds((ids) => toggleId(ids, pickId, checked))
+                  setMessage(null)
+                }}
+              />
+            </div>
+
+            <TradeStatusPanel
+              validation={validation}
+              aiResponse={aiResponse}
+              targetEvaluation={targetEvaluation}
+              outgoingSalary={sumSalary(outgoingPlayers, salary)}
+              incomingSalary={sumSalary(incomingPlayers, salary)}
+              message={message}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-function TradeWorkspaceHeader({
+function IncomingOffersPanel({
+  league,
+  seasonState,
+  seasonFinancials,
+  userTeamId,
+  offers,
+  onAccept,
+  onReject,
+}: {
+  league: NonNullable<ReturnType<typeof useLeagueContext>["league"]>
+  seasonState: SeasonState
+  seasonFinancials: ReturnType<typeof getSeasonFinancials>
+  userTeamId: string
+  offers: PendingTradeOffer[]
+  onAccept: (offerId: string) => void
+  onReject: (offerId: string) => void
+}) {
+  return (
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Incoming offers</CardTitle>
+        <CardDescription>
+          Trade proposals waiting on your decision.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-3 py-4">
+        {offers.length === 0 ? (
+          <div className="rounded-lg border bg-muted/10 p-6 text-sm text-muted-foreground">
+            No incoming trade offers right now.
+          </div>
+        ) : null}
+        {offers.map((offer) => {
+          const youSend =
+            offer.proposal.from.teamId === userTeamId
+              ? offer.proposal.from
+              : offer.proposal.to
+          const youReceive =
+            offer.proposal.from.teamId === userTeamId
+              ? offer.proposal.to
+              : offer.proposal.from
+          const offerEvaluation = evaluateTrade(league, offer.proposal)
+          const userEvaluation = offerEvaluation.find(
+            (entry) => entry.teamId === userTeamId,
+          )
+          const sendAssets = tradeSideAssets({
+            side: youSend,
+            league,
+            seasonState,
+            seasonFinancials,
+          })
+          const receiveAssets = tradeSideAssets({
+            side: youReceive,
+            league,
+            seasonState,
+            seasonFinancials,
+          })
+
+          return (
+            <div
+              key={offer.id}
+              className="grid gap-4 rounded-lg border bg-card p-4"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm font-medium">
+                    {teamName(seasonState, offer.initiatorTeamId)} proposed a trade
+                  </h2>
+                  <Badge variant="outline">Expires day {offer.expiresDay}</Badge>
+                  {userEvaluation ? (
+                    <Badge
+                      variant={
+                        userEvaluation.netValue >= 0 ? "secondary" : "destructive"
+                      }
+                    >
+                      Your value {signedNumber(userEvaluation.netValue)}
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onReject(offer.id)}
+                  >
+                    Reject
+                  </Button>
+                  <Button size="sm" onClick={() => onAccept(offer.id)}>
+                    Accept
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-2">
+                <OfferAssetSection title="You send" assets={sendAssets} />
+                <OfferAssetSection title="You receive" assets={receiveAssets} />
+              </div>
+            </div>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
+}
+
+function OfferAssetSection({
+  title,
+  assets,
+}: {
+  title: string
+  assets: OfferAsset[]
+}) {
+  const totalValue = assets.reduce((total, asset) => total + asset.value, 0)
+
+  return (
+    <div className="rounded-lg border bg-muted/10">
+      <div className="flex items-center justify-between gap-3 border-b px-3 py-2">
+        <div>
+          <h3 className="text-sm font-medium">{title}</h3>
+          <p className="text-xs text-muted-foreground">
+            {packageSummary(
+              assets.filter((asset) => asset.kind === "player").length,
+              assets.filter((asset) => asset.kind === "pick").length,
+            )}
+          </p>
+        </div>
+        <span className="text-xs font-medium tabular-nums">
+          value {totalValue.toFixed(1)}
+        </span>
+      </div>
+      <div className="divide-y">
+        {assets.length === 0 ? (
+          <p className="px-3 py-3 text-sm text-muted-foreground">
+            No assets included.
+          </p>
+        ) : null}
+        {assets.map((asset) => (
+          <div
+            key={asset.id}
+            className="grid gap-2 px-3 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+          >
+            <div className="min-w-0">
+              <p className="truncate font-medium">{asset.title}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {asset.subtitle}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:text-right">
+              {asset.metrics.map((metric) => (
+                <div key={metric.label}>
+                  <span className="text-muted-foreground">{metric.label}</span>
+                  <span className="ml-1 font-medium tabular-nums text-foreground">
+                    {metric.value}
+                  </span>
+                </div>
+              ))}
+              <div>
+                <span className="text-muted-foreground">Value</span>
+                <span className="ml-1 font-medium tabular-nums text-foreground">
+                  {asset.value.toFixed(1)}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function BuildTradeControls({
   seasonState,
   userTeamId,
   targetTeamId,
-  validation,
-  aiResponse,
+  assetTab,
   canExecute,
+  hasProposal,
+  onAssetTabChange,
   onTargetTeamChange,
-  onClear,
   onSuggestBalance,
+  onClear,
   onComplete,
 }: {
   seasonState: SeasonState
   userTeamId: string
   targetTeamId: string
-  validation: TradeValidationResult | null
-  aiResponse: TradeValidationResult | null
+  assetTab: AssetTab
   canExecute: boolean
+  hasProposal: boolean
+  onAssetTabChange: (tab: AssetTab) => void
   onTargetTeamChange: (teamId: string) => void
-  onClear: () => void
   onSuggestBalance: () => void
+  onClear: () => void
   onComplete: () => void
 }) {
   return (
     <Card>
-      <CardHeader className="border-b">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <CardTitle>Trade workspace</CardTitle>
-            <CardDescription>
-              Build multi-player and pick packages, then check value and salary
-              matching before completing the deal.
-            </CardDescription>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[520px]">
-            <CheckMetric
-              label="League check"
-              value={
-                validation ? (validation.ok ? "Clear" : "Blocked") : "Idle"
-              }
-              ok={validation?.ok ?? null}
-            />
-            <CheckMetric
-              label="AI response"
-              value={
-                aiResponse ? (aiResponse.ok ? "Accepts" : "Rejects") : "Idle"
-              }
-              ok={aiResponse?.ok ?? null}
-            />
-            <CheckMetric
-              label="Status"
-              value={canExecute ? "Ready" : "Build"}
-              ok={canExecute ? true : null}
-            />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="grid gap-3 py-4 lg:grid-cols-[260px_minmax(0,1fr)_auto]">
+      <CardContent className="grid gap-3 py-4 lg:grid-cols-[260px_auto_minmax(0,1fr)_auto] lg:items-end">
         <label className="grid gap-1 text-sm">
           Trade partner
           <Select value={targetTeamId} onValueChange={onTargetTeamChange}>
@@ -531,20 +637,40 @@ function TradeWorkspaceHeader({
             </SelectContent>
           </Select>
         </label>
-        <div className="rounded-md border bg-muted/10 px-3 py-2 text-sm text-muted-foreground">
-          {targetTeamId
-            ? "Add assets on either side. Salary, roster, and value checks update automatically."
-            : "Choose a partner to open their roster and picks."}
+
+        <div className="flex w-fit rounded-md border bg-muted/20 p-1">
+          <TabButton
+            active={assetTab === "players"}
+            onClick={() => onAssetTabChange("players")}
+          >
+            Players
+          </TabButton>
+          <TabButton
+            active={assetTab === "picks"}
+            onClick={() => onAssetTabChange("picks")}
+          >
+            Draft picks
+          </TabButton>
         </div>
-        <div className="flex flex-wrap items-end gap-2 lg:justify-end">
-          <Button variant="outline" onClick={onSuggestBalance} disabled={!targetTeamId}>
+
+        <p className="text-sm leading-6 text-muted-foreground">
+          Select assets directly from each table. The package summary stays
+          visible while you switch between players and picks.
+        </p>
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={onSuggestBalance}
+            disabled={!hasProposal}
+          >
             Suggest balance
           </Button>
           <Button variant="outline" onClick={onClear}>
-            Clear trade
+            Clear
           </Button>
           <Button disabled={!canExecute} onClick={onComplete}>
-            Complete trade
+            Submit trade
           </Button>
         </div>
       </CardContent>
@@ -552,335 +678,327 @@ function TradeWorkspaceHeader({
   )
 }
 
-function TradeSideBuilder({
+function TradeTicketBar({
+  outgoingPlayers,
+  outgoingPicks,
+  incomingPlayers,
+  incomingPicks,
+  outgoingSalary,
+  incomingSalary,
+  outgoingValue,
+  incomingValue,
+  validation,
+  aiResponse,
+}: {
+  outgoingPlayers: number
+  outgoingPicks: number
+  incomingPlayers: number
+  incomingPicks: number
+  outgoingSalary: number
+  incomingSalary: number
+  outgoingValue: number
+  incomingValue: number
+  validation: TradeValidationResult | null
+  aiResponse: TradeValidationResult | null
+}) {
+  return (
+    <CardContent className="grid gap-3 py-3 lg:grid-cols-[1fr_1fr_auto]">
+      <TradeTicketSide
+        label="You send"
+        players={outgoingPlayers}
+        picks={outgoingPicks}
+        salary={outgoingSalary}
+        value={outgoingValue}
+      />
+      <TradeTicketSide
+        label="You receive"
+        players={incomingPlayers}
+        picks={incomingPicks}
+        salary={incomingSalary}
+        value={incomingValue}
+      />
+      <div className="grid gap-1 rounded-md border bg-muted/10 px-3 py-2 text-sm">
+        <span className="text-xs text-muted-foreground">Trade status</span>
+        <span className="font-medium">
+          {validation
+            ? validation.ok
+              ? aiResponse?.ok
+                ? "Ready to submit"
+                : "AI response needed"
+              : "League check blocked"
+            : "Build package"}
+        </span>
+      </div>
+    </CardContent>
+  )
+}
+
+function TradeTicketSide({
+  label,
+  players,
+  picks,
+  salary,
+  value,
+}: {
+  label: string
+  players: number
+  picks: number
+  salary: number
+  value: number
+}) {
+  const summary = packageSummary(players, picks)
+
+  return (
+    <div className="grid gap-1 rounded-md border bg-muted/10 px-3 py-2 text-sm">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="font-medium">{summary}</span>
+      {summary !== "No assets selected" ? (
+        <span className="text-xs text-muted-foreground">
+          {formatMoney(salary)} · value {value.toFixed(1)}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
+function AssetTableCard({
   title,
   description,
+  assetTab,
   players,
   picks,
   selectedPlayerIds,
   selectedPickIds,
-  selectedPlayers,
-  selectedPicks,
-  salaryTotal,
-  value,
-  disabled,
   seasonState,
   salary,
-  onAddPlayer,
-  onRemovePlayer,
-  onAddPick,
-  onRemovePick,
+  disabled = false,
+  onPlayerToggle,
+  onPickToggle,
 }: {
   title: string
   description: string
+  assetTab: AssetTab
   players: Player[]
   picks: DraftPickAsset[]
   selectedPlayerIds: string[]
   selectedPickIds: string[]
-  selectedPlayers: Player[]
-  selectedPicks: DraftPickAsset[]
-  salaryTotal: number
-  value: number
-  disabled: boolean
   seasonState: SeasonState
   salary: (player: Player) => number
-  onAddPlayer: (playerId: string) => void
-  onRemovePlayer: (playerId: string) => void
-  onAddPick: (pickId: string) => void
-  onRemovePick: (pickId: string) => void
+  disabled?: boolean
+  onPlayerToggle: (playerId: string, checked: boolean) => void
+  onPickToggle: (pickId: string, checked: boolean) => void
 }) {
-  const availablePlayers = players.filter(
-    (player) => !selectedPlayerIds.includes(player.id)
-  )
-  const availablePicks = picks.filter(
-    (pick) => !selectedPickIds.includes(pick.id)
-  )
-  const selectedAssetCount = selectedPlayers.length + selectedPicks.length
+  const selectedCount =
+    assetTab === "players" ? selectedPlayerIds.length : selectedPickIds.length
 
   return (
-    <Card className="min-h-0">
+    <Card className="min-h-[520px]">
       <CardHeader className="border-b">
         <div className="flex items-start justify-between gap-3">
           <div>
             <CardTitle>{title}</CardTitle>
             <CardDescription>{description}</CardDescription>
           </div>
-          <div className="text-right text-xs text-muted-foreground">
-            <div>{selectedAssetCount} assets</div>
-            <div>{formatMoney(salaryTotal)}</div>
-          </div>
+          <Badge variant="outline">
+            {selectedCount} selected {assetTab === "players" ? "players" : "picks"}
+          </Badge>
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 py-4">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <AssetSelect
-            label="Add player"
-            placeholder="Player"
-            disabled={disabled || availablePlayers.length === 0}
-            onValueChange={onAddPlayer}
-            options={availablePlayers.map((player) => ({
-              id: player.id,
-              label: `${playerLabel(player)} · ${player.ratings.overall} OVR · ${formatMoney(
-                salary(player)
-              )}`,
-            }))}
+      <CardContent className="p-0">
+        {disabled ? (
+          <div className="p-4 text-sm text-muted-foreground">
+            Choose a trade partner to view their assets.
+          </div>
+        ) : assetTab === "players" ? (
+          <PlayersAssetTable
+            players={players}
+            selectedIds={selectedPlayerIds}
+            salary={salary}
+            onToggle={onPlayerToggle}
           />
-          <AssetSelect
-            label="Add pick"
-            placeholder="Draft pick"
-            disabled={disabled || availablePicks.length === 0}
-            onValueChange={onAddPick}
-            options={availablePicks.map((pick) => ({
-              id: pick.id,
-              label: pickLabel(pick, seasonState),
-            }))}
+        ) : (
+          <PicksAssetTable
+            picks={picks}
+            selectedIds={selectedPickIds}
+            seasonState={seasonState}
+            onToggle={onPickToggle}
           />
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-3">
-          <MiniMetric label="Salary" value={formatMoney(salaryTotal)} />
-          <MiniMetric label="Value" value={value.toFixed(1)} />
-          <MiniMetric label="Assets" value={String(selectedAssetCount)} />
-        </div>
-
-        <div className="grid gap-2 rounded-md border bg-muted/10 p-2">
-          {selectedAssetCount === 0 ? (
-            <p className="px-2 py-3 text-sm text-muted-foreground">
-              No assets selected.
-            </p>
-          ) : null}
-          {selectedPlayers.map((player) => (
-            <SelectedAssetRow
-              key={player.id}
-              title={playerLabel(player)}
-              subtitle={`${player.position} · ${player.age} yrs`}
-              detail={`${player.ratings.overall} OVR / ${player.ratings.potential} POT`}
-              value={formatMoney(salary(player))}
-              onRemove={() => onRemovePlayer(player.id)}
-            />
-          ))}
-          {selectedPicks.map((pick) => (
-            <SelectedAssetRow
-              key={pick.id}
-              title={pick.round === 1 ? "1st round" : "2nd round"}
-              subtitle={`Season ${pick.season}`}
-              detail={`From ${teamName(seasonState, pick.originalTeamId)}`}
-              value="-"
-              onRemove={() => onRemovePick(pick.id)}
-            />
-          ))}
-        </div>
+        )}
       </CardContent>
     </Card>
   )
 }
 
-function SelectedAssetRow({
-  title,
-  subtitle,
-  detail,
-  value,
-  onRemove,
+function PlayersAssetTable({
+  players,
+  selectedIds,
+  salary,
+  onToggle,
 }: {
-  title: string
-  subtitle: string
-  detail: string
-  value: string
-  onRemove: () => void
+  players: Player[]
+  selectedIds: string[]
+  salary: (player: Player) => number
+  onToggle: (playerId: string, checked: boolean) => void
 }) {
   return (
-    <div className="grid gap-3 rounded-md border bg-card px-3 py-2 sm:grid-cols-[minmax(0,1fr)_minmax(96px,auto)_auto] sm:items-center">
-      <div className="min-w-0">
-        <div className="truncate font-medium">{title}</div>
-        <div className="truncate text-xs text-muted-foreground">{subtitle}</div>
-      </div>
-      <div className="min-w-0 text-sm text-muted-foreground sm:text-right">
-        <div className="truncate">{detail}</div>
-        <div className="font-medium text-foreground tabular-nums">{value}</div>
-      </div>
-      <Button variant="ghost" size="sm" onClick={onRemove}>
-        Remove
-      </Button>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-8" />
+          <TableHead>Player</TableHead>
+          <TableHead>Pos</TableHead>
+          <TableHead className="text-right">OVR</TableHead>
+          <TableHead className="text-right">Salary</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {players.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={5} className="text-muted-foreground">
+              No players available.
+            </TableCell>
+          </TableRow>
+        ) : null}
+        {players.map((player) => {
+          const checked = selectedIds.includes(player.id)
+
+          return (
+            <TableRow key={player.id} className={checked ? "bg-muted/40" : ""}>
+              <TableCell>
+                <SelectionCheckbox
+                  ariaLabel={`Select ${playerLabel(player)}`}
+                  checked={checked}
+                  onCheckedChange={(value) => onToggle(player.id, value)}
+                />
+              </TableCell>
+              <TableCell>
+                <div className="flex min-w-44 flex-col">
+                  <span className="font-medium">{playerLabel(player)}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {player.age} yrs · {formatArchetype(player.archetype)}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell>{player.position}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {player.ratings.overall}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatMoney(salary(player))}
+              </TableCell>
+            </TableRow>
+          )
+        })}
+      </TableBody>
+    </Table>
   )
 }
 
-function AssetSelect({
-  label,
-  placeholder,
-  disabled,
-  options,
-  onValueChange,
-}: {
-  label: string
-  placeholder: string
-  disabled: boolean
-  options: Array<{ id: string; label: string }>
-  onValueChange: (id: string) => void
-}) {
-  return (
-    <label className="grid gap-1 text-sm">
-      {label}
-      <Select
-        value={NONE}
-        disabled={disabled}
-        onValueChange={(value) => {
-          if (value !== NONE) {
-            onValueChange(value)
-          }
-        }}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={NONE}>{placeholder}</SelectItem>
-          {options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </label>
-  )
-}
-
-function TradeCheckPanel({
+function PicksAssetTable({
+  picks,
+  selectedIds,
   seasonState,
-  userTeamId,
-  targetTeamId,
+  onToggle,
+}: {
+  picks: DraftPickAsset[]
+  selectedIds: string[]
+  seasonState: SeasonState
+  onToggle: (pickId: string, checked: boolean) => void
+}) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-8" />
+          <TableHead>Pick</TableHead>
+          <TableHead>Round</TableHead>
+          <TableHead>Original team</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {picks.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={4} className="text-muted-foreground">
+              No picks available.
+            </TableCell>
+          </TableRow>
+        ) : null}
+        {picks.map((pick) => {
+          const checked = selectedIds.includes(pick.id)
+
+          return (
+            <TableRow key={pick.id} className={checked ? "bg-muted/40" : ""}>
+              <TableCell>
+                <SelectionCheckbox
+                  ariaLabel={`Select ${pickLabel(pick, seasonState)}`}
+                  checked={checked}
+                  onCheckedChange={(value) => onToggle(pick.id, value)}
+                />
+              </TableCell>
+              <TableCell className="font-medium">
+                Season {pick.season}
+              </TableCell>
+              <TableCell>{pick.round === 1 ? "1st" : "2nd"}</TableCell>
+              <TableCell>
+                {teamName(seasonState, pick.originalTeamId)}
+              </TableCell>
+            </TableRow>
+          )
+        })}
+      </TableBody>
+    </Table>
+  )
+}
+
+function TradeStatusPanel({
   validation,
   aiResponse,
-  evaluations,
+  targetEvaluation,
   outgoingSalary,
   incomingSalary,
-  assetBreakdown,
   message,
 }: {
-  seasonState: SeasonState
-  userTeamId: string
-  targetTeamId: string
   validation: TradeValidationResult | null
   aiResponse: TradeValidationResult | null
-  evaluations: TradeEvaluation[]
+  targetEvaluation: TradeEvaluation | undefined
   outgoingSalary: number
   incomingSalary: number
-  assetBreakdown: Array<{ label: string; side: "send" | "receive"; value: number }>
   message: string | null
 }) {
-  const userEvaluation = evaluations.find(
-    (entry) => entry.teamId === userTeamId
-  )
-  const targetEvaluation = evaluations.find(
-    (entry) => entry.teamId === targetTeamId
-  )
   const statusText = validation
     ? validation.ok
       ? aiResponse?.ok
-        ? "Trade can be completed."
+        ? "Trade can be submitted."
         : (aiResponse?.reason ?? "Waiting on AI response.")
       : validation.reason
-    : "Add assets to run trade checks."
+    : "Select assets to run trade checks."
 
   return (
     <Card className="min-h-[520px]">
       <CardHeader className="border-b">
-        <CardTitle>Trade check</CardTitle>
+        <CardTitle>Status</CardTitle>
         <CardDescription>{statusText}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4 py-4">
-        <div className="grid gap-2">
-          <InfoRow
-            label="Outgoing salary"
-            value={formatMoney(outgoingSalary)}
-          />
-          <InfoRow
-            label="Incoming salary"
-            value={formatMoney(incomingSalary)}
-          />
-          <InfoRow
-            label="Salary difference"
-            value={formatMoney(incomingSalary - outgoingSalary)}
-          />
-        </div>
-
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Team</TableHead>
-                <TableHead className="text-right">In</TableHead>
-                <TableHead className="text-right">Out</TableHead>
-                <TableHead className="text-right">Net</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {evaluations.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-muted-foreground">
-                    No value check yet.
-                  </TableCell>
-                </TableRow>
-              ) : null}
-              {evaluations.map((entry) => (
-                <TableRow key={entry.teamId}>
-                  <TableCell>{teamName(seasonState, entry.teamId)}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {entry.incomingValue.toFixed(1)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {entry.outgoingValue.toFixed(1)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {entry.netValue.toFixed(1)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        <div className="grid gap-2">
-          <InfoRow
-            label="Your net value"
-            value={userEvaluation ? userEvaluation.netValue.toFixed(1) : "-"}
-          />
-          <InfoRow
-            label="Their net value"
-            value={
-              targetEvaluation ? targetEvaluation.netValue.toFixed(1) : "-"
-            }
-          />
-        </div>
-
+      <CardContent className="grid gap-3 py-4">
+        <InfoRow label="Outgoing salary" value={formatMoney(outgoingSalary)} />
+        <InfoRow label="Incoming salary" value={formatMoney(incomingSalary)} />
+        <InfoRow
+          label="Salary delta"
+          value={formatMoney(incomingSalary - outgoingSalary)}
+        />
+        <CheckMetric
+          label="League check"
+          value={validation ? (validation.ok ? "Clear" : "Blocked") : "Idle"}
+          ok={validation?.ok ?? null}
+        />
+        <CheckMetric
+          label="AI response"
+          value={aiResponse ? (aiResponse.ok ? "Accepts" : "Rejects") : "Idle"}
+          ok={aiResponse?.ok ?? null}
+        />
         {targetEvaluation ? (
           <AiAcceptThresholdBar netValue={targetEvaluation.netValue} />
         ) : null}
-
-        {assetBreakdown.length > 0 ? (
-          <div className="rounded-md border">
-            <div className="border-b px-3 py-2 text-sm font-medium">
-              Asset value breakdown
-            </div>
-            <div className="grid gap-1 p-2">
-              {assetBreakdown.map((row) => (
-                <div
-                  key={`${row.side}_${row.label}`}
-                  className="flex items-center justify-between gap-3 rounded-md bg-muted/10 px-3 py-2 text-sm"
-                >
-                  <span className="truncate">
-                    {row.side === "send" ? "Send" : "Receive"} · {row.label}
-                  </span>
-                  <span className="font-medium tabular-nums">
-                    {row.value.toFixed(1)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
         {message ? (
           <p className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
             {message}
@@ -891,66 +1009,27 @@ function TradeCheckPanel({
   )
 }
 
-function TradeHistoryCard({
-  seasonState,
-  history,
+function TabButton({
+  active,
+  children,
+  onClick,
 }: {
-  seasonState: SeasonState
-  history: TradeHistoryEntry[]
+  active: boolean
+  children: React.ReactNode
+  onClick: () => void
 }) {
   return (
-    <Card>
-      <CardHeader className="border-b">
-        <CardTitle>Trade history</CardTitle>
-        <CardDescription>
-          Completed trades are recorded with assets, salary, and value
-          snapshots.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="overflow-x-auto py-2">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Season</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead>Assets sent</TableHead>
-              <TableHead>Salary sent</TableHead>
-              <TableHead>Net value</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {history.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-sm text-muted-foreground"
-                >
-                  No trades completed yet.
-                </TableCell>
-              </TableRow>
-            ) : null}
-            {[...history]
-              .slice(-8)
-              .reverse()
-              .flatMap((entry) =>
-                entry.teams.map((teamEntry) => (
-                  <TableRow key={`${entry.id}_${teamEntry.teamId}`}>
-                    <TableCell>{entry.season}</TableCell>
-                    <TableCell>
-                      {teamName(seasonState, teamEntry.teamId)}
-                    </TableCell>
-                    <TableCell>{assetCount(teamEntry)}</TableCell>
-                    <TableCell>
-                      {formatMoney(teamEntry.outgoingSalary)}
-                    </TableCell>
-                    <TableCell>{teamEntry.netValue.toFixed(1)}</TableCell>
-                  </TableRow>
-                ))
-              )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <button
+      type="button"
+      className={
+        active
+          ? "inline-flex h-7 items-center gap-2 rounded-sm bg-background px-2 text-xs font-medium"
+          : "inline-flex h-7 items-center gap-2 rounded-sm px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+      }
+      onClick={onClick}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -975,15 +1054,6 @@ function CheckMetric({
       >
         {value}
       </div>
-    </div>
-  )
-}
-
-function MiniMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border bg-muted/10 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-sm font-medium tabular-nums">{value}</div>
     </div>
   )
 }
@@ -1044,6 +1114,192 @@ function AiAcceptThresholdBar({ netValue }: { netValue: number }) {
   )
 }
 
+function SelectionCheckbox({
+  ariaLabel,
+  checked,
+  onCheckedChange,
+}: {
+  ariaLabel: string
+  checked: boolean
+  onCheckedChange: (checked: boolean) => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      aria-label={ariaLabel}
+      checked={checked}
+      onChange={(event) => onCheckedChange(event.target.checked)}
+      className="size-3.5 rounded-sm border border-border accent-primary focus-visible:ring-2 focus-visible:ring-ring/40"
+    />
+  )
+}
+
+type OfferAsset = {
+  id: string
+  kind: "player" | "pick"
+  title: string
+  subtitle: string
+  metrics: Array<{ label: string; value: string }>
+  value: number
+}
+
+function tradeSideAssets({
+  side,
+  league,
+  seasonState,
+  seasonFinancials,
+}: {
+  side: TradeProposal["from"]
+  league: NonNullable<ReturnType<typeof useLeagueContext>["league"]>
+  seasonState: SeasonState
+  seasonFinancials: ReturnType<typeof getSeasonFinancials>
+}): OfferAsset[] {
+  const team = seasonState.teams.find((entry) => entry.id === side.teamId)
+  const mode =
+    league.teamFinancials.find((entry) => entry.teamId === side.teamId)
+      ?.strategy.mode ?? "buying"
+
+  if (!team) {
+    return []
+  }
+
+  const playerStats = new Map(
+    seasonState.playerSeasonStats.map((stats) => [stats.playerId, stats]),
+  )
+  const playerAssets = side.playerIds.flatMap((playerId) => {
+    const player = team.players.find((entry) => entry.id === playerId)
+    if (!player) {
+      return []
+    }
+
+    const contract = getPlayerContract(league.contracts, player)
+    const value = getContractAssetValueBreakdown({
+      player,
+      contract,
+      expectedSalary: getFairSalary(player, seasonFinancials, league),
+      mode,
+    }).total
+    const stats = playerStats.get(player.id)
+
+    return [
+      {
+        id: player.id,
+        kind: "player" as const,
+        title: playerLabel(player),
+        subtitle: `${player.position} · ${player.age} yrs · ${formatArchetype(
+          player.archetype,
+        )}`,
+        metrics: [
+          { label: "OVR", value: String(player.ratings.overall) },
+          { label: "PTS", value: statAverage(stats, "pts") },
+          { label: "REB", value: statAverage(stats, "reb") },
+          { label: "AST", value: statAverage(stats, "ast") },
+          { label: "Salary", value: formatMoney(getCurrentSalary(contract)) },
+          { label: "Yrs", value: String(getYearsRemaining(contract)) },
+        ],
+        value,
+      },
+    ]
+  })
+
+  const pickAssets = (side.pickIds ?? []).flatMap((pickId) => {
+    const pick = league.draftPickAssets.find((entry) => entry.id === pickId)
+    if (!pick) {
+      return []
+    }
+
+    return [
+      {
+        id: pick.id,
+        kind: "pick" as const,
+        title: pick.round === 1 ? "1st round pick" : "2nd round pick",
+        subtitle: `Season ${pick.season} · from ${teamName(
+          seasonState,
+          pick.originalTeamId,
+        )}`,
+        metrics: [
+          { label: "Round", value: pick.round === 1 ? "1st" : "2nd" },
+          { label: "Season", value: String(pick.season) },
+        ],
+        value: getPickValueFromCache(
+          pick,
+          league.draftClassCache,
+          league,
+          side.teamId,
+          mode,
+        ),
+      },
+    ]
+  })
+
+  return [...playerAssets, ...pickAssets]
+}
+
+function getAssetValueTotal({
+  players,
+  picks,
+  mode,
+  teamId,
+  league,
+  seasonFinancials,
+}: {
+  players: Player[]
+  picks: DraftPickAsset[]
+  mode: TeamMode
+  teamId: string
+  league: NonNullable<ReturnType<typeof useLeagueContext>["league"]>
+  seasonFinancials: ReturnType<typeof getSeasonFinancials>
+}): number {
+  return (
+    players.reduce((total, player) => {
+      const contract = getPlayerContract(league.contracts, player)
+      return (
+        total +
+        getContractAssetValueBreakdown({
+          player,
+          contract,
+          expectedSalary: getFairSalary(player, seasonFinancials, league),
+          mode,
+        }).total
+      )
+    }, 0) +
+    picks.reduce(
+      (total, pick) =>
+        total +
+        getPickValueFromCache(pick, league.draftClassCache, league, teamId, mode),
+      0,
+    )
+  )
+}
+
+function statAverage(
+  stats: PlayerSeasonStats | undefined,
+  key: "pts" | "reb" | "ast",
+): string {
+  if (!stats || stats.gp <= 0) {
+    return "-"
+  }
+  return (stats[key] / stats.gp).toFixed(1)
+}
+
+function signedNumber(value: number): string {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}`
+}
+
+function packageSummary(players: number, picks: number): string {
+  const parts: string[] = []
+  if (players > 0) {
+    parts.push(`${players} player${players === 1 ? "" : "s"}`)
+  }
+  if (picks > 0) {
+    parts.push(`${picks} pick${picks === 1 ? "" : "s"}`)
+  }
+  return parts.length > 0 ? parts.join(", ") : "No assets selected"
+}
+
 function playerLabel(player: Player): string {
   return `${player.firstName} ${player.lastName}`
 }
@@ -1051,21 +1307,27 @@ function playerLabel(player: Player): string {
 function pickLabel(pick: DraftPickAsset, seasonState: SeasonState): string {
   return `${pick.season} ${pick.round === 1 ? "1st" : "2nd"} from ${teamName(
     seasonState,
-    pick.originalTeamId
+    pick.originalTeamId,
   )}`
 }
 
-function assetCount(entry: TradeHistoryEntry["teams"][number]): number {
-  return entry.sentPlayerIds.length + entry.sentPickIds.length
+function formatArchetype(value: string | undefined): string {
+  if (!value) {
+    return "role unknown"
+  }
+  return value.replaceAll("_", " ")
 }
 
-function addUnique(values: string[], value: string): string[] {
-  return values.includes(value) ? values : [...values, value]
+function toggleId(values: string[], value: string, checked: boolean): string[] {
+  if (checked) {
+    return values.includes(value) ? values : [...values, value]
+  }
+  return values.filter((entry) => entry !== value)
 }
 
 function sumSalary(
   players: Player[],
-  salary: (player: Player) => number
+  salary: (player: Player) => number,
 ): number {
   return players.reduce((total, player) => total + salary(player), 0)
 }

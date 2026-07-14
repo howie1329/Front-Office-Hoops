@@ -143,6 +143,7 @@ export function generateInitialContract(
     startSeason: season,
     endSeason,
     yearlySalaries,
+    guaranteedSalaries: [...yearlySalaries],
     contractType: "standard",
     signingException: "cap_room",
     options,
@@ -167,6 +168,7 @@ export function createNonGuaranteedContract(
     startSeason: season,
     endSeason: season,
     yearlySalaries: [minSalary],
+    guaranteedSalaries: [0],
     contractType: "non_guaranteed",
     signingException: "minimum",
     status: "active",
@@ -331,14 +333,16 @@ function withUpdatedSalaryAndYears(
   firstYearSalary: number,
   years: number
 ): Contract {
+  const yearlySalaries = buildSalaryCurve(
+    firstYearSalary,
+    years,
+    RAISE_PCT_STANDARD,
+  )
   return {
     ...contract,
     endSeason: contract.startSeason + years - 1,
-    yearlySalaries: buildSalaryCurve(
-      firstYearSalary,
-      years,
-      RAISE_PCT_STANDARD
-    ),
+    yearlySalaries,
+    guaranteedSalaries: [...yearlySalaries],
     options:
       years >= 3 && contract.options
         ? contract.options.filter((option) => option.yearIndex < years)
@@ -538,13 +542,15 @@ export function createMinimumContract(
 ): Contract {
   const salary = calculateMinSalary(seasonFinancials, player.yearsOfService)
 
+  const yearlySalaries = buildSalaryCurve(salary, years, RAISE_PCT_STANDARD)
   return {
     id: createContractId(player.id, season),
     playerId: player.id,
     teamId,
     startSeason: season,
     endSeason: season + years - 1,
-    yearlySalaries: buildSalaryCurve(salary, years, RAISE_PCT_STANDARD),
+    yearlySalaries,
+    guaranteedSalaries: [...yearlySalaries],
     contractType: "minimum",
     signingException: "minimum",
     status: "active",
@@ -568,13 +574,15 @@ export function createSignedContract(
     signingException === "bird" ? MAX_YEARS_BIRD : MAX_YEARS_OUTSIDE_FA
   const contractYears = Math.min(years, maxYears)
 
+  const yearlySalaries = buildSalaryCurve(firstYearSalary, contractYears, raisePct)
   return {
     id: createContractId(player.id, season),
     playerId: player.id,
     teamId,
     startSeason: season,
     endSeason: season + contractYears - 1,
-    yearlySalaries: buildSalaryCurve(firstYearSalary, contractYears, raisePct),
+    yearlySalaries,
+    guaranteedSalaries: [...yearlySalaries],
     contractType: signingException === "minimum" ? "minimum" : "standard",
     signingException,
     status: "active",
@@ -613,6 +621,10 @@ export function createRookieScaleContract(
     startSeason: season,
     endSeason: season + 3,
     yearlySalaries,
+    guaranteedSalaries:
+      round === 1
+        ? [yearlySalaries[0]!, yearlySalaries[1]!, 0, 0]
+        : [...yearlySalaries],
     contractType: round === 1 ? "rookie_scale" : "minimum",
     signingException: round === 1 ? "rookie_scale" : "minimum",
     options: [

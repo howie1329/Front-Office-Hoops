@@ -4,12 +4,10 @@ import type { LeagueRecord } from "@workspace/shared/types"
 import { REPEATER_TAX_SEASONS } from "@workspace/shared/financialConstants"
 import {
   calculateLuxuryTax,
-  getCapSpace,
   getCurrentSalary,
   getPlayerContract,
   getSeasonFinancials,
-  getTeamDeadCapPayroll,
-  getTeamPayroll,
+  getTeamFinancialPosition,
   getYearsRemaining,
 } from "@workspace/sim"
 
@@ -22,25 +20,25 @@ export function useTeamFinancials(
       return null
     }
 
-    const season = league.seasonState.season
+    const season =
+      league.seasonState.phase === "offseason"
+        ? league.seasonState.season + 1
+        : league.seasonState.season
     const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
     const teamFinance = league.teamFinancials.find(
       (entry) => entry.teamId === teamId,
     )
-    const contractPayroll = getTeamPayroll(teamId, league.contracts)
-    const deadCapPayroll = teamFinance
-      ? getTeamDeadCapPayroll(teamFinance.deadCapCharges)
-      : 0
-    const payroll = getTeamPayroll(teamId, league.contracts, teamFinance)
-    const capSpace = getCapSpace(payroll, seasonFinancials.salaryCap)
+    if (!teamFinance) {
+      return null
+    }
+    const position = getTeamFinancialPosition(league, teamId, season)
+    const contractPayroll = position.contractPayroll
+    const deadCapPayroll = position.deadCap
+    const payroll = position.taxPayroll
+    const capSpace = position.capSpace
     const isRepeater =
-      (teamFinance?.consecutiveTaxSeasons ?? 0) >= REPEATER_TAX_SEASONS
-    const taxBill = calculateLuxuryTax(
-      payroll,
-      seasonFinancials.luxuryTaxLine,
-      seasonFinancials.taxBracketSize,
-      isRepeater,
-    )
+      teamFinance.consecutiveTaxSeasons >= REPEATER_TAX_SEASONS
+    const taxBill = position.projectedTax
     const nonRepeaterTaxBill = isRepeater
       ? calculateLuxuryTax(
           payroll,
@@ -51,8 +49,7 @@ export function useTeamFinancials(
       : taxBill
     const repeaterSurcharge = Math.max(0, taxBill - nonRepeaterTaxBill)
     const roomMleEligible =
-      teamFinance?.wasUnderCapThisYear === true &&
-      (teamFinance?.mleUsed ?? 0) === 0
+      teamFinance.wasUnderCapThisYear && teamFinance.mleUsed === 0
 
     return {
       seasonFinancials,
@@ -60,6 +57,7 @@ export function useTeamFinancials(
       deadCapPayroll,
       payroll,
       capSpace,
+      capHolds: position.capHolds,
       taxBill,
       teamFinance,
       isOverCap: capSpace < 0,
@@ -67,7 +65,7 @@ export function useTeamFinancials(
       isRepeater,
       repeaterSurcharge,
       roomMleEligible,
-      activeTpe: teamFinance?.tradeExceptions ?? [],
+      activeTpe: teamFinance.tradeExceptions,
     }
   }, [league, teamId])
 }

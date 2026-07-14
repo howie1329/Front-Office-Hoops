@@ -28,7 +28,7 @@ import type { StaffMember } from "./coachTypes"
 import type { StaffContract } from "./staffContractTypes"
 import type { PendingTradeOffer, TradeHistoryEntry } from "./tradeTypes"
 
-export const SAVE_VERSION = 15 as const
+export const SAVE_VERSION = 16 as const
 
 export type DraftClassCache = {
   season: number

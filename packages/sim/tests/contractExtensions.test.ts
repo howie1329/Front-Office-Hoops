@@ -31,6 +31,8 @@ function withUserTeamContract(
     startSeason: contract.startSeason ?? 1,
     endSeason: contract.endSeason ?? 4,
     yearlySalaries: contract.yearlySalaries,
+    guaranteedSalaries:
+      contract.guaranteedSalaries ?? [...contract.yearlySalaries],
     contractType: contract.contractType ?? "standard",
     signingException: contract.signingException ?? "bird",
     status: contract.status ?? "active",

@@ -11,11 +11,12 @@ import {
   calculateMinSalary,
 } from "./capMath"
 import {
-  deriveBirdRights,
   calculateBirdSignCeiling,
   getBirdMaxYears,
 } from "./birdRights"
-import { getTeamPayroll, getPlayerContract } from "./payroll"
+import { getPlayerContract } from "./payroll"
+import { getTeamFinancialPosition } from "./teamFinancialPosition"
+import { clearCapHoldsForPlayer, getActiveCapHold } from "./capHolds"
 import {
   createRookieScaleContract,
   createSignedContract,
@@ -66,7 +67,7 @@ function playerWasOnTeam(
     (contract) =>
       contract.playerId === playerId &&
       contract.teamId === teamId &&
-      contract.status === "expired"
+      (contract.status === "expired" || contract.status === "declined")
   )
 }
 
@@ -78,7 +79,8 @@ export function getTeamExpiredFreeAgents(
     league.contracts
       .filter(
         (contract) =>
-          contract.status === "expired" && contract.teamId === teamId
+          (contract.status === "expired" || contract.status === "declined") &&
+          contract.teamId === teamId
       )
       .map((contract) => contract.playerId)
   )
@@ -105,7 +107,10 @@ export function canSignPlayer(
   playerId: string,
   offer: FreeAgentOffer
 ): SignValidationResult {
-  const season = league.seasonState.season
+  const season =
+    league.seasonState.phase === "offseason"
+      ? league.seasonState.season + 1
+      : league.seasonState.season
   const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
   const teamFinance = league.teamFinancials.find(
     (entry) => entry.teamId === teamId
@@ -121,9 +126,9 @@ export function canSignPlayer(
     return { ok: false, reason: "Roster is full" }
   }
 
-  const payroll = getTeamPayroll(teamId, league.contracts)
-  const capSpace = seasonFinancials.salaryCap - payroll
-  const isOverTax = payroll > seasonFinancials.luxuryTaxLine
+  const financialPosition = getTeamFinancialPosition(league, teamId, season)
+  const capSpace = financialPosition.capSpace
+  const isOverTax = financialPosition.isOverTax
   const maxSalary = calculateMaxSalary(
     seasonFinancials.salaryCap,
     player.yearsOfService
@@ -140,8 +145,14 @@ export function canSignPlayer(
 
   const isReSigning =
     player.teamId === teamId || playerWasOnTeam(league, playerId, teamId)
-  const priorContract = getPlayerContract(league.contracts, player)
-  const birdRights = deriveBirdRights(player.seasonsWithTeam)
+  const priorContract = league.contracts.find(
+    (contract) =>
+      contract.playerId === player.id &&
+      contract.teamId === teamId &&
+      (contract.status === "expired" || contract.status === "declined"),
+  )
+  const hold = getActiveCapHold(league, teamId, player.id, season)
+  const birdRights = hold?.rightsType ?? "none"
 
   if (isReSigning && birdRights !== "none") {
     const ceiling = calculateBirdSignCeiling(
@@ -227,6 +238,7 @@ export function signFreeAgent(
   }
 
   const isReSign = playerWasOnTeam(league, playerId, teamId)
+  const activeHold = getActiveCapHold(league, teamId, playerId, season)
 
   const contract = createSignedContract(
     player,
@@ -242,7 +254,15 @@ export function signFreeAgent(
     teamId,
     status: "active",
     activeContractId: contract.id,
-    seasonsWithTeam: isReSign ? player.seasonsWithTeam : 0,
+    seasonsWithTeam: isReSign
+      ? activeHold?.rightsType === "bird"
+        ? 3
+        : activeHold?.rightsType === "early_bird"
+          ? 2
+          : activeHold?.rightsType === "non_bird"
+            ? 1
+            : player.seasonsWithTeam
+      : 0,
   }
 
   let teams = league.seasonState.teams.map((team) => {
@@ -310,7 +330,7 @@ export function signFreeAgent(
     contract,
   ]
 
-  return {
+  const signedLeague: LeagueRecord = {
     ...league,
     contracts,
     teamFinancials,
@@ -335,6 +355,8 @@ export function signFreeAgent(
       teams,
     },
   }
+
+  return clearCapHoldsForPlayer(signedLeague, playerId)
 }
 
 export function attachRookieContract(
