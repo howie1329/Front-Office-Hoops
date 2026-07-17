@@ -7,6 +7,7 @@ import {
   beginPlayoffs,
   createLeague,
   createRng,
+  getCurrentCalendar,
   simulatePlayoffs,
   simulateSeason,
   startNextSeason,
@@ -282,6 +283,77 @@ describe("financial year rollover", () => {
     expect(automatic.seasonState.offseasonPhase).toBe("contract_options")
     expect(automatic.leagueFinancials).toEqual(manual.leagueFinancials)
     expect(automatic.contracts).toEqual(manual.contracts)
+    expect(automatic.teamFinancials).toEqual(manual.teamFinancials)
+  })
+
+  it("initializes the staff market identically for manual and calendar transitions", () => {
+    const league = createLeague({
+      skipPreseason: true,
+      name: "Staff transition parity",
+      baseSeed: "staff-transition-parity",
+      rng: createRng("staff-transition-parity"),
+      useMiniLeague: true,
+    })
+    const completed: LeagueRecord = {
+      ...league,
+      seasonState: simulatePlayoffs(
+        beginPlayoffs(simulateSeason(league.seasonState)),
+      ),
+    }
+
+    const manualOpened = applyLeagueCommand(
+      completed,
+      { type: "beginOffseason" },
+      createRng("same-staff-transition"),
+    )
+    const manualCalendar = getCurrentCalendar(manualOpened.seasonState)
+    const manualAtMilestone = {
+      ...manualOpened,
+      seasonState: {
+        ...manualOpened.seasonState,
+        currentDay: manualCalendar.milestones.staffPhaseEndDay,
+      },
+    }
+    const manual = applyLeagueCommand(
+      manualAtMilestone,
+      { type: "completeContractOptions" },
+      createRng("same-staff-transition"),
+    )
+
+    const automaticOpened = advanceLeague(
+      completed,
+      {
+        target: "day",
+        policy: "runThrough",
+        league: completed,
+        userTeamId: completed.userTeamId,
+      },
+      createRng("same-staff-transition"),
+    ).league
+    const calendar = getCurrentCalendar(automaticOpened.seasonState)
+    const automaticAtMilestone = {
+      ...automaticOpened,
+      seasonState: {
+        ...automaticOpened.seasonState,
+        currentDay: calendar.milestones.staffPhaseEndDay,
+      },
+    }
+    const automatic = advanceLeague(
+      automaticAtMilestone,
+      {
+        target: "day",
+        policy: "runThrough",
+        league: automaticAtMilestone,
+        userTeamId: automaticAtMilestone.userTeamId,
+      },
+      createRng("same-staff-transition"),
+    ).league
+
+    expect(automatic.seasonState.offseasonPhase).toBe("staff")
+    expect(automatic.staff).toEqual(manual.staff)
+    expect(automatic.contractOffers.map(({ id, ...offer }) => offer)).toEqual(
+      manual.contractOffers.map(({ id, ...offer }) => offer),
+    )
     expect(automatic.teamFinancials).toEqual(manual.teamFinancials)
   })
 

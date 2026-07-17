@@ -60,6 +60,7 @@ export {
 } from "./offseason/phases"
 export { completeReSigningPhase } from "./offseason/reSigning"
 export { beginStaffMarket, completeStaffPhase } from "./offseason/staffPhase"
+export { completeContractOptions } from "./offseason/contractOptions"
 export {
   advanceFreeAgencyMarketDay,
   advanceStaffMarketDay,

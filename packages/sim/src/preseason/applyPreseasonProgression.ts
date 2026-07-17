@@ -1,5 +1,6 @@
 import type {
   PlayerDevelopmentRecord,
+  Player,
   PlayerSeasonProfile,
   PlayerSeasonStats,
   RetirementEntry,
@@ -15,6 +16,7 @@ import { progressPlayer } from "../development/progressPlayer"
 
 export type PreseasonProgressionInput = {
   teams: TeamWithRoster[]
+  freeAgentPool?: Player[]
   priorSeason: number
   newSeason: number
   playerSeasonStats: PlayerSeasonStats[]
@@ -26,6 +28,7 @@ export type PreseasonProgressionInput = {
 
 export type PreseasonProgressionResult = {
   teams: TeamWithRoster[]
+  freeAgentPool: Player[]
   records: PlayerDevelopmentRecord[]
   report: ReturnType<typeof buildPreseasonDevelopmentReport>
   retirements: RetirementEntry[]
@@ -36,6 +39,7 @@ export function applyPreseasonProgression(
 ): PreseasonProgressionResult {
   const {
     teams,
+    freeAgentPool = [],
     priorSeason,
     newSeason,
     playerSeasonStats,
@@ -51,6 +55,14 @@ export function applyPreseasonProgression(
 
   const records: PlayerDevelopmentRecord[] = []
   const retirements: RetirementEntry[] = []
+
+  const freeAgentTeam: TeamWithRoster = {
+    id: "free_agent_pool",
+    name: "Free Agent Pool",
+    abbrev: "FA",
+    overall: 0,
+    players: freeAgentPool,
+  }
 
   const progressedTeams = teams.map((team) => {
     const teamFinancialsEntry = financialsByTeam.get(team.id)
@@ -104,7 +116,35 @@ export function applyPreseasonProgression(
     }
   })
 
-  const report = buildPreseasonDevelopmentReport(
+  const progressedFreeAgents = freeAgentPool
+    .map((player) => {
+      const result = progressPlayer({
+        player,
+        team: freeAgentTeam,
+        priorSeason,
+        newSeason,
+        playerSeasonStats,
+        playerSeasonProfiles,
+        baseSeed,
+      })
+
+      records.push(result.record)
+
+      if (result.retirement) {
+        retirements.push({
+          playerId: player.id,
+          season: newSeason,
+          age: player.age,
+          finalOverall: player.ratings.overall,
+          reasons: result.retirement.reasons,
+        })
+      }
+
+      return result.player
+    })
+    .filter((player): player is NonNullable<typeof player> => player !== null)
+
+  const finalReport = buildPreseasonDevelopmentReport(
     newSeason,
     records,
     retirements,
@@ -112,8 +152,9 @@ export function applyPreseasonProgression(
 
   return {
     teams: progressedTeams,
+    freeAgentPool: progressedFreeAgents,
     records,
-    report,
+    report: finalReport,
     retirements,
   }
 }

@@ -323,6 +323,76 @@ describe("player development", () => {
     expect(result.records.length).toBeGreaterThan(0)
   })
 
+  it("ages and develops unsigned players during preseason progression", () => {
+    const freeAgent = createTestPlayer({
+      id: "p_unsigned",
+      teamId: null,
+      status: "free_agent",
+      age: 20,
+      peakAge: 30,
+      ratings: makeTestRatings({ overall: 50, potential: 80, usage: 12 }),
+    })
+
+    const result = applyPreseasonProgression({
+      teams: [],
+      freeAgentPool: [freeAgent],
+      priorSeason: 1,
+      newSeason: 2,
+      playerSeasonStats: [],
+      playerSeasonProfiles: [],
+      baseSeed: "unsigned-progression-seed",
+    })
+    const progressed = result.freeAgentPool[0]!
+
+    expect(progressed.age).toBe(21)
+    expect(progressed.teamId).toBeNull()
+    expect(progressed.status).toBe("free_agent")
+    expect(progressed.ratings.overall).toBeGreaterThan(50)
+    expect(result.records).toContainEqual(
+      expect.objectContaining({
+        playerId: freeAgent.id,
+        teamId: "free_agent_pool",
+        ageBefore: 20,
+        ageAfter: 21,
+      }),
+    )
+  })
+
+  it("can retire unsigned players during preseason progression", () => {
+    const freeAgents = Array.from({ length: 20 }, (_, index) =>
+      createTestPlayer({
+        id: `p_unsigned_veteran_${index}`,
+        teamId: null,
+        status: "free_agent",
+        age: 38,
+        careerPeakOverall: 85,
+        ratings: makeTestRatings({ overall: 60, potential: 60, usage: 12 }),
+        injuryHistory: {
+          totalGamesMissed: 100,
+          majorInjuryCount: 2,
+          lastMajorInjurySeason: 1,
+        },
+      }),
+    )
+
+    const result = applyPreseasonProgression({
+      teams: [],
+      freeAgentPool: freeAgents,
+      priorSeason: 1,
+      newSeason: 2,
+      playerSeasonStats: [],
+      playerSeasonProfiles: [],
+      baseSeed: "unsigned-retirement-seed",
+    })
+
+    expect(result.retirements.length).toBeGreaterThan(0)
+    expect(
+      result.freeAgentPool.some((player) =>
+        result.retirements.some((retirement) => retirement.playerId === player.id),
+      ),
+    ).toBe(false)
+  })
+
   it("adds the veteran tag when a player ages into veteran status", () => {
     const player = createTestPlayer({
       age: 29,

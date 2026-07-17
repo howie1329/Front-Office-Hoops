@@ -25,6 +25,7 @@ import {
 } from "../offseason/phases"
 import { ensureFaPoolMinimum } from "../financials"
 import { beginLeagueOffseason } from "../offseason/beginLeagueOffseason"
+import { completeContractOptions } from "../offseason/contractOptions"
 import { startNextSeason } from "../startNextSeason"
 import { generateOwnerGoals } from "../owners"
 
@@ -48,6 +49,7 @@ export type AdvanceStopReason =
   | "begin_regular_season"
   | "begin_offseason"
   | "contract_options"
+  | "staff"
   | "draft_pick"
   | "draft_incomplete"
 
@@ -136,13 +138,6 @@ function getInterruptReason(
 ): AdvanceStopReason | null {
   if (!league) {
     return null
-  }
-
-  if (
-    state.phase === "offseason" &&
-    state.offseasonPhase === "contract_options"
-  ) {
-    return "contract_options"
   }
 
   if (state.phase === "preseason") {
@@ -338,9 +333,25 @@ function reconcileCalendarPhase(
       const offseasonPhase = state.offseasonPhase ?? "staff"
 
       if (
+        offseasonPhase === "contract_options" &&
+        state.currentDay >= milestones.staffPhaseEndDay
+      ) {
+        if (!eligibility.completeContractOptions.allowed) {
+          return { league: current, events, stoppedReason: "contract_options" }
+        }
+
+        current = completeContractOptions(current, rng)
+        events.push({ type: "phase_started", phase: "staff" })
+        return { league: current, events, stoppedReason: "staff" }
+      }
+
+      if (
         offseasonPhase === "staff" &&
         state.currentDay >= milestones.staffPhaseEndDay
       ) {
+        if (!eligibility.completeStaffPhase.allowed) {
+          return { league: current, events, stoppedReason: "staff" }
+        }
         current = completeStaffPhase(current, rng)
         events.push({ type: "phase_started", phase: "re_signing" })
         continue

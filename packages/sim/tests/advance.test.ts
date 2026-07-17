@@ -151,7 +151,7 @@ describe("advanceLeague calendar flow", () => {
     })
   })
 
-  it("stops for contract options before advancing the offseason calendar", () => {
+  it("initializes the staff market after automatic contract-option completion", () => {
     const league = createReadyOffseasonLeague()
     const draftDay = getCurrentCalendar(league.seasonState).milestones.draftDay
     const result = advanceLeague(
@@ -166,8 +166,11 @@ describe("advanceLeague calendar flow", () => {
       createRng("auto-draft-advance"),
     )
 
-    expect(result.league.seasonState.offseasonPhase).toBe("contract_options")
-    expect(result.result.stoppedReason).toBe("contract_options")
-    expect(result.result.events).toEqual([])
+    expect(result.league.seasonState.offseasonPhase).toBe("staff")
+    expect(result.result.stoppedReason).toBe("staff")
+    expect(result.result.events).toContainEqual({
+      type: "phase_started",
+      phase: "staff",
+    })
   })
 })

@@ -138,6 +138,7 @@ export function startNextSeason(
 
   const progression = applyPreseasonProgression({
     teams: trimmed.teams,
+    freeAgentPool,
     priorSeason,
     newSeason,
     playerSeasonStats: input.playerSeasonStats ?? seasonState.playerSeasonStats,
@@ -146,6 +147,7 @@ export function startNextSeason(
     teamFinancials: league?.teamFinancials,
     seasonHistory: input.seasonHistory ?? [],
   })
+  freeAgentPool = progression.freeAgentPool
   const teamsWithService = progression.teams.map((team) => ({
     ...team,
     players: team.players.map((player) => ({

@@ -16,14 +16,10 @@ import {
   advanceToDraftPhase,
   completeFreeAgencyPhase,
 } from "../offseason/phases"
-import { beginStaffMarket, completeStaffPhase } from "../offseason/staffPhase"
+import { completeStaffPhase } from "../offseason/staffPhase"
+import { completeContractOptions } from "../offseason/contractOptions"
 import { completeReSigningPhase } from "../offseason/reSigning"
-import {
-  ensureFaPoolMinimum,
-  decideTeamOption,
-  setOpeningExceptions,
-  renouncePlayerRights,
-} from "../financials"
+import { ensureFaPoolMinimum, decideTeamOption, renouncePlayerRights } from "../financials"
 import {
   acceptTradeOffer,
   executeTrade,
@@ -189,13 +185,7 @@ function applyLeagueCommandInternal(
       return decideTeamOption(league, command.contractId, command.decision)
 
     case "completeContractOptions":
-      return beginStaffMarket(
-        setOpeningExceptions({
-          ...league,
-          seasonState: { ...league.seasonState, offseasonPhase: "staff" },
-        }),
-        resolvedRng,
-      )
+      return completeContractOptions(league, resolvedRng)
 
     case "completeStaffPhase":
       return completeStaffPhase(league, resolvedRng)
