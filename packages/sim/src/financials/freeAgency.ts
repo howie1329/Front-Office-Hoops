@@ -1,19 +1,13 @@
 import type { FreeAgentOffer } from "@workspace/shared/contractTypes"
 import type { LeagueRecord, Player, Rng } from "@workspace/shared/types"
-import {
-  FA_POOL_MIN_RATIO,
-  ROSTER_MAX,
-} from "@workspace/shared/constants"
+import { FA_POOL_MIN_RATIO, ROSTER_MAX } from "@workspace/shared/constants"
 
 import {
   getSeasonFinancials,
   calculateMaxSalary,
   calculateMinSalary,
 } from "./capMath"
-import {
-  calculateBirdSignCeiling,
-  getBirdMaxYears,
-} from "./birdRights"
+import { calculateBirdSignCeiling, getBirdMaxYears } from "./birdRights"
 import { getPlayerContract } from "./payroll"
 import { getTeamFinancialPosition } from "./teamFinancialPosition"
 import { clearCapHoldsForPlayer, getActiveCapHold } from "./capHolds"
@@ -58,16 +52,18 @@ export function ensureFaPoolMinimum(
   }
 }
 
-function playerWasOnTeam(
+function playerHasCurrentRights(
   league: LeagueRecord,
   playerId: string,
   teamId: string
 ): boolean {
-  return league.contracts.some(
-    (contract) =>
-      contract.playerId === playerId &&
-      contract.teamId === teamId &&
-      (contract.status === "expired" || contract.status === "declined")
+  return Boolean(
+    getActiveCapHold(
+      league,
+      teamId,
+      playerId,
+      league.leagueFinancials.currentCapSeason
+    )
   )
 }
 
@@ -76,13 +72,14 @@ export function getTeamExpiredFreeAgents(
   teamId: string
 ): Player[] {
   const expiredPlayerIds = new Set(
-    league.contracts
-      .filter(
-        (contract) =>
-          (contract.status === "expired" || contract.status === "declined") &&
-          contract.teamId === teamId
+    league.teamFinancials
+      .find((entry) => entry.teamId === teamId)
+      ?.capHolds.filter(
+        (hold) =>
+          hold.status === "active" &&
+          hold.season === league.leagueFinancials.currentCapSeason
       )
-      .map((contract) => contract.playerId)
+      .map((hold) => hold.playerId) ?? []
   )
 
   return league.freeAgentPool.filter((player) =>
@@ -107,10 +104,7 @@ export function canSignPlayer(
   playerId: string,
   offer: FreeAgentOffer
 ): SignValidationResult {
-  const season =
-    league.seasonState.phase === "offseason"
-      ? league.seasonState.season + 1
-      : league.seasonState.season
+  const season = league.leagueFinancials.currentCapSeason
   const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
   const teamFinance = league.teamFinancials.find(
     (entry) => entry.teamId === teamId
@@ -128,7 +122,6 @@ export function canSignPlayer(
 
   const financialPosition = getTeamFinancialPosition(league, teamId, season)
   const capSpace = financialPosition.capSpace
-  const isOverTax = financialPosition.isOverTax
   const maxSalary = calculateMaxSalary(
     seasonFinancials.salaryCap,
     player.yearsOfService
@@ -144,13 +137,15 @@ export function canSignPlayer(
   }
 
   const isReSigning =
-    player.teamId === teamId || playerWasOnTeam(league, playerId, teamId)
-  const priorContract = league.contracts.find(
-    (contract) =>
-      contract.playerId === player.id &&
-      contract.teamId === teamId &&
-      (contract.status === "expired" || contract.status === "declined"),
-  )
+    player.teamId === teamId || playerHasCurrentRights(league, playerId, teamId)
+  const priorContract = league.contracts
+    .filter(
+      (contract) =>
+        contract.playerId === player.id &&
+        contract.teamId === teamId &&
+        (contract.status === "expired" || contract.status === "declined")
+    )
+    .sort((a, b) => b.signedSeason - a.signedSeason)[0]
   const hold = getActiveCapHold(league, teamId, player.id, season)
   const birdRights = hold?.rightsType ?? "none"
 
@@ -159,7 +154,7 @@ export function canSignPlayer(
       birdRights,
       seasonFinancials,
       player.yearsOfService,
-      priorContract?.yearlySalaries[0] ?? minSalary,
+      priorContract?.priorSeasonSalary ?? minSalary,
       seasonFinancials.salaryCap
     )
     if (offer.firstYearSalary > ceiling) {
@@ -202,9 +197,13 @@ export function canSignPlayer(
     return { ok: true, signingException: "minimum" }
   }
 
-  if (teamFinance.mleRemaining >= offer.firstYearSalary) {
-    const exception = isOverTax ? "mle_taxpayer" : "mle_non_taxpayer"
-    const maxYears = isOverTax ? 2 : 4
+  if (
+    !teamFinance.wasUnderCapThisYear &&
+    teamFinance.mleRemaining >= offer.firstYearSalary
+  ) {
+    const exception =
+      teamFinance.mleType === "taxpayer" ? "mle_taxpayer" : "mle_non_taxpayer"
+    const maxYears = teamFinance.mleType === "taxpayer" ? 2 : 4
     if (offer.years > maxYears) {
       return { ok: false, reason: "Offer exceeds MLE max years" }
     }
@@ -225,10 +224,7 @@ export function signFreeAgent(
     throw new Error(validation.reason)
   }
 
-  const season =
-    league.seasonState.phase === "offseason"
-      ? league.seasonState.season + 1
-      : league.seasonState.season
+  const season = league.leagueFinancials.currentCapSeason
   const signingException =
     offer.signingException ?? validation.signingException!
   const player = findPlayer(league, playerId)
@@ -237,7 +233,7 @@ export function signFreeAgent(
     throw new Error("Player not found")
   }
 
-  const isReSign = playerWasOnTeam(league, playerId, teamId)
+  const isReSign = playerHasCurrentRights(league, playerId, teamId)
   const activeHold = getActiveCapHold(league, teamId, playerId, season)
 
   const contract = createSignedContract(
@@ -315,7 +311,7 @@ export function signFreeAgent(
         roomMleUsed: entry.roomMleUsed + offer.firstYearSalary,
         roomMleRemaining: Math.max(
           0,
-          entry.roomMleRemaining - offer.firstYearSalary,
+          entry.roomMleRemaining - offer.firstYearSalary
         ),
       }
     }
@@ -366,10 +362,7 @@ export function attachRookieContract(
   round: number,
   teamId: string
 ): LeagueRecord {
-  const season =
-    league.seasonState.phase === "offseason"
-      ? league.seasonState.season + 1
-      : league.seasonState.season
+  const season = league.leagueFinancials.currentCapSeason
   const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
 
   const contract = createRookieScaleContract(

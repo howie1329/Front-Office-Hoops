@@ -15,6 +15,7 @@ import { Route as LeagueRouteRouteImport } from './routes/league/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeagueIndexRouteImport } from './routes/league/index'
 import { Route as LeagueTradesRouteImport } from './routes/league/trades'
+import { Route as LeagueTeamOptionsRouteImport } from './routes/league/team-options'
 import { Route as LeagueTeamRouteImport } from './routes/league/team'
 import { Route as LeagueStatsRouteImport } from './routes/league/stats'
 import { Route as LeagueStandingsRouteImport } from './routes/league/standings'
@@ -60,6 +61,11 @@ const LeagueIndexRoute = LeagueIndexRouteImport.update({
 const LeagueTradesRoute = LeagueTradesRouteImport.update({
   id: '/trades',
   path: '/trades',
+  getParentRoute: () => LeagueRouteRoute,
+} as any)
+const LeagueTeamOptionsRoute = LeagueTeamOptionsRouteImport.update({
+  id: '/team-options',
+  path: '/team-options',
   getParentRoute: () => LeagueRouteRoute,
 } as any)
 const LeagueTeamRoute = LeagueTeamRouteImport.update({
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/league/standings': typeof LeagueStandingsRoute
   '/league/stats': typeof LeagueStatsRoute
   '/league/team': typeof LeagueTeamRoute
+  '/league/team-options': typeof LeagueTeamOptionsRoute
   '/league/trades': typeof LeagueTradesRoute
   '/league/': typeof LeagueIndexRoute
   '/league/games/$gameId': typeof LeagueGamesGameIdRoute
@@ -185,6 +192,7 @@ export interface FileRoutesByTo {
   '/league/standings': typeof LeagueStandingsRoute
   '/league/stats': typeof LeagueStatsRoute
   '/league/team': typeof LeagueTeamRoute
+  '/league/team-options': typeof LeagueTeamOptionsRoute
   '/league/trades': typeof LeagueTradesRoute
   '/league': typeof LeagueIndexRoute
   '/league/games/$gameId': typeof LeagueGamesGameIdRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/league/standings': typeof LeagueStandingsRoute
   '/league/stats': typeof LeagueStatsRoute
   '/league/team': typeof LeagueTeamRoute
+  '/league/team-options': typeof LeagueTeamOptionsRoute
   '/league/trades': typeof LeagueTradesRoute
   '/league/': typeof LeagueIndexRoute
   '/league/games/$gameId': typeof LeagueGamesGameIdRoute
@@ -236,6 +245,7 @@ export interface FileRouteTypes {
     | '/league/standings'
     | '/league/stats'
     | '/league/team'
+    | '/league/team-options'
     | '/league/trades'
     | '/league/'
     | '/league/games/$gameId'
@@ -259,6 +269,7 @@ export interface FileRouteTypes {
     | '/league/standings'
     | '/league/stats'
     | '/league/team'
+    | '/league/team-options'
     | '/league/trades'
     | '/league'
     | '/league/games/$gameId'
@@ -283,6 +294,7 @@ export interface FileRouteTypes {
     | '/league/standings'
     | '/league/stats'
     | '/league/team'
+    | '/league/team-options'
     | '/league/trades'
     | '/league/'
     | '/league/games/$gameId'
@@ -338,6 +350,13 @@ declare module '@tanstack/react-router' {
       path: '/trades'
       fullPath: '/league/trades'
       preLoaderRoute: typeof LeagueTradesRouteImport
+      parentRoute: typeof LeagueRouteRoute
+    }
+    '/league/team-options': {
+      id: '/league/team-options'
+      path: '/team-options'
+      fullPath: '/league/team-options'
+      preLoaderRoute: typeof LeagueTeamOptionsRouteImport
       parentRoute: typeof LeagueRouteRoute
     }
     '/league/team': {
@@ -470,6 +489,7 @@ interface LeagueRouteRouteChildren {
   LeagueStandingsRoute: typeof LeagueStandingsRoute
   LeagueStatsRoute: typeof LeagueStatsRoute
   LeagueTeamRoute: typeof LeagueTeamRoute
+  LeagueTeamOptionsRoute: typeof LeagueTeamOptionsRoute
   LeagueTradesRoute: typeof LeagueTradesRoute
   LeagueIndexRoute: typeof LeagueIndexRoute
   LeagueGamesGameIdRoute: typeof LeagueGamesGameIdRoute
@@ -491,6 +511,7 @@ const LeagueRouteRouteChildren: LeagueRouteRouteChildren = {
   LeagueStandingsRoute: LeagueStandingsRoute,
   LeagueStatsRoute: LeagueStatsRoute,
   LeagueTeamRoute: LeagueTeamRoute,
+  LeagueTeamOptionsRoute: LeagueTeamOptionsRoute,
   LeagueTradesRoute: LeagueTradesRoute,
   LeagueIndexRoute: LeagueIndexRoute,
   LeagueGamesGameIdRoute: LeagueGamesGameIdRoute,

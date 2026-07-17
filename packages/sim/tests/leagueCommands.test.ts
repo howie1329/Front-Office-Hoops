@@ -9,15 +9,18 @@ import {
   simDraftUntilComplete,
   simulateSeason,
 } from "../src"
-import { advanceToDraftPhase, advanceToFreeAgencyPhase } from "../src/offseason/phases"
+import {
+  advanceToDraftPhase,
+  advanceToFreeAgencyPhase,
+} from "../src/offseason/phases"
 import { beginOffseason } from "../src/beginOffseason"
 import { beginPlayoffs } from "../src/beginPlayoffs"
-import { applyAiRosterTrimming } from "../src/roster/rosterManagement"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
 import { pastStaffPhase } from "./helpers/offseason"
 
 function createOffseasonLeague() {
-  const league = createLeague({ skipPreseason: true,
+  const league = createLeague({
+    skipPreseason: true,
     name: "League Commands",
     baseSeed: "league-commands",
     rng: createRng("league-commands"),
@@ -36,17 +39,36 @@ function createOffseasonLeague() {
   }
   state = beginPlayoffs(state)
   state = simulatePlayoffs(state)
-  state = beginOffseason(state)
-
-  return pastStaffPhase({
-    ...league,
-    seasonState: state,
-  })
+  let current = applyLeagueCommand(
+    {
+      ...league,
+      seasonState: state,
+    },
+    { type: "beginOffseason" }
+  )
+  const pendingOptions = current.contracts.filter(
+    (contract) =>
+      contract.teamId === current.userTeamId &&
+      contract.status === "active" &&
+      contract.options?.some(
+        (option) => option.yearIndex === 0 && option.type === "team"
+      )
+  )
+  for (const contract of pendingOptions) {
+    current = applyLeagueCommand(current, {
+      type: "decideTeamOption",
+      contractId: contract.id,
+      decision: "exercise",
+    })
+  }
+  current = applyLeagueCommand(current, { type: "completeContractOptions" })
+  return applyLeagueCommand(current, { type: "completeStaffPhase" })
 }
 
 describe("leagueCommands", () => {
   it("simulates a regular season day", () => {
-    const league = createLeague({ skipPreseason: true,
+    const league = createLeague({
+      skipPreseason: true,
       name: "Sim Day",
       baseSeed: "sim-day",
       rng: createRng("sim-day"),
@@ -63,7 +85,8 @@ describe("leagueCommands", () => {
   })
 
   it("replays the same saved league command deterministically", () => {
-    const league = createLeague({ skipPreseason: true,
+    const league = createLeague({
+      skipPreseason: true,
       name: "Replay",
       baseSeed: "replay",
       rng: createRng("replay"),
@@ -77,7 +100,8 @@ describe("leagueCommands", () => {
   })
 
   it("uses rngNonce to avoid schedule-slot-only game randomness", () => {
-    const league = createLeague({ skipPreseason: true,
+    const league = createLeague({
+      skipPreseason: true,
       name: "Nonce",
       baseSeed: "nonce-games",
       rng: createRng("nonce-games"),
@@ -109,22 +133,24 @@ describe("leagueCommands", () => {
   })
 
   it("blocks disallowed lifecycle commands with eligibility reason", () => {
-    const league = createLeague({ skipPreseason: true,
+    const league = createLeague({
+      skipPreseason: true,
       name: "Blocked",
       baseSeed: "blocked",
       rng: createRng("blocked"),
       useMiniLeague: true,
     })
 
-    expect(() => applyLeagueCommand(league, { type: "beginOffseason" })).toThrow(
-      "Season must be complete"
-    )
+    expect(() =>
+      applyLeagueCommand(league, { type: "beginOffseason" })
+    ).toThrow("Season must be complete")
     expect(league.rngNonce).toBe(0)
     expect(getPhaseEligibility(league, "beginOffseason").allowed).toBe(false)
   })
 
   it("runs beginOffseason composition", () => {
-    const league = createLeague({ skipPreseason: true,
+    const league = createLeague({
+      skipPreseason: true,
       name: "Offseason",
       baseSeed: "offseason-command",
       rng: createRng("offseason-command"),
@@ -145,7 +171,7 @@ describe("leagueCommands", () => {
     const updated = applyLeagueCommand(completed, { type: "beginOffseason" })
 
     expect(updated.seasonState.phase).toBe("offseason")
-    expect(updated.seasonState.offseasonPhase).toBe("staff")
+    expect(updated.seasonState.offseasonPhase).toBe("contract_options")
     expect(updated.seasonAwards.length).toBeGreaterThan(0)
   })
 
@@ -164,23 +190,10 @@ describe("leagueCommands", () => {
     league = applyLeagueCommand(league, { type: "advanceToFreeAgency" })
     expect(league.seasonState.offseasonPhase).toBe("free_agency")
 
-    const trimmed = applyAiRosterTrimming(
-      league.seasonState.teams,
-      league.freeAgentPool,
-      league.userTeamId
+    league = applyLeagueCommand(
+      { ...league, userTeamId: null },
+      { type: "completeFreeAgency" }
     )
-    league = {
-      ...league,
-      seasonState: {
-        ...league.seasonState,
-        teams: trimmed.teams.map((team) =>
-          team.id === league.userTeamId
-            ? { ...team, players: team.players.slice(0, 15) }
-            : team
-        ),
-      },
-      freeAgentPool: trimmed.freeAgentPool,
-    }
 
     const next = applyLeagueCommand(league, { type: "startNextSeason" })
     expect(next.seasonState.season).toBe(league.seasonState.season + 1)

@@ -48,6 +48,7 @@ export type { EligibilityResult, PhaseAction } from "./phaseEligibility"
 export { finalizeSeason } from "./finalizeSeason"
 export { archiveSeason } from "./archiveSeason"
 export { beginOffseason } from "./beginOffseason"
+export { beginLeagueOffseason } from "./offseason/beginLeagueOffseason"
 export {
   advanceLeagueToFreeAgencyPhase,
   advanceToDraftPhase,
@@ -149,7 +150,6 @@ export { applyLeagueCommand, commandRng } from "./leagueCommands"
 export type { LeagueCommand } from "./leagueCommands"
 export {
   processOffseasonFinancials,
-  prepareNewSeasonFinancials,
   initializeFinancialsForLeague,
   attachRookieContractToLeague,
   attachRookieContractsForDraftSelections,
@@ -167,6 +167,7 @@ export {
   getCapSpace,
   getCurrentSalary,
   getYearsRemaining,
+  getPendingUserTeamOptions,
   canExtendContract,
   extendContract,
   getExtensionBounds,

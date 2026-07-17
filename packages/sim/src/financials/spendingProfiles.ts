@@ -97,6 +97,7 @@ export function initializeTeamFinancials(
       consecutiveTaxSeasons: 0,
       lastTaxBill: null,
       mleUsed: 0,
+      mleType: "non_taxpayer",
       mleRemaining: seasonFinancials.mleNonTaxpayer,
       roomMleUsed: 0,
       roomMleRemaining: seasonFinancials.mleRoom,
@@ -124,23 +125,4 @@ export function calculateSeasonRevenue(
   const winBonus = wins * 0.15
   const playoffBonus = madePlayoffs ? 3 : 0
   return Math.round((base + winBonus + playoffBonus) * 10) / 10
-}
-
-export function resetTeamMleForSeason(
-  teamFinancials: TeamFinancials,
-  seasonFinancials: SeasonFinancials,
-): TeamFinancials {
-  return {
-    ...teamFinancials,
-    mleUsed: 0,
-    mleRemaining: seasonFinancials.mleNonTaxpayer,
-    roomMleUsed: 0,
-    roomMleRemaining: seasonFinancials.mleRoom,
-    wasUnderCapThisYear: true,
-    tradeExceptions: teamFinancials.tradeExceptions.filter(
-      (tpe) => tpe.expiresSeason > seasonFinancials.season,
-    ),
-    deadCapCharges: teamFinancials.deadCapCharges,
-    capHolds: teamFinancials.capHolds,
-  }
 }

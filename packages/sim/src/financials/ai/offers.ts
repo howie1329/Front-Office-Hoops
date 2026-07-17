@@ -161,5 +161,13 @@ export function getPriorContractSalary(
   contracts: Parameters<typeof getPlayerContract>[0],
   player: Player,
 ): number {
-  return getPlayerContract(contracts, player)?.yearlySalaries[0] ?? 0
+  const active = getPlayerContract(contracts, player)
+  if (active) {
+    return active.yearlySalaries[0] ?? active.priorSeasonSalary ?? 0
+  }
+  return (
+    contracts
+      .filter((contract) => contract.playerId === player.id)
+      .sort((a, b) => b.signedSeason - a.signedSeason)[0]?.priorSeasonSalary ?? 0
+  )
 }

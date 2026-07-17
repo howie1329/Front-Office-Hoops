@@ -58,6 +58,7 @@ function LeagueDashboardPage() {
     error,
     myTeam,
     phase,
+    offseasonPhase,
     canBeginRegularSeason,
     canBeginPlayoffs,
     canBeginOffseason,
@@ -142,6 +143,7 @@ function LeagueDashboardPage() {
     (phase !== "preseason" || isPreseasonComplete(seasonState))
   const urgentItems = getUrgentItems({
     phase,
+    offseasonPhase,
     error,
     rosterOverLimit: cutsRequired,
     cutsNeeded,
@@ -533,7 +535,7 @@ function ScheduleRail({
                   key={game.id}
                   to="/league/calendar"
                   className={cn(
-                    "min-w-36 rounded-md border bg-muted/20 px-3 py-1.5 text-xs transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30",
+                    "min-w-36 rounded-md border bg-muted/20 px-3 py-1.5 text-xs transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none",
                     isCurrentDay && "border-foreground/40 bg-background"
                   )}
                 >
@@ -666,6 +668,13 @@ function ScheduleGateActions({
         </Button>
       ) : null}
 
+      {state.phase === "offseason" &&
+      state.offseasonPhase === "contract_options" ? (
+        <Button size="sm" asChild>
+          <Link to="/league/team-options">Decide team options</Link>
+        </Button>
+      ) : null}
+
       {canCompleteStaffPhase ? (
         <Button size="sm" variant="secondary" asChild>
           <Link to="/league/staff">Manage staff</Link>
@@ -793,7 +802,9 @@ function ConferenceStandingsTable({
           table={table}
           emptyLabel="No standings available."
           rowClassName={(row) =>
-            row.original.teamId === userTeamId ? "bg-muted/60 hover:bg-muted/70" : ""
+            row.original.teamId === userTeamId
+              ? "bg-muted/60 hover:bg-muted/70"
+              : ""
           }
         />
         <Button variant="outline" size="sm" className="mt-3" asChild>
@@ -905,6 +916,7 @@ type UrgentItem = {
 
 function getUrgentItems({
   phase,
+  offseasonPhase,
   error,
   rosterOverLimit,
   cutsNeeded,
@@ -921,6 +933,8 @@ function getUrgentItems({
   canStartNextSeason,
 }: {
   phase: SeasonPhase
+  offseasonPhase:
+    "contract_options" | "staff" | "re_signing" | "draft" | "free_agency" | null
   error: string | null
   rosterOverLimit: boolean
   cutsNeeded: number
@@ -977,22 +991,27 @@ function getUrgentItems({
   if (canBeginPlayoffs) {
     items.push({
       label: "Regular season complete",
-      description:
-        "Advance the calendar to open the playoffs.",
+      description: "Advance the calendar to open the playoffs.",
     })
   }
   if (canBeginOffseason) {
     items.push({
       label: "Season complete",
+      description: "Advance the calendar to enter the offseason.",
+    })
+  }
+  if (offseasonPhase === "contract_options") {
+    items.push({
+      label: "Team option decisions",
       description:
-        "Advance the calendar to enter the offseason.",
+        "Exercise or decline every team option before staff negotiations open.",
+      tone: "urgent",
     })
   }
   if (canCompleteStaffPhase) {
     items.push({
       label: "Staff week open",
-      description:
-        "Hire and fire coaches before re-signing opens.",
+      description: "Hire and fire coaches before re-signing opens.",
     })
   }
   if (canSimAiReSignings) {
@@ -1050,15 +1069,13 @@ function showAdvanceEventToast(event: AdvanceEvent, state: SeasonState) {
     }
 
     case "phase_started": {
-      type PhaseStartedEvent = Extract<
-        AdvanceEvent,
-        { type: "phase_started" }
-      >
+      type PhaseStartedEvent = Extract<AdvanceEvent, { type: "phase_started" }>
       const labels: Record<PhaseStartedEvent["phase"], string> = {
         preseason: "Preseason started",
         regular: "Regular season started",
         playoffs: "Playoffs started",
         offseason: "Offseason started",
+        contract_options: "Team options opened",
         staff: "Staff week opened",
         re_signing: "Re-signing window opened",
         draft: "Draft window opened",
@@ -1182,10 +1199,7 @@ function formatCalendarDay(state: SeasonState, day: number): string {
   return getCurrentCalendar({ ...state, currentDay: day }).date.label
 }
 
-function getRosterRows(
-  state: SeasonState,
-  teamId: string | null
-): RosterRow[] {
+function getRosterRows(state: SeasonState, teamId: string | null): RosterRow[] {
   const team = teamId ? state.teams.find((entry) => entry.id === teamId) : null
   if (!team) {
     return []
@@ -1218,7 +1232,10 @@ function toRosterRow(
   }
 }
 
-function average(total: number | undefined, games: number | undefined): number | null {
+function average(
+  total: number | undefined,
+  games: number | undefined
+): number | null {
   if (!total || !games) {
     return null
   }

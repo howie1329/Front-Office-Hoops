@@ -1,4 +1,9 @@
-import type { Game, LeagueRecord, Rng, SeasonState } from "@workspace/shared/types"
+import type {
+  Game,
+  LeagueRecord,
+  Rng,
+  SeasonState,
+} from "@workspace/shared/types"
 
 import {
   getCurrentCalendar,
@@ -18,12 +23,8 @@ import {
   advanceToFreeAgencyPhase,
   completeFreeAgencyPhase,
 } from "../offseason/phases"
-import { ensureFaPoolMinimum, processOffseasonFinancials } from "../financials"
-import { archivePlayerCareerSnapshots } from "../playerProfiles"
-import { evaluateOwnerGoals } from "../owners"
-import { assignSeasonAwards } from "../awards"
-import { derivePlayerSeasonProfiles } from "../playerSeasonProfiles"
-import { beginOffseason } from "../beginOffseason"
+import { ensureFaPoolMinimum } from "../financials"
+import { beginLeagueOffseason } from "../offseason/beginLeagueOffseason"
 import { startNextSeason } from "../startNextSeason"
 import { generateOwnerGoals } from "../owners"
 
@@ -46,6 +47,7 @@ export type AdvanceStopReason =
   | "begin_playoffs"
   | "begin_regular_season"
   | "begin_offseason"
+  | "contract_options"
   | "draft_pick"
   | "draft_incomplete"
 
@@ -66,6 +68,7 @@ export type AdvanceEvent =
         | "regular"
         | "playoffs"
         | "offseason"
+        | "contract_options"
         | "staff"
         | "re_signing"
         | "draft"
@@ -92,7 +95,7 @@ export type AdvanceOptions = {
 
 function resolvePolicy(
   target: AdvanceTarget,
-  policy?: AdvancePolicy,
+  policy?: AdvancePolicy
 ): AdvancePolicy {
   if (policy) {
     return policy
@@ -113,7 +116,7 @@ function resolvePolicy(
 function dayHasUserGame(
   state: SeasonState,
   day: number,
-  userTeamId: string | null | undefined,
+  userTeamId: string | null | undefined
 ): boolean {
   if (!userTeamId) {
     return false
@@ -123,16 +126,23 @@ function dayHasUserGame(
     (game) =>
       game.status === "scheduled" &&
       game.day === day &&
-      (game.homeTeamId === userTeamId || game.awayTeamId === userTeamId),
+      (game.homeTeamId === userTeamId || game.awayTeamId === userTeamId)
   )
 }
 
 function getInterruptReason(
   league: LeagueRecord | undefined,
-  state: SeasonState,
+  state: SeasonState
 ): AdvanceStopReason | null {
   if (!league) {
     return null
+  }
+
+  if (
+    state.phase === "offseason" &&
+    state.offseasonPhase === "contract_options"
+  ) {
+    return "contract_options"
   }
 
   if (state.phase === "preseason") {
@@ -157,7 +167,8 @@ function getInterruptReason(
   if (
     state.phase === "offseason" &&
     state.offseasonPhase === "draft" &&
-    state.currentDay >= getCurrentCalendar(state).milestones.freeAgencyStartDay &&
+    state.currentDay >=
+      getCurrentCalendar(state).milestones.freeAgencyStartDay &&
     !state.draftState?.completed
   ) {
     return "draft_incomplete"
@@ -166,10 +177,7 @@ function getInterruptReason(
   return null
 }
 
-function userGameEvents(
-  league: LeagueRecord,
-  games: Game[],
-): AdvanceEvent[] {
+function userGameEvents(league: LeagueRecord, games: Game[]): AdvanceEvent[] {
   if (!league.userTeamId) {
     return []
   }
@@ -178,7 +186,7 @@ function userGameEvents(
     .filter(
       (game) =>
         game.homeTeamId === league.userTeamId ||
-        game.awayTeamId === league.userTeamId,
+        game.awayTeamId === league.userTeamId
     )
     .map((game) => {
       const userIsHome = game.homeTeamId === league.userTeamId
@@ -200,7 +208,7 @@ function userGameEvents(
 
 function crossedTradeDeadline(
   before: SeasonState,
-  after: SeasonState,
+  after: SeasonState
 ): boolean {
   if (before.season !== after.season) {
     return false
@@ -211,33 +219,13 @@ function crossedTradeDeadline(
 }
 
 function beginOffseasonForLeague(league: LeagueRecord, rng: Rng): LeagueRecord {
-  const completedLeague = archivePlayerCareerSnapshots(
-    evaluateOwnerGoals(assignSeasonAwards(league))
-  )
-  const profiles = derivePlayerSeasonProfiles(
-    completedLeague.seasonState.teams,
-    completedLeague.seasonState.playerSeasonStats,
-    completedLeague.seasonState.games.length,
-    completedLeague.seasonState.season
-  )
-  const nextState = beginOffseason(completedLeague.seasonState, profiles)
-
-  return processOffseasonFinancials(
-    {
-      ...completedLeague,
-      seasonState: nextState,
-      playerSeasonProfiles: [
-        ...completedLeague.playerSeasonProfiles.filter(
-          (entry) => entry.season !== completedLeague.seasonState.season
-        ),
-        ...profiles,
-      ],
-    },
-    rng
-  )
+  return beginLeagueOffseason(league, rng)
 }
 
-function startNextSeasonForLeague(league: LeagueRecord, rng: Rng): LeagueRecord {
+function startNextSeasonForLeague(
+  league: LeagueRecord,
+  rng: Rng
+): LeagueRecord {
   const result = startNextSeason({
     seasonState: league.seasonState,
     userTeamId: league.userTeamId,
@@ -268,7 +256,10 @@ function startNextSeasonForLeague(league: LeagueRecord, rng: Rng): LeagueRecord 
       ...league.playerDevelopmentRecords,
       ...result.playerDevelopmentRecords,
     ],
-    developmentReports: [...league.developmentReports, result.developmentReport],
+    developmentReports: [
+      ...league.developmentReports,
+      result.developmentReport,
+    ],
     retiredPlayers: [...league.retiredPlayers, ...result.retiredPlayers],
   }
 
@@ -285,8 +276,12 @@ function startNextSeasonForLeague(league: LeagueRecord, rng: Rng): LeagueRecord 
 
 function reconcileCalendarPhase(
   league: LeagueRecord,
-  rng: Rng,
-): { league: LeagueRecord; events: AdvanceEvent[]; stoppedReason?: AdvanceStopReason } {
+  rng: Rng
+): {
+  league: LeagueRecord
+  events: AdvanceEvent[]
+  stoppedReason?: AdvanceStopReason
+} {
   let current = league
   const events: AdvanceEvent[] = []
 
@@ -295,7 +290,10 @@ function reconcileCalendarPhase(
     const milestones = getCurrentCalendar(state).milestones
     const eligibility = getAllPhaseEligibility(current)
 
-    if (state.phase === "preseason" && state.currentDay >= milestones.regularSeasonStartDay) {
+    if (
+      state.phase === "preseason" &&
+      state.currentDay >= milestones.regularSeasonStartDay
+    ) {
       if (eligibility.beginRegularSeason.allowed) {
         current = beginRegularSeason(current, rng)
         events.push({ type: "phase_started", phase: "regular" })
@@ -330,9 +328,9 @@ function reconcileCalendarPhase(
         current = beginOffseasonForLeague(current, rng)
         events.push(
           { type: "phase_started", phase: "offseason" },
-          { type: "phase_started", phase: "staff" },
+          { type: "phase_started", phase: "contract_options" }
         )
-        continue
+        return { league: current, events, stoppedReason: "contract_options" }
       }
     }
 
@@ -370,7 +368,7 @@ function reconcileCalendarPhase(
             ...current,
             seasonState: advanceToFreeAgencyPhase(state),
           },
-          rng,
+          rng
         )
         events.push({ type: "phase_started", phase: "free_agency" })
         continue
@@ -426,7 +424,7 @@ function resolveTargetDay(state: SeasonState, target: AdvanceTarget): number {
 function shouldStopForTarget(
   state: SeasonState,
   target: AdvanceTarget,
-  targetDay: number,
+  targetDay: number
 ): boolean {
   if (target === "day" || target === "next_stop") {
     return true
@@ -441,7 +439,7 @@ function shouldStopForTarget(
 
 export function advanceSeason(
   state: SeasonState,
-  options: AdvanceOptions,
+  options: AdvanceOptions
 ): AdvanceResult {
   const policy = resolvePolicy(options.target, options.policy)
   const userTeamId = options.userTeamId
@@ -493,10 +491,7 @@ export function advanceSeason(
         return { state: nextState, daysSimmed, gamesSimmed }
       }
 
-      if (
-        options.target !== "week" &&
-        nextState.currentDay >= targetDay
-      ) {
+      if (options.target !== "week" && nextState.currentDay >= targetDay) {
         return {
           state: nextState,
           daysSimmed,
@@ -513,7 +508,7 @@ export function advanceSeason(
 export function advanceLeague(
   league: LeagueRecord,
   options: AdvanceOptions,
-  rng: Rng,
+  rng: Rng
 ): { league: LeagueRecord; result: AdvanceResult } {
   const policy = resolvePolicy(options.target, options.policy)
   const userTeamId = options.userTeamId ?? league.userTeamId
@@ -602,9 +597,7 @@ export function advanceLeague(
       }
     }
 
-    if (
-      shouldStopForTarget(current.seasonState, options.target, targetDay)
-    ) {
+    if (shouldStopForTarget(current.seasonState, options.target, targetDay)) {
       if (options.target === "day" || options.target === "next_stop") {
         return {
           league: current,

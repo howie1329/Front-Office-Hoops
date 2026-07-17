@@ -59,7 +59,10 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           label="Salary cap"
           value={formatMoney(seasonFinancials.salaryCap)}
         />
-        <CapMetric label="Contract payroll" value={formatMoney(contractPayroll)} />
+        <CapMetric
+          label="Contract payroll"
+          value={formatMoney(contractPayroll)}
+        />
         {deadCapPayroll > 0 ? (
           <CapMetric
             label="Dead cap"
@@ -112,7 +115,7 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
           tone={teamFinance.debt > 0 ? "destructive" : undefined}
         />
         <CapMetric
-          label="MLE remaining"
+          label={`${teamFinance.mleType === "taxpayer" ? "Taxpayer" : "Non-taxpayer"} MLE`}
           value={formatMoney(teamFinance.mleRemaining)}
         />
         <CapMetric
@@ -146,7 +149,7 @@ export function CapSheetCard({ league, teamId }: CapSheetCardProps) {
                 .filter((hold) => hold.status === "active")
                 .map((hold) => {
                   const player = league.freeAgentPool.find(
-                    (candidate) => candidate.id === hold.playerId,
+                    (candidate) => candidate.id === hold.playerId
                   )
                   return (
                     <li key={hold.id} className="flex justify-between gap-3">

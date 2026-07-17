@@ -139,6 +139,8 @@ function stopReasonLabel(reason: AdvanceStopReason): string {
       return "regular season ready"
     case "begin_offseason":
       return "offseason ready"
+    case "contract_options":
+      return "team option decisions"
     case "draft_pick":
       return "draft pick on the clock"
     case "draft_incomplete":

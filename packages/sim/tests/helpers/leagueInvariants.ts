@@ -1,6 +1,10 @@
 import { expect } from "vitest"
 
-import { CAMP_ROSTER_MAX, ROSTER_MAX, ROSTER_MIN } from "@workspace/shared/constants"
+import {
+  CAMP_ROSTER_MAX,
+  ROSTER_MAX,
+  ROSTER_MIN,
+} from "@workspace/shared/constants"
 import type { LeagueRecord, Player } from "@workspace/shared/types"
 
 function expectUnique(values: string[], label: string): void {
@@ -12,6 +16,24 @@ function allRosterPlayers(league: LeagueRecord): Player[] {
 }
 
 export function expectLeagueInvariants(league: LeagueRecord): void {
+  expect(league.leagueFinancials.currentCapSeason).toBe(
+    league.seasonState.phase === "offseason"
+      ? league.seasonState.season + 1
+      : league.seasonState.season
+  )
+  for (const contract of league.contracts.filter(
+    (entry) => entry.status === "active"
+  )) {
+    expect(contract.yearlySalaries.length).toBeGreaterThan(0)
+    expect(contract.guaranteedSalaries).toHaveLength(
+      contract.yearlySalaries.length
+    )
+  }
+  for (const hold of league.teamFinancials.flatMap((entry) => entry.capHolds)) {
+    if (hold.status === "active") {
+      expect(hold.season).toBe(league.leagueFinancials.currentCapSeason)
+    }
+  }
   const teams = league.seasonState.teams
   const teamIds = new Set(teams.map((team) => team.id))
   const rosterPlayers = allRosterPlayers(league)
@@ -29,35 +51,41 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
         ? ROSTER_MAX + 3
         : ROSTER_MAX
 
-  expectUnique(teams.map((team) => team.id), "team IDs")
+  expectUnique(
+    teams.map((team) => team.id),
+    "team IDs"
+  )
   expectUnique(allPlayerIds, "player IDs")
 
   for (const team of teams) {
     if (enforceRosterMinimum) {
       expect(
         team.players.length,
-        `${team.id} roster must be above minimum`,
+        `${team.id} roster must be above minimum`
       ).toBeGreaterThanOrEqual(ROSTER_MIN)
     }
     expect(
       team.players.length,
-      `${team.id} roster must be below maximum`,
+      `${team.id} roster must be below maximum`
     ).toBeLessThanOrEqual(maxRosterSize)
 
     for (const player of team.players) {
-      expect(player.teamId, `${player.id} teamId must match roster`).toBe(team.id)
-      expect(player.status, `${player.id} roster status must not be free agent`).not.toBe(
-        "free_agent",
+      expect(player.teamId, `${player.id} teamId must match roster`).toBe(
+        team.id
       )
+      expect(
+        player.status,
+        `${player.id} roster status must not be free agent`
+      ).not.toBe("free_agent")
       expect(
         league.contracts.some(
           (contract) =>
             contract.id === player.activeContractId &&
             contract.playerId === player.id &&
             contract.teamId === team.id &&
-            contract.status === "active",
+            contract.status === "active"
         ),
-        `${player.id} must have an active contract on roster team`,
+        `${player.id} must have an active contract on roster team`
       ).toBe(true)
     }
   }
@@ -68,21 +96,29 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
   }
 
   for (const contract of league.contracts.filter(
-    (entry) => entry.status === "active",
+    (entry) => entry.status === "active"
   )) {
-    expect(rosterPlayerIds.has(contract.playerId), `${contract.id} player`).toBe(
-      true,
-    )
+    expect(
+      rosterPlayerIds.has(contract.playerId),
+      `${contract.id} player`
+    ).toBe(true)
     expect(teamIds.has(contract.teamId), `${contract.id} team`).toBe(true)
   }
 
   for (const pick of league.draftPickAssets) {
-    expect(teamIds.has(pick.currentTeamId), `${pick.id} current owner`).toBe(true)
-    expect(teamIds.has(pick.originalTeamId), `${pick.id} original owner`).toBe(true)
+    expect(teamIds.has(pick.currentTeamId), `${pick.id} current owner`).toBe(
+      true
+    )
+    expect(teamIds.has(pick.originalTeamId), `${pick.id} original owner`).toBe(
+      true
+    )
   }
 
   expect(league.owners).toHaveLength(teams.length)
-  expectUnique(league.owners.map((owner) => owner.teamId), "owner team IDs")
+  expectUnique(
+    league.owners.map((owner) => owner.teamId),
+    "owner team IDs"
+  )
   for (const owner of league.owners) {
     expect(teamIds.has(owner.teamId), `${owner.id} team`).toBe(true)
   }
@@ -108,7 +144,7 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
       ...game.result.awayPlayerStats,
     ]) {
       expect(teamIds.has(line.teamId), `${game.id}/${line.playerId} team`).toBe(
-        true,
+        true
       )
     }
   }

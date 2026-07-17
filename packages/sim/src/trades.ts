@@ -232,10 +232,7 @@ function validateSalaryMatching(
   league: LeagueRecord,
   context: TradeContext,
 ): TradeValidationResult {
-  const financialSeason =
-    league.seasonState.phase === "offseason"
-      ? league.seasonState.season + 1
-      : league.seasonState.season
+  const financialSeason = league.leagueFinancials.currentCapSeason
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
     financialSeason,

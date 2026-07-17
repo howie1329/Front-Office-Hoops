@@ -481,6 +481,12 @@ export function useLeague() {
     dispatch,
     beginPlayoffs: () => dispatch({ type: "beginPlayoffs" }),
     beginOffseason: () => dispatch({ type: "beginOffseason" }),
+    decideTeamOption: (
+      contractId: string,
+      decision: "exercise" | "decline",
+    ) => dispatch({ type: "decideTeamOption", contractId, decision }),
+    completeContractOptions: () =>
+      dispatch({ type: "completeContractOptions" }),
     completeReSignings: () => dispatch({ type: "completeReSignings" }),
     completeStaffPhase: () => dispatch({ type: "completeStaffPhase" }),
     advanceToDraft: () => dispatch({ type: "advanceToDraft" }),

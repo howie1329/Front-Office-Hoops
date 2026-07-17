@@ -25,11 +25,18 @@ type LeagueContextValue = ReturnType<typeof useLeague> & {
   isPlayoffs: boolean
   isSeasonComplete: boolean
   isOffseason: boolean
-  offseasonPhase: "staff" | "re_signing" | "draft" | "free_agency" | null
+  offseasonPhase:
+    | "contract_options"
+    | "staff"
+    | "re_signing"
+    | "draft"
+    | "free_agency"
+    | null
   championTeamId: string | null
   canBeginRegularSeason: boolean
   canBeginPlayoffs: boolean
   canBeginOffseason: boolean
+  canCompleteContractOptions: boolean
   canCompleteStaffPhase: boolean
   canSimAiReSignings: boolean
   canProceedToDraft: boolean
@@ -101,6 +108,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       canBeginRegularSeason: eligibility?.beginRegularSeason.allowed ?? false,
       canBeginPlayoffs: eligibility?.beginPlayoffs.allowed ?? false,
       canBeginOffseason: eligibility?.beginOffseason.allowed ?? false,
+      canCompleteContractOptions:
+        eligibility?.completeContractOptions.allowed ?? false,
       canCompleteStaffPhase: eligibility?.completeStaffPhase.allowed ?? false,
       canSimAiReSignings: eligibility?.simAiReSignings.allowed ?? false,
       canProceedToDraft: eligibility?.proceedToDraft.allowed ?? false,

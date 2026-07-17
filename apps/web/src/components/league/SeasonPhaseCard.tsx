@@ -13,9 +13,15 @@ import {
 
 import { teamName } from "./lib/teamFormat"
 
-type OffseasonMicroPhase = "staff" | "re_signing" | "draft" | "free_agency"
+type OffseasonMicroPhase =
+  | "contract_options"
+  | "staff"
+  | "re_signing"
+  | "draft"
+  | "free_agency"
 
 const OFFSEASON_STEPS: { id: OffseasonMicroPhase; label: string }[] = [
+  { id: "contract_options", label: "Options" },
   { id: "staff", label: "Staff" },
   { id: "re_signing", label: "Re-signing" },
   { id: "draft", label: "Draft" },
@@ -92,7 +98,10 @@ export function SeasonPhaseCard({
               ? "Advance through the regular season calendar toward the playoffs."
               : state.phase === "playoffs"
                 ? "Sim playoff games from the bracket page."
-                : state.phase === "offseason" &&
+              : state.phase === "offseason" &&
+                    state.offseasonPhase === "contract_options"
+                  ? "Decide every team option before staff negotiations open."
+                  : state.phase === "offseason" &&
                     (state.offseasonPhase ?? "staff") === "staff"
                   ? "Hire and fire coaches during the staff week before re-signing opens."
                   : state.phase === "offseason" &&
@@ -167,6 +176,13 @@ export function SeasonPhaseCard({
           {state.phase === "offseason" && offseasonPhase === "staff" ? (
             <Button variant="secondary" asChild>
               <Link to="/league/staff">Manage staff</Link>
+            </Button>
+          ) : null}
+
+          {state.phase === "offseason" &&
+          offseasonPhase === "contract_options" ? (
+            <Button variant="secondary" asChild>
+              <Link to="/league/team-options">Decide team options</Link>
             </Button>
           ) : null}
 

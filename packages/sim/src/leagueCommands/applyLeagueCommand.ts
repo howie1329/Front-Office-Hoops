@@ -1,16 +1,13 @@
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
-import { archivePlayerCareerSnapshots } from "../playerProfiles"
 import { advanceLeague } from "../advance/advanceSeason"
 import {
   beginRegularSeason,
   skipRemainingExhibitions,
 } from "../preseason/beginRegularSeason"
-import { derivePlayerSeasonProfiles } from "../playerSeasonProfiles"
-import { assignSeasonAwards } from "../awards"
-import { beginOffseason } from "../beginOffseason"
 import { beginPlayoffs } from "../beginPlayoffs"
-import { evaluateOwnerGoals, generateOwnerGoals } from "../owners"
+import { generateOwnerGoals } from "../owners"
+import { beginLeagueOffseason } from "../offseason/beginLeagueOffseason"
 import { simAiPick, simToUserPick } from "../draft/simAiPick"
 import { makeDraftPick } from "../draft/makeDraftPick"
 import { prepareDraftForLeague } from "../draft/prepareDraft"
@@ -23,7 +20,8 @@ import { beginStaffMarket, completeStaffPhase } from "../offseason/staffPhase"
 import { completeReSigningPhase } from "../offseason/reSigning"
 import {
   ensureFaPoolMinimum,
-  processOffseasonFinancials,
+  decideTeamOption,
+  setOpeningExceptions,
   renouncePlayerRights,
 } from "../financials"
 import {
@@ -36,7 +34,6 @@ import { extendStaffContract, fireStaff } from "../staff"
 import {
   advanceFreeAgencyMarketDay,
   advanceStaffMarketDay,
-  resetPlayerOfferNegotiations,
   submitPlayerContractOffer,
   submitPlayerExtensionOffer,
   submitStaffContractOffer,
@@ -58,6 +55,7 @@ const PHASE_GATED_TYPES = new Set<LeagueCommand["type"]>([
   "beginRegularSeason",
   "beginPlayoffs",
   "beginOffseason",
+  "completeContractOptions",
   "completeStaffPhase",
   "completeReSignings",
   "advanceToDraft",
@@ -184,39 +182,20 @@ function applyLeagueCommandInternal(
       }
 
     case "beginOffseason": {
-      const completedLeague = archivePlayerCareerSnapshots(
-        evaluateOwnerGoals(assignSeasonAwards(league))
-      )
-      const profiles = derivePlayerSeasonProfiles(
-        completedLeague.seasonState.teams,
-        completedLeague.seasonState.playerSeasonStats,
-        completedLeague.seasonState.games.length,
-        completedLeague.seasonState.season
-      )
-      const nextState = beginOffseason(
-        completedLeague.seasonState,
-        profiles
-      )
-      return beginStaffMarket(
-        resetPlayerOfferNegotiations(
-          processOffseasonFinancials(
-            {
-              ...completedLeague,
-              seasonState: nextState,
-              playerSeasonProfiles: [
-                ...completedLeague.playerSeasonProfiles.filter(
-                  (entry) => entry.season !== completedLeague.seasonState.season
-                ),
-                ...profiles,
-              ],
-            },
-            resolvedRng
-          ),
-          ["extension", "re_signing"],
-        ),
-        resolvedRng
-      )
+      return beginLeagueOffseason(league, resolvedRng)
     }
+
+    case "decideTeamOption":
+      return decideTeamOption(league, command.contractId, command.decision)
+
+    case "completeContractOptions":
+      return beginStaffMarket(
+        setOpeningExceptions({
+          ...league,
+          seasonState: { ...league.seasonState, offseasonPhase: "staff" },
+        }),
+        resolvedRng,
+      )
 
     case "completeStaffPhase":
       return completeStaffPhase(league, resolvedRng)

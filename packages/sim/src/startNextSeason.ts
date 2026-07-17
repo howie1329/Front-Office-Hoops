@@ -24,7 +24,10 @@ import { createInitialSeason } from "./createInitialSeason"
 import { ensureDraftPickAssets } from "./draft/generateDraftOrder"
 import { isDraftRequired } from "./draft/isDraftRequired"
 import { finalizeSeason } from "./finalizeSeason"
-import { prepareNewSeasonFinancials, attachMissingRosterContracts } from "./financials"
+import {
+  applyMinimumSalaryFloorPenalty,
+  attachMissingRosterContracts,
+} from "./financials"
 import { applyPreseasonProgression } from "./preseason/applyPreseasonProgression"
 import { purgeCampFringePlayers } from "./preseason/campPlayers"
 import {
@@ -118,7 +121,7 @@ export function startNextSeason(
         entry.strategy.mode,
       ]) ?? []
     ),
-    league?.contracts ?? [],
+    league?.contracts ?? []
   )
   freeAgentPool = trimmed.freeAgentPool
 
@@ -127,23 +130,37 @@ export function startNextSeason(
   const priorSeason = seasonState.season
   const newSeason = priorSeason + 1
 
+  if (league && league.leagueFinancials.currentCapSeason !== newSeason) {
+    throw new Error(
+      `Financial year ${newSeason} must be opened before starting the season`
+    )
+  }
+
   const progression = applyPreseasonProgression({
     teams: trimmed.teams,
     priorSeason,
     newSeason,
-    playerSeasonStats:
-      input.playerSeasonStats ?? seasonState.playerSeasonStats,
+    playerSeasonStats: input.playerSeasonStats ?? seasonState.playerSeasonStats,
     playerSeasonProfiles: input.playerSeasonProfiles ?? [],
     baseSeed: seasonState.baseSeed,
     teamFinancials: league?.teamFinancials,
     seasonHistory: input.seasonHistory ?? [],
   })
+  const teamsWithService = progression.teams.map((team) => ({
+    ...team,
+    players: team.players.map((player) => ({
+      ...player,
+      yearsOfService: player.yearsOfService + 1,
+      seasonsWithTeam: player.seasonsWithTeam + 1,
+    })),
+  }))
 
   let financialBundle = {
     contracts: trimmed.contracts,
     leagueFinancials: league?.leagueFinancials ?? {
       baseCap: 141,
       growthRate: 0.05,
+      currentCapSeason: newSeason,
       bySeason: {},
     },
     teamFinancials: league?.teamFinancials ?? [],
@@ -152,7 +169,7 @@ export function startNextSeason(
     freeAgentPool,
     seasonState: {
       ...seasonState,
-      teams: progression.teams,
+      teams: teamsWithService,
     },
   } satisfies Pick<
     LeagueRecord,
@@ -166,7 +183,7 @@ export function startNextSeason(
   >
 
   if (league) {
-    financialBundle = prepareNewSeasonFinancials(
+    financialBundle = applyMinimumSalaryFloorPenalty(
       {
         ...financialBundle,
         id: "",
@@ -196,15 +213,14 @@ export function startNextSeason(
         staffContracts: league.staffContracts ?? [],
         collegeCoaches: league.collegeCoaches ?? [],
       },
-      newSeason,
-      rng
+      newSeason
     )
     freeAgentPool = financialBundle.freeAgentPool
   }
 
   const stateForArchive = {
     ...financialBundle.seasonState,
-    teams: progression.teams,
+    teams: teamsWithService,
   }
 
   const finalized = finalizeSeason(stateForArchive)
@@ -213,7 +229,7 @@ export function startNextSeason(
     financialBundle.seasonState.teams,
     finalized.baseSeed,
     rng,
-    newSeason,
+    newSeason
   )
 
   if (league) {
@@ -223,7 +239,7 @@ export function startNextSeason(
         contracts: financialBundle.contracts,
         freeAgentPool,
       },
-      newSeason,
+      newSeason
     )
     nextSeasonState = purged.seasonState
     financialBundle.contracts = purged.contracts
@@ -236,7 +252,7 @@ export function startNextSeason(
         leagueFinancials: financialBundle.leagueFinancials,
         teamFinancials: financialBundle.teamFinancials,
       },
-      rng,
+      rng
     )
     nextSeasonState = withCampContracts.seasonState
     financialBundle.contracts = withCampContracts.contracts

@@ -17,9 +17,7 @@ export function getPlayerContractMarketValue(
   league: LeagueRecord,
   player: Player,
 ): ContractMarketValue {
-  const season = league.seasonState.phase === "offseason"
-    ? league.seasonState.season + 1
-    : league.seasonState.season
+  const season = league.leagueFinancials.currentCapSeason
   const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
   const expectedSalary = roundMoney(getFairSalary(player, seasonFinancials, league))
 

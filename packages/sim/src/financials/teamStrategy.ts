@@ -227,6 +227,7 @@ export function assignInitialTeamStrategy(
     consecutiveTaxSeasons: 0,
     lastTaxBill: null,
     mleUsed: 0,
+    mleType: "non_taxpayer",
     mleRemaining: seasonFinancials.mleNonTaxpayer,
     roomMleUsed: 0,
     roomMleRemaining: seasonFinancials.mleRoom,

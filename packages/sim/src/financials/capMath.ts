@@ -65,14 +65,14 @@ export function buildLeagueFinancials(
   baseCap: number,
   growthRate: number,
   maxSeason: number,
-): { baseCap: number; growthRate: number; bySeason: Record<number, SeasonFinancials> } {
+): { baseCap: number; growthRate: number; currentCapSeason: number; bySeason: Record<number, SeasonFinancials> } {
   const bySeason: Record<number, SeasonFinancials> = {}
 
   for (let season = 1; season <= maxSeason; season++) {
     bySeason[season] = calculateSeasonFinancials(baseCap, growthRate, season)
   }
 
-  return { baseCap, growthRate, bySeason }
+  return { baseCap, growthRate, currentCapSeason: 1, bySeason }
 }
 
 export function getSeasonFinancials(
@@ -88,9 +88,9 @@ export function getSeasonFinancials(
 }
 
 export function ensureSeasonFinancials(
-  leagueFinancials: { baseCap: number; growthRate: number; bySeason: Record<number, SeasonFinancials> },
+  leagueFinancials: { baseCap: number; growthRate: number; currentCapSeason: number; bySeason: Record<number, SeasonFinancials> },
   season: number,
-): { baseCap: number; growthRate: number; bySeason: Record<number, SeasonFinancials> } {
+): { baseCap: number; growthRate: number; currentCapSeason: number; bySeason: Record<number, SeasonFinancials> } {
   if (leagueFinancials.bySeason[season]) {
     return leagueFinancials
   }

@@ -23,9 +23,7 @@ function fillUserRoster(league: ReturnType<typeof createLeague>) {
   let next = league
   const seasonFinancials = getSeasonFinancials(
     next.leagueFinancials,
-    next.seasonState.phase === "offseason"
-      ? next.seasonState.season + 1
-      : next.seasonState.season
+    next.leagueFinancials.currentCapSeason,
   )
 
   while (getUserRosterSize(next) < ROSTER_MAX) {
@@ -129,6 +127,24 @@ describe("league invariants", () => {
 
       league = applyLeagueCommand(league, { type: "beginOffseason" })
       expect(league.playerSeasonProfiles.length).toBeGreaterThan(0)
+      expectLeagueInvariants(league)
+
+      const pendingOptions = league.contracts.filter(
+        (contract) =>
+          contract.teamId === league.userTeamId &&
+          contract.status === "active" &&
+          contract.options?.some(
+            (option) => option.yearIndex === 0 && option.type === "team",
+          ),
+      )
+      for (const contract of pendingOptions) {
+        league = applyLeagueCommand(league, {
+          type: "decideTeamOption",
+          contractId: contract.id,
+          decision: "exercise",
+        })
+      }
+      league = applyLeagueCommand(league, { type: "completeContractOptions" })
       expectLeagueInvariants(league)
 
       league = applyLeagueCommand(league, { type: "completeStaffPhase" })

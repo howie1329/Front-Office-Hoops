@@ -706,7 +706,7 @@ export function generateAiFreeAgencyMarketOffers(
   let current = league
   const seasonFinancials = getSeasonFinancials(
     current.leagueFinancials,
-    current.seasonState.season + 1,
+    current.leagueFinancials.currentCapSeason,
   )
 
   for (const teamFinance of current.teamFinancials) {
@@ -772,7 +772,7 @@ export function processAiReSigningOffers(
   let current = league
   const seasonFinancials = getSeasonFinancials(
     current.leagueFinancials,
-    current.seasonState.season + 1,
+    current.leagueFinancials.currentCapSeason,
   )
 
   for (const teamId of getAiTeams(current)) {
@@ -860,7 +860,7 @@ export function fillAiRostersAfterFreeAgency(
   let current = league
   const seasonFinancials = getSeasonFinancials(
     current.leagueFinancials,
-    current.seasonState.season + 1,
+    current.leagueFinancials.currentCapSeason,
   )
 
   for (const teamFinance of current.teamFinancials) {

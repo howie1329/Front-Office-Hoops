@@ -151,7 +151,7 @@ describe("advanceLeague calendar flow", () => {
     })
   })
 
-  it("opens the draft window automatically when the offseason reaches draft day", () => {
+  it("stops for contract options before advancing the offseason calendar", () => {
     const league = createReadyOffseasonLeague()
     const draftDay = getCurrentCalendar(league.seasonState).milestones.draftDay
     const result = advanceLeague(
@@ -166,10 +166,8 @@ describe("advanceLeague calendar flow", () => {
       createRng("auto-draft-advance"),
     )
 
-    expect(result.league.seasonState.offseasonPhase).toBe("draft")
-    expect(result.result.events).toContainEqual({
-      type: "phase_started",
-      phase: "draft",
-    })
+    expect(result.league.seasonState.offseasonPhase).toBe("contract_options")
+    expect(result.result.stoppedReason).toBe("contract_options")
+    expect(result.result.events).toEqual([])
   })
 })

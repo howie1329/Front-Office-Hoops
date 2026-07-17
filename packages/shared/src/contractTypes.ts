@@ -36,6 +36,8 @@ export type Contract = {
   options?: ContractOption[]
   status: ContractStatus
   signedSeason: number
+  /** Salary earned in the cap season immediately before the current schedule. */
+  priorSeasonSalary?: number
   tradableAfterDay?: number | null
 }
 

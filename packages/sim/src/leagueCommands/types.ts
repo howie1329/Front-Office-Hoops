@@ -18,6 +18,8 @@ export type LeagueCommand =
   | { type: "skipRemainingExhibitions" }
   | { type: "beginPlayoffs" }
   | { type: "beginOffseason" }
+  | { type: "decideTeamOption"; contractId: string; decision: "exercise" | "decline" }
+  | { type: "completeContractOptions" }
   | { type: "completeStaffPhase" }
   | { type: "completeReSignings" }
   | { type: "advanceToDraft" }
@@ -48,6 +50,7 @@ export type PhaseGatedCommand = Extract<
   | { type: "beginRegularSeason" }
   | { type: "beginPlayoffs" }
   | { type: "beginOffseason" }
+  | { type: "completeContractOptions" }
   | { type: "completeStaffPhase" }
   | { type: "completeReSignings" }
   | { type: "advanceToDraft" }
@@ -63,6 +66,7 @@ export function getPhaseActionForCommand(
   | "beginRegularSeason"
   | "beginPlayoffs"
   | "beginOffseason"
+  | "completeContractOptions"
   | "completeStaffPhase"
   | "simAiReSignings"
   | "proceedToDraft"
@@ -77,6 +81,8 @@ export function getPhaseActionForCommand(
       return "beginPlayoffs"
     case "beginOffseason":
       return "beginOffseason"
+    case "completeContractOptions":
+      return "completeContractOptions"
     case "completeStaffPhase":
       return "completeStaffPhase"
     case "completeReSignings":

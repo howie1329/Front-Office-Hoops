@@ -10,6 +10,7 @@ export type PhaseAction =
   | "beginRegularSeason"
   | "beginPlayoffs"
   | "beginOffseason"
+  | "completeContractOptions"
   | "completeStaffPhase"
   | "simAiReSignings"
   | "proceedToDraft"
@@ -26,6 +27,7 @@ const PHASE_ACTIONS: PhaseAction[] = [
   "beginRegularSeason",
   "beginPlayoffs",
   "beginOffseason",
+  "completeContractOptions",
   "completeStaffPhase",
   "simAiReSignings",
   "proceedToDraft",
@@ -154,6 +156,24 @@ export function getPhaseEligibility(
           allowed: false,
           reason: "Season calendar has not reached offseason start",
         }
+      }
+      return { allowed: true }
+    }
+
+    case "completeContractOptions": {
+      if (!isOffseason || offseasonPhase !== "contract_options") {
+        return { allowed: false, reason: "Contract options phase is not active" }
+      }
+      const hasPendingOptions = league.contracts.some(
+        (contract) =>
+          contract.status === "active" &&
+          contract.teamId === league.userTeamId &&
+          contract.options?.some(
+            (option) => option.yearIndex === 0 && option.type === "team",
+          ),
+      )
+      if (hasPendingOptions) {
+        return { allowed: false, reason: "Decide all team options before continuing" }
       }
       return { allowed: true }
     }
