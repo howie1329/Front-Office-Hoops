@@ -5,29 +5,43 @@ import { syncLeagueStaffFinancials } from "./deriveTeamStaff"
 import { getStaffPayroll } from "./staffPayroll"
 
 export type StaffActionResult =
-  | { ok: true; league: LeagueRecord }
-  | { ok: false; reason: string }
+  { ok: true; league: LeagueRecord } | { ok: false; reason: string }
 
-function createStaffContractId(staffId: string, season: number): string {
-  return `staff_contract_ext_${staffId}_${season}_${crypto.randomUUID().slice(0, 8)}`
+function createStaffContractId(
+  league: Pick<LeagueRecord, "staffContracts">,
+  staffId: string,
+  season: number
+): string {
+  const baseId = `staff_contract_ext_${staffId}_${season}`
+  const sequence =
+    league.staffContracts.filter((contract) =>
+      contract.id.startsWith(`${baseId}_`)
+    ).length + 1
+  return `${baseId}_${sequence}`
 }
 
 export function extendStaffContract(
   league: LeagueRecord,
   teamId: string,
   staffId: string,
-  offer: StaffExtensionOffer,
+  offer: StaffExtensionOffer
 ): StaffActionResult {
   if (league.seasonState.phase !== "offseason") {
-    return { ok: false, reason: "Staff extensions are only allowed during the offseason" }
+    return {
+      ok: false,
+      reason: "Staff extensions are only allowed during the offseason",
+    }
   }
 
   if ((league.seasonState.offseasonPhase ?? "staff") !== "staff") {
-    return { ok: false, reason: "Staff extensions are only allowed during the staff phase" }
+    return {
+      ok: false,
+      reason: "Staff extensions are only allowed during the staff phase",
+    }
   }
 
   const member = league.staff.find(
-    (entry) => entry.id === staffId && entry.teamId === teamId,
+    (entry) => entry.id === staffId && entry.teamId === teamId
   )
   if (!member) {
     return { ok: false, reason: "Coach not found on this team" }
@@ -37,31 +51,32 @@ export function extendStaffContract(
     (contract) =>
       contract.staffId === staffId &&
       contract.teamId === teamId &&
-      contract.status === "active",
+      contract.status === "active"
   )
 
   if (!activeContract) {
     return { ok: false, reason: "No active staff contract found" }
   }
 
-  const teamFinance = league.teamFinancials.find((entry) => entry.teamId === teamId)
+  const teamFinance = league.teamFinancials.find(
+    (entry) => entry.teamId === teamId
+  )
   if (!teamFinance) {
     return { ok: false, reason: "Team not found" }
   }
 
-  const season = league.seasonState.season
+  const season = league.leagueFinancials.currentCapSeason
   const extensionSalaries = Array.from({ length: offer.years }, (_, index) =>
-    roundMoney(offer.firstYearSalary * (1 + index * 0.05)),
+    roundMoney(offer.firstYearSalary * (1 + index * 0.05))
   )
 
   const currentPayroll = getStaffPayroll(teamId, league.staffContracts, season)
-  const extensionTotal = extensionSalaries.reduce((sum, salary) => sum + salary, 0)
-  const currentContractRemaining = activeContract.yearlySalaries
-    .slice(Math.max(0, season - activeContract.startSeason))
-    .reduce((sum, salary) => sum + salary, 0)
+  const currentSalary =
+    activeContract.yearlySalaries[season - activeContract.startSeason] ?? 0
+  const extensionSalary = extensionSalaries[0] ?? 0
 
   if (
-    currentPayroll - currentContractRemaining + extensionTotal >
+    currentPayroll - currentSalary + extensionSalary >
     teamFinance.staffBudget
   ) {
     return { ok: false, reason: "Extension exceeds the annual staff budget" }
@@ -70,11 +85,11 @@ export function extendStaffContract(
   const staffContracts = league.staffContracts.map((contract) =>
     contract.id === activeContract.id
       ? { ...contract, status: "expired" as const }
-      : contract,
+      : contract
   )
 
   const newContract = {
-    id: createStaffContractId(staffId, season),
+    id: createStaffContractId(league, staffId, season),
     staffId,
     teamId,
     startSeason: season,

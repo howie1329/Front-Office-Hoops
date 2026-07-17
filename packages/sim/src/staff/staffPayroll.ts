@@ -6,7 +6,7 @@ import { roundMoney } from "../financials/capMath"
 export function getStaffPayroll(
   teamId: string,
   staffContracts: StaffContract[],
-  season: number,
+  season: number
 ): number {
   const total = staffContracts
     .filter(
@@ -14,7 +14,7 @@ export function getStaffPayroll(
         contract.teamId === teamId &&
         contract.status === "active" &&
         season >= contract.startSeason &&
-        season <= contract.endSeason,
+        season <= contract.endSeason
     )
     .reduce((sum, contract) => {
       const yearIndex = season - contract.startSeason
@@ -25,25 +25,33 @@ export function getStaffPayroll(
 }
 
 export function getTeamStaffPayroll(
-  league: Pick<LeagueRecord, "staffContracts" | "seasonState">,
-  teamId: string,
+  league: Pick<LeagueRecord, "staffContracts" | "leagueFinancials">,
+  teamId: string
 ): number {
-  return getStaffPayroll(teamId, league.staffContracts, league.seasonState.season)
+  return getStaffPayroll(
+    teamId,
+    league.staffContracts,
+    league.leagueFinancials.currentCapSeason
+  )
 }
 
 export function sumStaffPayrollForTeam(
   teamId: string,
-  staffContracts: StaffContract[],
+  staffContracts: StaffContract[]
 ): number {
   return roundMoney(
     staffContracts
       .filter(
-        (contract) => contract.teamId === teamId && contract.status === "active",
+        (contract) => contract.teamId === teamId && contract.status === "active"
       )
       .reduce(
         (sum, contract) =>
-          sum + contract.yearlySalaries.reduce((yearSum, salary) => yearSum + salary, 0),
-        0,
-      ),
+          sum +
+          contract.yearlySalaries.reduce(
+            (yearSum, salary) => yearSum + salary,
+            0
+          ),
+        0
+      )
   )
 }

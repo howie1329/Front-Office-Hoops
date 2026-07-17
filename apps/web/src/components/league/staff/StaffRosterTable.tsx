@@ -1,7 +1,7 @@
 import { useState } from "react"
 
 import type { LeagueRecord, StaffMember } from "@workspace/shared/types"
-import { getStaffByRole } from "@workspace/sim"
+import { getStaffByRole, getStaffEmploymentSeason } from "@workspace/sim"
 
 import {
   formatCoachingPace,
@@ -41,7 +41,7 @@ export function StaffRosterTable({
   onFire,
   onExtend,
 }: StaffRosterTableProps) {
-  const season = league.seasonState.season
+  const season = getStaffEmploymentSeason(league)
 
   return (
     <Table>
@@ -85,7 +85,9 @@ export function StaffRosterTable({
                   ? formatCoachingPace(member.pace)
                   : "—"}
               </TableCell>
-              <TableCell>{formatStaffContractLabel(contract, season)}</TableCell>
+              <TableCell>
+                {formatStaffContractLabel(contract, season)}
+              </TableCell>
               <TableCell>{formatStaffSalaryLabel(contract, season)}</TableCell>
               {editable ? (
                 <TableCell className="text-right">

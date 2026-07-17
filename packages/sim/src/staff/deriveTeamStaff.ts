@@ -21,7 +21,7 @@ const STAFF_ROLES: StaffRole[] = [
 
 export function getTeamStaff(
   staff: StaffMember[],
-  teamId: string,
+  teamId: string
 ): StaffMember[] {
   return staff.filter((member) => member.teamId === teamId)
 }
@@ -29,9 +29,11 @@ export function getTeamStaff(
 export function getStaffByRole(
   staff: StaffMember[],
   teamId: string,
-  role: StaffRole,
+  role: StaffRole
 ): StaffMember | undefined {
-  return staff.find((member) => member.teamId === teamId && member.role === role)
+  return staff.find(
+    (member) => member.teamId === teamId && member.role === role
+  )
 }
 
 export function deriveCoachingLevel(teamStaff: StaffMember[]): number {
@@ -92,7 +94,7 @@ const DEFAULT_PHILOSOPHY: CoachingPhilosophy = {
 
 export function derivePhilosophyFromStaff(
   staff: StaffMember[],
-  teamId: string,
+  teamId: string
 ): CoachingPhilosophy {
   const hc = getStaffByRole(staff, teamId, "head_coach")
   if (!hc) {
@@ -109,14 +111,14 @@ export function derivePhilosophyFromStaff(
 
 export function getHeadCoachPace(
   staff: StaffMember[],
-  teamId: string,
+  teamId: string
 ): CoachingPace {
   return getStaffByRole(staff, teamId, "head_coach")?.pace ?? "balanced"
 }
 
 export function staffAlignmentEfficiencyShift(
   staff: StaffMember[],
-  teamId: string,
+  teamId: string
 ): number {
   const hc = getStaffByRole(staff, teamId, "head_coach")
   const oc = getStaffByRole(staff, teamId, "offensive_coordinator")
@@ -129,17 +131,11 @@ export function staffAlignmentEfficiencyShift(
   let shift = 0
 
   if (oc) {
-    shift +=
-      oc.preferredOffense === hc.preferredOffense
-        ? 0.008
-        : -0.005
+    shift += oc.preferredOffense === hc.preferredOffense ? 0.008 : -0.005
   }
 
   if (dc) {
-    shift +=
-      dc.preferredDefense === hc.preferredDefense
-        ? 0.008
-        : -0.005
+    shift += dc.preferredDefense === hc.preferredDefense ? 0.008 : -0.005
   }
 
   return shift
@@ -151,9 +147,9 @@ export function coachingQualityEfficiencyShift(coachingLevel: number): number {
 }
 
 export function syncTeamFinancialsFromStaff(
-  league: LeagueRecord,
+  league: LeagueRecord
 ): TeamFinancials[] {
-  const season = league.seasonState.season
+  const season = league.leagueFinancials.currentCapSeason
 
   return league.teamFinancials.map((teamFinance) => {
     const teamStaff = getTeamStaff(league.staff, teamFinance.teamId)
@@ -166,7 +162,7 @@ export function syncTeamFinancialsFromStaff(
       staffPayroll: getStaffPayroll(
         teamFinance.teamId,
         league.staffContracts,
-        season,
+        season
       ),
     }
   })
@@ -183,7 +179,7 @@ export { STAFF_ROLES }
 
 export function pickRandomScheme<T extends string>(
   schemes: readonly T[],
-  rng: { int: (min: number, max: number) => number },
+  rng: { int: (min: number, max: number) => number }
 ): T {
   return schemes[rng.int(0, schemes.length - 1)]!
 }

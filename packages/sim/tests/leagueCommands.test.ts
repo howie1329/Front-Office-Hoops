@@ -16,7 +16,10 @@ import {
 import { beginOffseason } from "../src/beginOffseason"
 import { beginPlayoffs } from "../src/beginPlayoffs"
 import { simulatePlayoffs } from "../src/simulatePlayoffs"
-import { pastStaffPhase } from "./helpers/offseason"
+import {
+  fillUserStaffVacanciesForTest,
+  pastStaffPhase,
+} from "./helpers/offseason"
 
 function createOffseasonLeague() {
   const league = createLeague({
@@ -62,6 +65,7 @@ function createOffseasonLeague() {
     })
   }
   current = applyLeagueCommand(current, { type: "completeContractOptions" })
+  current = fillUserStaffVacanciesForTest(current)
   return applyLeagueCommand(current, { type: "completeStaffPhase" })
 }
 

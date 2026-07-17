@@ -4,26 +4,29 @@ import type {
   StaffMember,
   StaffRole,
 } from "@workspace/shared/types"
-import { getStaffByRole } from "@workspace/sim"
+import { getStaffByRole, getStaffEmploymentSeason } from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 
 export function getActiveStaffContract(
   league: LeagueRecord,
   staffId: string,
-  teamId: string,
+  teamId: string
 ): StaffContract | undefined {
+  const season = getStaffEmploymentSeason(league)
   return league.staffContracts.find(
     (contract) =>
       contract.staffId === staffId &&
       contract.teamId === teamId &&
-      contract.status === "active",
+      contract.status === "active" &&
+      contract.startSeason <= season &&
+      contract.endSeason >= season
   )
 }
 
 export function getStaffYearsRemaining(
   contract: StaffContract | undefined,
-  season: number,
+  season: number
 ): number {
   if (!contract) {
     return 0
@@ -33,7 +36,7 @@ export function getStaffYearsRemaining(
 
 export function getCurrentStaffSalary(
   contract: StaffContract | undefined,
-  season: number,
+  season: number
 ): number {
   if (!contract) {
     return 0
@@ -44,7 +47,7 @@ export function getCurrentStaffSalary(
 
 export function formatStaffContractLabel(
   contract: StaffContract | undefined,
-  season: number,
+  season: number
 ): string {
   const yearsRemaining = getStaffYearsRemaining(contract, season)
   if (!contract || yearsRemaining === 0) {
@@ -55,7 +58,7 @@ export function formatStaffContractLabel(
 
 export function formatStaffSalaryLabel(
   contract: StaffContract | undefined,
-  season: number,
+  season: number
 ): string {
   const salary = getCurrentStaffSalary(contract, season)
   if (!contract || salary === 0) {
@@ -70,7 +73,7 @@ export function defaultHireSalary(overall: number): number {
 
 export function estimateOfferPayroll(
   firstYearSalary: number,
-  years: number,
+  years: number
 ): number {
   let total = 0
   for (let index = 0; index < years; index += 1) {
@@ -81,11 +84,16 @@ export function estimateOfferPayroll(
 
 export function getVacantRoles(
   league: LeagueRecord,
-  teamId: string,
+  teamId: string
 ): StaffRole[] {
-  return (["head_coach", "offensive_coordinator", "defensive_coordinator", "scouting_head"] as const).filter(
-    (role) => !getStaffByRole(league.staff, teamId, role),
-  )
+  return (
+    [
+      "head_coach",
+      "offensive_coordinator",
+      "defensive_coordinator",
+      "scouting_head",
+    ] as const
+  ).filter((role) => !getStaffByRole(league.staff, teamId, role))
 }
 
 export function getRoleRatingSummary(member: StaffMember): string {
@@ -104,6 +112,6 @@ export function getRoleRatingSummary(member: StaffMember): string {
 
 export function getMarketPool(league: LeagueRecord): StaffMember[] {
   return league.staff.filter(
-    (member) => member.teamId === null && member.source !== "college",
+    (member) => member.teamId === null && member.source !== "college"
   )
 }

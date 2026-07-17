@@ -38,26 +38,26 @@ Top-level metadata for a save slot.
 
 Full save payload = `League` + simulation state.
 
-| Field              | Type                   | Description                                             |
-| ------------------ | ---------------------- | ------------------------------------------------------- |
-| `seasonState`      | `SeasonState`          | Current season                                          |
-| `seasonHistory`    | `SeasonHistoryEntry[]` | Completed seasons                                       |
-| `contracts`        | `Contract[]`           | League-level player contracts                           |
-| `leagueFinancials` | `LeagueFinancials`     | Cap/tax settings by season                              |
-| `teamFinancials`   | `TeamFinancials[]`     | Team spending profiles, cash/debt, strategy, exceptions |
-| `freeAgentPool`    | `Player[]`             | Unrostered players available in free agency             |
-| `draftPickAssets`  | `DraftPickAsset[]`    | Tradable current and future draft picks                 |
-| `tradeHistory`     | `TradeHistoryEntry[]` | Completed trade records                                  |
-| `pendingTradeOffers` | `PendingTradeOffer[]` | AI and user trade offers awaiting resolution           |
-| `contractOffers`   | `ContractOffer[]`      | Player and staff market offers                           |
-| `reSigningNegotiations` | `ReSigningNegotiation[]` | Player negotiation attempts and cooldowns          |
-| `staff` / `staffContracts` | `StaffMember[]` / `StaffContract[]` | Employed and contracted staff |
-| `owners` / `ownerGoals` | `Owner[]` / `OwnerGoal[]` | Franchise ownership and goals |
-| `leagueLog` / `seasonAwards` | Log and award records | League events and season awards |
-| `playerCareerSnapshots` / `playerSeasonProfiles` | Career and season profile records | Long-term player history |
-| `playerDevelopmentRecords` / `developmentReports` | Development records | Preseason progression and reports |
-| `retiredPlayers`    | `RetirementEntry[]`    | Players removed through retirement                      |
-| `collegeCoaches`    | `StaffMember[]`         | College staff pipeline                                   |
+| Field                                             | Type                                | Description                                             |
+| ------------------------------------------------- | ----------------------------------- | ------------------------------------------------------- |
+| `seasonState`                                     | `SeasonState`                       | Current season                                          |
+| `seasonHistory`                                   | `SeasonHistoryEntry[]`              | Completed seasons                                       |
+| `contracts`                                       | `Contract[]`                        | League-level player contracts                           |
+| `leagueFinancials`                                | `LeagueFinancials`                  | Cap/tax settings by season                              |
+| `teamFinancials`                                  | `TeamFinancials[]`                  | Team spending profiles, cash/debt, strategy, exceptions |
+| `freeAgentPool`                                   | `Player[]`                          | Unrostered players available in free agency             |
+| `draftPickAssets`                                 | `DraftPickAsset[]`                  | Tradable current and future draft picks                 |
+| `tradeHistory`                                    | `TradeHistoryEntry[]`               | Completed trade records                                 |
+| `pendingTradeOffers`                              | `PendingTradeOffer[]`               | AI and user trade offers awaiting resolution            |
+| `contractOffers`                                  | `ContractOffer[]`                   | Player and staff market offers                          |
+| `reSigningNegotiations`                           | `ReSigningNegotiation[]`            | Player negotiation attempts and cooldowns               |
+| `staff` / `staffContracts`                        | `StaffMember[]` / `StaffContract[]` | Employed and contracted staff                           |
+| `owners` / `ownerGoals`                           | `Owner[]` / `OwnerGoal[]`           | Franchise ownership and goals                           |
+| `leagueLog` / `seasonAwards`                      | Log and award records               | League events and season awards                         |
+| `playerCareerSnapshots` / `playerSeasonProfiles`  | Career and season profile records   | Long-term player history                                |
+| `playerDevelopmentRecords` / `developmentReports` | Development records                 | Preseason progression and reports                       |
+| `retiredPlayers`                                  | `RetirementEntry[]`                 | Players removed through retirement                      |
+| `collegeCoaches`                                  | `StaffMember[]`                     | College staff pipeline                                  |
 
 ### `LeagueSummary`
 
@@ -67,20 +67,20 @@ Lightweight listing for save slot UI (no full season state).
 
 ### `SeasonState`
 
-| Field               | Type                  | Description                                                |
-| ------------------- | --------------------- | ---------------------------------------------------------- |
-| `season`            | `number`              | Season year (1-based)                                      |
-| `teams`             | `TeamWithRoster[]`    | All teams with rosters                                     |
-| `schedule`          | `ScheduleGame[]`      | Full schedule                                              |
-| `games`             | `Game[]`              | Completed games                                            |
-| `standings`         | `Standing[]`          | Current standings                                          |
-| `playerSeasonStats` | `PlayerSeasonStats[]` | Aggregated player stats                                    |
-| `currentDay`        | `number`              | Simulation cursor                                          |
-| `baseSeed`          | `string`              | League RNG seed                                            |
-| `phase`             | `SeasonPhase`         | `preseason` \| `regular` \| `playoffs` \| `complete` \| `offseason` |
+| Field               | Type                  | Description                                                           |
+| ------------------- | --------------------- | --------------------------------------------------------------------- |
+| `season`            | `number`              | Season year (1-based)                                                 |
+| `teams`             | `TeamWithRoster[]`    | All teams with rosters                                                |
+| `schedule`          | `ScheduleGame[]`      | Full schedule                                                         |
+| `games`             | `Game[]`              | Completed games                                                       |
+| `standings`         | `Standing[]`          | Current standings                                                     |
+| `playerSeasonStats` | `PlayerSeasonStats[]` | Aggregated player stats                                               |
+| `currentDay`        | `number`              | Simulation cursor                                                     |
+| `baseSeed`          | `string`              | League RNG seed                                                       |
+| `phase`             | `SeasonPhase`         | `preseason` \| `regular` \| `playoffs` \| `complete` \| `offseason`   |
 | `offseasonPhase`    | `OffseasonPhase?`     | During offseason: `staff` \| `re_signing` \| `draft` \| `free_agency` |
-| `playoffBracket`    | `PlayoffBracket?`     | Present during/after playoffs                              |
-| `draftState`        | `DraftState?`         | Draft board, order, selections, and remaining prospects    |
+| `playoffBracket`    | `PlayoffBracket?`     | Present during/after playoffs                                         |
+| `draftState`        | `DraftState?`         | Draft board, order, selections, and remaining prospects               |
 
 ### `SeasonHistoryEntry`
 
@@ -229,8 +229,11 @@ Includes player/team IDs, start/end seasons, yearly salary list, contract type (
 
 `StaffMember` records role, team assignment, ratings, and coaching preferences
 for head coaches, coordinators, and scouting staff. `StaffContract` records staff
-salary and term. Staff budgets and derived philosophy feed team financials,
-development, and game simulation.
+salary and term and is the authority for employment in the current cap season.
+At staff week, ended contracts expire and affected coaches return to the market.
+Staff budgets compare annual payroll for `currentCapSeason`; synchronized staff
+assignments then derive payroll, coaching, scouting, philosophy, development, and
+game-simulation effects.
 
 Trades use `TradeProposal` sides containing players and draft picks. The engine
 validates roster, salary, timing, and asset rules, records completed trades in

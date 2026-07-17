@@ -675,7 +675,7 @@ function ScheduleGateActions({
         </Button>
       ) : null}
 
-      {canCompleteStaffPhase ? (
+      {state.phase === "offseason" && state.offseasonPhase === "staff" ? (
         <Button size="sm" variant="secondary" asChild>
           <Link to="/league/staff">Manage staff</Link>
         </Button>

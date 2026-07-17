@@ -1,8 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useState } from "react"
 
-import type { StaffExtensionOffer, StaffMember, StaffOffer } from "@workspace/shared/types"
-import { getStaffByRole } from "@workspace/sim"
+import type {
+  StaffExtensionOffer,
+  StaffMember,
+  StaffOffer,
+} from "@workspace/shared/types"
+import { getStaffByRole, getVacantStaffRoles } from "@workspace/sim"
 
 import { ExtendStaffDialog } from "@/components/league/staff/ExtendStaffDialog"
 import { FireStaffDialog } from "@/components/league/staff/FireStaffDialog"
@@ -68,6 +72,7 @@ function LeagueStaffPage() {
   const coachingLevel = teamFinance?.coachingLevel ?? 5
   const scoutingLevel = teamFinance?.scoutingLevel ?? 5
   const developmentLevel = teamFinance?.developmentLevel ?? 5
+  const vacantRoles = getVacantStaffRoles(league, userTeamId)
 
   function handleHireConfirm(staffId: string, offer: StaffOffer) {
     void submitStaffContractOffer(staffId, offer)
@@ -126,22 +131,29 @@ function LeagueStaffPage() {
           {isStaffPhase ? (
             <>
               <StaffBudgetBar budget={staffBudget} payroll={staffPayroll} />
-              {canCompleteStaffPhase ? (
-                <div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => void advanceStaffMarketDay()}>
-                      Advance staff day
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void completeStaffPhase()}
-                    >
-                      Complete staff phase
-                    </Button>
-                  </div>
-                </div>
+              {vacantRoles.length > 0 ? (
+                <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  Fill all four staff roles before continuing to re-signing.
+                </p>
               ) : null}
+              <div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => void advanceStaffMarketDay()}
+                  >
+                    Advance staff day
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!canCompleteStaffPhase}
+                    onClick={() => void completeStaffPhase()}
+                  >
+                    Complete staff phase
+                  </Button>
+                </div>
+              </div>
             </>
           ) : null}
 

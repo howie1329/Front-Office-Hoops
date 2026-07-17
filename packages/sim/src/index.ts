@@ -31,7 +31,10 @@ export {
   sortPlayerSeasonStats,
 } from "./derivePlayerSeasonStats"
 export { simulateDay } from "./simulateDay"
-export { simulateRegularDay, simulateLeagueRegularDay } from "./simulateRegularDay"
+export {
+  simulateRegularDay,
+  simulateLeagueRegularDay,
+} from "./simulateRegularDay"
 export { simulateWeek } from "./simulateWeek"
 export { simulateSeason } from "./simulateSeason"
 export { simulatePlayoffDay } from "./simulatePlayoffDay"
@@ -79,13 +82,16 @@ export {
 export {
   applyStaffBudgetsFromOwners,
   derivePhilosophyFromStaff,
+  getStaffEmploymentSeason,
   getHeadCoachPace,
   getStaffByRole,
   getTeamStaff,
+  getVacantStaffRoles,
   hireStaff,
   fireStaff,
   extendStaffContract,
   initializeStaffForLeague,
+  reconcileStaffEmployment,
   syncLeagueStaffFinancials,
 } from "./staff"
 export { startNextSeason } from "./startNextSeason"
@@ -210,16 +216,28 @@ export type {
   AdvanceStopReason,
   AdvanceTarget,
 } from "./advance/advanceSeason"
-export { beginRegularSeason, skipRemainingExhibitions } from "./preseason/beginRegularSeason"
+export {
+  beginRegularSeason,
+  skipRemainingExhibitions,
+} from "./preseason/beginRegularSeason"
 export { addCampPlayersToTeams } from "./preseason/campPlayers"
-export { isPreseasonComplete, hasRemainingExhibitions } from "./preseason/isPreseasonComplete"
+export {
+  isPreseasonComplete,
+  hasRemainingExhibitions,
+} from "./preseason/isPreseasonComplete"
 export {
   genFuzz,
   getDisplayedRatings,
   getDisplayedSkillRating,
   resolveScoutingLevel,
 } from "./scouting/displayedRatings"
-export { deriveOverall, getSkillRatings, deriveTeamOverall, deriveTeamOffense, deriveTeamDefense } from "./playerRatings"
+export {
+  deriveOverall,
+  getSkillRatings,
+  deriveTeamOverall,
+  deriveTeamOffense,
+  deriveTeamDefense,
+} from "./playerRatings"
 export {
   getTeamScheduleFatigue,
   getFatigueEfficiencyPenalty,

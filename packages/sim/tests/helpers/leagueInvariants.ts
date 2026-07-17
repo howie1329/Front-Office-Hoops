@@ -7,6 +7,9 @@ import {
 } from "@workspace/shared/constants"
 import type { LeagueRecord, Player } from "@workspace/shared/types"
 
+import { STAFF_ROLES } from "../../src/staff/deriveTeamStaff"
+import { getStaffPayroll } from "../../src/staff/staffPayroll"
+
 function expectUnique(values: string[], label: string): void {
   expect(new Set(values).size, `${label} must be unique`).toBe(values.length)
 }
@@ -36,6 +39,10 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
   }
   const teams = league.seasonState.teams
   const teamIds = new Set(teams.map((team) => team.id))
+  const employmentSeason = league.leagueFinancials.currentCapSeason
+  const staffIsReconciled =
+    league.seasonState.phase !== "offseason" ||
+    league.seasonState.offseasonPhase !== "contract_options"
   const rosterPlayers = allRosterPlayers(league)
   const rosterPlayerIds = new Set(rosterPlayers.map((player) => player.id))
   const freeAgentIds = new Set(league.freeAgentPool.map((player) => player.id))
@@ -56,6 +63,10 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
     "team IDs"
   )
   expectUnique(allPlayerIds, "player IDs")
+  expectUnique(
+    [...league.staff, ...league.collegeCoaches].map((member) => member.id),
+    "staff IDs"
+  )
 
   for (const team of teams) {
     if (enforceRosterMinimum) {
@@ -103,6 +114,61 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
       `${contract.id} player`
     ).toBe(true)
     expect(teamIds.has(contract.teamId), `${contract.id} team`).toBe(true)
+  }
+
+  for (const team of teams) {
+    const assignedStaff = league.staff.filter(
+      (member) => member.teamId === team.id
+    )
+    expectUnique(
+      assignedStaff.map((member) => member.role),
+      `${team.id} staff roles`
+    )
+
+    if (staffIsReconciled) {
+      for (const member of assignedStaff) {
+        const coveringContracts = league.staffContracts.filter(
+          (contract) =>
+            contract.staffId === member.id &&
+            contract.teamId === team.id &&
+            contract.status === "active" &&
+            contract.startSeason <= employmentSeason &&
+            contract.endSeason >= employmentSeason
+        )
+        expect(
+          coveringContracts,
+          `${member.id} must have one current contract`
+        ).toHaveLength(1)
+      }
+
+      const teamFinance = league.teamFinancials.find(
+        (entry) => entry.teamId === team.id
+      )
+      expect(teamFinance, `${team.id} finances`).toBeTruthy()
+      expect(teamFinance?.staffPayroll, `${team.id} staff payroll`).toBe(
+        getStaffPayroll(team.id, league.staffContracts, employmentSeason)
+      )
+    }
+
+    if (
+      staffIsReconciled &&
+      !(
+        league.seasonState.phase === "offseason" &&
+        league.seasonState.offseasonPhase === "staff"
+      )
+    ) {
+      expect(
+        assignedStaff.map((member) => member.role).sort(),
+        `${team.id} must fill every staff role`
+      ).toEqual([...STAFF_ROLES].sort())
+    }
+  }
+
+  for (const contract of league.staffContracts) {
+    expect(contract.yearlySalaries).toHaveLength(
+      contract.endSeason - contract.startSeason + 1
+    )
+    expect(teamIds.has(contract.teamId), `${contract.id} staff team`).toBe(true)
   }
 
   for (const pick of league.draftPickAssets) {

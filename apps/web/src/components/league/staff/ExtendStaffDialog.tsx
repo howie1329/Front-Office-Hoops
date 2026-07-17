@@ -5,6 +5,7 @@ import type {
   StaffExtensionOffer,
   StaffMember,
 } from "@workspace/shared/types"
+import { getStaffEmploymentSeason } from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import { formatStaffRole } from "@/components/league/staff/staffLabels"
@@ -47,17 +48,12 @@ export function ExtendStaffDialog({
   onClose,
   onConfirm,
 }: ExtendStaffDialogProps) {
-  const season = league.seasonState.season
+  const season = getStaffEmploymentSeason(league)
   const contract = member
     ? getActiveStaffContract(league, member.id, teamId)
     : undefined
   const currentSalary = getCurrentStaffSalary(contract, season)
   const yearsRemaining = getStaffYearsRemaining(contract, season)
-  const currentContractRemaining = contract
-    ? contract.yearlySalaries
-        .slice(Math.max(0, season - contract.startSeason))
-        .reduce((sum, salary) => sum + salary, 0)
-    : 0
 
   const [years, setYears] = useState(2)
   const [salary, setSalary] = useState(currentSalary || 1)
@@ -71,10 +67,10 @@ export function ExtendStaffDialog({
   }, [contract, currentSalary, member?.id])
 
   const extensionTotal = estimateOfferPayroll(salary, years)
-  const projectedPayroll =
-    staffPayroll - currentContractRemaining + extensionTotal
+  const projectedPayroll = staffPayroll - currentSalary + salary
   const overBudget = projectedPayroll > staffBudget
-  const canSubmit = member && contract && years >= 1 && salary > 0 && !overBudget
+  const canSubmit =
+    member && contract && years >= 1 && salary > 0 && !overBudget
 
   return (
     <Dialog open={Boolean(member)} onOpenChange={(open) => !open && onClose()}>
@@ -135,6 +131,9 @@ export function ExtendStaffDialog({
             <p className="text-xs text-muted-foreground">
               Projected staff payroll after extension:{" "}
               {formatMoney(projectedPayroll)} / {formatMoney(staffBudget)}.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Total contract value: {formatMoney(extensionTotal)}.
             </p>
 
             {overBudget ? (

@@ -11,6 +11,7 @@ import {
 } from "../src"
 import { calculateMinSalary } from "../src/financials/capMath"
 import { expectLeagueInvariants } from "./helpers/leagueInvariants"
+import { fillUserStaffVacanciesForTest } from "./helpers/offseason"
 
 function getUserRosterSize(league: ReturnType<typeof createLeague>): number {
   return (
@@ -23,7 +24,7 @@ function fillUserRoster(league: ReturnType<typeof createLeague>) {
   let next = league
   const seasonFinancials = getSeasonFinancials(
     next.leagueFinancials,
-    next.leagueFinancials.currentCapSeason,
+    next.leagueFinancials.currentCapSeason
   )
 
   while (getUserRosterSize(next) < ROSTER_MAX) {
@@ -32,18 +33,13 @@ function fillUserRoster(league: ReturnType<typeof createLeague>) {
       throw new Error("Expected free agents to fill user roster")
     }
 
-    next = signFreeAgent(
-      next,
-      next.userTeamId!,
-      candidate.id,
-      {
-        firstYearSalary: calculateMinSalary(
-          seasonFinancials,
-          candidate.yearsOfService
-        ),
-        years: 1,
-      },
-    )
+    next = signFreeAgent(next, next.userTeamId!, candidate.id, {
+      firstYearSalary: calculateMinSalary(
+        seasonFinancials,
+        candidate.yearsOfService
+      ),
+      years: 1,
+    })
     expectLeagueInvariants(next)
   }
 
@@ -62,7 +58,7 @@ function trimUserRoster(league: ReturnType<typeof createLeague>) {
     }
 
     const candidates = [...userTeam.players].sort(
-      (left, right) => left.ratings.overall - right.ratings.overall,
+      (left, right) => left.ratings.overall - right.ratings.overall
     )
 
     let released = false
@@ -81,7 +77,9 @@ function trimUserRoster(league: ReturnType<typeof createLeague>) {
     }
 
     if (!released) {
-      throw new Error("Could not trim user roster without breaking position floors")
+      throw new Error(
+        "Could not trim user roster without breaking position floors"
+      )
     }
   }
 
@@ -90,7 +88,8 @@ function trimUserRoster(league: ReturnType<typeof createLeague>) {
 
 describe("league invariants", () => {
   it("survives five deterministic mini-league seasons through the command flow", () => {
-    let league = createLeague({ skipPreseason: true,
+    let league = createLeague({
+      skipPreseason: true,
       name: "Invariant Soak",
       baseSeed: "invariant-soak",
       rng: createRng("invariant-soak"),
@@ -134,8 +133,8 @@ describe("league invariants", () => {
           contract.teamId === league.userTeamId &&
           contract.status === "active" &&
           contract.options?.some(
-            (option) => option.yearIndex === 0 && option.type === "team",
-          ),
+            (option) => option.yearIndex === 0 && option.type === "team"
+          )
       )
       for (const contract of pendingOptions) {
         league = applyLeagueCommand(league, {
@@ -145,6 +144,9 @@ describe("league invariants", () => {
         })
       }
       league = applyLeagueCommand(league, { type: "completeContractOptions" })
+      expectLeagueInvariants(league)
+
+      league = fillUserStaffVacanciesForTest(league)
       expectLeagueInvariants(league)
 
       league = applyLeagueCommand(league, { type: "completeStaffPhase" })
@@ -174,5 +176,5 @@ describe("league invariants", () => {
 
     expect(league.seasonHistory).toHaveLength(5)
     expect(league.seasonState.season).toBe(6)
-  })
+  }, 10_000)
 })
