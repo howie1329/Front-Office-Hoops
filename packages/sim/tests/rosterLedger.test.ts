@@ -121,6 +121,9 @@ describe("rosterLedger", () => {
     expect(updated.leagueLog.some((entry) => entry.type === "draft_selection")).toBe(
       true
     )
+    expect(
+      updated.draftPickAssets.some((asset) => asset.id === pick?.assetId),
+    ).toBe(false)
   })
 
   it("is idempotent when no new draft selections are added", () => {

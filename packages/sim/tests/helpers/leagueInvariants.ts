@@ -180,6 +180,32 @@ export function expectLeagueInvariants(league: LeagueRecord): void {
     )
   }
 
+  const draftState = league.seasonState.draftState
+  if (draftState) {
+    for (const draftPick of draftState.order) {
+      const asset = league.draftPickAssets.find(
+        (pick) => pick.id === draftPick.assetId,
+      )
+
+      if (draftPick.playerId === null) {
+        expect(
+          draftPick.assetId,
+          `${draftPick.overallPick} active asset`,
+        ).toBeTruthy()
+        expect(
+          asset,
+          `${draftPick.overallPick} active asset record`,
+        ).toBeTruthy()
+        expect(
+          asset?.currentTeamId,
+          `${draftPick.overallPick} draft owner`,
+        ).toBe(draftPick.teamId)
+      } else {
+        expect(asset, `${draftPick.overallPick} consumed asset`).toBeUndefined()
+      }
+    }
+  }
+
   expect(league.owners).toHaveLength(teams.length)
   expectUnique(
     league.owners.map((owner) => owner.teamId),

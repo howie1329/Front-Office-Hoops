@@ -146,12 +146,42 @@ export function applyDraftSelections(
       (selection) => !priorSelections.has(selection.playerId)
     ) ?? []
 
+  const consumedPickIds = new Set(
+    nextSelections.flatMap((selection) => {
+      const draftPick = before.seasonState.draftState?.order.find(
+        (pick) => pick.overallPick === selection.overallPick,
+      )
+
+      if (draftPick?.assetId) {
+        return [draftPick.assetId]
+      }
+
+      const asset = league.draftPickAssets.find(
+        (pick) =>
+          pick.season === withContracts.seasonState.draftState?.year &&
+          pick.round === selection.round &&
+          pick.originalTeamId === draftPick?.originalTeamId,
+      )
+      return asset ? [asset.id] : []
+    }),
+  )
+
+  const withRetiredPicks =
+    consumedPickIds.size === 0
+      ? withContracts
+      : {
+          ...withContracts,
+          draftPickAssets: withContracts.draftPickAssets.filter(
+            (pick) => !consumedPickIds.has(pick.id),
+          ),
+        }
+
   if (nextSelections.length === 0) {
-    return withContracts
+    return withRetiredPicks
   }
 
   return appendLeagueLog(
-    withContracts,
+    withRetiredPicks,
     nextSelections.map((selection, index) =>
       createLeagueLogEntry({
         league: withContracts,

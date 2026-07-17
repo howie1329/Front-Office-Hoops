@@ -438,6 +438,41 @@ function tradePick(
   }
 }
 
+function updateActiveDraftPickOwners(
+  league: LeagueRecord,
+  fromPickIds: Set<string>,
+  toPickIds: Set<string>,
+  fromTeamId: string,
+  toTeamId: string,
+): LeagueRecord["seasonState"] {
+  const draftState = league.seasonState.draftState
+  if (!draftState) {
+    return league.seasonState
+  }
+
+  return {
+    ...league.seasonState,
+    draftState: {
+      ...draftState,
+      order: draftState.order.map((pick) => {
+        if (pick.playerId !== null || !pick.assetId) {
+          return pick
+        }
+
+        if (fromPickIds.has(pick.assetId)) {
+          return { ...pick, teamId: toTeamId }
+        }
+
+        if (toPickIds.has(pick.assetId)) {
+          return { ...pick, teamId: fromTeamId }
+        }
+
+        return pick
+      }),
+    },
+  }
+}
+
 function applyTradeExceptionsForTeam({
   teamId,
   outgoingSalary,
@@ -629,6 +664,13 @@ export function executeTrade(
       toNetValue: toHistory?.netValue ?? 0,
     },
   })
+  const seasonState = updateActiveDraftPickOwners(
+    league,
+    fromPickIds,
+    toPickIds,
+    context.fromTeam.id,
+    context.toTeam.id,
+  )
 
   return {
     ...league,
@@ -659,7 +701,7 @@ export function executeTrade(
     ),
     leagueLog: [...league.leagueLog, logEntry],
     seasonState: {
-      ...league.seasonState,
+      ...seasonState,
       teams: league.seasonState.teams.map((team) => {
         if (team.id === context.fromTeam.id) {
           return updateTeamPlayers(team, fromIds, playersToFrom)
