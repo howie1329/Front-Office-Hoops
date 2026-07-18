@@ -5,6 +5,7 @@ import {
   advanceLeague,
   createLeague,
   createRng,
+  getVacantStaffRoles,
 } from "@workspace/sim"
 import type {
   AdvancePolicy,
@@ -21,8 +22,12 @@ import type {
   StaffOffer,
   TradeProposal,
 } from "@workspace/shared/types"
+import { STAFF_MINIMUM_SALARY } from "@workspace/shared/constants"
 import { SAVE_VERSION } from "@workspace/shared/leagueTypes"
 import { toast } from "sonner"
+
+import { formatMoney } from "@/components/league/lib/moneyFormat"
+import { formatStaffRole } from "@/components/league/staff/staffLabels"
 
 import {
   clearActiveLeagueId,
@@ -381,8 +386,34 @@ export function useLeague() {
       }
 
       try {
-        scheduleSave(applyLeagueCommand(current, command))
-        if (command.type === "executeTrade" || command.type === "acceptTradeOffer") {
+        const updated = applyLeagueCommand(current, command)
+        if (
+          command.type === "advanceStaffMarketDay" &&
+          current.seasonState.offseasonPhase === "staff" &&
+          updated.seasonState.offseasonPhase === "re_signing" &&
+          current.userTeamId
+        ) {
+          const filledRoles = getVacantStaffRoles(current, current.userTeamId)
+          const season = current.leagueFinancials.currentCapSeason
+          const fallbackRoles = filledRoles.filter((role) =>
+            updated.staff.some(
+              (member) =>
+                member.teamId === current.userTeamId &&
+                member.id ===
+                  `staff_emergency_${season}_${current.userTeamId}_${role}`
+            )
+          )
+          if (fallbackRoles.length > 0) {
+            toast.warning("Staff vacancies filled", {
+              description: `${fallbackRoles.map(formatStaffRole).join(", ")} filled with interim staff at ${formatMoney(STAFF_MINIMUM_SALARY)} for one year.`,
+            })
+          }
+        }
+        scheduleSave(updated)
+        if (
+          command.type === "executeTrade" ||
+          command.type === "acceptTradeOffer"
+        ) {
           toast.success("Trade accepted", {
             description: "The transaction has been processed.",
           })
@@ -481,10 +512,8 @@ export function useLeague() {
     dispatch,
     beginPlayoffs: () => dispatch({ type: "beginPlayoffs" }),
     beginOffseason: () => dispatch({ type: "beginOffseason" }),
-    decideTeamOption: (
-      contractId: string,
-      decision: "exercise" | "decline",
-    ) => dispatch({ type: "decideTeamOption", contractId, decision }),
+    decideTeamOption: (contractId: string, decision: "exercise" | "decline") =>
+      dispatch({ type: "decideTeamOption", contractId, decision }),
     completeContractOptions: () =>
       dispatch({ type: "completeContractOptions" }),
     completeReSignings: () => dispatch({ type: "completeReSignings" }),

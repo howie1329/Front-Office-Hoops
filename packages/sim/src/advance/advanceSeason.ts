@@ -17,7 +17,10 @@ import { getAllPhaseEligibility } from "../phaseEligibility"
 import { isPreseasonComplete } from "../preseason/isPreseasonComplete"
 import { simulateDay } from "../simulateDay"
 import { simulateLeagueRegularDay } from "../simulateRegularDay"
-import { completeStaffPhase } from "../offseason/staffPhase"
+import {
+  completeStaffPhase,
+  completeStaffPhaseAtDeadline,
+} from "../offseason/staffPhase"
 import { completeReSigningPhase } from "../offseason/reSigning"
 import {
   advanceToFreeAgencyPhase,
@@ -349,10 +352,11 @@ function reconcileCalendarPhase(
         offseasonPhase === "staff" &&
         state.currentDay >= milestones.staffPhaseEndDay
       ) {
-        if (!eligibility.completeStaffPhase.allowed) {
-          return { league: current, events, stoppedReason: "staff" }
+        if (eligibility.completeStaffPhase.allowed) {
+          current = completeStaffPhase(current, rng)
+        } else {
+          current = completeStaffPhaseAtDeadline(current, rng)
         }
-        current = completeStaffPhase(current, rng)
         events.push({ type: "phase_started", phase: "re_signing" })
         continue
       }

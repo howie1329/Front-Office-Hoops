@@ -48,9 +48,6 @@ export function AdvanceControls({
     return null
   }
 
-  const canAdvance =
-    phase === "regular" || phase === "preseason" || phase === "playoffs"
-
   return (
     <Card>
       <CardHeader>
@@ -62,14 +59,12 @@ export function AdvanceControls({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {canAdvance ? (
-          <AdvanceSplitButton
-            phase={phase}
-            disabled={!state || status === "loading"}
-            onAdvance={onAdvance}
-            onSimPlayoffs={onSimPlayoffs}
-          />
-        ) : null}
+        <AdvanceSplitButton
+          phase={phase}
+          disabled={!state || status === "loading"}
+          onAdvance={onAdvance}
+          onSimPlayoffs={onSimPlayoffs}
+        />
 
         {lastAdvanceResult ? (
           <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
@@ -147,5 +142,7 @@ function stopReasonLabel(reason: AdvanceStopReason): string {
       return "draft incomplete"
     case "roster_under_limit":
       return "roster under limit"
+    case "staff":
+      return "staff phase needs attention"
   }
 }

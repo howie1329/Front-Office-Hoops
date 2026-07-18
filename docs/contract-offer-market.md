@@ -47,10 +47,16 @@ on market-day advancement.
 - AI staff offers are generated when staff week opens and after each market day.
 - User staff offers are pending offers, not immediate hires.
 - Advancing a staff market day resolves active offers.
+- `staffPhaseEndDay` is an exclusive boundary; staff-day advancement cannot
+  move the league beyond it.
 - Accepted staff are hired through the existing staff hiring path.
 - Losing offers expire when a candidate accepts another offer.
 - Staff budgets limit current-season payroll, not total contract value.
-- The user cannot leave staff week with a vacant role. Remaining AI vacancies receive deterministic one-year emergency hires, which may exceed an AI team's budget so the offseason cannot deadlock.
+- The user cannot leave staff week with a vacant role before the deadline. On
+  the final market-day advance, remaining user vacancies receive deterministic
+  low-level one-year interim hires at the fixed staff minimum salary. Remaining
+  AI vacancies receive deterministic one-year emergency hires, which may exceed
+  an AI team's budget so the offseason cannot deadlock.
 
 ### Free Agency
 

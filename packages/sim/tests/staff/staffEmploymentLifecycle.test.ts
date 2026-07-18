@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest"
 
-import { createLeague, createRng, getPhaseEligibility } from "../../src"
+import {
+  advanceLeague,
+  advanceStaffMarketDay,
+  createLeague,
+  createRng,
+  getCurrentCalendar,
+  getPhaseEligibility,
+} from "../../src"
+import { STAFF_MINIMUM_SALARY } from "@workspace/shared/constants"
 import { completeStaffPhase } from "../../src/offseason/staffPhase"
 import { STAFF_ROLES } from "../../src/staff/deriveTeamStaff"
 import {
@@ -260,5 +268,142 @@ describe("staff employment lifecycle", () => {
         completed.staff.filter((member) => member.teamId === team.id)
       ).toHaveLength(STAFF_ROLES.length)
     }
+  })
+
+  it("auto-fills every user vacancy at the staff deadline", () => {
+    let league = reconcileStaffEmployment(inStaffWeek("staff-user-deadline"))
+    const teamId = league.userTeamId!
+
+    for (const member of league.staff.filter(
+      (entry) => entry.teamId === teamId
+    )) {
+      const fired = fireStaff(league, teamId, member.id)
+      expect(fired.ok).toBe(true)
+      if (!fired.ok) return
+      league = fired.league
+    }
+
+    const deadline = getCurrentCalendar(league.seasonState).milestones
+      .staffPhaseEndDay
+    league = {
+      ...league,
+      seasonState: {
+        ...league.seasonState,
+        currentDay: deadline - 1,
+      },
+    }
+
+    const completed = advanceStaffMarketDay(league, createRng("user-deadline"))
+
+    expect(completed.seasonState.offseasonPhase).toBe("re_signing")
+    expect(completed.seasonState.currentDay).toBe(deadline)
+    expect(getVacantStaffRoles(completed, teamId)).toEqual([])
+
+    const fallbackStaff = completed.staff.filter(
+      (entry) =>
+        entry.teamId === teamId && entry.id.startsWith("staff_emergency_")
+    )
+    expect(fallbackStaff).toHaveLength(STAFF_ROLES.length)
+    for (const member of fallbackStaff) {
+      expect(
+        completed.staffContracts.find(
+          (contract) =>
+            contract.staffId === member.id &&
+            contract.teamId === teamId &&
+            contract.status === "active"
+        )
+      ).toMatchObject({
+        endSeason: getStaffEmploymentSeason(completed),
+        yearlySalaries: [STAFF_MINIMUM_SALARY],
+      })
+    }
+
+    expect(() =>
+      advanceStaffMarketDay(completed, createRng("after-deadline"))
+    ).toThrow("Staff market days can only advance during staff week")
+  })
+
+  it("completes the staff phase at the calendar boundary during automatic advancement", () => {
+    let league = reconcileStaffEmployment(
+      inStaffWeek("staff-calendar-deadline")
+    )
+    const teamId = league.userTeamId!
+    const member = league.staff.find((entry) => entry.teamId === teamId)!
+    const fired = fireStaff(league, teamId, member.id)
+    expect(fired.ok).toBe(true)
+    if (!fired.ok) return
+    league = fired.league
+
+    const deadline = getCurrentCalendar(league.seasonState).milestones
+      .staffPhaseEndDay
+    const atBoundary = {
+      ...league,
+      seasonState: {
+        ...league.seasonState,
+        currentDay: deadline,
+      },
+    }
+
+    const result = advanceLeague(
+      atBoundary,
+      {
+        target: "day",
+        policy: "runThrough",
+        league: atBoundary,
+        userTeamId: teamId,
+      },
+      createRng("calendar-deadline")
+    )
+
+    expect(result.league.seasonState.offseasonPhase).toBe("re_signing")
+    expect(result.league.seasonState.currentDay).toBe(deadline + 1)
+    expect(getVacantStaffRoles(result.league, teamId)).toEqual([])
+  })
+
+  it("does not add fallback staff when the user roster is already full", () => {
+    const base = createLeague({
+      skipPreseason: true,
+      name: "Staff no fallback",
+      baseSeed: "staff-no-fallback",
+      rng: createRng("staff-no-fallback"),
+      useMiniLeague: true,
+      userTeamId: "t_baltimore_foundry",
+    })
+    const league = reconcileStaffEmployment({
+      ...base,
+      seasonState: {
+        ...base.seasonState,
+        phase: "offseason",
+        offseasonPhase: "staff",
+      },
+    })
+    const teamId = league.userTeamId!
+    const originalUserStaffIds = new Set(
+      league.staff
+        .filter((member) => member.teamId === teamId)
+        .map((member) => member.id)
+    )
+    const deadline = getCurrentCalendar(league.seasonState).milestones
+      .staffPhaseEndDay
+    const atFinalDay = {
+      ...league,
+      seasonState: {
+        ...league.seasonState,
+        currentDay: deadline - 1,
+      },
+    }
+
+    const completed = advanceStaffMarketDay(
+      atFinalDay,
+      createRng("no-fallback")
+    )
+
+    expect(completed.seasonState.offseasonPhase).toBe("re_signing")
+    expect(
+      completed.staff.some(
+        (member) =>
+          member.teamId === teamId && !originalUserStaffIds.has(member.id)
+      )
+    ).toBe(false)
   })
 })

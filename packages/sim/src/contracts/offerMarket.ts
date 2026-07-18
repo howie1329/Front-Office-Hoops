@@ -10,10 +10,13 @@ import type {
 } from "@workspace/shared/types"
 import { ROSTER_MAX } from "@workspace/shared/constants"
 
-import { getStaffByRole, STAFF_ROLES, syncLeagueStaffFinancials } from "../staff"
+import { getStaffByRole, STAFF_ROLES } from "../staff"
 import { validateStaffHire, hireStaff } from "../staff/hireStaff"
 import { findPlayer } from "../roster/ledger"
-import { canExtendContract, extendContract } from "../financials/contractExtensions"
+import {
+  canExtendContract,
+  extendContract,
+} from "../financials/contractExtensions"
 import {
   canSignPlayer,
   getExternalFreeAgents,
@@ -47,7 +50,7 @@ const PLAYER_OFFER_MAX_ATTEMPTS = 3
 function createOfferId(
   candidateId: string,
   teamId: string,
-  phase: ContractMarketPhase,
+  phase: ContractMarketPhase
 ): string {
   return `offer_${phase}_${teamId}_${candidateId}_${crypto.randomUUID().slice(0, 8)}`
 }
@@ -61,7 +64,7 @@ function asContractOffer(
     phase: ContractMarketPhase
     offer: FreeAgentOffer | StaffOffer | ExtensionOffer
     signingException?: ContractOffer["signingException"]
-  },
+  }
 ): ContractOffer {
   return {
     id: createOfferId(input.candidateId, input.teamId, input.phase),
@@ -79,7 +82,7 @@ function asContractOffer(
 
 function withdrawExistingUserOffer(
   offers: ContractOffer[],
-  nextOffer: ContractOffer,
+  nextOffer: ContractOffer
 ): ContractOffer[] {
   return offers.map((offer) =>
     offer.status === "pending" &&
@@ -88,27 +91,24 @@ function withdrawExistingUserOffer(
     offer.candidateId === nextOffer.candidateId &&
     offer.teamId === nextOffer.teamId
       ? { ...offer, status: "withdrawn", resolvedDay: nextOffer.createdDay }
-      : offer,
+      : offer
   )
 }
 
-function getReSigningNegotiation(
-  league: LeagueRecord,
-  offer: ContractOffer,
-) {
+function getReSigningNegotiation(league: LeagueRecord, offer: ContractOffer) {
   return league.reSigningNegotiations.find(
     (entry) =>
       entry.candidateType === offer.candidateType &&
       entry.candidateId === offer.candidateId &&
       entry.teamId === offer.teamId &&
-      entry.phase === offer.phase,
+      entry.phase === offer.phase
   )
 }
 
 function updateReSigningNegotiation(
   league: LeagueRecord,
   offer: ContractOffer,
-  accepted: boolean,
+  accepted: boolean
 ) {
   const existing = getReSigningNegotiation(league, offer)
   const attemptsUsed = accepted
@@ -138,7 +138,7 @@ function updateReSigningNegotiation(
           entry.candidateId === offer.candidateId &&
           entry.teamId === offer.teamId &&
           entry.phase === offer.phase
-        ),
+        )
     ),
     next,
   ]
@@ -147,7 +147,7 @@ function updateReSigningNegotiation(
 function withUpdatedPlayerNegotiation(
   league: LeagueRecord,
   offer: ContractOffer,
-  accepted: boolean,
+  accepted: boolean
 ): LeagueRecord {
   if (offer.candidateType !== "player" || offer.phase === "staff") {
     return league
@@ -155,17 +155,13 @@ function withUpdatedPlayerNegotiation(
 
   return {
     ...league,
-    reSigningNegotiations: updateReSigningNegotiation(
-      league,
-      offer,
-      accepted,
-    ),
+    reSigningNegotiations: updateReSigningNegotiation(league, offer, accepted),
   }
 }
 
 function findStaffCandidate(
   league: LeagueRecord,
-  staffId: string,
+  staffId: string
 ): StaffMember | undefined {
   return (
     league.staff.find((entry) => entry.id === staffId) ??
@@ -177,45 +173,53 @@ export function getContractOffersForCandidate(
   league: LeagueRecord,
   candidateId: string,
   candidateType: ContractOffer["candidateType"],
-  phase?: ContractMarketPhase,
+  phase?: ContractMarketPhase
 ): ContractOffer[] {
   return league.contractOffers.filter(
     (offer) =>
       offer.candidateId === candidateId &&
       offer.candidateType === candidateType &&
-      (!phase || offer.phase === phase),
+      (!phase || offer.phase === phase)
   )
 }
 
 export function getReSigningAttemptsRemaining(
   league: LeagueRecord,
   candidateId: string,
-  teamId: string,
+  teamId: string
 ): number {
-  return getPlayerOfferAttemptsRemaining(league, candidateId, teamId, "re_signing")
+  return getPlayerOfferAttemptsRemaining(
+    league,
+    candidateId,
+    teamId,
+    "re_signing"
+  )
 }
 
 export function getPlayerOfferAttemptsRemaining(
   league: LeagueRecord,
   candidateId: string,
   teamId: string,
-  phase: ContractMarketPhase,
+  phase: ContractMarketPhase
 ): number {
   const negotiation = league.reSigningNegotiations.find(
     (entry) =>
       entry.candidateType === "player" &&
       entry.candidateId === candidateId &&
       entry.teamId === teamId &&
-      entry.phase === phase,
+      entry.phase === phase
   )
-  return Math.max(0, PLAYER_OFFER_MAX_ATTEMPTS - (negotiation?.attemptsUsed ?? 0))
+  return Math.max(
+    0,
+    PLAYER_OFFER_MAX_ATTEMPTS - (negotiation?.attemptsUsed ?? 0)
+  )
 }
 
 export function isPlayerOfferBlocked(
   league: LeagueRecord,
   candidateId: string,
   teamId: string,
-  phase: ContractMarketPhase,
+  phase: ContractMarketPhase
 ): boolean {
   return league.reSigningNegotiations.some(
     (entry) =>
@@ -223,19 +227,19 @@ export function isPlayerOfferBlocked(
       entry.candidateId === candidateId &&
       entry.teamId === teamId &&
       entry.phase === phase &&
-      entry.status === "failed",
+      entry.status === "failed"
   )
 }
 
 export function resetPlayerOfferNegotiations(
   league: LeagueRecord,
-  phases: ContractMarketPhase[],
+  phases: ContractMarketPhase[]
 ): LeagueRecord {
   const phaseSet = new Set(phases)
   return {
     ...league,
     reSigningNegotiations: league.reSigningNegotiations.filter(
-      (entry) => !phaseSet.has(entry.phase),
+      (entry) => !phaseSet.has(entry.phase)
     ),
   }
 }
@@ -244,7 +248,7 @@ export function submitPlayerContractOffer(
   league: LeagueRecord,
   teamId: string,
   playerId: string,
-  offer: FreeAgentOffer,
+  offer: FreeAgentOffer
 ): LeagueRecord {
   if (league.seasonState.phase !== "offseason") {
     throw new Error("Contract offers are only allowed during the offseason")
@@ -259,7 +263,7 @@ export function submitPlayerContractOffer(
 
   if (!phase) {
     throw new Error(
-      "Player contract offers are only allowed during re-signing or free agency",
+      "Player contract offers are only allowed during re-signing or free agency"
     )
   }
 
@@ -307,7 +311,7 @@ export function submitPlayerContractOffer(
         reSigningNegotiations: updateReSigningNegotiation(
           signed,
           nextOffer,
-          true,
+          true
         ),
       }
     }
@@ -315,7 +319,11 @@ export function submitPlayerContractOffer(
     return {
       ...league,
       contractOffers: [...league.contractOffers, resolvedOffer],
-      reSigningNegotiations: updateReSigningNegotiation(league, nextOffer, false),
+      reSigningNegotiations: updateReSigningNegotiation(
+        league,
+        nextOffer,
+        false
+      ),
     }
   }
 
@@ -336,7 +344,7 @@ export function submitPlayerExtensionOffer(
   league: LeagueRecord,
   teamId: string,
   playerId: string,
-  offer: ExtensionOffer,
+  offer: ExtensionOffer
 ): LeagueRecord {
   const validation = canExtendContract(league, teamId, playerId, offer)
   if (!validation.ok) {
@@ -344,7 +352,9 @@ export function submitPlayerExtensionOffer(
   }
 
   if (isPlayerOfferBlocked(league, playerId, teamId, "extension")) {
-    throw new Error("This player will not discuss an extension until the offseason")
+    throw new Error(
+      "This player will not discuss an extension until the offseason"
+    )
   }
 
   const player = findPlayer(league, playerId)
@@ -375,7 +385,7 @@ export function submitPlayerExtensionOffer(
       reSigningNegotiations: updateReSigningNegotiation(
         extended,
         nextOffer,
-        true,
+        true
       ),
     }
   }
@@ -391,7 +401,7 @@ export function submitStaffContractOffer(
   league: LeagueRecord,
   teamId: string,
   staffId: string,
-  offer: StaffOffer,
+  offer: StaffOffer
 ): LeagueRecord {
   if (
     league.seasonState.phase !== "offseason" ||
@@ -425,7 +435,7 @@ export function submitStaffContractOffer(
 function resolvePlayerOffers(
   league: LeagueRecord,
   candidateId: string,
-  offers: ContractOffer[],
+  offers: ContractOffer[]
 ): LeagueRecord {
   const player = findPlayer(league, candidateId)
   if (!player || player.teamId) {
@@ -505,7 +515,7 @@ function resolvePlayerOffers(
 function resolveStaffOffers(
   league: LeagueRecord,
   candidateId: string,
-  offers: ContractOffer[],
+  offers: ContractOffer[]
 ): LeagueRecord {
   const staff = findStaffCandidate(league, candidateId)
   if (!staff || staff.teamId) {
@@ -571,7 +581,7 @@ function resolveStaffOffers(
 function expireOffers(
   league: LeagueRecord,
   offers: ContractOffer[],
-  reason: string,
+  reason: string
 ): LeagueRecord {
   const ids = new Set(offers.map((offer) => offer.id))
   return {
@@ -584,19 +594,19 @@ function expireOffers(
             resolvedDay: league.seasonState.currentDay,
             decisionReason: reason,
           }
-        : offer,
+        : offer
     ),
   }
 }
 
 export function resolveContractMarketDay(
   league: LeagueRecord,
-  phase: Exclude<ContractMarketPhase, "re_signing">,
+  phase: Exclude<ContractMarketPhase, "re_signing">
 ): LeagueRecord {
   const keys = new Set(
     league.contractOffers
       .filter((offer) => offer.phase === phase && offer.status === "pending")
-      .map((offer) => `${offer.candidateType}:${offer.candidateId}`),
+      .map((offer) => `${offer.candidateType}:${offer.candidateId}`)
   )
 
   let current = league
@@ -610,7 +620,7 @@ export function resolveContractMarketDay(
         offer.phase === phase &&
         offer.status === "pending" &&
         offer.candidateType === candidateType &&
-        offer.candidateId === candidateId,
+        offer.candidateId === candidateId
     )
     current =
       candidateType === "player"
@@ -632,7 +642,7 @@ function hasPendingTeamOffer(
   phase: ContractMarketPhase,
   candidateId: string,
   candidateType: ContractOffer["candidateType"],
-  teamId: string,
+  teamId: string
 ): boolean {
   return league.contractOffers.some(
     (offer) =>
@@ -640,13 +650,13 @@ function hasPendingTeamOffer(
       offer.phase === phase &&
       offer.candidateId === candidateId &&
       offer.candidateType === candidateType &&
-      offer.teamId === teamId,
+      offer.teamId === teamId
   )
 }
 
 export function generateAiStaffMarketOffers(
   league: LeagueRecord,
-  rng: Rng,
+  rng: Rng
 ): LeagueRecord {
   if (
     league.seasonState.phase !== "offseason" ||
@@ -678,7 +688,7 @@ export function generateAiStaffMarketOffers(
       const offer: StaffOffer = {
         years: rng.int(1, 3),
         firstYearSalary: roundMoney(
-          market.expectedSalary * (0.9 + rng.next() * 0.25),
+          market.expectedSalary * (0.9 + rng.next() * 0.25)
         ),
       }
       const validation = validateStaffHire(current, teamId, candidate.id, offer)
@@ -694,7 +704,7 @@ export function generateAiStaffMarketOffers(
 
 export function generateAiFreeAgencyMarketOffers(
   league: LeagueRecord,
-  rng: Rng,
+  rng: Rng
 ): LeagueRecord {
   if (
     league.seasonState.phase !== "offseason" ||
@@ -706,7 +716,7 @@ export function generateAiFreeAgencyMarketOffers(
   let current = league
   const seasonFinancials = getSeasonFinancials(
     current.leagueFinancials,
-    current.leagueFinancials.currentCapSeason,
+    current.leagueFinancials.currentCapSeason
   )
 
   for (const teamFinance of current.teamFinancials) {
@@ -718,7 +728,7 @@ export function generateAiFreeAgencyMarketOffers(
       .sort(
         (a, b) =>
           getProjectedPlayerValue(b, { league: current }) -
-          getProjectedPlayerValue(a, { league: current }),
+          getProjectedPlayerValue(a, { league: current })
       )
       .slice(0, 12)
     const player = candidates[rng.int(0, Math.max(0, candidates.length - 1))]
@@ -729,37 +739,52 @@ export function generateAiFreeAgencyMarketOffers(
         "free_agency",
         player.id,
         "player",
-        teamFinance.teamId,
+        teamFinance.teamId
       )
     ) {
       continue
     }
 
-    const offer = buildExternalFaOffer(player, teamFinance, seasonFinancials, rng)
+    const offer = buildExternalFaOffer(
+      player,
+      teamFinance,
+      seasonFinancials,
+      rng
+    )
     const position = getTeamFinancialPosition(
       current,
       teamFinance.teamId,
-      seasonFinancials.season,
+      seasonFinancials.season
     )
     if (
       !canAffordOffer(
         teamFinance,
         position.taxPayroll,
         offer.firstYearSalary,
-        seasonFinancials,
+        seasonFinancials
       )
     ) {
       continue
     }
-    const validation = canSignPlayer(current, teamFinance.teamId, player.id, offer)
+    const validation = canSignPlayer(
+      current,
+      teamFinance.teamId,
+      player.id,
+      offer
+    )
     if (!validation.ok) {
       continue
     }
 
-    current = submitPlayerContractOffer(current, teamFinance.teamId, player.id, {
-      ...offer,
-      signingException: validation.signingException,
-    })
+    current = submitPlayerContractOffer(
+      current,
+      teamFinance.teamId,
+      player.id,
+      {
+        ...offer,
+        signingException: validation.signingException,
+      }
+    )
   }
 
   return current
@@ -767,17 +792,17 @@ export function generateAiFreeAgencyMarketOffers(
 
 export function processAiReSigningOffers(
   league: LeagueRecord,
-  rng: Rng,
+  rng: Rng
 ): LeagueRecord {
   let current = league
   const seasonFinancials = getSeasonFinancials(
     current.leagueFinancials,
-    current.leagueFinancials.currentCapSeason,
+    current.leagueFinancials.currentCapSeason
   )
 
   for (const teamId of getAiTeams(current)) {
     const teamFinance = current.teamFinancials.find(
-      (entry) => entry.teamId === teamId,
+      (entry) => entry.teamId === teamId
     )
     if (!teamFinance) {
       continue
@@ -785,7 +810,7 @@ export function processAiReSigningOffers(
     const candidates = getTeamExpiredFreeAgents(current, teamId).sort(
       (a, b) =>
         getProjectedPlayerValue(b, { league: current }) -
-        getProjectedPlayerValue(a, { league: current }),
+        getProjectedPlayerValue(a, { league: current })
     )
     for (const player of candidates.slice(0, 4)) {
       const priorSalary = getPriorContractSalary(current.contracts, player)
@@ -795,7 +820,7 @@ export function processAiReSigningOffers(
         teamFinance,
         seasonFinancials,
         priorSalary,
-        rng,
+        rng
       )
       offer.firstYearSalary = Math.max(offer.firstYearSalary, market.lowSalary)
       try {
@@ -809,37 +834,17 @@ export function processAiReSigningOffers(
   return current
 }
 
-export function advanceStaffMarketDay(
-  league: LeagueRecord,
-  rng: Rng,
-): LeagueRecord {
-  if (
-    league.seasonState.phase !== "offseason" ||
-    league.seasonState.offseasonPhase !== "staff"
-  ) {
-    throw new Error("Staff market days can only advance during staff week")
-  }
-
-  const resolved = resolveContractMarketDay(league, "staff")
-  const advanced: LeagueRecord = {
-    ...resolved,
-    seasonState: {
-      ...resolved.seasonState,
-      currentDay: resolved.seasonState.currentDay + 1,
-    },
-  }
-  return syncLeagueStaffFinancials(generateAiStaffMarketOffers(advanced, rng))
-}
-
 export function advanceFreeAgencyMarketDay(
   league: LeagueRecord,
-  rng: Rng,
+  rng: Rng
 ): LeagueRecord {
   if (
     league.seasonState.phase !== "offseason" ||
     league.seasonState.offseasonPhase !== "free_agency"
   ) {
-    throw new Error("Free-agency market days can only advance during free agency")
+    throw new Error(
+      "Free-agency market days can only advance during free agency"
+    )
   }
 
   const resolved = resolveContractMarketDay(league, "free_agency")
@@ -855,12 +860,12 @@ export function advanceFreeAgencyMarketDay(
 
 export function fillAiRostersAfterFreeAgency(
   league: LeagueRecord,
-  rng: Rng,
+  rng: Rng
 ): LeagueRecord {
   let current = league
   const seasonFinancials = getSeasonFinancials(
     current.leagueFinancials,
-    current.leagueFinancials.currentCapSeason,
+    current.leagueFinancials.currentCapSeason
   )
 
   for (const teamFinance of current.teamFinancials) {
@@ -871,7 +876,7 @@ export function fillAiRostersAfterFreeAgency(
     const skipped = new Set<string>()
     while (true) {
       const team = current.seasonState.teams.find(
-        (entry) => entry.id === teamFinance.teamId,
+        (entry) => entry.id === teamFinance.teamId
       )
       if (!team || team.players.length >= ROSTER_MAX) {
         break
@@ -888,27 +893,27 @@ export function fillAiRostersAfterFreeAgency(
         candidate,
         teamFinance,
         seasonFinancials,
-        rng,
+        rng
       )
       let validation = canSignPlayer(
         current,
         teamFinance.teamId,
         candidate.id,
-        offer,
+        offer
       )
       if (!validation.ok) {
         offer = {
           years: 1,
           firstYearSalary: calculateMinSalary(
             seasonFinancials,
-            candidate.yearsOfService,
+            candidate.yearsOfService
           ),
         }
         validation = canSignPlayer(
           current,
           teamFinance.teamId,
           candidate.id,
-          offer,
+          offer
         )
         if (!validation.ok) {
           skipped.add(candidate.id)

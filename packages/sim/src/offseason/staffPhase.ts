@@ -1,5 +1,6 @@
 import {
   COLLEGE_PROMOTION_THRESHOLD,
+  STAFF_MINIMUM_SALARY,
   STAFF_RATING_MAX,
 } from "@workspace/shared/constants"
 import type {
@@ -13,6 +14,7 @@ import {
   generateAiStaffMarketOffers,
   resolveContractMarketDay,
 } from "../contracts/offerMarket"
+import { getCurrentCalendar } from "../calendar"
 import { getStaffContractMarketValue } from "../contracts/marketValue"
 import {
   STAFF_ROLES,
@@ -121,12 +123,64 @@ export function completeStaffPhase(
   }
 
   const withResolvedOffers = resolveContractMarketDay(league, "staff")
-  const withCompleteAiStaff = fillAiStaffVacancies(withResolvedOffers)
+  return finalizeStaffPhase(withResolvedOffers, false)
+}
 
-  return {
-    ...withCompleteAiStaff,
-    seasonState: advanceToReSigningPhase(withCompleteAiStaff.seasonState),
+export function completeStaffPhaseAtDeadline(
+  league: LeagueRecord,
+  rng: Rng
+): LeagueRecord {
+  void rng
+  if (league.seasonState.phase !== "offseason") {
+    throw new Error("Staff phase can only be completed during the offseason")
   }
+
+  if ((league.seasonState.offseasonPhase ?? "staff") !== "staff") {
+    throw new Error("Staff phase is not active")
+  }
+
+  if (
+    league.seasonState.currentDay <
+    getCurrentCalendar(league.seasonState).milestones.staffPhaseEndDay
+  ) {
+    throw new Error("Staff phase deadline has not been reached")
+  }
+
+  const withResolvedOffers = resolveContractMarketDay(league, "staff")
+  return finalizeStaffPhase(withResolvedOffers, true)
+}
+
+export function advanceStaffMarketDay(
+  league: LeagueRecord,
+  rng: Rng
+): LeagueRecord {
+  if (
+    league.seasonState.phase !== "offseason" ||
+    league.seasonState.offseasonPhase !== "staff"
+  ) {
+    throw new Error("Staff market days can only advance during staff week")
+  }
+
+  const deadline = getCurrentCalendar(league.seasonState).milestones
+    .staffPhaseEndDay
+  if (league.seasonState.currentDay >= deadline) {
+    return completeStaffPhaseAtDeadline(league, rng)
+  }
+
+  const resolved = resolveContractMarketDay(league, "staff")
+  const nextDay = resolved.seasonState.currentDay + 1
+  const advanced: LeagueRecord = {
+    ...resolved,
+    seasonState: {
+      ...resolved.seasonState,
+      currentDay: nextDay,
+    },
+  }
+  if (nextDay >= deadline) {
+    return finalizeStaffPhase(advanced, true)
+  }
+
+  return syncLeagueStaffFinancials(generateAiStaffMarketOffers(advanced, rng))
 }
 
 export function beginStaffMarket(league: LeagueRecord, rng: Rng): LeagueRecord {
@@ -181,6 +235,43 @@ function expireCompetingStaffOffers(
           }
         : offer
     ),
+  }
+}
+
+function fillUserStaffVacancies(league: LeagueRecord): LeagueRecord {
+  if (!league.userTeamId) {
+    return league
+  }
+
+  let current = league
+  for (const role of getVacantStaffRoles(current, league.userTeamId)) {
+    const candidate = emergencyStaffMember(current, league.userTeamId, role)
+    current = {
+      ...current,
+      staff: [...current.staff, candidate],
+    }
+    current = commitStaffHire(current, league.userTeamId, candidate.id, {
+      years: 1,
+      firstYearSalary: STAFF_MINIMUM_SALARY,
+    })
+    current = expireCompetingStaffOffers(current, candidate.id)
+  }
+
+  return current
+}
+
+function finalizeStaffPhase(
+  league: LeagueRecord,
+  fillUserVacancies: boolean
+): LeagueRecord {
+  const withUserStaff = fillUserVacancies
+    ? fillUserStaffVacancies(league)
+    : league
+  const withCompleteAiStaff = fillAiStaffVacancies(withUserStaff)
+
+  return {
+    ...withCompleteAiStaff,
+    seasonState: advanceToReSigningPhase(withCompleteAiStaff.seasonState),
   }
 }
 

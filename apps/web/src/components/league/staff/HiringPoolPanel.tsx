@@ -1,12 +1,24 @@
 import { useMemo, useState } from "react"
+
 import { COLLEGE_PROMOTION_THRESHOLD } from "@workspace/shared/constants"
-import type { LeagueRecord, StaffMember, StaffRole } from "@workspace/shared/types"
+import type {
+  LeagueRecord,
+  StaffMember,
+  StaffRole,
+} from "@workspace/shared/types"
 import {
   getContractOffersForCandidate,
   getStaffByRole,
   getStaffContractMarketValue,
 } from "@workspace/sim"
 
+import {
+  SortableTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@/components/league/SortableTable"
+import type { ColumnDef, SortingState } from "@/components/league/SortableTable"
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import {
   formatDefensiveScheme,
@@ -14,7 +26,10 @@ import {
   formatStaffRole,
   STAFF_ROLES,
 } from "@/components/league/staff/staffLabels"
-import { getMarketPool, getVacantRoles } from "@/components/league/staff/staffSelectors"
+import {
+  getMarketPool,
+  getVacantRoles,
+} from "@/components/league/staff/staffSelectors"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -24,14 +39,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table"
 import { cn } from "@workspace/ui/lib/utils"
 
 type HiringPoolPanelProps = {
@@ -43,6 +50,18 @@ type HiringPoolPanelProps = {
 type PoolTab = "market" | "college"
 type RoleFilter = "all" | StaffRole
 
+type HiringPoolRow = {
+  member: StaffMember
+  name: string
+  role: string
+  overall: number
+  expected: string
+  bestOffer: string
+  schemes: string
+  roleFilled: boolean
+  matchesVacancy: boolean
+}
+
 export function HiringPoolPanel({
   league,
   teamId,
@@ -50,10 +69,13 @@ export function HiringPoolPanel({
 }: HiringPoolPanelProps) {
   const [poolTab, setPoolTab] = useState<PoolTab>("market")
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all")
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "overall", desc: true },
+  ])
 
   const vacantRoles = useMemo(
     () => getVacantRoles(league, teamId),
-    [league, teamId],
+    [league, teamId]
   )
 
   const marketPool = useMemo(() => getMarketPool(league), [league])
@@ -61,24 +83,126 @@ export function HiringPoolPanel({
   const collegePool = useMemo(
     () =>
       league.collegeCoaches.filter(
-        (member) => member.ratings.overall >= COLLEGE_PROMOTION_THRESHOLD,
+        (member) => member.ratings.overall >= COLLEGE_PROMOTION_THRESHOLD
       ),
-    [league.collegeCoaches],
+    [league.collegeCoaches]
   )
 
   const filteredPool = useMemo(() => {
     const source = poolTab === "market" ? marketPool : collegePool
-    const sorted = [...source].sort(
-      (left, right) => right.ratings.overall - left.ratings.overall,
-    )
     if (roleFilter === "all") {
-      return sorted
+      return source
     }
-    return sorted.filter((member) => member.role === roleFilter)
+    return source.filter((member) => member.role === roleFilter)
   }, [collegePool, marketPool, poolTab, roleFilter])
 
+  const rows = useMemo<HiringPoolRow[]>(
+    () =>
+      filteredPool.map((member) => {
+        const roleFilled = Boolean(
+          getStaffByRole(league.staff, teamId, member.role)
+        )
+        const matchesVacancy = vacantRoles.includes(member.role)
+        const market = getStaffContractMarketValue(member)
+        const sortedOffers = getContractOffersForCandidate(
+          league,
+          member.id,
+          "staff",
+          "staff"
+        )
+          .filter((offer) => offer.status === "pending")
+          .sort((a, b) => b.firstYearSalary - a.firstYearSalary)
+
+        return {
+          member,
+          name: `${member.firstName} ${member.lastName}`,
+          role: formatStaffRole(member.role),
+          overall: member.ratings.overall,
+          expected: `${formatMoney(market.lowSalary)}-${formatMoney(market.highSalary)}`,
+          bestOffer:
+            sortedOffers.length > 0
+              ? `${formatMoney(sortedOffers[0].firstYearSalary)} x ${sortedOffers[0].years}`
+              : "None",
+          schemes: `${formatOffensiveScheme(member.preferredOffense)} / ${formatDefensiveScheme(member.preferredDefense)}`,
+          roleFilled,
+          matchesVacancy,
+        }
+      }),
+    [filteredPool, league, teamId, vacantRoles]
+  )
+
+  const columns = useMemo<ColumnDef<HiringPoolRow>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ row }) => {
+          const { member, matchesVacancy } = row.original
+          return (
+            <>
+              {row.original.name}
+              {poolTab === "college" && member.potential ? (
+                <Badge variant="outline" className="ml-2">
+                  POT {member.potential}
+                </Badge>
+              ) : null}
+              {matchesVacancy ? (
+                <Badge className="ml-2">Open role</Badge>
+              ) : null}
+            </>
+          )
+        },
+      },
+      { accessorKey: "role", header: "Role" },
+      { accessorKey: "overall", header: "Overall" },
+      { accessorKey: "expected", header: "Expected" },
+      {
+        accessorKey: "bestOffer",
+        header: "Best offer",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">
+            {row.original.bestOffer}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "schemes",
+        header: "Schemes",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">
+            {row.original.schemes}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Offer",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Button
+            size="sm"
+            disabled={row.original.roleFilled}
+            onClick={() => onHire(row.original.member)}
+          >
+            {row.original.roleFilled ? "Role filled" : "Offer"}
+          </Button>
+        ),
+      },
+    ],
+    [onHire, poolTab]
+  )
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  })
+
   return (
-    <Card>
+    <Card className="min-h-[26rem] xl:min-h-0">
       <CardHeader>
         <CardTitle>Hiring pool</CardTitle>
         <CardDescription>
@@ -88,7 +212,7 @@ export function HiringPoolPanel({
             : " All staff roles are filled."}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
@@ -122,89 +246,21 @@ export function HiringPoolPanel({
           ))}
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Overall</TableHead>
-              <TableHead>Expected</TableHead>
-              <TableHead>Best offer</TableHead>
-              <TableHead>Schemes</TableHead>
-              <TableHead className="text-right">Offer</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPool.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-muted-foreground">
-                  No coaches match this filter.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredPool.map((member) => {
-                const roleFilled = Boolean(
-                  getStaffByRole(league.staff, teamId, member.role),
-                )
-                const matchesVacancy = vacantRoles.includes(member.role)
-                const market = getStaffContractMarketValue(member)
-                const sortedOffers = getContractOffersForCandidate(
-                  league,
-                  member.id,
-                  "staff",
-                  "staff",
-                )
-                  .filter((offer) => offer.status === "pending")
-                  .sort((a, b) => b.firstYearSalary - a.firstYearSalary)
-                const bestOfferText =
-                  sortedOffers.length > 0
-                    ? `${formatMoney(sortedOffers[0].firstYearSalary)} x ${sortedOffers[0].years}`
-                    : "None"
-
-                return (
-                  <TableRow
-                    key={member.id}
-                    className={cn(matchesVacancy && "bg-primary/5")}
-                  >
-                    <TableCell>
-                      {member.firstName} {member.lastName}
-                      {poolTab === "college" && member.potential ? (
-                        <Badge variant="outline" className="ml-2">
-                          POT {member.potential}
-                        </Badge>
-                      ) : null}
-                      {matchesVacancy ? (
-                        <Badge className="ml-2">Open role</Badge>
-                      ) : null}
-                    </TableCell>
-                    <TableCell>{formatStaffRole(member.role)}</TableCell>
-                    <TableCell>{member.ratings.overall}</TableCell>
-                    <TableCell className="tabular-nums">
-                      {formatMoney(market.lowSalary)}-
-                      {formatMoney(market.highSalary)}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {bestOfferText}
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {formatOffensiveScheme(member.preferredOffense)} /{" "}
-                      {formatDefensiveScheme(member.preferredDefense)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        disabled={roleFilled}
-                        onClick={() => onHire(member)}
-                      >
-                        {roleFilled ? "Role filled" : "Offer"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+        <div
+          tabIndex={0}
+          aria-label="Hiring pool table"
+          className="min-h-0 min-w-0 flex-1 overflow-auto rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <SortableTable
+            table={table}
+            emptyLabel="No coaches match this filter."
+            stickyHeader
+            className="min-w-[980px]"
+            rowClassName={(row) =>
+              cn(row.original.matchesVacancy && "bg-primary/5")
+            }
+          />
+        </div>
       </CardContent>
     </Card>
   )
@@ -220,7 +276,11 @@ function FilterButton({
   onClick: () => void
 }) {
   return (
-    <Button size="sm" variant={active ? "default" : "outline"} onClick={onClick}>
+    <Button
+      size="sm"
+      variant={active ? "default" : "outline"}
+      onClick={onClick}
+    >
       {label}
     </Button>
   )

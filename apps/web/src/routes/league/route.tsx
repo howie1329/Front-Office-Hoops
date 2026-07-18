@@ -42,6 +42,7 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 import { TooltipProvider } from "@workspace/ui/components/tooltip"
 
 export const Route = createFileRoute("/league")({
@@ -77,6 +78,10 @@ function LeagueLayout() {
   const isSetupRoute = isCreate || isPickTeam || isSaves
 
   if (status === "loading") {
+    if (isPickTeam) {
+      return <PickTeamLoadingState />
+    }
+
     return (
       <div className="mx-auto flex min-h-svh max-w-5xl items-center justify-center p-6">
         <p className="text-sm text-muted-foreground">Loading league…</p>
@@ -131,7 +136,7 @@ function LeagueLayout() {
             league?.pendingTradeOffers.filter(
               (offer) =>
                 offer.status === "pending" &&
-                offer.toTeamId === league.userTeamId,
+                offer.toTeamId === league.userTeamId
             ).length ?? 0
           }
         />
@@ -155,6 +160,62 @@ function LeagueLayout() {
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
+  )
+}
+
+function PickTeamLoadingState() {
+  return (
+    <div className="flex min-h-svh w-full flex-col gap-4 p-6" aria-busy="true">
+      <span className="sr-only">Loading team selection</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-36" />
+          <Skeleton className="h-4 w-80 max-w-[70vw]" />
+        </div>
+        <Skeleton className="h-6 w-14" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-5 w-52" />
+        <div className="grid overflow-hidden rounded-lg border sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div
+              key={index}
+              className="flex min-h-20 gap-3 border-b p-3 lg:min-h-24 lg:border-r lg:border-b-0 lg:last:border-r-0 sm:[&:nth-child(3)]:border-b-0 sm:[&:nth-child(odd)]:border-r"
+            >
+              <Skeleton className="size-5 shrink-0" />
+              <div className="w-full space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border">
+        <div className="flex items-center justify-between gap-3 border-b p-3">
+          <Skeleton className="h-8 w-72 max-w-[45vw]" />
+          <Skeleton className="h-8 w-48" />
+        </div>
+        <div className="grid min-h-0 flex-1 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <div className="space-y-px p-3">
+            {Array.from({ length: 10 }).map((_, index) => (
+              <Skeleton key={index} className="h-9 w-full" />
+            ))}
+          </div>
+          <div className="hidden border-l p-4 xl:block">
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="mt-2 h-3 w-1/2" />
+            <div className="mt-4 grid grid-cols-2 gap-2 border-y py-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-11 w-full" />
+              ))}
+            </div>
+            <Skeleton className="mt-4 h-20 w-full" />
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -192,8 +253,16 @@ const sidebarNavGroups: SidebarNavGroup[] = [
       { to: "/league/team", label: "My Team", icon: UserGroupIcon },
       { to: "/league/team-options", label: "Team Options", icon: StrategyIcon },
       { to: "/league/staff", label: "Staff", icon: StrategyIcon },
-      { to: "/league/re-signing", label: "Re-signing", icon: UserMultiple02Icon },
-      { to: "/league/free-agency", label: "Free Agency", icon: UserMultiple02Icon },
+      {
+        to: "/league/re-signing",
+        label: "Re-signing",
+        icon: UserMultiple02Icon,
+      },
+      {
+        to: "/league/free-agency",
+        label: "Free Agency",
+        icon: UserMultiple02Icon,
+      },
       {
         to: "/league/trades",
         label: "Trades",
@@ -206,9 +275,7 @@ const sidebarNavGroups: SidebarNavGroup[] = [
   },
   {
     label: "Office",
-    items: [
-      { to: "/league/history", label: "History", icon: HistoryIcon },
-    ],
+    items: [{ to: "/league/history", label: "History", icon: HistoryIcon }],
   },
 ]
 

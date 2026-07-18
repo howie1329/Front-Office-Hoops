@@ -1,12 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import { useState } from "react"
 
+import { STAFF_MINIMUM_SALARY } from "@workspace/shared/constants"
 import type {
   StaffExtensionOffer,
   StaffMember,
   StaffOffer,
 } from "@workspace/shared/types"
-import { getStaffByRole, getVacantStaffRoles } from "@workspace/sim"
+import {
+  getCurrentCalendar,
+  getStaffByRole,
+  getVacantStaffRoles,
+} from "@workspace/sim"
 
 import { ExtendStaffDialog } from "@/components/league/staff/ExtendStaffDialog"
 import { FireStaffDialog } from "@/components/league/staff/FireStaffDialog"
@@ -18,6 +23,7 @@ import {
 } from "@/components/league/staff/StaffRosterTable"
 import { StaffBudgetBar } from "@/components/league/staff/StaffBudgetBar"
 import { TeamStaffSummary } from "@/components/league/staff/TeamStaffSummary"
+import { formatMoney } from "@/components/league/lib/moneyFormat"
 import { useLeagueContext } from "@/contexts/LeagueContext"
 import { useTeamFinancials } from "@/hooks/useTeamFinancials"
 import { Button } from "@workspace/ui/components/button"
@@ -28,6 +34,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card"
+import { cn } from "@workspace/ui/lib/utils"
 
 export const Route = createFileRoute("/league/staff")({
   component: LeagueStaffPage,
@@ -73,6 +80,15 @@ function LeagueStaffPage() {
   const scoutingLevel = teamFinance?.scoutingLevel ?? 5
   const developmentLevel = teamFinance?.developmentLevel ?? 5
   const vacantRoles = getVacantStaffRoles(league, userTeamId)
+  const staffPhaseEndDay = getCurrentCalendar(league.seasonState).milestones
+    .staffPhaseEndDay
+  const isFinalStaffDay =
+    isStaffPhase && league.seasonState.currentDay >= staffPhaseEndDay - 1
+  const staffDaysRemaining = Math.max(
+    0,
+    staffPhaseEndDay - league.seasonState.currentDay
+  )
+  const isStaffDeadlineWarning = isStaffPhase && staffDaysRemaining <= 2
 
   function handleHireConfirm(staffId: string, offer: StaffOffer) {
     void submitStaffContractOffer(staffId, offer)
@@ -94,8 +110,8 @@ function LeagueStaffPage() {
     : false
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card>
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-y-auto xl:overflow-hidden">
+      <Card className="shrink-0">
         <CardHeader>
           <CardTitle>Staff</CardTitle>
           <CardDescription>
@@ -131,7 +147,18 @@ function LeagueStaffPage() {
           {isStaffPhase ? (
             <>
               <StaffBudgetBar budget={staffBudget} payroll={staffPayroll} />
-              {vacantRoles.length > 0 ? (
+              {isStaffDeadlineWarning ? (
+                <p
+                  role="status"
+                  className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                >
+                  {isFinalStaffDay
+                    ? "Final staff day: any open roles will be filled automatically after today’s offers resolve."
+                    : "Two staff days remain. Any open roles left on the final day will be filled automatically."}{" "}
+                  Fallback staff receive one-year contracts at{" "}
+                  {formatMoney(STAFF_MINIMUM_SALARY)}.
+                </p>
+              ) : vacantRoles.length > 0 ? (
                 <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   Fill all four staff roles before continuing to re-signing.
                 </p>
@@ -142,7 +169,9 @@ function LeagueStaffPage() {
                     size="sm"
                     onClick={() => void advanceStaffMarketDay()}
                   >
-                    Advance staff day
+                    {isFinalStaffDay
+                      ? "Finish staff phase"
+                      : "Advance staff day"}
                   </Button>
                   <Button
                     size="sm"
@@ -156,24 +185,41 @@ function LeagueStaffPage() {
               </div>
             </>
           ) : null}
-
-          <StaffRosterTable
-            league={league}
-            teamId={userTeamId}
-            editable={isStaffPhase}
-            onFire={rosterDialogs.openFire}
-            onExtend={rosterDialogs.openExtend}
-          />
         </CardContent>
       </Card>
 
-      {isStaffPhase ? (
-        <HiringPoolPanel
-          league={league}
-          teamId={userTeamId}
-          onHire={setHireTarget}
-        />
-      ) : null}
+      <div
+        className={cn(
+          "grid min-h-0 gap-4 xl:flex-1",
+          isStaffPhase && "xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)]"
+        )}
+      >
+        <Card className="min-h-[20rem] xl:min-h-0">
+          <CardHeader>
+            <CardTitle>Staff roster</CardTitle>
+            <CardDescription>
+              Review current assignments, contracts, and role ratings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <StaffRosterTable
+              league={league}
+              teamId={userTeamId}
+              editable={isStaffPhase}
+              onFire={rosterDialogs.openFire}
+              onExtend={rosterDialogs.openExtend}
+            />
+          </CardContent>
+        </Card>
+
+        {isStaffPhase ? (
+          <HiringPoolPanel
+            league={league}
+            teamId={userTeamId}
+            onHire={setHireTarget}
+          />
+        ) : null}
+      </div>
 
       <FireStaffDialog
         member={rosterDialogs.fireTarget}

@@ -16,10 +16,17 @@ import {
   advanceToDraftPhase,
   completeFreeAgencyPhase,
 } from "../offseason/phases"
-import { completeStaffPhase } from "../offseason/staffPhase"
+import {
+  advanceStaffMarketDay,
+  completeStaffPhase,
+} from "../offseason/staffPhase"
 import { completeContractOptions } from "../offseason/contractOptions"
 import { completeReSigningPhase } from "../offseason/reSigning"
-import { ensureFaPoolMinimum, decideTeamOption, renouncePlayerRights } from "../financials"
+import {
+  ensureFaPoolMinimum,
+  decideTeamOption,
+  renouncePlayerRights,
+} from "../financials"
 import {
   acceptTradeOffer,
   executeTrade,
@@ -29,7 +36,6 @@ import {
 import { extendStaffContract, fireStaff } from "../staff"
 import {
   advanceFreeAgencyMarketDay,
-  advanceStaffMarketDay,
   submitPlayerContractOffer,
   submitPlayerExtensionOffer,
   submitStaffContractOffer,
@@ -104,12 +110,16 @@ function applyLeagueCommandInternal(
 
   switch (command.type) {
     case "advance": {
-      const { league: advanced } = advanceLeague(league, {
-        target: command.target,
-        userTeamId: league.userTeamId,
+      const { league: advanced } = advanceLeague(
         league,
-        rngNonce: league.rngNonce,
-      }, resolvedRng)
+        {
+          target: command.target,
+          userTeamId: league.userTeamId,
+          league,
+          rngNonce: league.rngNonce,
+        },
+        resolvedRng
+      )
       return advanced
     }
 
@@ -122,7 +132,7 @@ function applyLeagueCommandInternal(
           league,
           rngNonce: league.rngNonce,
         },
-        resolvedRng,
+        resolvedRng
       )
       return advanced
     }
@@ -136,7 +146,7 @@ function applyLeagueCommandInternal(
           league,
           rngNonce: league.rngNonce,
         },
-        resolvedRng,
+        resolvedRng
       )
       return advanced
     }
@@ -249,11 +259,7 @@ function applyLeagueCommandInternal(
       if (!league.userTeamId) {
         throw new Error("User team must be selected before renouncing rights")
       }
-      return renouncePlayerRights(
-        league,
-        league.userTeamId,
-        command.playerId,
-      )
+      return renouncePlayerRights(league, league.userTeamId, command.playerId)
     }
 
     case "submitPlayerContractOffer": {
@@ -295,7 +301,7 @@ function applyLeagueCommandInternal(
         league,
         league.userTeamId,
         command.staffId,
-        command.offer,
+        command.offer
       )
     }
 
@@ -326,7 +332,7 @@ function applyLeagueCommandInternal(
         league,
         league.userTeamId,
         command.staffId,
-        command.offer,
+        command.offer
       )
       if (!result.ok) {
         throw new Error(result.reason)
@@ -362,13 +368,17 @@ function applyLeagueCommandInternal(
 
     case "acceptTradeOffer":
       if (!league.userTeamId) {
-        throw new Error("User team must be selected before accepting a trade offer")
+        throw new Error(
+          "User team must be selected before accepting a trade offer"
+        )
       }
       return acceptTradeOffer(league, command.offerId)
 
     case "rejectTradeOffer":
       if (!league.userTeamId) {
-        throw new Error("User team must be selected before rejecting a trade offer")
+        throw new Error(
+          "User team must be selected before rejecting a trade offer"
+        )
       }
       return rejectTradeOffer(league, command.offerId)
 

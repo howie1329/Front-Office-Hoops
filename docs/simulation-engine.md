@@ -184,7 +184,7 @@ complete → beginOffseason → staff → re_signing → draft → free_agency �
 - **Begin offseason** opens staff week and prepares offseason financial state.
 - **Staff week** first reconciles employment against the upcoming cap season. Deals that ended before that season expire, their coaches return to the market, and team payroll and staff effects are recomputed.
 - Staff hiring and extensions create contracts beginning in the upcoming cap season. The staff budget is an annual payroll limit, so validation uses that season's salary rather than the full multiyear contract value.
-- The user must fill head coach, offensive coordinator, defensive coordinator, and scouting head vacancies before advancing. At the end of the phase, AI vacancies are filled deterministically from the market; replacement-level interim coaches are generated only when no candidate exists.
+- Staff-day advancement stops at the calendar's exclusive `staffPhaseEndDay` boundary. The user must fill vacancies before the deadline; on the final market-day advance, remaining user roles receive deterministic low-level one-year interim contracts at the fixed staff minimum salary. AI vacancies are then filled deterministically from the market, with replacement-level interim coaches generated only when no candidate exists.
 - **Re-signing** lets the user negotiate with their own expired players first, then AI teams run re-signing.
 - **Draft** is required after every completed season, including Season 1. Drafted players receive rookie-scale/minimum contracts.
 - **Free agency** opens after the draft; undrafted prospects join the FA pool and the pool is topped up to at least 1.25× team count if thin.
