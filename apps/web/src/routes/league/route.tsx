@@ -21,6 +21,7 @@ import {
   UserGroupIcon,
   UserMultiple02Icon,
 } from "@hugeicons/core-free-icons"
+import type { CSSProperties } from "react"
 
 import { winPct } from "@/components/league/lib/teamFormat"
 import { ModeToggle } from "@/components/ModeToggle"
@@ -115,7 +116,10 @@ function LeagueLayout() {
 
   return (
     <TooltipProvider>
-      <SidebarProvider className="h-svh min-h-0 overflow-hidden">
+      <SidebarProvider
+        className="h-svh min-h-0 overflow-hidden"
+        style={{ "--sidebar-width": "14rem" } as CSSProperties}
+      >
         <LeagueSidebar
           pathname={pathname}
           leagueName={league?.name}
@@ -154,7 +158,7 @@ function LeagueLayout() {
               </p>
             </div>
           </header>
-          <div className="min-h-0 flex-1 p-4 sm:p-6">
+          <div className="min-h-0 flex-1 p-3 sm:p-4">
             <Outlet />
           </div>
         </SidebarInset>
@@ -245,6 +249,7 @@ const sidebarNavGroups: SidebarNavGroup[] = [
       { to: "/league/standings", label: "Standings", icon: RankingIcon },
       { to: "/league/calendar", label: "Calendar", icon: Calendar03Icon },
       { to: "/league/playoffs", label: "Playoffs", icon: AwardIcon },
+      { to: "/league/stats", label: "Stats", icon: Analytics01Icon },
     ],
   },
   {
@@ -258,6 +263,11 @@ const sidebarNavGroups: SidebarNavGroup[] = [
         label: "Re-signing",
         icon: UserMultiple02Icon,
       },
+    ],
+  },
+  {
+    label: "Market",
+    items: [
       {
         to: "/league/free-agency",
         label: "Free Agency",
@@ -270,12 +280,14 @@ const sidebarNavGroups: SidebarNavGroup[] = [
         badgeKey: "pendingTrades",
       },
       { to: "/league/draft", label: "Draft", icon: DraftingCompassIcon },
-      { to: "/league/stats", label: "Stats", icon: Analytics01Icon },
     ],
   },
   {
-    label: "Office",
-    items: [{ to: "/league/history", label: "History", icon: HistoryIcon }],
+    label: "Records",
+    items: [
+      { to: "/league/history", label: "History", icon: HistoryIcon },
+      { to: "/league/saves", label: "Saves", icon: Home01Icon },
+    ],
   },
 ]
 
@@ -320,30 +332,10 @@ function LeagueSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip="Front Office Hoops">
               <HugeiconsIcon icon={Basketball01Icon} strokeWidth={2} />
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate font-medium">
-                  {leagueName ?? "League"}
-                </span>
-                <span className="truncate text-muted-foreground">
-                  {teamAbbrev
-                    ? `${teamAbbrev} front office`
-                    : "Front Office Hoops"}
-                </span>
-              </span>
+              <span className="truncate font-medium">Front Office Hoops</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-
-        <div className="mx-2 rounded-lg border border-sidebar-border bg-background/70 p-2 text-xs group-data-[collapsible=icon]:hidden">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Record</span>
-            <span className="font-medium tabular-nums">{recordLabel}</span>
-          </div>
-          <div className="mt-1 flex items-center justify-between gap-3">
-            <span className="text-muted-foreground">Phase</span>
-            <span className="truncate text-right font-medium">{phaseName}</span>
-          </div>
-        </div>
       </SidebarHeader>
 
       <SidebarContent>
@@ -387,30 +379,27 @@ function LeagueSidebar({
               </SidebarMenu>
             </SidebarGroupContent>
             {groupIndex < sidebarNavGroups.length - 1 ? (
-              <SidebarSeparator className="mt-2" />
+              <SidebarSeparator />
             ) : null}
           </SidebarGroup>
         ))}
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Context</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <div className="flex flex-col gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-2 text-xs group-data-[collapsible=icon]:hidden">
-              <SidebarContextRow
-                label="Team"
-                value={teamName ? `${teamName} · ${teamAbbrev}` : "-"}
-              />
-              <SidebarContextRow
-                label="Overall"
-                value={teamOverall === undefined ? "-" : String(teamOverall)}
-              />
-              <SidebarContextRow label="Date" value={dateLabel} />
-            </div>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>
+        <div className="mx-2 border-b border-sidebar-border pb-2 text-xs group-data-[collapsible=icon]:hidden">
+          <p className="truncate font-medium">
+            {teamName ?? leagueName ?? "League"}
+          </p>
+          <p className="mt-0.5 truncate text-muted-foreground">
+            {teamAbbrev ? `${teamAbbrev} · ${recordLabel}` : recordLabel}
+          </p>
+          <p className="mt-1 truncate text-muted-foreground">
+            {phaseName} · {dateLabel}
+          </p>
+          {teamOverall !== undefined ? (
+            <p className="mt-1 text-muted-foreground">Overall {teamOverall}</p>
+          ) : null}
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center gap-1 group-data-[collapsible=icon]:flex-col">
@@ -427,15 +416,6 @@ function LeagueSidebar({
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
-}
-
-function SidebarContextRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="truncate text-right font-medium">{value}</span>
-    </div>
   )
 }
 

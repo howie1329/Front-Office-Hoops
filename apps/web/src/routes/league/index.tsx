@@ -107,29 +107,33 @@ function LeagueDashboardPage() {
     const myStanding = myTeam
       ? (seasonState.standings.find((row) => row.teamId === myTeam.id) ?? null)
       : null
-    const rank = myStanding
-      ? seasonState.standings.findIndex(
-          (row) => row.teamId === myStanding.teamId
-        ) + 1
-      : null
     const userTeamId = myTeam ? myTeam.id : null
     const standingsRows = getConferenceStandingsRows(seasonState, userTeamId)
+    const rank = myStanding
+      ? (standingsRows.find((row) => row.teamId === myStanding.teamId)?.rank ??
+        null)
+      : null
     const rosterRows = getRosterRows(seasonState, userTeamId)
-    const nextGames = seasonState.schedule
-      .filter(
-        (game) =>
-          game.status === "scheduled" &&
-          userTeamId !== null &&
-          (game.homeTeamId === userTeamId || game.awayTeamId === userTeamId)
-      )
+    const teamSchedule = seasonState.schedule.filter(
+      (game) =>
+        userTeamId !== null &&
+        (game.homeTeamId === userTeamId || game.awayTeamId === userTeamId)
+    )
+    const recentGames = teamSchedule
+      .filter((game) => game.status === "final")
+      .sort((a, b) => b.day - a.day || b.id.localeCompare(a.id))
+      .slice(0, 4)
+      .reverse()
+    const upcomingGames = teamSchedule
+      .filter((game) => game.status === "scheduled")
       .sort((a, b) => a.day - b.day || a.id.localeCompare(b.id))
-      .slice(0, 16)
+      .slice(0, 8)
     return {
       myStanding,
       rank,
       rosterRows,
       standingsRows,
-      nextGames,
+      scheduleRail: [...recentGames, ...upcomingGames],
     }
   }, [myTeam, seasonState])
 
@@ -211,6 +215,7 @@ function LeagueDashboardPage() {
             rank={dashboard?.rank ?? null}
             standing={dashboard?.myStanding ?? null}
             payroll={financials?.payroll ?? null}
+            salaryCap={financials?.seasonFinancials.salaryCap ?? null}
             capSpace={financials?.capSpace ?? null}
             rosterCount={myTeam?.players.length ?? null}
             cutsNeeded={cutsNeeded}
@@ -226,7 +231,8 @@ function LeagueDashboardPage() {
             error={error}
             lastAdvanceResult={lastAdvanceResult}
             userTeamId={myTeam?.id ?? null}
-            games={dashboard?.nextGames ?? []}
+            games={dashboard?.scheduleRail ?? []}
+            urgentItems={urgentItems}
             rosterOverLimit={cutsRequired}
             cutsNeeded={cutsNeeded}
             canBeginRegularSeason={canBeginRegularSeason}
@@ -253,7 +259,7 @@ function LeagueDashboardPage() {
             onStartNextSeason={() => void startNextSeason()}
           />
 
-          <div className="grid min-h-0 gap-3 lg:grid-cols-[minmax(210px,0.24fr)_minmax(0,0.76fr)]">
+          <div className="grid min-h-0 gap-3 xl:grid-cols-[minmax(380px,0.9fr)_minmax(560px,1.1fr)]">
             <ConferenceStandingsTable
               rows={dashboard?.standingsRows ?? []}
               userTeamId={myTeam?.id ?? null}
@@ -275,6 +281,7 @@ function OperationsHeader({
   rank,
   standing,
   payroll,
+  salaryCap,
   capSpace,
   rosterCount,
   cutsNeeded,
@@ -289,6 +296,7 @@ function OperationsHeader({
   rank: number | null
   standing: Standing | null
   payroll: number | null
+  salaryCap: number | null
   capSpace: number | null
   rosterCount: number | null
   cutsNeeded: number
@@ -298,86 +306,93 @@ function OperationsHeader({
   const calendar = getCurrentCalendar(state)
 
   return (
-    <section className="rounded-lg border bg-muted/20 px-3 py-2">
-      <div className="flex flex-col gap-2">
+    <div className="flex shrink-0 flex-col gap-2">
+      <div className="flex min-w-0 items-end justify-between gap-4 px-0.5">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-base font-medium">{leagueName}</h1>
-            <span className="rounded-sm border bg-background px-1.5 py-0.5 text-[0.625rem] font-medium text-muted-foreground">
-              Season {state.season}
-            </span>
-            <span className="rounded-sm border bg-background px-1.5 py-0.5 text-[0.625rem] font-medium text-muted-foreground">
-              {phaseLabel(state.phase)}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {selectedTeamName
-              ? `${selectedTeamName}${teamAbbrev ? ` · ${teamAbbrev}` : ""} · ${calendar.date.label} · Day ${state.currentDay}`
-              : "Pick a team to start operating the league office."}
+          <h1 className="truncate text-lg font-semibold">League dashboard</h1>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {leagueName} · {selectedTeamName ?? "No team selected"}
           </p>
         </div>
+        {urgentCount > 0 ? (
+          <span className="shrink-0 text-xs font-medium text-warning">
+            {urgentCount} need{urgentCount === 1 ? "s" : ""} attention
+          </span>
+        ) : null}
+      </div>
 
-        <div className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-7">
-          <HeaderStat
+      <section
+        aria-label="League status"
+        className="overflow-x-auto rounded-lg ring-1 ring-foreground/10"
+      >
+        <div className="grid min-w-[880px] grid-cols-[0.8fr_1fr_1.2fr_1.5fr_0.9fr_0.9fr_1.4fr_1fr] bg-card px-1 py-2 text-xs tabular-nums">
+          <StatusField label="Season" value={`Season ${state.season}`} />
+          <StatusField label="Phase" value={phaseLabel(state.phase)} />
+          <StatusField
+            label="Date"
+            value={`Day ${state.currentDay} · ${calendar.date.label}`}
+          />
+          <StatusField
+            label="Team"
+            value={
+              selectedTeamName
+                ? `${selectedTeamName}${teamAbbrev ? ` · ${teamAbbrev}` : ""}`
+                : "Not selected"
+            }
+          />
+          <StatusField
             label="Record"
-            value={standing ? `${standing.wins}-${standing.losses}` : "-"}
+            value={standing ? `${standing.wins}-${standing.losses}` : "—"}
           />
-          <HeaderStat label="Rank" value={rank ? `#${rank}` : "-"} />
-          <HeaderStat
-            label="Overall"
-            value={teamOverall === null ? "-" : String(teamOverall)}
+          <StatusField label="Conf. rank" value={rank ? `#${rank}` : "—"} />
+          <StatusField
+            label="Payroll / cap"
+            value={
+              payroll === null || salaryCap === null
+                ? "—"
+                : `${formatMoney(payroll)} / ${formatMoney(salaryCap)}`
+            }
+            tone={capSpace !== null && capSpace < 0 ? "negative" : undefined}
           />
-          <HeaderStat
-            label="Payroll"
-            value={payroll === null ? "-" : formatMoney(payroll)}
-          />
-          <HeaderStat
-            label="Cap"
-            value={capSpace === null ? "-" : formatMoney(capSpace)}
-            tone={capSpace !== null && capSpace < 0 ? "urgent" : undefined}
-          />
-          <HeaderStat
+          <StatusField
             label="Roster"
             value={
               rosterCount === null
-                ? "-"
+                ? "—"
                 : rosterOverLimit
                   ? `${rosterCount}/15 · cut ${cutsNeeded}`
                   : state.phase === "preseason"
                     ? `${rosterCount}/21 camp`
-                    : `${rosterCount}/15`
+                    : `${rosterCount}/15${teamOverall === null ? "" : ` · ${teamOverall} OVR`}`
             }
-            tone={rosterOverLimit ? "urgent" : undefined}
-          />
-          <HeaderStat
-            label="Open items"
-            value={urgentCount === 0 ? "Clear" : String(urgentCount)}
-            tone={urgentCount > 0 ? "urgent" : undefined}
+            tone={rosterOverLimit ? "warning" : undefined}
           />
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   )
 }
 
-function HeaderStat({
+function StatusField({
   label,
   value,
   tone,
 }: {
   label: string
   value: string
-  tone?: "urgent"
+  tone?: "negative" | "warning"
 }) {
   return (
-    <div className="rounded-md border bg-background px-3 py-1.5">
-      <p className="text-muted-foreground">{label}</p>
+    <div className="min-w-0 border-l border-border px-3 first:border-l-0">
+      <p className="text-[0.625rem] font-medium text-muted-foreground">
+        {label}
+      </p>
       <p
-        className={
-          tone === "urgent"
-            ? "mt-0.5 truncate font-medium text-destructive"
-            : "mt-0.5 truncate font-medium"
-        }
+        className={cn(
+          "mt-1 truncate font-medium",
+          tone === "negative" && "text-destructive",
+          tone === "warning" && "text-warning"
+        )}
       >
         {value}
       </p>
@@ -394,6 +409,7 @@ function ScheduleRail({
   lastAdvanceResult,
   userTeamId,
   games,
+  urgentItems,
   rosterOverLimit,
   cutsNeeded,
   canBeginRegularSeason,
@@ -427,6 +443,7 @@ function ScheduleRail({
   lastAdvanceResult: AdvanceResult | null
   userTeamId: string | null
   games: ScheduleGame[]
+  urgentItems: UrgentItem[]
   rosterOverLimit: boolean
   cutsNeeded: number
   canBeginRegularSeason: boolean
@@ -458,44 +475,47 @@ function ScheduleRail({
   const canAdvance =
     phase === "regular" || phase === "preseason" || phase === "playoffs"
   const showControls = phase !== "complete" && phase !== "offseason"
+  const nextMilestone = getNextMilestone(state)
+  const nextTeamGame = games.find((game) => game.status === "scheduled")
 
   return (
-    <Card size="sm">
-      <CardHeader className="border-b py-2 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <CardTitle>Team schedule</CardTitle>
-          <CardDescription>
-            Upcoming games for the selected team.
-          </CardDescription>
+    <section className="shrink-0 overflow-hidden rounded-lg bg-card ring-1 ring-foreground/10">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-[minmax(230px,1.25fr)_minmax(160px,1fr)_minmax(160px,1fr)_minmax(140px,0.8fr)]">
+        <div className="flex items-center p-3">
+          {showControls && canAdvance ? (
+            <AdvanceSplitButton
+              className="sm:min-w-[230px]"
+              phase={phase}
+              size="default"
+              primaryLabel="Continue simulation"
+              disabled={status === "loading"}
+              onAdvance={onAdvance}
+              onSimPlayoffs={onSimPlayoffs}
+            />
+          ) : (
+            <p className="text-xs font-medium">Season controls</p>
+          )}
         </div>
-        {showControls && canAdvance ? (
-          <AdvanceSplitButton
-            className="lg:min-w-[280px]"
-            phase={phase}
-            size="sm"
-            disabled={status === "loading"}
-            onAdvance={onAdvance}
-            onSimPlayoffs={onSimPlayoffs}
-          />
-        ) : null}
-      </CardHeader>
-      <CardContent className="flex min-w-0 flex-col gap-2">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>Day {state.currentDay}</span>
-          <span>{state.games.length} played</span>
-          <span>{remainingGames} league games left</span>
-          {saveStatus === "saving" ? <span>Saving...</span> : null}
-          {saveStatus === "saved" ? <span>Saved locally</span> : null}
-        </div>
-        {lastAdvanceResult ? (
-          <p className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-            Simulated {lastAdvanceResult.daysSimmed} day
-            {lastAdvanceResult.daysSimmed === 1 ? "" : "s"} ·{" "}
-            {lastAdvanceResult.gamesSimmed} game
-            {lastAdvanceResult.gamesSimmed === 1 ? "" : "s"}
-          </p>
-        ) : null}
-        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        <CommandField label="Next milestone" value={nextMilestone} />
+        <CommandField
+          label="Next team game"
+          value={
+            nextTeamGame
+              ? `${formatCalendarDay(state, nextTeamGame.day)} · Day ${nextTeamGame.day}`
+              : "No game scheduled"
+          }
+        />
+        <CommandField
+          label={urgentItems.length > 0 ? "Needs attention" : "League state"}
+          value={
+            urgentItems[0]?.label ??
+            (saveStatus === "saving" ? "Saving…" : "Ready to advance")
+          }
+          tone={urgentItems.length > 0 ? "warning" : "default"}
+        />
+      </div>
+
+      <div className="border-t px-3 py-2">
         <ScheduleGateActions
           state={state}
           rosterOverLimit={rosterOverLimit}
@@ -521,44 +541,153 @@ function ScheduleRail({
           onCompleteFreeAgency={onCompleteFreeAgency}
           onStartNextSeason={onStartNextSeason}
         />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.6875rem] text-muted-foreground">
+          <span>{state.games.length} games played</span>
+          <span>{remainingGames} league games left</span>
+          {saveStatus === "saving" ? <span>Saving locally…</span> : null}
+          {saveStatus === "saved" ? <span>Saved locally</span> : null}
+          {lastAdvanceResult ? (
+            <span>
+              Last run: {lastAdvanceResult.daysSimmed} day
+              {lastAdvanceResult.daysSimmed === 1 ? "" : "s"} ·{" "}
+              {lastAdvanceResult.gamesSimmed} game
+              {lastAdvanceResult.gamesSimmed === 1 ? "" : "s"}
+            </span>
+          ) : null}
+          {error ? (
+            <span className="font-medium text-destructive">{error}</span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="border-t px-3 py-2.5">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-xs font-medium">Team schedule</h2>
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/league/calendar">View full schedule</Link>
+          </Button>
+        </div>
         {userTeamId === null ? (
           <p className="text-xs text-muted-foreground">
             Pick a team to show its schedule.
           </p>
         ) : games.length > 0 ? (
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {games.map((game) => {
-              const isCurrentDay = game.day === state.currentDay
-
-              return (
-                <Link
-                  key={game.id}
-                  to="/league/calendar"
-                  className={cn(
-                    "min-w-36 rounded-md border bg-muted/20 px-3 py-1.5 text-xs transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none",
-                    isCurrentDay && "border-foreground/40 bg-background"
-                  )}
-                >
-                  <span className="block text-muted-foreground">
-                    {formatCalendarDay(state, game.day)}
-                  </span>
-                  <span className="mt-0.5 block truncate font-medium">
-                    {formatScheduledLine(state, game)}
-                  </span>
-                  <span className="mt-1 block text-[0.625rem] text-muted-foreground">
-                    Day {game.day}
-                  </span>
-                </Link>
-              )
-            })}
+            {games.map((game) => (
+              <ScheduleRailItem
+                key={game.id}
+                state={state}
+                game={game}
+                userTeamId={userTeamId}
+              />
+            ))}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
             No scheduled games remain for your team.
           </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
+  )
+}
+
+function CommandField({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string
+  value: string
+  tone?: "default" | "warning"
+}) {
+  return (
+    <div className="min-w-0 border-t px-3 py-2.5 sm:border-l lg:border-t-0 [&:nth-child(2)]:sm:border-t-0 [&:nth-child(3)]:sm:border-l-0 [&:nth-child(3)]:lg:border-l">
+      <p className="text-[0.625rem] font-medium text-muted-foreground">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-1 truncate text-xs font-medium tabular-nums",
+          tone === "warning" && "text-warning"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function ScheduleRailItem({
+  state,
+  game,
+  userTeamId,
+}: {
+  state: SeasonState
+  game: ScheduleGame
+  userTeamId: string
+}) {
+  const playedGame = game.gameId
+    ? state.games.find((entry) => entry.id === game.gameId)
+    : undefined
+  const userIsHome = game.homeTeamId === userTeamId
+  const opponentId = userIsHome ? game.awayTeamId : game.homeTeamId
+  const opponent = teamName(state, opponentId)
+  const userScore = playedGame
+    ? userIsHome
+      ? playedGame.result.homeScore
+      : playedGame.result.awayScore
+    : null
+  const opponentScore = playedGame
+    ? userIsHome
+      ? playedGame.result.awayScore
+      : playedGame.result.homeScore
+    : null
+  const won =
+    userScore !== null && opponentScore !== null && userScore > opponentScore
+  const resultLabel =
+    userScore !== null && opponentScore !== null
+      ? `${won ? "W" : "L"} ${userScore}–${opponentScore}`
+      : null
+  const className = cn(
+    "min-w-40 rounded-md border bg-muted/20 px-3 py-2 text-xs transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:outline-none",
+    game.day === state.currentDay && "border-foreground/40 bg-background"
+  )
+  const content = (
+    <>
+      <span className="block truncate text-muted-foreground">
+        {formatCalendarDay(state, game.day)}
+      </span>
+      <span className="mt-1 block truncate font-medium">
+        {userIsHome ? "vs" : "@"} {opponent}
+      </span>
+      <span
+        className={cn(
+          "mt-1 block font-medium tabular-nums",
+          resultLabel
+            ? won
+              ? "text-success"
+              : "text-destructive"
+            : "text-muted-foreground"
+        )}
+      >
+        {resultLabel ?? formatScheduledLine(state, game)}
+      </span>
+    </>
+  )
+
+  return game.gameId ? (
+    <Link
+      to="/league/games/$gameId"
+      params={{ gameId: game.gameId }}
+      className={className}
+    >
+      {content}
+    </Link>
+  ) : (
+    <Link to="/league/calendar" className={className}>
+      {content}
+    </Link>
   )
 }
 
@@ -632,7 +761,7 @@ function ScheduleGateActions({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 px-2 py-1.5 text-xs">
+    <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 px-2 py-1.5 text-xs">
       {rosterOverLimit ? (
         <>
           <span className="font-medium text-destructive">
@@ -747,6 +876,10 @@ type StandingsRow = {
   record: string
   wins: number
   losses: number
+  pct: string
+  pctValue: number
+  differential: number
+  streak: number
 }
 
 function ConferenceStandingsTable({
@@ -780,6 +913,43 @@ function ConferenceStandingsTable({
           a.original.wins - b.original.wins ||
           b.original.losses - a.original.losses,
       },
+      {
+        accessorKey: "pct",
+        header: "PCT",
+        sortingFn: (a, b) => a.original.pctValue - b.original.pctValue,
+      },
+      {
+        accessorKey: "differential",
+        header: "DIFF",
+        cell: ({ row }) => (
+          <span
+            className={cn(
+              "font-medium tabular-nums",
+              row.original.differential > 0 && "text-success",
+              row.original.differential < 0 && "text-destructive"
+            )}
+          >
+            {formatSigned(row.original.differential)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "streak",
+        header: "STRK",
+        cell: ({ row }) => (
+          <span
+            className={cn(
+              "font-medium tabular-nums",
+              row.original.streak > 0 && "text-success",
+              row.original.streak < 0 && "text-destructive"
+            )}
+          >
+            {row.original.streak === 0
+              ? "—"
+              : `${row.original.streak > 0 ? "W" : "L"}${Math.abs(row.original.streak)}`}
+          </span>
+        ),
+      },
     ],
     []
   )
@@ -797,7 +967,7 @@ function ConferenceStandingsTable({
       <CardHeader className="border-b">
         <CardTitle>Conference standings</CardTitle>
       </CardHeader>
-      <CardContent className="max-h-[44vh] overflow-y-auto">
+      <CardContent className="max-h-[48vh] overflow-y-auto">
         <SortableTable
           table={table}
           emptyLabel="No standings available."
@@ -894,7 +1064,7 @@ function RosterOverviewTable({ rows }: { rows: RosterRow[] }) {
       <CardHeader className="border-b">
         <CardTitle>Roster</CardTitle>
       </CardHeader>
-      <CardContent className="max-h-[44vh] overflow-y-auto">
+      <CardContent className="max-h-[48vh] overflow-y-auto">
         <SortableTable table={table} emptyLabel="No roster selected." />
       </CardContent>
     </Card>
@@ -1184,19 +1354,60 @@ function getConferenceStandingsRows(
   )
 
   return state.standings
-    .map((standing, index) => ({
-      teamId: standing.teamId,
-      rank: index + 1,
-      team: teamName(state, standing.teamId),
-      record: `${standing.wins}-${standing.losses}`,
-      wins: standing.wins,
-      losses: standing.losses,
-    }))
-    .filter((row) => allowedTeamIds.has(row.teamId))
+    .filter((standing) => allowedTeamIds.has(standing.teamId))
+    .map((standing, index) => {
+      const gamesPlayed = standing.wins + standing.losses
+      const pctValue = gamesPlayed > 0 ? standing.wins / gamesPlayed : 0
+      const differential =
+        gamesPlayed > 0
+          ? (standing.pointsFor - standing.pointsAgainst) / gamesPlayed
+          : 0
+
+      return {
+        teamId: standing.teamId,
+        rank: index + 1,
+        team: teamName(state, standing.teamId),
+        record: `${standing.wins}-${standing.losses}`,
+        wins: standing.wins,
+        losses: standing.losses,
+        pct: pctValue.toFixed(3).replace(/^0/, ""),
+        pctValue,
+        differential,
+        streak: standing.streak,
+      }
+    })
 }
 
 function formatCalendarDay(state: SeasonState, day: number): string {
   return getCurrentCalendar({ ...state, currentDay: day }).date.label
+}
+
+function getNextMilestone(state: SeasonState): string {
+  const calendar = getCurrentCalendar(state)
+  const milestones = calendar.milestones
+  const candidates = [
+    { label: "Trade deadline", day: milestones.tradeDeadlineDay },
+    { label: "Playoffs", day: milestones.playoffsStartDay },
+    { label: "Offseason", day: milestones.offseasonStartDay },
+    { label: "Draft", day: milestones.draftDay },
+    { label: "Free agency", day: milestones.freeAgencyStartDay },
+    { label: `Season ${state.season + 1}`, day: milestones.nextSeasonStartDay },
+  ]
+  const next = candidates.find((candidate) => candidate.day >= state.currentDay)
+
+  if (!next) {
+    return "Season complete"
+  }
+
+  const daysAway = Math.max(0, next.day - state.currentDay)
+  return `${next.label} · ${daysAway === 0 ? "today" : `${daysAway} day${daysAway === 1 ? "" : "s"}`}`
+}
+
+function formatSigned(value: number): string {
+  if (Math.abs(value) < 0.05) {
+    return "0.0"
+  }
+  return `${value > 0 ? "+" : ""}${value.toFixed(1)}`
 }
 
 function getRosterRows(state: SeasonState, teamId: string | null): RosterRow[] {

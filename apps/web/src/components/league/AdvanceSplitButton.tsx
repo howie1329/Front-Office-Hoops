@@ -25,6 +25,7 @@ type AdvanceSplitButtonProps = {
   disabled?: boolean
   className?: string
   size?: "default" | "sm"
+  primaryLabel?: string
   onAdvance: (target: AdvanceTarget, policy?: AdvancePolicy) => void
   onSimPlayoffs?: () => void
 }
@@ -34,10 +35,10 @@ export function AdvanceSplitButton({
   disabled = false,
   className,
   size = "default",
+  primaryLabel = "Advance 1 day",
   onAdvance,
   onSimPlayoffs,
 }: AdvanceSplitButtonProps) {
-  const primaryLabel = "Advance 1 day"
   const showBulkMenu = phase !== "playoffs"
 
   const advanceDay = () => onAdvance("day", "runThrough")
