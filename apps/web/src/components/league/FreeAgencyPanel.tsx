@@ -15,6 +15,7 @@ import {
 } from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
+import { getScoutedPlayer } from "@/components/league/lib/scouting"
 import { Button } from "@workspace/ui/components/button"
 import {
   Card,
@@ -81,14 +82,29 @@ export function FreeAgencyPanel({
       ? canSignPlayer(league, teamId, selected.id, offer)
       : null
 
-  const sorted = [...freeAgents].sort(
-    (a, b) => b.ratings.overall - a.ratings.overall
+  const scoutedPlayers = freeAgents.map((player) => ({
+    player,
+    view: getScoutedPlayer(player, {
+      isOwnRoster: player.teamId === teamId,
+      teamScoutingLevel:
+        league.teamFinancials.find((entry) => entry.teamId === teamId)
+          ?.scoutingLevel ?? 5,
+      leagueSeed: league.seasonState.baseSeed,
+      viewerTeamId: teamId,
+    }),
+  }))
+  const sorted = [...scoutedPlayers].sort(
+    (a, b) => b.view.ratings.overall - a.view.ratings.overall,
   )
+  const selectedView = selected
+    ? scoutedPlayers.find((entry) => entry.player.id === selected.id)?.view ?? selected
+    : null
 
   function openOffer(player: Player) {
+    const view = scoutedPlayers.find((entry) => entry.player.id === player.id)?.view ?? player
     setSelectedId(player.id)
     setYears(2)
-    setSalary(Math.max(2, Math.round(player.ratings.overall / 8)))
+    setSalary(Math.max(2, Math.round(view.ratings.overall / 8)))
   }
 
   function closeOffer() {
@@ -146,8 +162,8 @@ export function FreeAgencyPanel({
                     </TableCell>
                   </TableRow>
                 ) : null}
-                {sorted.slice(0, 20).map((player) => {
-                  const market = getPlayerContractMarketValue(league, player)
+                {sorted.slice(0, 20).map(({ player, view }) => {
+                  const market = getPlayerContractMarketValue(league, view)
                   const activeOffers = getContractOffersForCandidate(
                     league,
                     player.id,
@@ -186,7 +202,7 @@ export function FreeAgencyPanel({
                         {player.firstName} {player.lastName}
                       </TableCell>
                       <TableCell>{player.position}</TableCell>
-                      <TableCell>{player.ratings.overall}</TableCell>
+                      <TableCell>{view.ratings.overall}</TableCell>
                       <TableCell>{player.age}</TableCell>
                       <TableCell className="tabular-nums">
                         {formatMoney(market.lowSalary)}-
@@ -257,7 +273,7 @@ export function FreeAgencyPanel({
                 <OfferMetric label="Position" value={selected.position} />
                 <OfferMetric
                   label="Overall"
-                  value={String(selected.ratings.overall)}
+                  value={String(selectedView?.ratings.overall ?? "—")}
                 />
                 <OfferMetric label="Age" value={String(selected.age)} />
               </div>

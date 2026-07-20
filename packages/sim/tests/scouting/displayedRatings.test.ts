@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest"
 
 import type { PlayerRatings } from "@workspace/shared/types"
 
-import { getDisplayedRatings } from "../../src/scouting/displayedRatings"
+import {
+  getDisplayedRatings,
+  getTeamScoutingReport,
+} from "../../src/scouting/displayedRatings"
 
 const ratings: PlayerRatings = {
   threePoint: 60,
@@ -45,6 +48,42 @@ describe("displayed scouting ratings", () => {
     )
     expect(Math.abs(high.potential - ratings.potential)).toBeLessThan(
       Math.abs(low.potential - ratings.potential),
+    )
+  })
+
+  it("keeps team reports deterministic while better scouts narrow uncertainty", () => {
+    const low = getTeamScoutingReport(ratings, {
+      leagueSeed: "scouting-test",
+      viewerTeamId: "team_a",
+      subjectId: "player_a",
+      scoutingLevel: 1,
+    })
+    const repeat = getTeamScoutingReport(ratings, {
+      leagueSeed: "scouting-test",
+      viewerTeamId: "team_a",
+      subjectId: "player_a",
+      scoutingLevel: 1,
+    })
+    const high = getTeamScoutingReport(ratings, {
+      leagueSeed: "scouting-test",
+      viewerTeamId: "team_a",
+      subjectId: "player_a",
+      scoutingLevel: 10,
+    })
+    const otherTeam = getTeamScoutingReport(ratings, {
+      leagueSeed: "scouting-test",
+      viewerTeamId: "team_b",
+      subjectId: "player_a",
+      scoutingLevel: 1,
+    })
+
+    expect(repeat).toEqual(low)
+    expect(otherTeam).not.toEqual(low)
+    expect(high.potentialRange.high - high.potentialRange.low).toBeLessThan(
+      low.potentialRange.high - low.potentialRange.low,
+    )
+    expect(Math.abs(high.ratings.threePoint - ratings.threePoint)).toBeLessThanOrEqual(
+      Math.abs(low.ratings.threePoint - ratings.threePoint),
     )
   })
 })

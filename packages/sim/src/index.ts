@@ -204,12 +204,14 @@ export {
   getFairSalary,
   getContractAssetValueBreakdown,
   getContractValueBreakdown,
+  getPlayerDecisionValueBreakdown,
   getProjectedPlayerValue,
   getProjectedPlayerValueBreakdown,
   calculatePlayerValue,
 } from "./playerValue"
 export type {
   ContractValueBreakdown,
+  PlayerDecisionValueBreakdown,
   ProjectedPlayerValueBreakdown,
 } from "./playerValue"
 export type { TeamTradeUtilityBreakdown } from "./tradeEvaluation"
@@ -235,7 +237,12 @@ export {
   genFuzz,
   getDisplayedRatings,
   getDisplayedSkillRating,
+  getTeamScoutingReport,
   resolveScoutingLevel,
+} from "./scouting/displayedRatings"
+export type {
+  TeamScoutingReport,
+  TeamScoutingReportContext,
 } from "./scouting/displayedRatings"
 export {
   deriveOverall,

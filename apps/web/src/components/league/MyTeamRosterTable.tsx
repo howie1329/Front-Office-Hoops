@@ -168,7 +168,7 @@ function buildRows({
   return roster.players.map((player) => {
     const contract = getContractForPlayer(contracts, player.id)
     const yearsRemaining = getYearsRemaining(contract)
-    const viewRatings = getViewRatings(player.ratings, {
+    const viewRatings = getViewRatings(player, {
       isOwnRoster: true,
       teamScoutingLevel: teamScoutingLevel ?? 5,
     })

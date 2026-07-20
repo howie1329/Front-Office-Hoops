@@ -1,9 +1,10 @@
 import { SKILL_KEYS } from "@workspace/shared/constants"
-import type { PlayerRatings, SkillKey } from "@workspace/shared/types"
+import type { DraftProspect, Player, PlayerRatings, SkillKey } from "@workspace/shared/types"
 import {
   deriveOverall,
   getDisplayedRatings,
   getSkillRatings,
+  getTeamScoutingReport,
   resolveScoutingLevel,
 } from "@workspace/sim"
 
@@ -15,26 +16,75 @@ export function getTeamScoutingLevel(
   return teamFinancials?.scoutingLevel ?? 5
 }
 
+type ScoutingSubject = Pick<Player, "id" | "ratings"> | DraftProspect
+
+type ScoutingOptions = {
+  isOwnRoster?: boolean
+  isDraftProspect?: boolean
+  teamScoutingLevel?: number
+  leagueSeed?: string
+  viewerTeamId?: string
+}
+
 export function getViewRatings(
-  ratings: PlayerRatings,
+  subject: ScoutingSubject,
   options: {
     isOwnRoster?: boolean
     isDraftProspect?: boolean
     teamScoutingLevel?: number
+    leagueSeed?: string
+    viewerTeamId?: string
   },
 ): PlayerRatings {
   if (options.isOwnRoster) {
-    return ratings
+    return subject.ratings
   }
 
   const scoutingLevel = resolveScoutingLevel(options)
-  const displayed = getDisplayedRatings(ratings, scoutingLevel)
+  const displayed =
+    options.leagueSeed && options.viewerTeamId
+      ? getTeamScoutingReport(subject.ratings, {
+          leagueSeed: options.leagueSeed,
+          viewerTeamId: options.viewerTeamId,
+          subjectId: subject.id,
+          scoutingLevel,
+        }).ratings
+      : getDisplayedRatings(subject.ratings, scoutingLevel)
   const skills = getSkillRatings(displayed)
   const overall = deriveOverall(skills)
 
   return {
     ...displayed,
     overall,
+  }
+}
+
+export function getProspectPotentialRange(
+  prospect: DraftProspect,
+  options: ScoutingOptions,
+): { low: number; high: number } {
+  const scoutingLevel = resolveScoutingLevel({
+    ...options,
+    isDraftProspect: true,
+  })
+  if (!options.leagueSeed || !options.viewerTeamId) {
+    return { low: prospect.potentialRange.low, high: prospect.potentialRange.high }
+  }
+  return getTeamScoutingReport(prospect.ratings, {
+    leagueSeed: options.leagueSeed,
+    viewerTeamId: options.viewerTeamId,
+    subjectId: prospect.id,
+    scoutingLevel,
+  }).potentialRange
+}
+
+export function getScoutedPlayer(
+  player: Player,
+  options: ScoutingOptions,
+): Player {
+  return {
+    ...player,
+    ratings: getViewRatings(player, options),
   }
 }
 

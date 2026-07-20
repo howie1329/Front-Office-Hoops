@@ -7,6 +7,7 @@ import type { PlayerRatings, Rng, SkillKey } from "@workspace/shared/types"
 import { emptyFuzz } from "@workspace/shared/skillRatings"
 
 import { clampRating } from "../playerRatings"
+import { createRng } from "../rng"
 
 function scoutingCutoff(level: number): number {
   const normalized =
@@ -76,6 +77,77 @@ export function getDisplayedRatings(
       displayed.potential + Math.round((ratings.potentialFuzz ?? 0) * multiplier),
     ),
     usage: displayed.usage,
+  }
+}
+
+export type TeamScoutingReportContext = {
+  leagueSeed: string
+  viewerTeamId: string
+  subjectId: string
+  scoutingLevel: number
+}
+
+export type TeamScoutingReport = {
+  ratings: Omit<PlayerRatings, "fuzz"> & { fuzz: Record<SkillKey, number> }
+  potentialRange: { low: number; high: number }
+}
+
+function normalizedScoutingLevel(level: number): number {
+  return Math.max(SCOUTING_LEVEL_MIN, Math.min(SCOUTING_LEVEL_MAX, level))
+}
+
+function reportErrorEnvelope(level: number): number {
+  const normalized = (normalizedScoutingLevel(level) - 1) / (SCOUTING_LEVEL_MAX - 1)
+  return 8 - normalized * 7
+}
+
+function potentialHalfWidth(level: number): number {
+  const normalized = (normalizedScoutingLevel(level) - 1) / (SCOUTING_LEVEL_MAX - 1)
+  return Math.round(10 - normalized * 8)
+}
+
+function reportError(rng: Rng, envelope: number): number {
+  return Math.round(Math.max(-1, Math.min(1, rng.normal(0, 0.55))) * envelope)
+}
+
+/**
+ * Produces a stable report for one team/player pair. The base draw never
+ * changes; scouting quality only scales its distance from the true rating.
+ */
+export function getTeamScoutingReport(
+  ratings: PlayerRatings,
+  context: TeamScoutingReportContext,
+): TeamScoutingReport {
+  const rng = createRng(
+    `${context.leagueSeed}:scouting:${context.viewerTeamId}:${context.subjectId}`,
+  )
+  const envelope = reportErrorEnvelope(context.scoutingLevel)
+  const displayed = { ...ratings }
+
+  for (const key of SKILL_KEYS) {
+    displayed[key] = clampRating(ratings[key] + reportError(rng, envelope))
+  }
+
+  const potentialEstimate = clampRating(
+    ratings.potential + reportError(rng, envelope),
+  )
+  const halfWidth = potentialHalfWidth(context.scoutingLevel)
+  const skills = Object.fromEntries(
+    SKILL_KEYS.map((key) => [key, displayed[key]]),
+  ) as Record<SkillKey, number>
+
+  return {
+    ratings: {
+      ...skills,
+      fuzz: ratings.fuzz,
+      overall: displayed.overall,
+      potential: potentialEstimate,
+      usage: displayed.usage,
+    },
+    potentialRange: {
+      low: clampRating(potentialEstimate - halfWidth),
+      high: clampRating(potentialEstimate + halfWidth),
+    },
   }
 }
 

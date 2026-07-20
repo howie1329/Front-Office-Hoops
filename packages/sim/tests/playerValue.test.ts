@@ -9,7 +9,9 @@ import {
   getProjectedPlayerValue,
   getProjectedPlayerValueBreakdown,
   getPlayerValueBreakdown,
+  getPlayerDecisionValueBreakdown,
 } from "../src/playerValue"
+import { createLeague, createRng } from "../src"
 
 import { makeTestPlayer, makeTestRatings } from "./helpers/playerRatings"
 
@@ -161,5 +163,43 @@ describe("player value", () => {
     expect(getProjectedPlayerValue(hot)).toBeGreaterThan(getProjectedPlayerValue(player))
     expect(getProjectedPlayerValue(injured)).toBeLessThan(getProjectedPlayerValue(player))
     expect(getProjectedPlayerValueBreakdown(hot).projectedSeasons.every((season) => season.projectedOverall >= 40 && season.projectedOverall <= 90)).toBe(true)
+  })
+
+  it("uses future ages for future-season projections", () => {
+    const player = makePlayer({
+      age: 27,
+      peakAge: 28,
+      ratings: makeTestRatings({ overall: 80, potential: 90 }),
+    })
+    const projection = getProjectedPlayerValueBreakdown(player)
+
+    expect(projection.projectedSeasons[1]!.projectedOverall).toBe(80)
+    expect(projection.projectedSeasons[2]!.projectedOverall).toBeLessThan(80)
+  })
+
+  it("exposes value components that sum to the player decision total", () => {
+    const league = createLeague({
+      skipPreseason: true,
+      name: "Value breakdown",
+      baseSeed: "value-breakdown",
+      rng: createRng("value-breakdown"),
+      useMiniLeague: true,
+    })
+    const team = league.seasonState.teams[0]!
+    const player = team.players[0]!
+    const breakdown = getPlayerDecisionValueBreakdown({
+      league,
+      player,
+      receivingTeamId: team.id,
+    })
+
+    expect(breakdown.total).toBeCloseTo(
+      breakdown.talent +
+        breakdown.ageCurve +
+        breakdown.durability +
+        breakdown.contract +
+        breakdown.scarcity +
+        breakdown.production,
+    )
   })
 })

@@ -15,6 +15,11 @@ import {
 
 export { getContractValueBreakdown, type ContractValueBreakdown } from "./contractValue"
 export {
+  getPlayerDecisionValueBreakdown,
+  type PlayerDecisionValueBreakdown,
+  type PlayerDecisionValueInput,
+} from "./viewerValue"
+export {
   getProjectedPlayerValue,
   getProjectedPlayerValueBreakdown,
   type ProjectedPlayerValueBreakdown,
