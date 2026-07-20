@@ -26,8 +26,11 @@ export function TeamMetricsStrip({
   cutsNeeded = 0,
 }: TeamMetricsStripProps) {
   return (
-    <section className="shrink-0 rounded-lg border bg-muted/20 px-3 py-2">
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
+    <section
+      className="shrink-0 overflow-hidden rounded-lg bg-card ring-1 ring-foreground/10"
+      aria-label="Team summary"
+    >
+      <dl className="grid grid-cols-3 text-xs sm:grid-cols-6">
         <Metric label="Overall" value={String(overall)} />
         <Metric label="Offense" value={String(offense)} />
         <Metric label="Defense" value={String(defense)} />
@@ -37,17 +40,25 @@ export function TeamMetricsStrip({
           value={capSpace}
           tone={capSpaceTone === "destructive" ? "destructive" : undefined}
         />
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">Roster</span>
+        <div
+          className={cn(
+            "flex min-h-12 flex-col justify-center border-t px-3 py-1.5 sm:border-t-0 sm:border-l",
+            rosterOverLimit && "bg-warning/10",
+          )}
+        >
+          <dt className="text-muted-foreground">Roster</dt>
           {rosterOverLimit ? (
-            <Badge variant="destructive">
-              {rosterCount} · cut {cutsNeeded}
-            </Badge>
+            <dd className="flex items-center gap-1.5 font-medium tabular-nums">
+              <span>{rosterCount}</span>
+              <Badge className="h-4 rounded-sm bg-warning/20 px-1.5 text-[0.625rem] text-foreground">
+                cut {cutsNeeded}
+              </Badge>
+            </dd>
           ) : (
-            <span className="font-medium tabular-nums">{rosterCount} players</span>
+            <dd className="font-medium tabular-nums">{rosterCount} players</dd>
           )}
         </div>
-      </div>
+      </dl>
     </section>
   )
 }
@@ -62,16 +73,16 @@ function Metric({
   tone?: "destructive"
 }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="text-muted-foreground">{label}</span>
-      <span
+    <div className="flex min-h-12 flex-col justify-center border-t border-l px-3 py-1.5 first:border-l-0 sm:border-t-0 sm:first:border-l-0 [&:nth-child(-n+3)]:border-t-0 [&:nth-child(4)]:border-l-0 sm:[&:nth-child(4)]:border-l">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd
         className={cn(
           "font-medium tabular-nums",
           tone === "destructive" && "text-destructive",
         )}
       >
         {value}
-      </span>
+      </dd>
     </div>
   )
 }

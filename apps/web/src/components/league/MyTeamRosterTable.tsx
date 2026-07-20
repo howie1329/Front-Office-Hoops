@@ -22,19 +22,14 @@ import {
   getTradableRestrictionLabel,
 } from "@/components/league/lib/contractLabels"
 import { getViewRatings } from "@/components/league/lib/scouting"
-import {
-  nullableNumberSort,
-} from "@/components/league/lib/tableSort"
+import { nullableNumberSort } from "@/components/league/lib/tableSort"
 import {
   SortableTable,
   getCoreRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@/components/league/SortableTable"
-import type {
-  ColumnDef,
-  SortingState,
-} from "@/components/league/SortableTable"
+import type { ColumnDef, SortingState } from "@/components/league/SortableTable"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,7 +69,7 @@ export type MyTeamRosterRow = {
   yearsRemaining: number
   guaranteedRemaining: number
   deadCapSchedule: string
-  gp: number
+  gp: number | null
   min: number | null
   pts: number | null
   reb: number | null
@@ -84,6 +79,14 @@ export type MyTeamRosterRow = {
   canExtend: boolean
   extendReason: string | null
 }
+
+type RosterView = "overview" | "contracts" | "performance"
+
+const rosterViews: { value: RosterView; label: string }[] = [
+  { value: "overview", label: "Overview" },
+  { value: "contracts", label: "Contracts" },
+  { value: "performance", label: "Performance" },
+]
 
 type MyTeamRosterTableProps = {
   league: LeagueRecord
@@ -99,7 +102,8 @@ type MyTeamRosterTableProps = {
 
 function getContractForPlayer(contracts: Contract[], playerId: string) {
   return contracts.find(
-    (contract) => contract.playerId === playerId && contract.status === "active",
+    (contract) =>
+      contract.playerId === playerId && contract.status === "active",
   )
 }
 
@@ -182,7 +186,11 @@ function buildRows({
     return {
       playerId: player.id,
       playerName: `${player.firstName} ${player.lastName}`,
-      contractLabel: contractSubline(contract, yearsRemaining, currentDay ?? null),
+      contractLabel: contractSubline(
+        contract,
+        yearsRemaining,
+        currentDay ?? null,
+      ),
       pos: player.position,
       role: formatArchetype(player.archetype),
       age: player.age,
@@ -191,28 +199,17 @@ function buildRows({
       salary: getCurrentSalary(contract),
       yearsRemaining,
       guaranteedRemaining:
-        contract?.guaranteedSalaries.reduce((sum, amount) => sum + amount, 0) ?? 0,
+        contract?.guaranteedSalaries.reduce((sum, amount) => sum + amount, 0) ??
+        0,
       deadCapSchedule:
         contract?.guaranteedSalaries
           .map((amount, index) => `Y${index + 1} ${formatMoney(amount)}`)
           .join(" · ") ?? "None",
-      gp: stats?.gp ?? 0,
-      min:
-        stats?.gp && stats.min
-          ? stats.min / stats.gp
-          : null,
-      pts:
-        stats?.gp && stats.pts
-          ? stats.pts / stats.gp
-          : null,
-      reb:
-        stats?.gp && stats.reb
-          ? stats.reb / stats.gp
-          : null,
-      ast:
-        stats?.gp && stats.ast
-          ? stats.ast / stats.gp
-          : null,
+      gp: stats?.gp || null,
+      min: stats?.gp && stats.min ? stats.min / stats.gp : null,
+      pts: stats?.gp && stats.pts ? stats.pts / stats.gp : null,
+      reb: stats?.gp && stats.reb ? stats.reb / stats.gp : null,
+      ast: stats?.gp && stats.ast ? stats.ast / stats.gp : null,
       canRelease: releaseCheck.ok,
       releaseReason: releaseCheck.ok ? null : releaseCheck.reason,
       canExtend: extendEligibility.ok,
@@ -232,6 +229,7 @@ export function MyTeamRosterTable({
   onReleasePlayer,
   onExtendContract,
 }: MyTeamRosterTableProps) {
+  const [view, setView] = useState<RosterView>("overview")
   const [sorting, setSorting] = useState<SortingState>([
     { id: "overall", desc: true },
   ])
@@ -320,122 +318,161 @@ export function MyTeamRosterTable({
     })
   }
 
-  const columns = useMemo<ColumnDef<MyTeamRosterRow>[]>(
-    () => [
-      {
-        id: "select",
-        header: ({ table }) => {
-          const releaseRows = table
-            .getRowModel()
-            .rows.filter((row) => row.original.canRelease)
-          const selectedVisibleCount = releaseRows.filter((row) =>
-            selectedPlayerIds.has(row.original.playerId),
-          ).length
-          const allSelected =
-            releaseRows.length > 0 && selectedVisibleCount === releaseRows.length
-          const partiallySelected =
-            selectedVisibleCount > 0 && selectedVisibleCount < releaseRows.length
+  const columns = useMemo<ColumnDef<MyTeamRosterRow>[]>(() => {
+    const selectionColumn: ColumnDef<MyTeamRosterRow> = {
+      id: "select",
+      header: ({ table }) => {
+        const releaseRows = table
+          .getRowModel()
+          .rows.filter((row) => row.original.canRelease)
+        const selectedVisibleCount = releaseRows.filter((row) =>
+          selectedPlayerIds.has(row.original.playerId),
+        ).length
+        const allSelected =
+          releaseRows.length > 0 && selectedVisibleCount === releaseRows.length
+        const partiallySelected =
+          selectedVisibleCount > 0 && selectedVisibleCount < releaseRows.length
 
-          return (
-            <SelectionCheckbox
-              ariaLabel="Select releasable players"
-              checked={allSelected}
-              indeterminate={partiallySelected}
-              disabled={releaseRows.length === 0}
-              onCheckedChange={toggleVisibleReleaseSelection}
-            />
-          )
-        },
-        enableSorting: false,
-        cell: ({ row }) => (
+        return (
           <SelectionCheckbox
-            ariaLabel={`Select ${row.original.playerName}`}
-            checked={selectedPlayerIds.has(row.original.playerId)}
-            disabled={!row.original.canRelease}
-            title={row.original.releaseReason ?? undefined}
-            onCheckedChange={(checked) =>
-              togglePlayerSelection(row.original.playerId, checked)
-            }
+            ariaLabel="Select releasable players"
+            checked={allSelected}
+            indeterminate={partiallySelected}
+            disabled={releaseRows.length === 0}
+            onCheckedChange={toggleVisibleReleaseSelection}
           />
-        ),
+        )
       },
-      {
-        accessorKey: "playerName",
-        header: "Player",
-        cell: ({ row }) => (
-          <div className="flex min-w-44 flex-col">
-            <Link
-              to="/league/players/$playerId"
-              params={{ playerId: row.original.playerId }}
-              className="font-medium hover:underline"
-            >
-              {row.original.playerName}
-            </Link>
+      enableSorting: false,
+      cell: ({ row }) => (
+        <SelectionCheckbox
+          ariaLabel={`Select ${row.original.playerName}`}
+          checked={selectedPlayerIds.has(row.original.playerId)}
+          disabled={!row.original.canRelease}
+          title={row.original.releaseReason ?? undefined}
+          onCheckedChange={(checked) =>
+            togglePlayerSelection(row.original.playerId, checked)
+          }
+        />
+      ),
+    }
+    const playerColumn: ColumnDef<MyTeamRosterRow> = {
+      accessorKey: "playerName",
+      header: "Player",
+      cell: ({ row }) => (
+        <div className="flex min-w-44 flex-col">
+          <Link
+            to="/league/players/$playerId"
+            params={{ playerId: row.original.playerId }}
+            className="font-medium hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+          >
+            {row.original.playerName}
+          </Link>
+          <span className="max-w-64 truncate text-xs text-muted-foreground">
+            {view === "contracts"
+              ? `${row.original.pos} · ${row.original.role}`
+              : row.original.contractLabel}
+          </span>
+        </div>
+      ),
+    }
+    const actionColumn: ColumnDef<MyTeamRosterRow> = {
+      id: "actions",
+      header: "",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <RosterRowActions
+          row={row.original}
+          onRelease={() => setReleaseTarget(row.original)}
+          onExtend={() => setExtendTarget(row.original)}
+        />
+      ),
+    }
+
+    const viewColumns: Record<RosterView, ColumnDef<MyTeamRosterRow>[]> = {
+      overview: [
+        { accessorKey: "pos", header: "Pos" },
+        {
+          accessorKey: "role",
+          header: "Role",
+          cell: ({ row }) => (
             <span className="text-xs text-muted-foreground">
+              {row.original.role}
+            </span>
+          ),
+        },
+        { accessorKey: "age", header: "Age" },
+        {
+          accessorKey: "overall",
+          header: "OVR",
+          cell: ({ row }) => (
+            <span className="font-medium tabular-nums">
+              {row.original.overall}
+            </span>
+          ),
+        },
+        { accessorKey: "potential", header: "POT" },
+      ],
+      contracts: [
+        { accessorKey: "pos", header: "Pos" },
+        {
+          accessorKey: "salary",
+          header: "Salary",
+          cell: ({ row }) => formatMoney(row.original.salary),
+        },
+        { accessorKey: "yearsRemaining", header: "Yrs" },
+        {
+          accessorKey: "guaranteedRemaining",
+          header: "Guaranteed",
+          cell: ({ row }) => formatMoney(row.original.guaranteedRemaining),
+        },
+        {
+          accessorKey: "contractLabel",
+          header: "Status",
+          cell: ({ row }) => (
+            <span className="block max-w-56 truncate text-xs text-muted-foreground">
               {row.original.contractLabel}
             </span>
-          </div>
-        ),
-      },
-      { accessorKey: "pos", header: "Pos" },
-      {
-        accessorKey: "role",
-        header: "Role",
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">
-            {row.original.role}
-          </span>
-        ),
-      },
-      { accessorKey: "age", header: "Age" },
-      { accessorKey: "overall", header: "OVR" },
-      { accessorKey: "potential", header: "POT" },
-      {
-        accessorKey: "salary",
-        header: "Salary",
-        cell: ({ row }) => formatMoney(row.original.salary),
-      },
-      { accessorKey: "yearsRemaining", header: "Yrs" },
-      { accessorKey: "gp", header: "GP" },
-      {
-        accessorKey: "min",
-        header: "MIN",
-        cell: ({ row }) => formatAverage(row.original.min),
-        sortingFn: nullableNumberSort("min"),
-      },
-      {
-        accessorKey: "pts",
-        header: "PTS",
-        cell: ({ row }) => formatAverage(row.original.pts),
-        sortingFn: nullableNumberSort("pts"),
-      },
-      {
-        accessorKey: "reb",
-        header: "REB",
-        cell: ({ row }) => formatAverage(row.original.reb),
-        sortingFn: nullableNumberSort("reb"),
-      },
-      {
-        accessorKey: "ast",
-        header: "AST",
-        cell: ({ row }) => formatAverage(row.original.ast),
-        sortingFn: nullableNumberSort("ast"),
-      },
-      {
-        id: "actions",
-        header: "",
-        enableSorting: false,
-        cell: ({ row }) => (
-          <RosterRowActions
-            row={row.original}
-            onRelease={() => setReleaseTarget(row.original)}
-            onExtend={() => setExtendTarget(row.original)}
-          />
-        ),
-      },
-    ],
-    [selectedPlayerIds],
-  )
+          ),
+        },
+      ],
+      performance: [
+        { accessorKey: "pos", header: "Pos" },
+        {
+          accessorKey: "gp",
+          header: "GP",
+          cell: ({ row }) => row.original.gp ?? "—",
+          sortingFn: nullableNumberSort("gp"),
+        },
+        {
+          accessorKey: "min",
+          header: "MIN",
+          cell: ({ row }) => formatAverage(row.original.min),
+          sortingFn: nullableNumberSort("min"),
+        },
+        {
+          accessorKey: "pts",
+          header: "PTS",
+          cell: ({ row }) => formatAverage(row.original.pts),
+          sortingFn: nullableNumberSort("pts"),
+        },
+        {
+          accessorKey: "reb",
+          header: "REB",
+          cell: ({ row }) => formatAverage(row.original.reb),
+          sortingFn: nullableNumberSort("reb"),
+        },
+        {
+          accessorKey: "ast",
+          header: "AST",
+          cell: ({ row }) => formatAverage(row.original.ast),
+          sortingFn: nullableNumberSort("ast"),
+        },
+      ],
+    }
+
+    return [selectionColumn, playerColumn, ...viewColumns[view], actionColumn]
+  }, [selectedPlayerIds, view])
 
   const table = useReactTable({
     data: rows,
@@ -446,53 +483,168 @@ export function MyTeamRosterTable({
     getSortedRowModel: getSortedRowModel(),
   })
 
+  const hasGames = rows.some((row) => (row.gp ?? 0) > 0)
+  const tableMinWidth = {
+    overview: "min-w-[680px]",
+    contracts: "min-w-[820px]",
+    performance: "min-w-[720px]",
+  }[view]
+
+  function selectView(nextView: RosterView) {
+    const allowedSorts: Record<RosterView, Set<string>> = {
+      overview: new Set([
+        "playerName",
+        "pos",
+        "role",
+        "age",
+        "overall",
+        "potential",
+      ]),
+      contracts: new Set([
+        "playerName",
+        "pos",
+        "salary",
+        "yearsRemaining",
+        "guaranteedRemaining",
+        "contractLabel",
+      ]),
+      performance: new Set([
+        "playerName",
+        "pos",
+        "gp",
+        "min",
+        "pts",
+        "reb",
+        "ast",
+      ]),
+    }
+    const defaultSorting: Record<RosterView, SortingState> = {
+      overview: [{ id: "overall", desc: true }],
+      contracts: [{ id: "salary", desc: true }],
+      performance: [{ id: "pts", desc: true }],
+    }
+
+    setView(nextView)
+    setSorting((current) =>
+      current.every((sort) => allowedSorts[nextView].has(sort.id))
+        ? current
+        : defaultSorting[nextView],
+    )
+  }
+
+  function moveTabFocus(currentView: RosterView, direction: -1 | 1) {
+    const currentIndex = rosterViews.findIndex(
+      (option) => option.value === currentView,
+    )
+    const nextIndex =
+      (currentIndex + direction + rosterViews.length) % rosterViews.length
+    const nextView = rosterViews[nextIndex].value
+
+    selectView(nextView)
+    document.getElementById(`roster-tab-${nextView}`)?.focus()
+  }
+
   return (
     <>
       <Card className="flex h-full min-h-0 flex-col">
-        <CardHeader className="shrink-0 border-b">
+        <CardHeader className="shrink-0 gap-3 border-b">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>Roster</CardTitle>
               <CardDescription>
-                {roster.players.length} players · select players for bulk actions
+                {roster.players.length} players · {roster.abbrev}
               </CardDescription>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {selectedRows.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">
-                    {selectedRows.length} selected
-                  </Badge>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={selectedReleaseRows.length === 0}
-                    onClick={() => setBulkReleaseOpen(true)}
-                  >
-                    Release selected
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedPlayerIds(new Set())}
-                  >
-                    Clear
-                  </Button>
-                </div>
-              ) : null}
-              <Badge variant="outline">{roster.abbrev}</Badge>
-            </div>
+            {view === "performance" && !hasGames ? (
+              <p className="max-w-64 text-right text-xs text-muted-foreground">
+                No games played yet. Season averages appear after the first
+                game.
+              </p>
+            ) : null}
+          </div>
+
+          <div
+            role="tablist"
+            aria-label="Roster data view"
+            className="flex w-fit items-center rounded-md bg-muted p-0.5"
+          >
+            {rosterViews.map((option) => (
+              <Button
+                key={option.value}
+                id={`roster-tab-${option.value}`}
+                type="button"
+                role="tab"
+                size="sm"
+                variant={view === option.value ? "outline" : "ghost"}
+                aria-selected={view === option.value}
+                aria-controls="roster-table-panel"
+                tabIndex={view === option.value ? 0 : -1}
+                className="h-8 sm:h-6"
+                onClick={() => selectView(option.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowLeft") {
+                    event.preventDefault()
+                    moveTabFocus(option.value, -1)
+                  }
+                  if (event.key === "ArrowRight") {
+                    event.preventDefault()
+                    moveTabFocus(option.value, 1)
+                  }
+                }}
+              >
+                {option.label}
+              </Button>
+            ))}
           </div>
         </CardHeader>
-        <CardContent className="min-h-0 flex-1 overflow-hidden p-0">
-          <div className="h-full min-h-0 overflow-auto p-4 pt-3">
+
+        {selectedRows.length > 0 ? (
+          <div
+            className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-muted/35 px-3 py-2"
+            role="status"
+            aria-live="polite"
+          >
+            <Badge variant="secondary">{selectedRows.length} selected</Badge>
+            <span className="text-xs text-muted-foreground">
+              {selectedReleaseRows.length} eligible
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="ml-auto h-8 sm:h-6"
+              disabled={selectedReleaseRows.length === 0}
+              onClick={() => setBulkReleaseOpen(true)}
+            >
+              Release {selectedReleaseRows.length} player
+              {selectedReleaseRows.length === 1 ? "" : "s"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 sm:h-6"
+              onClick={() => setSelectedPlayerIds(new Set())}
+            >
+              Clear
+            </Button>
+          </div>
+        ) : null}
+
+        <CardContent
+          id="roster-table-panel"
+          role="tabpanel"
+          aria-labelledby={`roster-tab-${view}`}
+          className="min-h-0 flex-1 overflow-hidden p-0"
+        >
+          <div className="h-full min-h-0 overflow-auto p-2 sm:p-3">
             <SortableTable
               table={table}
-              emptyLabel="No players on roster."
+              emptyLabel="No players on the roster. Add players through the draft or free agency."
               stickyHeader
-              className="min-w-[1120px]"
+              className={tableMinWidth}
               rowClassName={(row) =>
-                selectedPlayerIds.has(row.original.playerId) ? "bg-muted/45" : ""
+                selectedPlayerIds.has(row.original.playerId)
+                  ? "bg-muted/45"
+                  : ""
               }
             />
           </div>
@@ -558,7 +710,9 @@ function RosterRowActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {row.canExtend ? (
-          <DropdownMenuItem onClick={onExtend}>Extend contract</DropdownMenuItem>
+          <DropdownMenuItem onClick={onExtend}>
+            Extend contract
+          </DropdownMenuItem>
         ) : (
           <DropdownMenuItem disabled title={row.extendReason ?? undefined}>
             Extend contract
@@ -588,12 +742,15 @@ function ReleasePlayerDialog({
   onConfirm: (playerId: string) => void
 }) {
   return (
-    <AlertDialog open={Boolean(row)} onOpenChange={(open) => !open && onClose()}>
+    <AlertDialog
+      open={Boolean(row)}
+      onOpenChange={(open) => !open && onClose()}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Release {row?.playerName}?</AlertDialogTitle>
           <AlertDialogDescription>
-            The player will be waived and become a free agent. This creates {" "}
+            The player will be waived and become a free agent. This creates{" "}
             {formatMoney(row?.guaranteedRemaining ?? 0)} in remaining guaranteed
             money. Dead-cap schedule: {row?.deadCapSchedule ?? "None"}.
           </AlertDialogDescription>
@@ -641,9 +798,9 @@ function BulkReleasePlayersDialog({
             Release {rows.length} selected player{rows.length === 1 ? "" : "s"}?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            The selected player{rows.length === 1 ? "" : "s"} will be waived
-            and become free agent{rows.length === 1 ? "" : "s"}. Dead cap may
-            apply depending on contract terms. Total remaining guarantees: {" "}
+            The selected player{rows.length === 1 ? "" : "s"} will be waived and
+            become free agent{rows.length === 1 ? "" : "s"}. Dead cap may apply
+            depending on contract terms. Total remaining guarantees:{" "}
             {formatMoney(guaranteedTotal)}.
           </AlertDialogDescription>
         </AlertDialogHeader>
