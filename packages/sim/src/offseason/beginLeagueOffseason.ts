@@ -7,14 +7,15 @@ import { processOffseasonFinancials } from "../financials"
 import { evaluateOwnerGoals } from "../owners"
 import { derivePlayerSeasonProfiles } from "../playerSeasonProfiles"
 import { archivePlayerCareerSnapshots } from "../playerProfiles"
+import { archiveStaffCareerSnapshots } from "../staff"
 
 /** Opens one offseason and its next financial year as a single transaction. */
 export function beginLeagueOffseason(
   league: LeagueRecord,
   rng: Rng
 ): LeagueRecord {
-  const completedLeague = archivePlayerCareerSnapshots(
-    evaluateOwnerGoals(assignSeasonAwards(league))
+  const completedLeague = archiveStaffCareerSnapshots(
+    archivePlayerCareerSnapshots(evaluateOwnerGoals(assignSeasonAwards(league)))
   )
   const profiles = derivePlayerSeasonProfiles(
     completedLeague.seasonState.teams,

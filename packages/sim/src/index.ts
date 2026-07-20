@@ -92,6 +92,7 @@ export {
   getStaffByRole,
   getTeamStaff,
   getVacantStaffRoles,
+  getStaffPayroll,
   hireStaff,
   fireStaff,
   extendStaffContract,

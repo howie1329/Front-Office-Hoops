@@ -26,6 +26,8 @@ import {
   reconcileStaffEmployment,
 } from "../staff/employmentLifecycle"
 import { commitStaffHire } from "../staff/hireStaff"
+import { progressStaffLifecycle } from "../staff/staffLifecycle"
+import { processAiStaffRetention } from "../staff/aiStaff"
 
 function clampRating(value: number): number {
   return Math.max(1, Math.min(STAFF_RATING_MAX, Math.round(value)))
@@ -184,7 +186,12 @@ export function advanceStaffMarketDay(
 }
 
 export function beginStaffMarket(league: LeagueRecord, rng: Rng): LeagueRecord {
-  return processAiStaffMoves(reconcileStaffEmployment(league), rng)
+  return processAiStaffMoves(
+    reconcileStaffEmployment(
+      processAiStaffRetention(progressStaffLifecycle(league, rng)),
+    ),
+    rng,
+  )
 }
 
 function emergencyStaffMember(
@@ -201,6 +208,8 @@ function emergencyStaffMember(
     role,
     teamId: null,
     source: "market",
+    age: 35,
+    lastAgedSeason: season,
     ratings: {
       overall: 3,
       offense: role === "offensive_coordinator" ? 4 : 3,

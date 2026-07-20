@@ -19,6 +19,8 @@ function makeStaff(
     lastName: "Coach",
     teamId: "t_test",
     source: "employed",
+    age: 40,
+    lastAgedSeason: 1,
     ratings: {
       overall: 7,
       offense: 7,

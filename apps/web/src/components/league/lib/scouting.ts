@@ -28,9 +28,7 @@ export function getViewRatings(
   }
 
   const scoutingLevel = resolveScoutingLevel(options)
-  void scoutingLevel
-
-  const displayed = getDisplayedRatings(ratings)
+  const displayed = getDisplayedRatings(ratings, scoutingLevel)
   const skills = getSkillRatings(displayed)
   const overall = deriveOverall(skills)
 

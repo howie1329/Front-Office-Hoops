@@ -8,10 +8,31 @@ import { getStaffPayroll } from "./staffPayroll"
 export type StaffActionResult =
   { ok: true; league: LeagueRecord } | { ok: false; reason: string }
 
-function buildSalaryCurve(firstYearSalary: number, years: number): number[] {
+export function buildStaffSalaryCurve(firstYearSalary: number, years: number): number[] {
   return Array.from({ length: years }, (_, index) =>
     roundMoney(firstYearSalary * (1 + index * 0.05))
   )
+}
+
+export function validateStaffPayrollForecast(
+  league: LeagueRecord,
+  teamId: string,
+  startSeason: number,
+  salaries: number[],
+  excludedContractId?: string,
+): string | null {
+  const budget = league.teamFinancials.find((entry) => entry.teamId === teamId)?.staffBudget
+  if (budget === undefined) return "Team not found"
+  const contracts = excludedContractId
+    ? league.staffContracts.filter((contract) => contract.id !== excludedContractId)
+    : league.staffContracts
+  for (let index = 0; index < salaries.length; index += 1) {
+    const payroll = getStaffPayroll(teamId, contracts, startSeason + index)
+    if (payroll + (salaries[index] ?? 0) > budget) {
+      return `Staff offer exceeds the annual staff budget in season ${startSeason + index}`
+    }
+  }
+  return null
 }
 
 function createStaffContractId(
@@ -77,12 +98,15 @@ export function validateStaffHire(
   }
 
   const season = league.leagueFinancials.currentCapSeason
-  const proposedSalaries = buildSalaryCurve(offer.firstYearSalary, offer.years)
-  const currentPayroll = getStaffPayroll(teamId, league.staffContracts, season)
-  const addedPayroll = proposedSalaries[0] ?? 0
-
-  if (currentPayroll + addedPayroll > teamFinance.staffBudget) {
-    return { ok: false, reason: "Staff offer exceeds the annual staff budget" }
+  const proposedSalaries = buildStaffSalaryCurve(offer.firstYearSalary, offer.years)
+  const budgetError = validateStaffPayrollForecast(
+    league,
+    teamId,
+    season,
+    proposedSalaries,
+  )
+  if (budgetError) {
+    return { ok: false, reason: budgetError }
   }
 
   return { ok: true, league }
@@ -140,7 +164,7 @@ export function commitStaffHire(
     teamId,
     startSeason: season,
     endSeason: season + offer.years - 1,
-    yearlySalaries: buildSalaryCurve(offer.firstYearSalary, offer.years),
+    yearlySalaries: buildStaffSalaryCurve(offer.firstYearSalary, offer.years),
     status: "active",
     signedSeason: season,
   }

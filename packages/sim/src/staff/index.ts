@@ -38,3 +38,14 @@ export {
 export { commitStaffHire, hireStaff } from "./hireStaff"
 export { fireStaff } from "./fireStaff"
 export { extendStaffContract } from "./extendStaffContract"
+export {
+  processAiStaffRetention,
+  roleRating,
+  scoreStaffCandidate,
+  staffRetentionScore,
+  staffSchemeFit,
+} from "./aiStaff"
+export {
+  archiveStaffCareerSnapshots,
+  progressStaffLifecycle,
+} from "./staffLifecycle"

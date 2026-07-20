@@ -5,7 +5,7 @@ import type {
   StaffExtensionOffer,
   StaffMember,
 } from "@workspace/shared/types"
-import { getStaffEmploymentSeason } from "@workspace/sim"
+import { getStaffEmploymentSeason, getStaffPayroll } from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import { formatStaffRole } from "@/components/league/staff/staffLabels"
@@ -44,7 +44,7 @@ export function ExtendStaffDialog({
   teamId,
   member,
   staffBudget,
-  staffPayroll,
+  staffPayroll: _staffPayroll,
   onClose,
   onConfirm,
 }: ExtendStaffDialogProps) {
@@ -67,8 +67,17 @@ export function ExtendStaffDialog({
   }, [contract, currentSalary, member?.id])
 
   const extensionTotal = estimateOfferPayroll(salary, years)
-  const projectedPayroll = staffPayroll - currentSalary + salary
-  const overBudget = projectedPayroll > staffBudget
+  const extensionStartSeason = (contract?.endSeason ?? season - 1) + 1
+  const payrollForecast = Array.from({ length: years }, (_, index) => {
+    const salaryForSeason = Math.round(salary * (1 + index * 0.05) * 10) / 10
+    return {
+      season: extensionStartSeason + index,
+      payroll:
+        getStaffPayroll(teamId, league.staffContracts, extensionStartSeason + index) +
+        salaryForSeason,
+    }
+  })
+  const overBudget = payrollForecast.some((entry) => entry.payroll > staffBudget)
   const canSubmit =
     member && contract && years >= 1 && salary > 0 && !overBudget
 
@@ -81,8 +90,8 @@ export function ExtendStaffDialog({
               Extend {member.firstName} {member.lastName}
             </DialogTitle>
             <DialogDescription>
-              Replace the current deal with a new staff contract starting this
-              offseason.
+              Add a new deal after the current contract ends. The existing
+              contract remains in the staff history.
             </DialogDescription>
           </DialogHeader>
 
@@ -128,10 +137,16 @@ export function ExtendStaffDialog({
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Projected staff payroll after extension:{" "}
-              {formatMoney(projectedPayroll)} / {formatMoney(staffBudget)}.
-            </p>
+            <div className="grid gap-1 text-xs text-muted-foreground">
+              {payrollForecast.map((entry) => (
+                <div key={entry.season} className="flex justify-between gap-4">
+                  <span>Season {entry.season} payroll</span>
+                  <span className={entry.payroll > staffBudget ? "text-destructive" : undefined}>
+                    {formatMoney(entry.payroll)} / {formatMoney(staffBudget)}
+                  </span>
+                </div>
+              ))}
+            </div>
             <p className="text-xs text-muted-foreground">
               Total contract value: {formatMoney(extensionTotal)}.
             </p>

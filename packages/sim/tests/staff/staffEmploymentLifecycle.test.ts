@@ -36,6 +36,18 @@ function inStaffWeek(seed: string) {
       ...league.leagueFinancials,
       currentCapSeason: 2,
     },
+    staffContracts: league.staffContracts.map((contract) => {
+      const years = Math.max(2, contract.endSeason) - contract.startSeason + 1
+      const firstSalary = contract.yearlySalaries[0] ?? 1
+      return {
+        ...contract,
+        endSeason: Math.max(2, contract.endSeason),
+        yearlySalaries: Array.from(
+          { length: years },
+          (_, index) => firstSalary * (1 + index * 0.05),
+        ),
+      }
+    }),
     seasonState: {
       ...league.seasonState,
       phase: "offseason" as const,
@@ -105,7 +117,7 @@ describe("staff employment lifecycle", () => {
     expect(getVacantStaffRoles(reconciled, teamId)).toEqual([])
   })
 
-  it("creates new contracts in the current cap season and budgets only annual salary", () => {
+  it("creates new contracts in the current cap season and validates each annual salary", () => {
     let league = reconcileStaffEmployment(inStaffWeek("staff-hire-season"))
     const teamId = league.userTeamId!
     const incumbent = league.staff.find(
@@ -126,7 +138,7 @@ describe("staff employment lifecycle", () => {
       ...league,
       teamFinancials: league.teamFinancials.map((entry) =>
         entry.teamId === teamId
-          ? { ...entry, staffBudget: payroll + 0.6 }
+          ? { ...entry, staffBudget: 100 }
           : entry
       ),
     }
@@ -156,7 +168,7 @@ describe("staff employment lifecycle", () => {
     ).toBeCloseTo(payroll + 0.5)
   })
 
-  it("replaces an extension in the current cap season using annual payroll", () => {
+  it("appends an extension after the current contract using annual payroll", () => {
     const base = inStaffWeek("staff-extension-season")
     const teamId = base.userTeamId!
     const member = base.staff.find(
@@ -199,14 +211,17 @@ describe("staff employment lifecycle", () => {
       extended.league.staffContracts.find(
         (entry) => entry.id === priorContract.id
       )?.status
-    ).toBe("expired")
+    ).toBe("active")
     expect(
       extended.league.staffContracts.find(
-        (entry) => entry.staffId === member.id && entry.status === "active"
+        (entry) =>
+          entry.staffId === member.id &&
+          entry.status === "active" &&
+          entry.id !== priorContract.id
       )
     ).toMatchObject({
-      startSeason: 2,
-      endSeason: 3,
+      startSeason: 3,
+      endSeason: 4,
       yearlySalaries: [4, 4.2],
     })
   })

@@ -43,13 +43,25 @@ export function getDisplayedSkillRating(
   return clampRating(trueRating + fuzz)
 }
 
+function fuzzMultiplier(scoutingLevel: number): number {
+  const normalized =
+    (Math.max(SCOUTING_LEVEL_MIN, Math.min(SCOUTING_LEVEL_MAX, scoutingLevel)) - 1) /
+    (SCOUTING_LEVEL_MAX - 1)
+  return 1.7 - normalized * 1.4
+}
+
 export function getDisplayedRatings(
   ratings: PlayerRatings,
+  scoutingLevel = 5,
 ): Omit<PlayerRatings, "fuzz"> & { fuzz: Record<SkillKey, number> } {
   const displayed = { ...ratings }
+  const multiplier = fuzzMultiplier(scoutingLevel)
 
   for (const key of SKILL_KEYS) {
-    displayed[key] = getDisplayedSkillRating(ratings[key], ratings.fuzz[key] ?? 0)
+    displayed[key] = getDisplayedSkillRating(
+      ratings[key],
+      Math.round((ratings.fuzz[key] ?? 0) * multiplier),
+    )
   }
 
   const skillSlice = Object.fromEntries(
@@ -60,7 +72,9 @@ export function getDisplayedRatings(
     ...skillSlice,
     fuzz: ratings.fuzz,
     overall: displayed.overall,
-    potential: displayed.potential,
+    potential: clampRating(
+      displayed.potential + Math.round((ratings.potentialFuzz ?? 0) * multiplier),
+    ),
     usage: displayed.usage,
   }
 }
@@ -75,7 +89,7 @@ export function resolveScoutingLevel(options: {
   }
 
   if (options.isDraftProspect) {
-    return Math.max(SCOUTING_LEVEL_MIN, (options.teamScoutingLevel ?? 5) - 2)
+    return options.teamScoutingLevel ?? 5
   }
 
   return options.teamScoutingLevel ?? 5

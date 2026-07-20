@@ -6,11 +6,21 @@ import {
   DEFENSIVE_SCHEME_ARCHETYPES,
   OFFENSIVE_SCHEME_ARCHETYPES,
 } from "../../src/staff/schemeFit"
+import { computeOffensiveSynergy } from "../../src/gameSim/synergy"
 
 describe("schemeFit", () => {
   it("treats balanced offense as neutral for all archetypes", () => {
     expect(archetypeFitsOffensiveScheme("slasher", "balanced")).toBe(true)
     expect(archetypeFitsOffensiveScheme("post_scorer", "balanced")).toBe(true)
+  })
+
+  it("does not award balanced offense automatic scheme-fit bonuses", () => {
+    expect(computeOffensiveSynergy([], "balanced")).toEqual({
+      grade: "C",
+      score: 50,
+      bonuses: [],
+      penalties: [],
+    })
   })
 
   it("scores perimeter offense for preferred archetypes", () => {

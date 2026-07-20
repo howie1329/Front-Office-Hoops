@@ -24,11 +24,15 @@ import type {
   SeasonPhase,
   SeasonState,
 } from "./seasonTypes"
-import type { StaffMember } from "./coachTypes"
+import type {
+  StaffCareerSnapshot,
+  StaffMember,
+  StaffRetirementEntry,
+} from "./coachTypes"
 import type { StaffContract } from "./staffContractTypes"
 import type { PendingTradeOffer, TradeHistoryEntry } from "./tradeTypes"
 
-export const SAVE_VERSION = 17 as const
+export const SAVE_VERSION = 18 as const
 
 export type DraftClassCache = {
   season: number
@@ -73,6 +77,8 @@ export type LeagueRecord = League & {
   staff: StaffMember[]
   staffContracts: StaffContract[]
   collegeCoaches: StaffMember[]
+  staffCareerSnapshots: StaffCareerSnapshot[]
+  retiredStaff: StaffRetirementEntry[]
 }
 
 export type LeagueSummary = Pick<

@@ -53,7 +53,12 @@ export type StartNextSeasonInput = {
     Partial<
       Pick<
         LeagueRecord,
-        "draftPickAssets" | "staff" | "staffContracts" | "collegeCoaches"
+        | "draftPickAssets"
+        | "staff"
+        | "staffContracts"
+        | "collegeCoaches"
+        | "staffCareerSnapshots"
+        | "retiredStaff"
       >
     >
 }
@@ -214,6 +219,8 @@ export function startNextSeason(
         staff: league.staff ?? [],
         staffContracts: league.staffContracts ?? [],
         collegeCoaches: league.collegeCoaches ?? [],
+        staffCareerSnapshots: league.staffCareerSnapshots ?? [],
+        retiredStaff: league.retiredStaff ?? [],
       },
       newSeason
     )

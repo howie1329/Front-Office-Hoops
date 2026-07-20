@@ -222,8 +222,10 @@ export { DEFAULT_TEAM_MOMENTUM } from "./gameSimTypes"
 
 export type {
   StaffExtensionOffer,
+  StaffCareerSnapshot,
   StaffMember,
   StaffOffer,
+  StaffRetirementEntry,
   StaffRatings,
   StaffRole,
   StaffSource,

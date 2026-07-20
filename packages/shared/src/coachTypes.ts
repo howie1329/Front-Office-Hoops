@@ -28,6 +28,9 @@ export type StaffMember = {
   role: StaffRole
   teamId: string | null
   source: StaffSource
+  age: number
+  /** Prevents lifecycle callers from aging a staff member more than once per season. */
+  lastAgedSeason: number
   ratings: StaffRatings
   preferredOffense: OffensiveScheme
   preferredDefense: DefensiveScheme
@@ -39,6 +42,28 @@ export type StaffMember = {
   potential?: number
   /** College pipeline only */
   seasonsInCollege?: number
+}
+
+export type StaffCareerSnapshot = {
+  id: string
+  staffId: string
+  season: number
+  teamId: string
+  role: StaffRole
+  age: number
+  wins: number
+  losses: number
+  madePlayoffs: boolean
+  wonChampionship: boolean
+}
+
+export type StaffRetirementEntry = {
+  staffId: string
+  season: number
+  age: number
+  role: StaffRole
+  teamId: string | null
+  reason: "age"
 }
 
 export type StaffOffer = {

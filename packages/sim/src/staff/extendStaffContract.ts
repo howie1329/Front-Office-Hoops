@@ -1,8 +1,7 @@
 import type { LeagueRecord, StaffExtensionOffer } from "@workspace/shared/types"
 
-import { roundMoney } from "../financials/capMath"
 import { syncLeagueStaffFinancials } from "./deriveTeamStaff"
-import { getStaffPayroll } from "./staffPayroll"
+import { buildStaffSalaryCurve, validateStaffPayrollForecast } from "./hireStaff"
 
 export type StaffActionResult =
   { ok: true; league: LeagueRecord } | { ok: false; reason: string }
@@ -47,63 +46,49 @@ export function extendStaffContract(
     return { ok: false, reason: "Coach not found on this team" }
   }
 
-  const activeContract = league.staffContracts.find(
-    (contract) =>
-      contract.staffId === staffId &&
-      contract.teamId === teamId &&
-      contract.status === "active"
-  )
+  const activeContract = league.staffContracts
+    .filter(
+      (contract) =>
+        contract.staffId === staffId &&
+        contract.teamId === teamId &&
+        contract.status === "active",
+    )
+    .sort((left, right) => right.endSeason - left.endSeason)[0]
 
   if (!activeContract) {
     return { ok: false, reason: "No active staff contract found" }
   }
 
-  const teamFinance = league.teamFinancials.find(
-    (entry) => entry.teamId === teamId
+  const extensionSalaries = buildStaffSalaryCurve(offer.firstYearSalary, offer.years)
+  const startSeason = activeContract.endSeason + 1
+  const budgetError = validateStaffPayrollForecast(
+    league,
+    teamId,
+    startSeason,
+    extensionSalaries,
   )
-  if (!teamFinance) {
-    return { ok: false, reason: "Team not found" }
-  }
-
-  const season = league.leagueFinancials.currentCapSeason
-  const extensionSalaries = Array.from({ length: offer.years }, (_, index) =>
-    roundMoney(offer.firstYearSalary * (1 + index * 0.05))
-  )
-
-  const currentPayroll = getStaffPayroll(teamId, league.staffContracts, season)
-  const currentSalary =
-    activeContract.yearlySalaries[season - activeContract.startSeason] ?? 0
-  const extensionSalary = extensionSalaries[0] ?? 0
-
-  if (
-    currentPayroll - currentSalary + extensionSalary >
-    teamFinance.staffBudget
-  ) {
-    return { ok: false, reason: "Extension exceeds the annual staff budget" }
-  }
-
-  const staffContracts = league.staffContracts.map((contract) =>
-    contract.id === activeContract.id
-      ? { ...contract, status: "expired" as const }
-      : contract
-  )
+  if (budgetError) return { ok: false, reason: budgetError }
 
   const newContract = {
-    id: createStaffContractId(league, staffId, season),
+    id: createStaffContractId(
+      league,
+      staffId,
+      league.leagueFinancials.currentCapSeason,
+    ),
     staffId,
     teamId,
-    startSeason: season,
-    endSeason: season + offer.years - 1,
+    startSeason,
+    endSeason: startSeason + offer.years - 1,
     yearlySalaries: extensionSalaries,
     status: "active" as const,
-    signedSeason: season,
+    signedSeason: league.leagueFinancials.currentCapSeason,
   }
 
   return {
     ok: true,
     league: syncLeagueStaffFinancials({
       ...league,
-      staffContracts: [...staffContracts, newContract],
+      staffContracts: [...league.staffContracts, newContract],
     }),
   }
 }

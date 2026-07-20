@@ -10,7 +10,7 @@ import type {
 } from "@workspace/shared/types"
 import { ROSTER_MAX } from "@workspace/shared/constants"
 
-import { getStaffByRole, STAFF_ROLES } from "../staff"
+import { getStaffByRole, scoreStaffCandidate, STAFF_ROLES } from "../staff"
 import { validateStaffHire, hireStaff } from "../staff/hireStaff"
 import { findPlayer } from "../roster/ledger"
 import {
@@ -674,9 +674,17 @@ export function generateAiStaffMarketOffers(
 
       const pool = [...current.staff, ...current.collegeCoaches]
         .filter((staff) => staff.teamId === null && staff.role === role)
-        .sort((a, b) => b.ratings.overall - a.ratings.overall)
+        .sort(
+          (a, b) =>
+            scoreStaffCandidate(current, teamId, b) -
+              scoreStaffCandidate(current, teamId, a) ||
+            b.ratings.overall - a.ratings.overall,
+        )
         .slice(0, 6)
-      const candidate = pool[rng.int(0, Math.max(0, pool.length - 1))]
+      // Preserve the market's existing random-stream cadence while making the
+      // actual choice quality-, fit-, and budget-driven.
+      void rng.int(0, Math.max(0, pool.length - 1))
+      const candidate = pool[0]
       if (
         !candidate ||
         hasPendingTeamOffer(current, "staff", candidate.id, "staff", teamId)

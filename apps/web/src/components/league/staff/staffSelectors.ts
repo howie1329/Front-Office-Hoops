@@ -53,6 +53,9 @@ export function formatStaffContractLabel(
   if (!contract || yearsRemaining === 0) {
     return "—"
   }
+  if (contract.endSeason === season) {
+    return "Expires this season"
+  }
   return `${yearsRemaining} yr${yearsRemaining === 1 ? "" : "s"} left`
 }
 
@@ -108,6 +111,20 @@ export function getRoleRatingSummary(member: StaffMember): string {
     return `DEF ${member.ratings.defense}`
   }
   return `SCOUT ${member.ratings.scouting}`
+}
+
+export function getStaffCareerSummary(
+  league: LeagueRecord,
+  staffId: string,
+): string {
+  const history = league.staffCareerSnapshots.filter(
+    (entry) => entry.staffId === staffId,
+  )
+  if (history.length === 0) return "No pro seasons"
+  const wins = history.reduce((sum, entry) => sum + entry.wins, 0)
+  const losses = history.reduce((sum, entry) => sum + entry.losses, 0)
+  const teams = new Set(history.map((entry) => entry.teamId)).size
+  return `${history.length} yr · ${wins}-${losses} · ${teams} team${teams === 1 ? "" : "s"}`
 }
 
 export function getMarketPool(league: LeagueRecord): StaffMember[] {

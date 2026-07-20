@@ -55,16 +55,11 @@ export function deriveCoachingLevel(teamStaff: StaffMember[]): number {
 
 export function deriveScoutingLevel(teamStaff: StaffMember[]): number {
   const head = teamStaff.find((member) => member.role === "scouting_head")
-  const hc = teamStaff.find((member) => member.role === "head_coach")
 
   if (!head) {
     return 5
   }
-
-  const blended =
-    head.ratings.scouting * 0.85 + (hc?.ratings.scouting ?? 5) * 0.15
-
-  return Math.max(1, Math.min(10, Math.round(blended)))
+  return Math.max(1, Math.min(10, head.ratings.scouting))
 }
 
 export function deriveDevelopmentLevel(teamStaff: StaffMember[]): number {

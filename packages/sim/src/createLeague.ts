@@ -82,6 +82,8 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     staff: [],
     staffContracts: [],
     collegeCoaches: [],
+    staffCareerSnapshots: [],
+    retiredStaff: [],
   }
 
   const withFinancials = ensureFaPoolMinimum(

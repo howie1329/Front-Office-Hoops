@@ -28,6 +28,7 @@ import {
 } from "@/components/league/staff/staffLabels"
 import {
   getMarketPool,
+  getStaffCareerSummary,
   getVacantRoles,
 } from "@/components/league/staff/staffSelectors"
 import { Badge } from "@workspace/ui/components/badge"
@@ -55,6 +56,8 @@ type HiringPoolRow = {
   name: string
   role: string
   overall: number
+  age: number
+  career: string
   expected: string
   bestOffer: string
   schemes: string
@@ -118,6 +121,8 @@ export function HiringPoolPanel({
           name: `${member.firstName} ${member.lastName}`,
           role: formatStaffRole(member.role),
           overall: member.ratings.overall,
+          age: member.age,
+          career: getStaffCareerSummary(league, member.id),
           expected: `${formatMoney(market.lowSalary)}-${formatMoney(market.highSalary)}`,
           bestOffer:
             sortedOffers.length > 0
@@ -154,7 +159,15 @@ export function HiringPoolPanel({
         },
       },
       { accessorKey: "role", header: "Role" },
+      { accessorKey: "age", header: "Age" },
       { accessorKey: "overall", header: "Overall" },
+      {
+        accessorKey: "career",
+        header: "Career",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">{row.original.career}</span>
+        ),
+      },
       { accessorKey: "expected", header: "Expected" },
       {
         accessorKey: "bestOffer",
@@ -255,7 +268,7 @@ export function HiringPoolPanel({
             table={table}
             emptyLabel="No coaches match this filter."
             stickyHeader
-            className="min-w-[980px]"
+            className="min-w-[1120px]"
             rowClassName={(row) =>
               cn(row.original.matchesVacancy && "bg-primary/5")
             }

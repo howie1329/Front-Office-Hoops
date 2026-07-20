@@ -13,6 +13,7 @@ import {
 import {
   formatStaffContractLabel,
   formatStaffSalaryLabel,
+  getStaffCareerSummary,
   getActiveStaffContract,
   getRoleRatingSummary,
 } from "@/components/league/staff/staffSelectors"
@@ -36,6 +37,8 @@ type StaffRosterTableProps = {
 type StaffRosterRow = {
   role: string
   name: string
+  age: string
+  career: string
   ratings: string
   schemes: string
   pace: string
@@ -66,6 +69,8 @@ export function StaffRosterTable({
         return {
           role: formatStaffRole(role),
           name: member ? `${member.firstName} ${member.lastName}` : "Vacant",
+          age: member ? String(member.age) : "—",
+          career: member ? getStaffCareerSummary(league, member.id) : "—",
           ratings: member ? getRoleRatingSummary(member) : "—",
           schemes: member
             ? `${formatOffensiveScheme(member.preferredOffense)} / ${formatDefensiveScheme(member.preferredDefense)}`
@@ -87,6 +92,14 @@ export function StaffRosterTable({
     const baseColumns: ColumnDef<StaffRosterRow>[] = [
       { accessorKey: "role", header: "Role" },
       { accessorKey: "name", header: "Name" },
+      { accessorKey: "age", header: "Age" },
+      {
+        accessorKey: "career",
+        header: "Career",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">{row.original.career}</span>
+        ),
+      },
       {
         accessorKey: "ratings",
         header: "Ratings",
@@ -170,7 +183,7 @@ export function StaffRosterTable({
         table={table}
         emptyLabel="No staff roles available."
         stickyHeader
-        className="min-w-[880px]"
+        className="min-w-[1040px]"
       />
     </div>
   )

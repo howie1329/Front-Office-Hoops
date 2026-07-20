@@ -35,6 +35,18 @@ export function getTeamStaffPayroll(
   )
 }
 
+export function getStaffPayrollBySeason(
+  teamId: string,
+  staffContracts: StaffContract[],
+  startSeason: number,
+  years: number,
+): Array<{ season: number; payroll: number }> {
+  return Array.from({ length: years }, (_, index) => {
+    const season = startSeason + index
+    return { season, payroll: getStaffPayroll(teamId, staffContracts, season) }
+  })
+}
+
 export function sumStaffPayrollForTeam(
   teamId: string,
   staffContracts: StaffContract[]
