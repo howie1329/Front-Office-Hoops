@@ -154,6 +154,18 @@ Each new season year, `startNextSeason` applies `applyPreseasonProgression` befo
 `beginOffseason` opens the offseason phase and prepares awards/financial processing;
 rating changes are applied when the next season starts.
 
+## Scouting and information quality
+
+The engine keeps league truth separate from what the user sees. Player-facing views use
+the selected team's scouting level and a deterministic league/team/player seed to derive
+displayed ratings and potential ranges. Better scouting narrows the error envelope; it
+does not change the underlying player. The simulation, AI, contracts, and trade evaluation
+continue to use the true player record.
+
+Scouting level is derived from the team's staff and financial state. This makes staff
+quality and staffing decisions affect information quality without introducing unreproducible
+randomness into the UI.
+
 ## Injuries
 
 `injuries.ts` provides a simple availability model:
@@ -171,7 +183,7 @@ Injured players have `status: "injured"` and an `injury` object with type, descr
 - Optional `teams` or `useMiniLeague` (6-team sample rosters)
 - Optional `userTeamId`
 
-New leagues are created with the current `SAVE_VERSION` (`16`). There is no save migration; clear local IndexedDB saves after schema changes during development.
+New leagues are created with the current `SAVE_VERSION` (`18`). There is no save migration; clear local IndexedDB saves after schema changes during development.
 
 ## Offseason loop
 

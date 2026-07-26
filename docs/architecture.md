@@ -76,8 +76,8 @@ Key dependencies: `@tanstack/react-start`, `@tanstack/react-router`, Tailwind CS
 - Playoffs (`beginPlayoffs`, `simulatePlayoffs`, bracket logic)
 - League lifecycle (`createLeague`, `startNextSeason`, `archiveSeason`)
 - Procedural generation (`generateTeams`, `generatePlayers`, player archetypes, draft classes, free agents)
-- Aggregate game simulation, rotations, injuries, player/contract value, and financial AI
-- Contracts, cap/tax math, re-signing, draft, free agency, staff, trades, and team strategy
+- Aggregate game simulation, rotations, injuries, player/contract value, scouting, and financial AI
+- Contracts, cap/tax math, re-signing, draft, free agency, staff, trades, team strategy, and owner-goal evaluation
 - Seeded RNG (`createRng`) for reproducibility
 
 All exports are functions that take immutable-ish state + an `Rng` and return updated state. Vitest tests cover core behavior.

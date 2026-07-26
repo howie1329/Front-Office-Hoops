@@ -29,7 +29,7 @@ Top-level metadata for a save slot.
 | ------------- | ---------------- | ---------------------------------- |
 | `id`          | `string`         | Unique league ID (`league_<uuid>`) |
 | `name`        | `string`         | Display name                       |
-| `saveVersion` | `16`             | Current save schema marker         |
+| `saveVersion` | `18`             | Current save schema marker         |
 | `createdAt`   | ISO string       | Creation timestamp                 |
 | `updatedAt`   | ISO string       | Last save timestamp                |
 | `userTeamId`  | `string \| null` | Player-controlled team             |
@@ -257,7 +257,7 @@ Each row is a full `LeagueRecord` JSON document.
 
 ### Save versioning
 
-`SAVE_VERSION` (currently `16`) in `packages/shared/src/leagueTypes.ts` marks the current save shape. There are no legacy saves to migrate — bump the constant when the schema changes and clear local IndexedDB saves during development.
+`SAVE_VERSION` (currently `18`) in `packages/shared/src/leagueTypes.ts` marks the current save shape. There are no legacy saves to migrate — bump the constant when the schema changes and clear local IndexedDB saves during development.
 
 ### Auto-save behavior
 
