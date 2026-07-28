@@ -20,10 +20,7 @@ export function useTeamFinancials(
       return null
     }
 
-    const season =
-      league.seasonState.phase === "offseason"
-        ? league.seasonState.season + 1
-        : league.seasonState.season
+    const season = league.leagueFinancials.currentCapSeason
     const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
     const teamFinance = league.teamFinancials.find(
       (entry) => entry.teamId === teamId,

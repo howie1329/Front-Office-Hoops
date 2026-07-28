@@ -1,15 +1,25 @@
-import { CAMP_ROSTER_MAX, ROSTER_MAX, ROSTER_MIN } from "@workspace/shared/constants"
-import type { LeagueRecord, SeasonMilestones, SeasonState } from "@workspace/shared/types"
+import {
+  CAMP_ROSTER_MAX,
+  ROSTER_MAX,
+  ROSTER_MIN,
+} from "@workspace/shared/constants"
+import type {
+  LeagueRecord,
+  SeasonMilestones,
+  SeasonState,
+} from "@workspace/shared/types"
 
 import { getCurrentCalendar } from "./calendar"
 import { isDraftRequired } from "./draft/isDraftRequired"
 import { isPreseasonComplete } from "./preseason/isPreseasonComplete"
 import { isRegularSeasonComplete } from "./isRegularSeasonComplete"
+import { getVacantStaffRoles } from "./staff/employmentLifecycle"
 
 export type PhaseAction =
   | "beginRegularSeason"
   | "beginPlayoffs"
   | "beginOffseason"
+  | "completeContractOptions"
   | "completeStaffPhase"
   | "simAiReSignings"
   | "proceedToDraft"
@@ -19,13 +29,13 @@ export type PhaseAction =
   | "startNextSeason"
 
 export type EligibilityResult =
-  | { allowed: true }
-  | { allowed: false; reason: string }
+  { allowed: true } | { allowed: false; reason: string }
 
 const PHASE_ACTIONS: PhaseAction[] = [
   "beginRegularSeason",
   "beginPlayoffs",
   "beginOffseason",
+  "completeContractOptions",
   "completeStaffPhase",
   "simAiReSignings",
   "proceedToDraft",
@@ -35,7 +45,9 @@ const PHASE_ACTIONS: PhaseAction[] = [
   "startNextSeason",
 ]
 
-function getScheduleBasedMilestones(seasonState: SeasonState): SeasonMilestones {
+function getScheduleBasedMilestones(
+  seasonState: SeasonState
+): SeasonMilestones {
   return getCurrentCalendar(seasonState).milestones
 }
 
@@ -52,8 +64,7 @@ function getUserRosterSize(league: LeagueRecord): number {
 
 function aiRosterNeedsFilling(league: LeagueRecord): boolean {
   return league.seasonState.teams.some(
-    (team) =>
-      team.id !== league.userTeamId && team.players.length < ROSTER_MAX
+    (team) => team.id !== league.userTeamId && team.players.length < ROSTER_MAX
   )
 }
 
@@ -106,7 +117,8 @@ export function getPhaseEligibility(
       if (
         seasonState.teams.some(
           (team) =>
-            team.id !== league.userTeamId && team.players.length > CAMP_ROSTER_MAX,
+            team.id !== league.userTeamId &&
+            team.players.length > CAMP_ROSTER_MAX
         )
       ) {
         return {
@@ -158,6 +170,30 @@ export function getPhaseEligibility(
       return { allowed: true }
     }
 
+    case "completeContractOptions": {
+      if (!isOffseason || offseasonPhase !== "contract_options") {
+        return {
+          allowed: false,
+          reason: "Contract options phase is not active",
+        }
+      }
+      const hasPendingOptions = league.contracts.some(
+        (contract) =>
+          contract.status === "active" &&
+          contract.teamId === league.userTeamId &&
+          contract.options?.some(
+            (option) => option.yearIndex === 0 && option.type === "team"
+          )
+      )
+      if (hasPendingOptions) {
+        return {
+          allowed: false,
+          reason: "Decide all team options before continuing",
+        }
+      }
+      return { allowed: true }
+    }
+
     case "completeStaffPhase": {
       if (!isOffseason) {
         return {
@@ -169,6 +205,15 @@ export function getPhaseEligibility(
         return {
           allowed: false,
           reason: "Staff phase is not active",
+        }
+      }
+      if (
+        league.userTeamId &&
+        getVacantStaffRoles(league, league.userTeamId).length > 0
+      ) {
+        return {
+          allowed: false,
+          reason: "Fill all staff roles before continuing",
         }
       }
       return { allowed: true }

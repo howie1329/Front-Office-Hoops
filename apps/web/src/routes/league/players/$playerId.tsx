@@ -11,6 +11,7 @@ import {
   getCurrentSalary,
   getExtensionEligibilityReason,
   getExternalFreeAgents,
+  getPlayerDecisionValueBreakdown,
   getPlayerContract,
   getTeamExpiredFreeAgents,
   getYearsRemaining,
@@ -37,6 +38,7 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import {
+  getScoutedPlayer,
   getTeamScoutingLevel,
   getViewRatings,
   skillLabel,
@@ -191,9 +193,29 @@ function PlayerProfilePage() {
     : undefined
   const viewRatings =
     player && teamFinance
-      ? getViewRatings(player.ratings, {
+      ? getViewRatings(player, {
           isOwnRoster: isMyRosterPlayer,
           teamScoutingLevel: getTeamScoutingLevel(teamFinance),
+          leagueSeed: seasonState.baseSeed,
+          viewerTeamId: userTeamId ?? "league_office",
+        })
+      : null
+  const scoutedPlayer =
+    player && teamFinance && userTeamId
+      ? getScoutedPlayer(player, {
+          isOwnRoster: isMyRosterPlayer,
+          teamScoutingLevel: getTeamScoutingLevel(teamFinance),
+          leagueSeed: seasonState.baseSeed,
+          viewerTeamId: userTeamId,
+        })
+      : player
+  const valueBreakdown =
+    scoutedPlayer && userTeamId
+      ? getPlayerDecisionValueBreakdown({
+          league,
+          player: scoutedPlayer,
+          receivingTeamId: userTeamId,
+          contract,
         })
       : null
   const scoutingNote = isMyRosterPlayer
@@ -244,7 +266,12 @@ function PlayerProfilePage() {
         }
         onOpenOffer={() => {
           if (player) {
-            setOfferSalary(Math.max(2, Math.round(player.ratings.overall / 8)))
+            setOfferSalary(
+              Math.max(
+                2,
+                Math.round((viewRatings?.overall ?? player.ratings.overall) / 8),
+              ),
+            )
           }
           setOfferOpen(true)
         }}
@@ -262,6 +289,7 @@ function PlayerProfilePage() {
             scoutingNote={scoutingNote}
             moodHints={moodHints}
             lastDevelopment={lastDevelopment}
+            valueBreakdown={valueBreakdown}
           />
         ) : null}
 
@@ -494,12 +522,14 @@ function ScoutingTab({
   scoutingNote,
   moodHints,
   lastDevelopment,
+  valueBreakdown,
 }: {
   player: Player
   viewRatings: PlayerRatings
   scoutingNote: string
   moodHints: ReturnType<typeof getPlayerMoodHints>
   lastDevelopment: PlayerDevelopmentRecord | undefined
+  valueBreakdown: ReturnType<typeof getPlayerDecisionValueBreakdown> | null
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -540,6 +570,8 @@ function ScoutingTab({
         </div>
       </section>
 
+      {valueBreakdown ? <PlayerValueBreakdown breakdown={valueBreakdown} /> : null}
+
       <section className="rounded-lg ring-1 ring-foreground/10 px-4 py-3">
         <h2 className="text-sm font-medium">Player mood</h2>
         <p className="text-xs text-muted-foreground">{scoutingNote}</p>
@@ -575,6 +607,46 @@ function ScoutingTab({
         </section>
       ) : null}
     </div>
+  )
+}
+
+function PlayerValueBreakdown({
+  breakdown,
+}: {
+  breakdown: ReturnType<typeof getPlayerDecisionValueBreakdown>
+}) {
+  const rows = [
+    ["Talent", breakdown.talent],
+    ["Age curve", breakdown.ageCurve],
+    ["Durability", breakdown.durability],
+    ["Contract", breakdown.contract],
+    ["Scarcity", breakdown.scarcity],
+    ["Production", breakdown.production],
+  ] as const
+
+  return (
+    <section className="rounded-lg ring-1 ring-foreground/10 px-4 py-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-medium">Value breakdown</h2>
+          <p className="text-xs text-muted-foreground">
+            Based on your scouting report and public contract terms.
+          </p>
+        </div>
+        <span className="text-sm font-medium tabular-nums">
+          {breakdown.total.toFixed(1)}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map(([label, value]) => (
+          <RailRow
+            key={label}
+            label={label}
+            value={`${value >= 0 ? "+" : ""}${value.toFixed(1)}`}
+          />
+        ))}
+      </div>
+    </section>
   )
 }
 

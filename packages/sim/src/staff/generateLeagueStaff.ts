@@ -34,6 +34,11 @@ function clampStaffRating(value: number): number {
   return Math.max(STAFF_RATING_MIN, Math.min(STAFF_RATING_MAX, Math.round(value)))
 }
 
+function deterministicAge(id: string, min: number, max: number): number {
+  const value = [...id].reduce((sum, character) => sum + character.charCodeAt(0), 0)
+  return min + (value % (max - min + 1))
+}
+
 function ratingForTier(tier: StaffTier, rng: Rng): number {
   switch (tier) {
     case "elite":
@@ -166,6 +171,8 @@ function createStaffMember({
     role,
     teamId,
     source,
+    age: deterministicAge(`staff_${idSuffix}`, source === "college" ? 25 : 30, source === "college" ? 45 : 59),
+    lastAgedSeason: 1,
     ratings: buildRatingsForRole(role, overall, rng),
     preferredOffense,
     preferredDefense,
@@ -296,6 +303,8 @@ function generateCollegePool(
       role,
       teamId: null,
       source: "college",
+      age: deterministicAge(`college_staff_${startIndex + index}`, 25, 45),
+      lastAgedSeason: 1,
       ratings: buildRatingsForRole(role, overall, rng),
       preferredOffense: pickRandomScheme(OFFENSIVE_SCHEMES, rng),
       preferredDefense: pickRandomScheme(DEFENSIVE_SCHEMES, rng),
@@ -312,6 +321,31 @@ function generateCollegePool(
   }
 
   return coaches
+}
+
+export function replenishCollegeCoaches(
+  collegeCoaches: StaffMember[],
+  rng: Rng,
+): StaffMember[] {
+  const missing = Math.max(0, COLLEGE_COACH_POOL_SIZE - collegeCoaches.length)
+  if (missing === 0) {
+    return collegeCoaches
+  }
+
+  const usedNames = new Set(
+    collegeCoaches.map((member) => `${member.firstName}:${member.lastName}`),
+  )
+  const startIndex =
+    Math.max(
+      -1,
+      ...collegeCoaches.map((member) =>
+        Number(member.id.match(/(\d+)$/)?.[1] ?? -1),
+      ),
+    ) + 1
+  return [
+    ...collegeCoaches,
+    ...generateCollegePool(rng, usedNames, startIndex).slice(0, missing),
+  ]
 }
 
 export function generateLeagueStaffForTeams(

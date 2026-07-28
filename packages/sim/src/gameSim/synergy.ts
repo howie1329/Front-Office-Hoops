@@ -61,6 +61,9 @@ export function computeOffensiveSynergy(
   rotation: RotationEntry[],
   offensiveScheme: OffensiveScheme,
 ): SynergyBreakdown {
+  if (offensiveScheme === "balanced") {
+    return { grade: gradeFromScore(50), score: 50, bonuses: [], penalties: [] }
+  }
   const onCourt = topRotation(rotation)
   const bonuses: string[] = []
   const penalties: string[] = []

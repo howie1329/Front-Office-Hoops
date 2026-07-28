@@ -4,6 +4,8 @@ Front Office Hoops is a browser-based basketball general-manager simulation. Bui
 
 The product is web-first, mobile-friendly, and local-first. The simulation and saves run in the browser without requiring an account or a server connection.
 
+The project is currently an early local-first prototype (`0.0.1`). The core multi-season loop is implemented, but save portability, browser-level test coverage, responsive polish, and hosted product infrastructure are still planned. See the [product brief](./docs/product-brief.md) for the product boundary and readiness bar.
+
 ## Current experience
 
 - Create 6-team mini leagues or full 30-team leagues and choose a franchise.
@@ -14,6 +16,8 @@ The product is web-first, mobile-friendly, and local-first. The simulation and s
 - Hire, fire, and extend staff; staff quality influences team philosophy and development.
 - Evaluate and execute trades with player values, draft picks, salary rules, trade exceptions, and AI offers.
 - Track player archetypes, development, aging, injuries, retirement, and career history.
+- Inspect scouting reports whose precision depends on team scouting quality.
+- Carry owner goals, team strategy, and staff effects through league state and offseason decisions.
 - Maintain multiple local league saves and experiment in Sim Lab or Season Lab.
 
 ## Stack
@@ -45,6 +49,7 @@ Open [http://localhost:3000](http://localhost:3000), create a league, pick a tea
 The current project docs live in [`docs/`](./docs/README.md):
 
 - [Vision](./docs/vision.md) — product goals and design principles
+- [Product Brief](./docs/product-brief.md) — audience, product boundary, current state, and readiness bar
 - [Architecture](./docs/architecture.md) — monorepo boundaries and data flow
 - [Simulation Engine](./docs/simulation-engine.md) — games, seasons, development, and offseason phases
 - [Data Model](./docs/data-model.md) — domain types, save shape, and persistence
@@ -53,6 +58,13 @@ The current project docs live in [`docs/`](./docs/README.md):
 - [Roadmap](./docs/roadmap.md) — shipped functionality and remaining work
 - [Product](./apps/web/PRODUCT.md) — audience, product vocabulary, and UX principles
 - [Design](./apps/web/DESIGN.md) — visual system and accessibility guidance
+
+## Current limitations
+
+- Saves are stored locally in IndexedDB; there is no account, cloud sync, or cross-device backup.
+- There is no save migration layer yet. Breaking schema changes require clearing local saves during development.
+- Export/import, browser E2E coverage, service-worker offline support, and settings are not complete.
+- AI-generated narrative and hosted services are future work, not part of the current gameplay loop.
 
 ## Repository structure
 

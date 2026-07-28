@@ -5,6 +5,7 @@ import type {
   StaffExtensionOffer,
   StaffMember,
 } from "@workspace/shared/types"
+import { getStaffEmploymentSeason, getStaffPayroll } from "@workspace/sim"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import { formatStaffRole } from "@/components/league/staff/staffLabels"
@@ -43,21 +44,16 @@ export function ExtendStaffDialog({
   teamId,
   member,
   staffBudget,
-  staffPayroll,
+  staffPayroll: _staffPayroll,
   onClose,
   onConfirm,
 }: ExtendStaffDialogProps) {
-  const season = league.seasonState.season
+  const season = getStaffEmploymentSeason(league)
   const contract = member
     ? getActiveStaffContract(league, member.id, teamId)
     : undefined
   const currentSalary = getCurrentStaffSalary(contract, season)
   const yearsRemaining = getStaffYearsRemaining(contract, season)
-  const currentContractRemaining = contract
-    ? contract.yearlySalaries
-        .slice(Math.max(0, season - contract.startSeason))
-        .reduce((sum, salary) => sum + salary, 0)
-    : 0
 
   const [years, setYears] = useState(2)
   const [salary, setSalary] = useState(currentSalary || 1)
@@ -71,10 +67,19 @@ export function ExtendStaffDialog({
   }, [contract, currentSalary, member?.id])
 
   const extensionTotal = estimateOfferPayroll(salary, years)
-  const projectedPayroll =
-    staffPayroll - currentContractRemaining + extensionTotal
-  const overBudget = projectedPayroll > staffBudget
-  const canSubmit = member && contract && years >= 1 && salary > 0 && !overBudget
+  const extensionStartSeason = (contract?.endSeason ?? season - 1) + 1
+  const payrollForecast = Array.from({ length: years }, (_, index) => {
+    const salaryForSeason = Math.round(salary * (1 + index * 0.05) * 10) / 10
+    return {
+      season: extensionStartSeason + index,
+      payroll:
+        getStaffPayroll(teamId, league.staffContracts, extensionStartSeason + index) +
+        salaryForSeason,
+    }
+  })
+  const overBudget = payrollForecast.some((entry) => entry.payroll > staffBudget)
+  const canSubmit =
+    member && contract && years >= 1 && salary > 0 && !overBudget
 
   return (
     <Dialog open={Boolean(member)} onOpenChange={(open) => !open && onClose()}>
@@ -85,8 +90,8 @@ export function ExtendStaffDialog({
               Extend {member.firstName} {member.lastName}
             </DialogTitle>
             <DialogDescription>
-              Replace the current deal with a new staff contract starting this
-              offseason.
+              Add a new deal after the current contract ends. The existing
+              contract remains in the staff history.
             </DialogDescription>
           </DialogHeader>
 
@@ -132,9 +137,18 @@ export function ExtendStaffDialog({
               </div>
             </div>
 
+            <div className="grid gap-1 text-xs text-muted-foreground">
+              {payrollForecast.map((entry) => (
+                <div key={entry.season} className="flex justify-between gap-4">
+                  <span>Season {entry.season} payroll</span>
+                  <span className={entry.payroll > staffBudget ? "text-destructive" : undefined}>
+                    {formatMoney(entry.payroll)} / {formatMoney(staffBudget)}
+                  </span>
+                </div>
+              ))}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Projected staff payroll after extension:{" "}
-              {formatMoney(projectedPayroll)} / {formatMoney(staffBudget)}.
+              Total contract value: {formatMoney(extensionTotal)}.
             </p>
 
             {overBudget ? (

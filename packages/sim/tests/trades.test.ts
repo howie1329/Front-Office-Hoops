@@ -12,6 +12,7 @@ import {
   createLeague,
   createRng,
   executeTrade,
+  prepareDraft,
   validateTrade,
   wouldAiAcceptTrade,
 } from "../src"
@@ -348,5 +349,49 @@ describe("trades", () => {
         toNetValue: expect.any(Number),
       },
     })
+  })
+
+  it("synchronizes ownership in a prepared draft", () => {
+    const league = createTradeLeague()
+    const teamA = league.seasonState.teams[0]!
+    const teamB = league.seasonState.teams[1]!
+    const { playerA, playerB } = closestSalaryMatch(league, teamA, teamB)
+    const draftSeasonState = prepareDraft(
+      {
+        ...league.seasonState,
+        phase: "offseason",
+        offseasonPhase: "draft",
+      },
+      league.draftPickAssets,
+    )
+    const preparedLeague = { ...league, seasonState: draftSeasonState }
+    const pickA = preparedLeague.draftPickAssets.find(
+      (pick) =>
+        pick.currentTeamId === teamA.id &&
+        pick.season === draftSeasonState.draftState?.year &&
+        pick.round === 1,
+    )!
+    const proposal: TradeProposal = {
+      from: {
+        teamId: teamA.id,
+        playerIds: [playerA.id],
+        pickIds: [pickA.id],
+      },
+      to: {
+        teamId: teamB.id,
+        playerIds: [playerB.id],
+      },
+    }
+
+    const updated = executeTrade(preparedLeague, proposal)
+    const updatedPick = updated.draftPickAssets.find(
+      (pick) => pick.id === pickA.id,
+    )!
+    const updatedDraftPick = updated.seasonState.draftState?.order.find(
+      (pick) => pick.assetId === pickA.id,
+    )!
+
+    expect(updatedPick.currentTeamId).toBe(teamB.id)
+    expect(updatedDraftPick?.teamId).toBe(teamB.id)
   })
 })

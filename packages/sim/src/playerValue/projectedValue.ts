@@ -22,6 +22,9 @@ export type ProjectedPlayerSeason = {
 }
 
 export type ProjectedPlayerValueBreakdown = {
+  talent: number
+  ageCurve: number
+  production: number
   currentContribution: number
   futureContribution: number
   developmentOrDecline: number
@@ -63,7 +66,7 @@ function ageRunwayPenalty(player: Player): number {
 }
 
 function nextSeasonOverall(player: Player, overall: number, seasonOffset: number): number {
-  const age = player.age + seasonOffset - 1
+  const age = player.age + seasonOffset
   const momentum = Math.max(-2, Math.min(2, player.developmentMomentum ?? 0))
 
   if (age < player.peakAge) {
@@ -85,19 +88,32 @@ function nextSeasonOverall(player: Player, overall: number, seasonOffset: number
   return clampRating(overall - decline + Math.min(0, momentum) * 0.15)
 }
 
+function projectSeasons(player: Player, performanceDrift: number): number[] {
+  const seasonZero = clampRating(
+    applyPerformanceDriftToTalent(player.ratings.overall, performanceDrift),
+  )
+  const seasonOne = nextSeasonOverall(player, seasonZero, 1)
+  const seasonTwo = nextSeasonOverall(player, seasonOne, 2)
+  return [seasonZero, seasonOne, seasonTwo]
+}
+
+function weightedContribution(projected: number[]): number {
+  return projected.reduce(
+    (total, overall, offset) => total + overall * SEASON_WEIGHTS[offset]!,
+    0,
+  )
+}
+
 export function getProjectedPlayerValueBreakdown(
   player: Player,
   context: ProjectedPlayerValueContext = {},
 ): ProjectedPlayerValueBreakdown {
-  const seasonZero = clampRating(
-    applyPerformanceDriftToTalent(
-      player.ratings.overall,
-      Math.max(-MAX_PERFORMANCE_DRIFT, Math.min(MAX_PERFORMANCE_DRIFT, player.performanceDrift ?? 0)),
-    ),
+  const drift = Math.max(
+    -MAX_PERFORMANCE_DRIFT,
+    Math.min(MAX_PERFORMANCE_DRIFT, player.performanceDrift ?? 0),
   )
-  const seasonOne = nextSeasonOverall(player, seasonZero, 1)
-  const seasonTwo = nextSeasonOverall(player, seasonOne, 2)
-  const projected = [seasonZero, seasonOne, seasonTwo]
+  const projected = projectSeasons(player, drift)
+  const baselineProjected = projectSeasons(player, 0)
   const projectedSeasons = projected.map((projectedOverall, seasonOffset) => ({
     seasonOffset,
     projectedOverall,
@@ -105,13 +121,21 @@ export function getProjectedPlayerValueBreakdown(
   }))
   const currentContribution = projectedSeasons[0]!.value
   const futureContribution = projectedSeasons.slice(1).reduce((total, season) => total + season.value, 0)
-  const developmentOrDecline = (seasonOne - seasonZero) * 0.35 + (seasonTwo - seasonOne) * 0.15
+  const developmentOrDecline =
+    (projected[1]! - projected[0]!) * 0.35 +
+    (projected[2]! - projected[1]!) * 0.15
   const marketPremium = context.league ? (getArchetypeMarketPremium(player, context.league) - 1) * 2 : 0
   const archetypeMarket = Math.max(-MAX_MARKET_PREMIUM, Math.min(MAX_MARKET_PREMIUM, archetypeSignal(player) + marketPremium))
   const risk = durabilityRisk(player)
-  const total = currentContribution + futureContribution + archetypeMarket - risk - ageRunwayPenalty(player)
+  const talent = player.ratings.overall
+  const production = weightedContribution(projected) - weightedContribution(baselineProjected)
+  const ageCurve = weightedContribution(baselineProjected) - talent - ageRunwayPenalty(player)
+  const total = talent + production + ageCurve + archetypeMarket - risk
 
   return {
+    talent,
+    ageCurve,
+    production,
     currentContribution,
     futureContribution,
     developmentOrDecline,

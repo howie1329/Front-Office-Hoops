@@ -1,13 +1,12 @@
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 import {
-  applyMinimumSalaryFloorPenalty,
   advanceContractYears,
   assessLeagueSeasonFinances,
   rollFinancialYear,
+  setOpeningExceptions,
   syncPlayersAfterContractChanges,
 } from "./assessSeasonFinances"
-import { applyAiCapBehavior } from "./ai/capCuts"
-import { expireOneYearContracts, processContractOptions } from "./contracts/processContracts"
+import { processContractOptions } from "./contracts/processContracts"
 import { attachRookieContract } from "./freeAgency"
 import {
   generateInitialContractsForLeague,
@@ -22,6 +21,7 @@ import {
 } from "./spendingProfiles"
 import { getSeasonFinancials } from "./capMath"
 import { isCampPlayerForSeason } from "../preseason/campPlayers"
+import { addCapHoldForPlayer } from "./capHolds"
 import {
   assignInitialTeamStrategy,
   updateAllTeamStrategies,
@@ -49,21 +49,23 @@ export { applyAiCapBehavior } from "./ai/capCuts"
 
 export function processOffseasonFinancials(
   league: LeagueRecord,
-  rng: Rng,
-): LeagueRecord {
-  let current = updateAllTeamStrategies(league)
-  current = assessLeagueSeasonFinances(current, current.seasonState)
-  current = processContractOptions(current, rng)
-  current = expireOneYearContracts(current)
-  return current
-}
-
-export function prepareNewSeasonFinancials(
-  league: LeagueRecord,
-  newSeason: number,
   rng: Rng
 ): LeagueRecord {
-  let current = rollFinancialYear(league, newSeason)
+  if (
+    league.seasonState.phase !== "offseason" ||
+    league.seasonState.offseasonPhase !== "contract_options"
+  ) {
+    throw new Error(
+      "Financial year can only open at the start of the offseason"
+    )
+  }
+  if (league.leagueFinancials.currentCapSeason !== league.seasonState.season) {
+    throw new Error("Financial year has already been opened for this offseason")
+  }
+  let current = updateAllTeamStrategies(league)
+  current = assessLeagueSeasonFinances(current, current.seasonState)
+  const newSeason = current.seasonState.season + 1
+  current = rollFinancialYear(current, newSeason)
   const { contracts, expiredPlayerIds } = advanceContractYears(
     current.contracts,
     newSeason
@@ -74,20 +76,31 @@ export function prepareNewSeasonFinancials(
     contracts,
     expiredPlayerIds
   )
-
   current = {
     ...current,
     contracts,
     freeAgentPool: synced.freeAgentPool,
-    seasonState: {
-      ...current.seasonState,
-      teams: synced.teams,
-    },
+    seasonState: { ...current.seasonState, teams: synced.teams },
   }
-
-  current = applyAiCapBehavior(current, rng)
-  current = applyMinimumSalaryFloorPenalty(current, newSeason)
-  return current
+  for (const playerId of expiredPlayerIds) {
+    const player = league.seasonState.teams
+      .flatMap((team) => team.players)
+      .find((entry) => entry.id === playerId)
+    const contract = contracts.find(
+      (entry) => entry.playerId === playerId && entry.status === "expired"
+    )
+    if (player && contract) {
+      current = addCapHoldForPlayer(
+        current,
+        player,
+        contract.teamId,
+        contract.priorSeasonSalary ?? 0,
+        newSeason
+      )
+    }
+  }
+  current = processContractOptions(current, rng)
+  return setOpeningExceptions(current, newSeason)
 }
 
 export function initializeFinancialsForLeague(
@@ -149,7 +162,7 @@ export function attachMissingRosterContracts(
     LeagueRecord,
     "seasonState" | "contracts" | "leagueFinancials" | "teamFinancials"
   >,
-  rng: Rng,
+  rng: Rng
 ): Pick<LeagueRecord, "seasonState" | "contracts"> {
   const season = league.seasonState.season
   const seasonFinancials = getSeasonFinancials(league.leagueFinancials, season)
@@ -157,7 +170,7 @@ export function attachMissingRosterContracts(
   const activePlayerIds = new Set(
     contracts
       .filter((contract) => contract.status === "active")
-      .map((contract) => contract.playerId),
+      .map((contract) => contract.playerId)
   )
 
   for (const team of league.seasonState.teams) {
@@ -173,15 +186,15 @@ export function attachMissingRosterContracts(
               player,
               team.id,
               season,
-              seasonFinancials,
+              seasonFinancials
             )
           : generateInitialContract(
               player,
               team.id,
               season,
               seasonFinancials,
-              rng,
-            ),
+              rng
+            )
       )
       activePlayerIds.add(player.id)
     }

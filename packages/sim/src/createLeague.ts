@@ -53,7 +53,12 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     seasonHistory: [],
     freeAgentPool: [],
     contracts: [],
-    leagueFinancials: { baseCap: 141, growthRate: 0.05, bySeason: {} },
+    leagueFinancials: {
+      baseCap: 141,
+      growthRate: 0.05,
+      currentCapSeason: 1,
+      bySeason: {},
+    },
     teamFinancials: [],
     spendingProfileEvents: [],
     draftPickAssets: generateInitialDraftPickAssets(
@@ -77,6 +82,8 @@ export function createLeague(input: CreateLeagueInput): LeagueRecord {
     staff: [],
     staffContracts: [],
     collegeCoaches: [],
+    staffCareerSnapshots: [],
+    retiredStaff: [],
   }
 
   const withFinancials = ensureFaPoolMinimum(

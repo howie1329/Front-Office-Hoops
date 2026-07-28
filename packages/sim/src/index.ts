@@ -31,7 +31,10 @@ export {
   sortPlayerSeasonStats,
 } from "./derivePlayerSeasonStats"
 export { simulateDay } from "./simulateDay"
-export { simulateRegularDay, simulateLeagueRegularDay } from "./simulateRegularDay"
+export {
+  simulateRegularDay,
+  simulateLeagueRegularDay,
+} from "./simulateRegularDay"
 export { simulateWeek } from "./simulateWeek"
 export { simulateSeason } from "./simulateSeason"
 export { simulatePlayoffDay } from "./simulatePlayoffDay"
@@ -48,6 +51,7 @@ export type { EligibilityResult, PhaseAction } from "./phaseEligibility"
 export { finalizeSeason } from "./finalizeSeason"
 export { archiveSeason } from "./archiveSeason"
 export { beginOffseason } from "./beginOffseason"
+export { beginLeagueOffseason } from "./offseason/beginLeagueOffseason"
 export {
   advanceLeagueToFreeAgencyPhase,
   advanceToDraftPhase,
@@ -55,10 +59,15 @@ export {
   completeFreeAgencyPhase,
 } from "./offseason/phases"
 export { completeReSigningPhase } from "./offseason/reSigning"
-export { beginStaffMarket, completeStaffPhase } from "./offseason/staffPhase"
+export {
+  advanceStaffMarketDay,
+  beginStaffMarket,
+  completeStaffPhase,
+  completeStaffPhaseAtDeadline,
+} from "./offseason/staffPhase"
+export { completeContractOptions } from "./offseason/contractOptions"
 export {
   advanceFreeAgencyMarketDay,
-  advanceStaffMarketDay,
   generateAiFreeAgencyMarketOffers,
   generateAiStaffMarketOffers,
   getContractOffersForCandidate,
@@ -78,13 +87,17 @@ export {
 export {
   applyStaffBudgetsFromOwners,
   derivePhilosophyFromStaff,
+  getStaffEmploymentSeason,
   getHeadCoachPace,
   getStaffByRole,
   getTeamStaff,
+  getVacantStaffRoles,
+  getStaffPayroll,
   hireStaff,
   fireStaff,
   extendStaffContract,
   initializeStaffForLeague,
+  reconcileStaffEmployment,
   syncLeagueStaffFinancials,
 } from "./staff"
 export { startNextSeason } from "./startNextSeason"
@@ -149,7 +162,6 @@ export { applyLeagueCommand, commandRng } from "./leagueCommands"
 export type { LeagueCommand } from "./leagueCommands"
 export {
   processOffseasonFinancials,
-  prepareNewSeasonFinancials,
   initializeFinancialsForLeague,
   attachRookieContractToLeague,
   attachRookieContractsForDraftSelections,
@@ -167,6 +179,7 @@ export {
   getCapSpace,
   getCurrentSalary,
   getYearsRemaining,
+  getPendingUserTeamOptions,
   canExtendContract,
   extendContract,
   getExtensionBounds,
@@ -191,12 +204,14 @@ export {
   getFairSalary,
   getContractAssetValueBreakdown,
   getContractValueBreakdown,
+  getPlayerDecisionValueBreakdown,
   getProjectedPlayerValue,
   getProjectedPlayerValueBreakdown,
   calculatePlayerValue,
 } from "./playerValue"
 export type {
   ContractValueBreakdown,
+  PlayerDecisionValueBreakdown,
   ProjectedPlayerValueBreakdown,
 } from "./playerValue"
 export type { TeamTradeUtilityBreakdown } from "./tradeEvaluation"
@@ -209,16 +224,33 @@ export type {
   AdvanceStopReason,
   AdvanceTarget,
 } from "./advance/advanceSeason"
-export { beginRegularSeason, skipRemainingExhibitions } from "./preseason/beginRegularSeason"
+export {
+  beginRegularSeason,
+  skipRemainingExhibitions,
+} from "./preseason/beginRegularSeason"
 export { addCampPlayersToTeams } from "./preseason/campPlayers"
-export { isPreseasonComplete, hasRemainingExhibitions } from "./preseason/isPreseasonComplete"
+export {
+  isPreseasonComplete,
+  hasRemainingExhibitions,
+} from "./preseason/isPreseasonComplete"
 export {
   genFuzz,
   getDisplayedRatings,
   getDisplayedSkillRating,
+  getTeamScoutingReport,
   resolveScoutingLevel,
 } from "./scouting/displayedRatings"
-export { deriveOverall, getSkillRatings, deriveTeamOverall, deriveTeamOffense, deriveTeamDefense } from "./playerRatings"
+export type {
+  TeamScoutingReport,
+  TeamScoutingReportContext,
+} from "./scouting/displayedRatings"
+export {
+  deriveOverall,
+  getSkillRatings,
+  deriveTeamOverall,
+  deriveTeamOffense,
+  deriveTeamDefense,
+} from "./playerRatings"
 export {
   getTeamScheduleFatigue,
   getFatigueEfficiencyPenalty,

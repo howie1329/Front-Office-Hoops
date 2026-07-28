@@ -22,6 +22,7 @@ function mockTeamFinance(mode: TeamFinancials["strategy"]["mode"]): TeamFinancia
     consecutiveTaxSeasons: 0,
     lastTaxBill: null,
     mleUsed: 0,
+    mleType: "non_taxpayer",
     mleRemaining: 12,
     roomMleUsed: 0,
     roomMleRemaining: 8,

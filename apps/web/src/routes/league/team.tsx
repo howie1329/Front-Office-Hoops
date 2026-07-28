@@ -6,6 +6,7 @@ import {
   TeamMetricsStrip,
 } from "@/components/league/TeamMetricsStrip"
 import { MyTeamRosterTable } from "@/components/league/MyTeamRosterTable"
+import { TeamFinancialInspector } from "@/components/league/TeamFinancialInspector"
 import { formatMoney } from "@/components/league/lib/moneyFormat"
 import { useLeagueContext } from "@/contexts/LeagueContext"
 import { useTeamFinancials } from "@/hooks/useTeamFinancials"
@@ -51,14 +52,12 @@ function LeagueTeamPage() {
   const capSpace = formatCapSpaceMetric(financials?.capSpace ?? null)
 
   return (
-    <div className="-m-px flex h-full min-h-0 flex-col gap-4 overflow-hidden p-px">
+    <div className="-m-px flex h-full min-h-0 flex-col gap-3 overflow-hidden p-px">
       <TeamMetricsStrip
         overall={myTeam.overall}
         offense={deriveTeamOffense(myTeam.players)}
         defense={deriveTeamDefense(myTeam.players)}
-        payroll={
-          financials ? formatMoney(financials.payroll) : "-"
-        }
+        payroll={financials ? formatMoney(financials.payroll) : "-"}
         capSpace={capSpace.label}
         capSpaceTone={capSpace.tone}
         rosterCount={myTeam.players.length}
@@ -66,17 +65,24 @@ function LeagueTeamPage() {
         cutsNeeded={cutsNeeded}
       />
 
-      <div className="min-h-0 flex-1">
-        <MyTeamRosterTable
+      <div className="grid min-h-0 flex-1 gap-3 2xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-h-0 min-w-0">
+          <MyTeamRosterTable
+            league={league}
+            teamId={userTeamId}
+            roster={myTeam}
+            contracts={league.contracts}
+            playerSeasonStats={seasonState.playerSeasonStats}
+            teamScoutingLevel={financials?.teamFinance.scoutingLevel}
+            currentDay={seasonState.currentDay}
+            onReleasePlayer={releasePlayer}
+            onExtendContract={submitPlayerExtensionOffer}
+          />
+        </div>
+        <TeamFinancialInspector
           league={league}
           teamId={userTeamId}
-          roster={myTeam}
-          contracts={league.contracts}
-          playerSeasonStats={seasonState.playerSeasonStats}
-          teamScoutingLevel={financials?.teamFinance?.scoutingLevel}
-          currentDay={seasonState.currentDay}
-          onReleasePlayer={releasePlayer}
-          onExtendContract={submitPlayerExtensionOffer}
+          cutsNeeded={cutsNeeded}
         />
       </div>
     </div>

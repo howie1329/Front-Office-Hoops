@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 import { formatMoney } from "@/components/league/lib/moneyFormat"
+import { getScoutedPlayer } from "@/components/league/lib/scouting"
 import { teamName } from "@/components/league/lib/teamFormat"
 import { useLeagueContext } from "@/contexts/LeagueContext"
 import type {
@@ -11,23 +12,14 @@ import type {
   PlayerSeasonStats,
   SeasonState,
   TeamMode,
-  TradeEvaluation,
   TradeProposal,
   TradeValidationResult,
 } from "@workspace/shared/types"
 import {
-  AI_ACCEPT_BAD,
-  AI_ACCEPT_CLOSE,
-  AI_ACCEPT_MIN_NET,
-} from "@workspace/shared/financialConstants"
-import {
-  evaluateTrade,
-  getContractAssetValueBreakdown,
   getCurrentSalary,
-  getFairSalary,
   getPickValueFromCache,
   getPlayerContract,
-  getSeasonFinancials,
+  getPlayerDecisionValueBreakdown,
   getYearsRemaining,
   makeItWork,
   validateTrade,
@@ -161,10 +153,6 @@ function LeagueTradesPage() {
   const targetMode =
     activeLeague.teamFinancials.find((entry) => entry.teamId === targetTeamId)
       ?.strategy.mode ?? "buying"
-  const seasonFinancials = getSeasonFinancials(
-    activeLeague.leagueFinancials,
-    seasonState.season,
-  )
 
   function salary(player: Player): number {
     return getCurrentSalary(getPlayerContract(activeLeague.contracts, player))
@@ -181,6 +169,19 @@ function LeagueTradesPage() {
   )
   const incomingPicks = targetPicks.filter((pick) =>
     incomingPickIds.includes(pick.id),
+  )
+  const scoutingOptions = {
+    teamScoutingLevel:
+      activeLeague.teamFinancials.find((entry) => entry.teamId === userTeamId)
+        ?.scoutingLevel ?? 5,
+    leagueSeed: seasonState.baseSeed,
+    viewerTeamId: userTeamId,
+  }
+  const scoutedOutgoingPlayers = outgoingPlayers.map((player) =>
+    getScoutedPlayer(player, { ...scoutingOptions, isOwnRoster: true }),
+  )
+  const scoutedIncomingPlayers = incomingPlayers.map((player) =>
+    getScoutedPlayer(player, scoutingOptions),
   )
 
   const proposal = useMemo<TradeProposal | null>(() => {
@@ -223,32 +224,22 @@ function LeagueTradesPage() {
   const aiResponse = proposal
     ? wouldAiAcceptTrade(activeLeague, proposal, targetTeamId)
     : null
-  const evaluations = proposal ? evaluateTrade(activeLeague, proposal) : []
   const canExecute = Boolean(validation?.ok && aiResponse?.ok)
-  const userEvaluation = evaluations.find((entry) => entry.teamId === userTeamId)
-  const targetEvaluation = evaluations.find(
-    (entry) => entry.teamId === targetTeamId,
-  )
-
-  const outgoingValue =
-    userEvaluation?.outgoingValue ??
-    getAssetValueTotal({
-      players: outgoingPlayers,
+  const outgoingValue = getAssetValueTotal({
+      players: scoutedOutgoingPlayers,
       picks: outgoingPicks,
       mode: "buying",
       teamId: userTeamId,
+      viewerTeamId: userTeamId,
       league: activeLeague,
-      seasonFinancials,
     })
-  const incomingValue =
-    userEvaluation?.incomingValue ??
-    getAssetValueTotal({
-      players: incomingPlayers,
+  const incomingValue = getAssetValueTotal({
+      players: scoutedIncomingPlayers,
       picks: incomingPicks,
       mode: targetMode,
-      teamId: targetTeamId,
+      teamId: userTeamId,
+      viewerTeamId: userTeamId,
       league: activeLeague,
-      seasonFinancials,
     })
 
   function clearTrade() {
@@ -326,7 +317,6 @@ function LeagueTradesPage() {
           <IncomingOffersPanel
           league={league}
           seasonState={seasonState}
-          seasonFinancials={seasonFinancials}
           userTeamId={userTeamId}
           offers={pendingOffers}
           onAccept={acceptTradeOffer}
@@ -372,6 +362,9 @@ function LeagueTradesPage() {
                 selectedPickIds={outgoingPickIds}
                 seasonState={seasonState}
                 salary={salary}
+                viewPlayer={(player) =>
+                  getScoutedPlayer(player, { ...scoutingOptions, isOwnRoster: true })
+                }
                 onPlayerToggle={(playerId, checked) => {
                   setOutgoingPlayerIds((ids) => toggleId(ids, playerId, checked))
                   setMessage(null)
@@ -396,6 +389,7 @@ function LeagueTradesPage() {
                 selectedPickIds={incomingPickIds}
                 seasonState={seasonState}
                 salary={salary}
+                viewPlayer={(player) => getScoutedPlayer(player, scoutingOptions)}
                 disabled={!targetTeam}
                 onPlayerToggle={(playerId, checked) => {
                   setIncomingPlayerIds((ids) => toggleId(ids, playerId, checked))
@@ -411,7 +405,18 @@ function LeagueTradesPage() {
             <TradeStatusPanel
               validation={validation}
               aiResponse={aiResponse}
-              targetEvaluation={targetEvaluation}
+              selectedPlayers={[
+                ...scoutedOutgoingPlayers.map((player) => ({
+                  player,
+                  label: "You send",
+                })),
+                ...scoutedIncomingPlayers.map((player) => ({
+                  player,
+                  label: "You receive",
+                })),
+              ]}
+              league={activeLeague}
+              userTeamId={userTeamId}
               outgoingSalary={sumSalary(outgoingPlayers, salary)}
               incomingSalary={sumSalary(incomingPlayers, salary)}
               message={message}
@@ -426,7 +431,6 @@ function LeagueTradesPage() {
 function IncomingOffersPanel({
   league,
   seasonState,
-  seasonFinancials,
   userTeamId,
   offers,
   onAccept,
@@ -434,7 +438,6 @@ function IncomingOffersPanel({
 }: {
   league: NonNullable<ReturnType<typeof useLeagueContext>["league"]>
   seasonState: SeasonState
-  seasonFinancials: ReturnType<typeof getSeasonFinancials>
   userTeamId: string
   offers: PendingTradeOffer[]
   onAccept: (offerId: string) => void
@@ -463,22 +466,21 @@ function IncomingOffersPanel({
             offer.proposal.from.teamId === userTeamId
               ? offer.proposal.to
               : offer.proposal.from
-          const offerEvaluation = evaluateTrade(league, offer.proposal)
-          const userEvaluation = offerEvaluation.find(
-            (entry) => entry.teamId === userTeamId,
-          )
           const sendAssets = tradeSideAssets({
             side: youSend,
             league,
             seasonState,
-            seasonFinancials,
+            viewerTeamId: userTeamId,
           })
           const receiveAssets = tradeSideAssets({
             side: youReceive,
             league,
             seasonState,
-            seasonFinancials,
+            viewerTeamId: userTeamId,
           })
+          const userValue =
+            receiveAssets.reduce((total, asset) => total + asset.value, 0) -
+            sendAssets.reduce((total, asset) => total + asset.value, 0)
 
           return (
             <div
@@ -491,15 +493,9 @@ function IncomingOffersPanel({
                     {teamName(seasonState, offer.initiatorTeamId)} proposed a trade
                   </h2>
                   <Badge variant="outline">Expires day {offer.expiresDay}</Badge>
-                  {userEvaluation ? (
-                    <Badge
-                      variant={
-                        userEvaluation.netValue >= 0 ? "secondary" : "destructive"
-                      }
-                    >
-                      Your value {signedNumber(userEvaluation.netValue)}
-                    </Badge>
-                  ) : null}
+                  <Badge variant={userValue >= 0 ? "secondary" : "destructive"}>
+                    Your value {signedNumber(userValue)}
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-end gap-2">
                   <Button
@@ -771,6 +767,7 @@ function AssetTableCard({
   selectedPickIds,
   seasonState,
   salary,
+  viewPlayer,
   disabled = false,
   onPlayerToggle,
   onPickToggle,
@@ -784,6 +781,7 @@ function AssetTableCard({
   selectedPickIds: string[]
   seasonState: SeasonState
   salary: (player: Player) => number
+  viewPlayer: (player: Player) => Player
   disabled?: boolean
   onPlayerToggle: (playerId: string, checked: boolean) => void
   onPickToggle: (pickId: string, checked: boolean) => void
@@ -814,6 +812,7 @@ function AssetTableCard({
             players={players}
             selectedIds={selectedPlayerIds}
             salary={salary}
+            viewPlayer={viewPlayer}
             onToggle={onPlayerToggle}
           />
         ) : (
@@ -833,11 +832,13 @@ function PlayersAssetTable({
   players,
   selectedIds,
   salary,
+  viewPlayer,
   onToggle,
 }: {
   players: Player[]
   selectedIds: string[]
   salary: (player: Player) => number
+  viewPlayer: (player: Player) => Player
   onToggle: (playerId: string, checked: boolean) => void
 }) {
   return (
@@ -861,6 +862,7 @@ function PlayersAssetTable({
         ) : null}
         {players.map((player) => {
           const checked = selectedIds.includes(player.id)
+          const view = viewPlayer(player)
 
           return (
             <TableRow key={player.id} className={checked ? "bg-muted/40" : ""}>
@@ -881,7 +883,7 @@ function PlayersAssetTable({
               </TableCell>
               <TableCell>{player.position}</TableCell>
               <TableCell className="text-right tabular-nums">
-                {player.ratings.overall}
+                {view.ratings.overall}
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatMoney(salary(player))}
@@ -953,14 +955,18 @@ function PicksAssetTable({
 function TradeStatusPanel({
   validation,
   aiResponse,
-  targetEvaluation,
+  selectedPlayers,
+  league,
+  userTeamId,
   outgoingSalary,
   incomingSalary,
   message,
 }: {
   validation: TradeValidationResult | null
   aiResponse: TradeValidationResult | null
-  targetEvaluation: TradeEvaluation | undefined
+  selectedPlayers: Array<{ player: Player; label: string }>
+  league: NonNullable<ReturnType<typeof useLeagueContext>["league"]>
+  userTeamId: string
   outgoingSalary: number
   incomingSalary: number
   message: string | null
@@ -996,8 +1002,26 @@ function TradeStatusPanel({
           value={aiResponse ? (aiResponse.ok ? "Accepts" : "Rejects") : "Idle"}
           ok={aiResponse?.ok ?? null}
         />
-        {targetEvaluation ? (
-          <AiAcceptThresholdBar netValue={targetEvaluation.netValue} />
+        {selectedPlayers.length > 0 ? (
+          <div className="border-t pt-3">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">
+              Your scouted value
+            </p>
+            <div className="grid gap-3">
+              {selectedPlayers.map(({ player, label }) => (
+                <TradePlayerValueBreakdown
+                  key={`${label}-${player.id}`}
+                  label={label}
+                  player={player}
+                  breakdown={getPlayerDecisionValueBreakdown({
+                    league,
+                    player,
+                    receivingTeamId: userTeamId,
+                  })}
+                />
+              ))}
+            </div>
+          </div>
         ) : null}
         {message ? (
           <p className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
@@ -1006,6 +1030,48 @@ function TradeStatusPanel({
         ) : null}
       </CardContent>
     </Card>
+  )
+}
+
+function TradePlayerValueBreakdown({
+  label,
+  player,
+  breakdown,
+}: {
+  label: string
+  player: Player
+  breakdown: ReturnType<typeof getPlayerDecisionValueBreakdown>
+}) {
+  const values = [
+    ["Talent", breakdown.talent],
+    ["Age", breakdown.ageCurve],
+    ["Durability", breakdown.durability],
+    ["Contract", breakdown.contract],
+    ["Scarcity", breakdown.scarcity],
+    ["Production", breakdown.production],
+  ] as const
+
+  return (
+    <div className="rounded-md border bg-muted/10 px-3 py-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="truncate text-xs font-medium">
+          {label} · {playerLabel(player)}
+        </span>
+        <span className="text-xs font-medium tabular-nums">
+          {breakdown.total.toFixed(1)}
+        </span>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+        {values.map(([name, value]) => (
+          <span key={name} className="flex justify-between gap-2">
+            <span className="text-muted-foreground">{name}</span>
+            <span className="tabular-nums">
+              {value >= 0 ? "+" : ""}{value.toFixed(1)}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -1067,53 +1133,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-function AiAcceptThresholdBar({ netValue }: { netValue: number }) {
-  const min = AI_ACCEPT_BAD - 1
-  const max = AI_ACCEPT_MIN_NET + 3
-  const range = max - min
-  const position = Math.max(0, Math.min(100, ((netValue - min) / range) * 100))
-  const acceptPosition = ((AI_ACCEPT_MIN_NET - min) / range) * 100
-  const closePosition = ((AI_ACCEPT_CLOSE - min) / range) * 100
-
-  return (
-    <div className="grid gap-2 rounded-md border bg-muted/10 p-3">
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="text-muted-foreground">AI accept bar</span>
-        <span className="font-medium tabular-nums">{netValue.toFixed(1)} net</span>
-      </div>
-      <div className="relative h-3 overflow-hidden rounded-full bg-muted">
-        <div
-          className="absolute inset-y-0 left-0 bg-destructive/30"
-          style={{ width: `${closePosition}%` }}
-        />
-        <div
-          className="absolute inset-y-0 bg-amber-500/30"
-          style={{
-            left: `${closePosition}%`,
-            width: `${acceptPosition - closePosition}%`,
-          }}
-        />
-        <div
-          className="absolute inset-y-0 bg-emerald-500/35"
-          style={{
-            left: `${acceptPosition}%`,
-            right: 0,
-          }}
-        />
-        <div
-          className="absolute top-0 bottom-0 w-0.5 bg-foreground"
-          style={{ left: `${position}%` }}
-        />
-      </div>
-      <div className="flex justify-between text-[11px] text-muted-foreground">
-        <span>Reject ({AI_ACCEPT_BAD})</span>
-        <span>Close ({AI_ACCEPT_CLOSE})</span>
-        <span>Accept ({AI_ACCEPT_MIN_NET}+)</span>
-      </div>
-    </div>
-  )
-}
-
 function SelectionCheckbox({
   ariaLabel,
   checked,
@@ -1150,12 +1169,12 @@ function tradeSideAssets({
   side,
   league,
   seasonState,
-  seasonFinancials,
+  viewerTeamId,
 }: {
   side: TradeProposal["from"]
   league: NonNullable<ReturnType<typeof useLeagueContext>["league"]>
   seasonState: SeasonState
-  seasonFinancials: ReturnType<typeof getSeasonFinancials>
+  viewerTeamId: string
 }): OfferAsset[] {
   const team = seasonState.teams.find((entry) => entry.id === side.teamId)
   const mode =
@@ -1176,11 +1195,19 @@ function tradeSideAssets({
     }
 
     const contract = getPlayerContract(league.contracts, player)
-    const value = getContractAssetValueBreakdown({
-      player,
+    const view = getScoutedPlayer(player, {
+      isOwnRoster: player.teamId === viewerTeamId,
+      teamScoutingLevel:
+        league.teamFinancials.find((entry) => entry.teamId === viewerTeamId)
+          ?.scoutingLevel ?? 5,
+      leagueSeed: league.seasonState.baseSeed,
+      viewerTeamId,
+    })
+    const value = getPlayerDecisionValueBreakdown({
+      league,
+      player: view,
+      receivingTeamId: viewerTeamId,
       contract,
-      expectedSalary: getFairSalary(player, seasonFinancials, league),
-      mode,
     }).total
     const stats = playerStats.get(player.id)
 
@@ -1193,7 +1220,7 @@ function tradeSideAssets({
           player.archetype,
         )}`,
         metrics: [
-          { label: "OVR", value: String(player.ratings.overall) },
+          { label: "OVR", value: String(view.ratings.overall) },
           { label: "PTS", value: statAverage(stats, "pts") },
           { label: "REB", value: statAverage(stats, "reb") },
           { label: "AST", value: statAverage(stats, "ast") },
@@ -1228,7 +1255,7 @@ function tradeSideAssets({
           pick,
           league.draftClassCache,
           league,
-          side.teamId,
+          viewerTeamId,
           mode,
         ),
       },
@@ -1243,26 +1270,24 @@ function getAssetValueTotal({
   picks,
   mode,
   teamId,
+  viewerTeamId,
   league,
-  seasonFinancials,
 }: {
   players: Player[]
   picks: DraftPickAsset[]
   mode: TeamMode
   teamId: string
+  viewerTeamId: string
   league: NonNullable<ReturnType<typeof useLeagueContext>["league"]>
-  seasonFinancials: ReturnType<typeof getSeasonFinancials>
 }): number {
   return (
     players.reduce((total, player) => {
-      const contract = getPlayerContract(league.contracts, player)
       return (
         total +
-        getContractAssetValueBreakdown({
+        getPlayerDecisionValueBreakdown({
+          league,
           player,
-          contract,
-          expectedSalary: getFairSalary(player, seasonFinancials, league),
-          mode,
+          receivingTeamId: viewerTeamId,
         }).total
       )
     }, 0) +

@@ -29,30 +29,36 @@ import { fireStaff } from "../src/staff/fireStaff"
 import { resolveContractMarketDay } from "../src/contracts/offerMarket"
 import { evaluatePlayerContractOffer } from "../src/contracts/evaluateOffer"
 
-function legalStrongSalary(league: ReturnType<typeof openReSigningLeague>, playerId: string) {
+function legalStrongSalary(
+  league: ReturnType<typeof openReSigningLeague>,
+  playerId: string
+) {
   const player = league.freeAgentPool.find((entry) => entry.id === playerId)!
   const market = getPlayerContractMarketValue(league, player)
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
-    league.seasonState.season + 1,
+    league.seasonState.season + 1
   )
   const maxSalary = calculateMaxSalary(
     seasonFinancials.salaryCap,
-    player.yearsOfService,
+    player.yearsOfService
   )
   return Math.min(market.highSalary, maxSalary)
 }
 
-function legalMinimumSalary(league: ReturnType<typeof openReSigningLeague>, playerId: string) {
+function legalMinimumSalary(
+  league: ReturnType<typeof openReSigningLeague>,
+  playerId: string
+) {
   const player = league.freeAgentPool.find((entry) => entry.id === playerId)!
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
-    league.seasonState.season + 1,
+    league.seasonState.season + 1
   )
   return calculateMinSalary(seasonFinancials, player.yearsOfService)
 }
 
-function openReSigningLeague() {
+function openReSigningLeague(): LeagueRecord {
   const league = createLeague({
     skipPreseason: true,
     name: "Re-signing Market",
@@ -66,10 +72,10 @@ function openReSigningLeague() {
     .find((team) => team.id === teamId)!
     .players.sort((a, b) => b.ratings.overall - a.ratings.overall)[0]!
   const expiringContract = league.contracts.find(
-    (contract) => contract.playerId === player.id,
+    (contract) => contract.playerId === player.id
   )!
 
-  return processOffseasonFinancials(
+  const opened = processOffseasonFinancials(
     {
       ...league,
       contracts: league.contracts.map((contract) =>
@@ -79,16 +85,20 @@ function openReSigningLeague() {
               yearlySalaries: [contract.yearlySalaries[0]!],
               guaranteedSalaries: [contract.yearlySalaries[0]!],
             }
-          : contract,
+          : contract
       ),
       seasonState: {
         ...league.seasonState,
         phase: "offseason",
-        offseasonPhase: "re_signing",
+        offseasonPhase: "contract_options",
       },
     },
-    createRng("re-signing-open"),
+    createRng("re-signing-open")
   )
+  return {
+    ...opened,
+    seasonState: { ...opened.seasonState, offseasonPhase: "re_signing" },
+  }
 }
 
 function withExtensionLeague(): LeagueRecord {
@@ -134,10 +144,10 @@ function withExtensionLeague(): LeagueRecord {
               players: team.players.map((entry) =>
                 entry.id === player.id
                   ? { ...entry, activeContractId: contract.id }
-                  : entry,
+                  : entry
               ),
             }
-          : team,
+          : team
       ),
     },
   }
@@ -211,7 +221,7 @@ function playerOfferFor(
   league: LeagueRecord,
   teamId: string,
   playerId: string,
-  salary: number,
+  salary: number
 ) {
   return {
     id: `test_offer_${teamId}_${playerId}`,
@@ -232,20 +242,33 @@ describe("contract offer market", () => {
     const team = league.seasonState.teams[0]!
     const basePlayer = league.freeAgentPool[0]!
     const market = getPlayerContractMarketValue(league, basePlayer)
-    const offer = playerOfferFor(league, team.id, basePlayer.id, market.expectedSalary)
+    const offer = playerOfferFor(
+      league,
+      team.id,
+      basePlayer.id,
+      market.expectedSalary
+    )
 
     const lowMoney = evaluatePlayerContractOffer(
       league,
-      { ...basePlayer, mood: { money: 20, winning: 50, loyalty: 50, fame: 50 } },
-      offer,
+      {
+        ...basePlayer,
+        mood: { money: 20, winning: 50, loyalty: 50, fame: 50 },
+      },
+      offer
     )
     const highMoney = evaluatePlayerContractOffer(
       league,
-      { ...basePlayer, mood: { money: 90, winning: 50, loyalty: 50, fame: 50 } },
-      offer,
+      {
+        ...basePlayer,
+        mood: { money: 90, winning: 50, loyalty: 50, fame: 50 },
+      },
+      offer
     )
 
-    expect(lowMoney.breakdown.salary).toBeGreaterThan(highMoney.breakdown.salary)
+    expect(lowMoney.breakdown.salary).toBeGreaterThan(
+      highMoney.breakdown.salary
+    )
     expect(lowMoney.score).toBeGreaterThan(highMoney.score)
   })
 
@@ -254,18 +277,18 @@ describe("contract offer market", () => {
     const team = league.seasonState.teams[0]!
     const player = league.freeAgentPool[0]!
     const salary = getPlayerContractMarketValue(league, player).expectedSalary
-    const oneYear = evaluatePlayerContractOffer(
-      league,
-      player,
-      { ...playerOfferFor(league, team.id, player.id, salary), years: 1 },
-    )
-    const fourYear = evaluatePlayerContractOffer(
-      league,
-      player,
-      { ...playerOfferFor(league, team.id, player.id, salary), years: 4 },
-    )
+    const oneYear = evaluatePlayerContractOffer(league, player, {
+      ...playerOfferFor(league, team.id, player.id, salary),
+      years: 1,
+    })
+    const fourYear = evaluatePlayerContractOffer(league, player, {
+      ...playerOfferFor(league, team.id, player.id, salary),
+      years: 4,
+    })
 
-    expect(fourYear.breakdown.security).toBeGreaterThan(oneYear.breakdown.security)
+    expect(fourYear.breakdown.security).toBeGreaterThan(
+      oneYear.breakdown.security
+    )
     expect(fourYear.score).toBeGreaterThan(oneYear.score)
   })
 
@@ -278,20 +301,26 @@ describe("contract offer market", () => {
         league,
         teamId,
         basePlayer.id,
-        getPlayerContractMarketValue(league, basePlayer).expectedSalary,
+        getPlayerContractMarketValue(league, basePlayer).expectedSalary
       ),
       phase: "re_signing" as const,
     }
 
     const loyal = evaluatePlayerContractOffer(
       league,
-      { ...basePlayer, mood: { money: 50, winning: 50, loyalty: 90, fame: 50 } },
-      offer,
+      {
+        ...basePlayer,
+        mood: { money: 50, winning: 50, loyalty: 90, fame: 50 },
+      },
+      offer
     )
     const disloyal = evaluatePlayerContractOffer(
       league,
-      { ...basePlayer, mood: { money: 50, winning: 50, loyalty: 15, fame: 50 } },
-      offer,
+      {
+        ...basePlayer,
+        mood: { money: 50, winning: 50, loyalty: 15, fame: 50 },
+      },
+      offer
     )
 
     expect(loyal.breakdown.loyalty).toBeGreaterThan(disloyal.breakdown.loyalty)
@@ -311,16 +340,16 @@ describe("contract offer market", () => {
     const contenderOffer = evaluatePlayerContractOffer(
       league,
       player,
-      playerOfferFor(league, contender.id, player.id, salary),
+      playerOfferFor(league, contender.id, player.id, salary)
     )
     const sellerOffer = evaluatePlayerContractOffer(
       league,
       player,
-      playerOfferFor(league, seller.id, player.id, salary),
+      playerOfferFor(league, seller.id, player.id, salary)
     )
 
     expect(contenderOffer.breakdown.winning).toBeGreaterThan(
-      sellerOffer.breakdown.winning,
+      sellerOffer.breakdown.winning
     )
     expect(contenderOffer.score).toBeGreaterThan(sellerOffer.score)
   })
@@ -338,16 +367,16 @@ describe("contract offer market", () => {
     const largeOffer = evaluatePlayerContractOffer(
       league,
       player,
-      playerOfferFor(league, largeMarket.id, player.id, salary),
+      playerOfferFor(league, largeMarket.id, player.id, salary)
     )
     const smallOffer = evaluatePlayerContractOffer(
       league,
       player,
-      playerOfferFor(league, smallMarket.id, player.id, salary),
+      playerOfferFor(league, smallMarket.id, player.id, salary)
     )
 
     expect(largeOffer.breakdown.market).toBeGreaterThan(
-      smallOffer.breakdown.market,
+      smallOffer.breakdown.market
     )
     expect(largeOffer.score).toBeGreaterThan(smallOffer.score)
   })
@@ -366,16 +395,16 @@ describe("contract offer market", () => {
     const weakRoleOffer = evaluatePlayerContractOffer(
       league,
       player,
-      playerOfferFor(league, strongRoster.id, player.id, salary),
+      playerOfferFor(league, strongRoster.id, player.id, salary)
     )
     const strongRoleOffer = evaluatePlayerContractOffer(
       league,
       player,
-      playerOfferFor(league, weakRoster.id, player.id, salary),
+      playerOfferFor(league, weakRoster.id, player.id, salary)
     )
 
     expect(strongRoleOffer.breakdown.role).toBeGreaterThan(
-      weakRoleOffer.breakdown.role,
+      weakRoleOffer.breakdown.role
     )
   })
 
@@ -392,11 +421,11 @@ describe("contract offer market", () => {
     expect(
       signed.seasonState.teams
         .find((team) => team.id === teamId)!
-        .players.some((entry) => entry.id === player.id),
+        .players.some((entry) => entry.id === player.id)
     ).toBe(true)
     expect(
       signed.contractOffers.find((offer) => offer.candidateId === player.id)
-        ?.status,
+        ?.status
     ).toBe("accepted")
   })
 
@@ -417,7 +446,7 @@ describe("contract offer market", () => {
       submitPlayerContractOffer(league, teamId, player.id, {
         years: 3,
         firstYearSalary: legalStrongSalary(league, player.id),
-      }),
+      })
     ).toThrow(/no longer negotiate/)
   })
 
@@ -433,13 +462,13 @@ describe("contract offer market", () => {
       firstYearSalary: bounds.maxSalary,
     })
     const contract = extended.contracts.find(
-      (entry) => entry.playerId === player.id && entry.status === "active",
+      (entry) => entry.playerId === player.id && entry.status === "active"
     )
 
     expect(contract?.yearlySalaries.length).toBeGreaterThan(3)
     expect(
       extended.contractOffers.find((offer) => offer.phase === "extension")
-        ?.status,
+        ?.status
     ).toBe("accepted")
   })
 
@@ -458,18 +487,22 @@ describe("contract offer market", () => {
     }
 
     expect(
-      getPlayerOfferAttemptsRemaining(league, player.id, teamId, "extension"),
+      getPlayerOfferAttemptsRemaining(league, player.id, teamId, "extension")
     ).toBe(0)
-    expect(isPlayerOfferBlocked(league, player.id, teamId, "extension")).toBe(true)
+    expect(isPlayerOfferBlocked(league, player.id, teamId, "extension")).toBe(
+      true
+    )
     expect(() =>
       submitPlayerExtensionOffer(league, teamId, player.id, {
         years: bounds.maxYears,
         firstYearSalary: bounds.maxSalary,
-      }),
+      })
     ).toThrow(/extension/)
 
     const reset = resetPlayerOfferNegotiations(league, ["extension"])
-    expect(isPlayerOfferBlocked(reset, player.id, teamId, "extension")).toBe(false)
+    expect(isPlayerOfferBlocked(reset, player.id, teamId, "extension")).toBe(
+      false
+    )
   })
 
   it("resolves staff offers through the market day", () => {
@@ -492,7 +525,7 @@ describe("contract offer market", () => {
     }
 
     const incumbent = league.staff.find(
-      (entry) => entry.teamId === teamId && entry.role === "scouting_head",
+      (entry) => entry.teamId === teamId && entry.role === "scouting_head"
     )!
     const fired = fireStaff(league, teamId, incumbent.id)
     expect(fired.ok).toBe(true)
@@ -502,7 +535,7 @@ describe("contract offer market", () => {
     league = fired.league
 
     const candidate = league.staff.find(
-      (entry) => entry.teamId === null && entry.role === "scouting_head",
+      (entry) => entry.teamId === null && entry.role === "scouting_head"
     )!
     const market = getStaffContractMarketValue(candidate)
 
@@ -513,11 +546,12 @@ describe("contract offer market", () => {
     const resolved = advanceStaffMarketDay(offered, createRng("staff-resolve"))
 
     expect(
-      resolved.staff.find((entry) => entry.id === candidate.id)?.teamId,
+      resolved.staff.find((entry) => entry.id === candidate.id)?.teamId
     ).toBe(teamId)
     expect(
-      resolved.contractOffers.find((offer) => offer.candidateId === candidate.id)
-        ?.status,
+      resolved.contractOffers.find(
+        (offer) => offer.candidateId === candidate.id
+      )?.status
     ).toBe("accepted")
   })
 
@@ -531,47 +565,56 @@ describe("contract offer market", () => {
       userTeamId: "t_baltimore_foundry",
     })
     const teamId = league.userTeamId!
-    const userTeam = league.seasonState.teams.find((team) => team.id === teamId)!
+    const userTeam = league.seasonState.teams.find(
+      (team) => team.id === teamId
+    )!
     league = {
       ...league,
-      contracts: league.contracts.filter((contract) => contract.teamId !== teamId),
+      contracts: league.contracts.filter(
+        (contract) => contract.teamId !== teamId
+      ),
       seasonState: {
         ...league.seasonState,
         phase: "offseason",
         offseasonPhase: "free_agency",
         teams: league.seasonState.teams.map((team) =>
-          team.id === teamId ? { ...team, players: userTeam.players.slice(0, 14) } : team,
+          team.id === teamId
+            ? { ...team, players: userTeam.players.slice(0, 14) }
+            : team
         ),
       },
     }
 
     const player = getExternalFreeAgents(league, teamId).sort(
-      (a, b) => b.ratings.overall - a.ratings.overall,
+      (a, b) => b.ratings.overall - a.ratings.overall
     )[0]!
     const market = getPlayerContractMarketValue(league, player)
     const seasonFinancials = getSeasonFinancials(
       league.leagueFinancials,
-      league.seasonState.season + 1,
+      league.seasonState.season + 1
     )
     const maxSalary = calculateMaxSalary(
       seasonFinancials.salaryCap,
-      player.yearsOfService,
+      player.yearsOfService
     )
 
     const offered = submitPlayerContractOffer(league, teamId, player.id, {
       years: 3,
       firstYearSalary: Math.min(market.highSalary, maxSalary),
     })
-    const resolved = advanceFreeAgencyMarketDay(offered, createRng("fa-resolve"))
+    const resolved = advanceFreeAgencyMarketDay(
+      offered,
+      createRng("fa-resolve")
+    )
 
     expect(
       resolved.seasonState.teams
         .find((team) => team.id === teamId)!
-        .players.some((entry) => entry.id === player.id),
+        .players.some((entry) => entry.id === player.id)
     ).toBe(true)
     expect(
       resolved.contractOffers.find((offer) => offer.candidateId === player.id)
-        ?.status,
+        ?.status
     ).toBe("accepted")
   })
 
@@ -585,10 +628,14 @@ describe("contract offer market", () => {
       userTeamId: "t_baltimore_foundry",
     })
     const teamId = league.userTeamId!
-    const userTeam = league.seasonState.teams.find((team) => team.id === teamId)!
+    const userTeam = league.seasonState.teams.find(
+      (team) => team.id === teamId
+    )!
     league = {
       ...league,
-      contracts: league.contracts.filter((contract) => contract.teamId !== teamId),
+      contracts: league.contracts.filter(
+        (contract) => contract.teamId !== teamId
+      ),
       seasonState: {
         ...league.seasonState,
         phase: "offseason",
@@ -596,21 +643,24 @@ describe("contract offer market", () => {
         teams: league.seasonState.teams.map((team) =>
           team.id === teamId
             ? { ...team, players: userTeam.players.slice(0, 14) }
-            : team,
+            : team
         ),
       },
     }
 
     const player = getExternalFreeAgents(league, teamId).sort(
-      (a, b) => b.ratings.overall - a.ratings.overall,
+      (a, b) => b.ratings.overall - a.ratings.overall
     )[0]!
     const seasonFinancials = getSeasonFinancials(
       league.leagueFinancials,
-      league.seasonState.season + 1,
+      league.seasonState.season + 1
     )
     const lowOffer = {
       years: 1,
-      firstYearSalary: calculateMinSalary(seasonFinancials, player.yearsOfService),
+      firstYearSalary: calculateMinSalary(
+        seasonFinancials,
+        player.yearsOfService
+      ),
     }
 
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -619,14 +669,18 @@ describe("contract offer market", () => {
     }
 
     expect(
-      getPlayerOfferAttemptsRemaining(league, player.id, teamId, "free_agency"),
+      getPlayerOfferAttemptsRemaining(league, player.id, teamId, "free_agency")
     ).toBe(0)
-    expect(isPlayerOfferBlocked(league, player.id, teamId, "free_agency")).toBe(true)
+    expect(isPlayerOfferBlocked(league, player.id, teamId, "free_agency")).toBe(
+      true
+    )
     expect(() =>
-      submitPlayerContractOffer(league, teamId, player.id, lowOffer),
+      submitPlayerContractOffer(league, teamId, player.id, lowOffer)
     ).toThrow(/another offer/)
 
     const reset = resetPlayerOfferNegotiations(league, ["free_agency"])
-    expect(isPlayerOfferBlocked(reset, player.id, teamId, "free_agency")).toBe(false)
+    expect(isPlayerOfferBlocked(reset, player.id, teamId, "free_agency")).toBe(
+      false
+    )
   })
 })

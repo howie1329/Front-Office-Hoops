@@ -108,7 +108,7 @@ export function applyAiCapBehavior(
 ): LeagueRecord {
   const seasonFinancials = getSeasonFinancials(
     league.leagueFinancials,
-    league.seasonState.season
+    league.leagueFinancials.currentCapSeason,
   )
 
   let current = league
@@ -117,7 +117,7 @@ export function applyAiCapBehavior(
     let payroll = getTeamFinancialPosition(
       current,
       teamFinance.teamId,
-      current.seasonState.season,
+      current.leagueFinancials.currentCapSeason,
     ).taxPayroll
     const skippedCutIds = new Set<string>()
 

@@ -50,8 +50,9 @@ export function HireOfferDialog({
 
   const offerTotal = estimateOfferPayroll(salary, years)
   const remainingBudget = staffBudget - staffPayroll
-  const overBudget = offerTotal > remainingBudget
-  const canSubmit = member && !roleFilled && years >= 1 && salary > 0 && !overBudget
+  const overBudget = salary > remainingBudget
+  const canSubmit =
+    member && !roleFilled && years >= 1 && salary > 0 && !overBudget
 
   return (
     <Dialog open={Boolean(member)} onOpenChange={(open) => !open && onClose()}>
@@ -62,14 +63,18 @@ export function HireOfferDialog({
               Hire {member.firstName} {member.lastName}
             </DialogTitle>
             <DialogDescription>
-              Offer a contract to this {formatStaffRole(member.role).toLowerCase()}.
+              Offer a contract to this{" "}
+              {formatStaffRole(member.role).toLowerCase()}.
             </DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 overflow-auto p-4">
             <div className="grid gap-2 sm:grid-cols-3">
               <OfferMetric label="Role" value={formatStaffRole(member.role)} />
-              <OfferMetric label="Overall" value={String(member.ratings.overall)} />
+              <OfferMetric
+                label="Overall"
+                value={String(member.ratings.overall)}
+              />
               <OfferMetric
                 label="Budget room"
                 value={formatMoney(remainingBudget)}

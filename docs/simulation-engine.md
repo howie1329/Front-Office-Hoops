@@ -154,6 +154,18 @@ Each new season year, `startNextSeason` applies `applyPreseasonProgression` befo
 `beginOffseason` opens the offseason phase and prepares awards/financial processing;
 rating changes are applied when the next season starts.
 
+## Scouting and information quality
+
+The engine keeps league truth separate from what the user sees. Player-facing views use
+the selected team's scouting level and a deterministic league/team/player seed to derive
+displayed ratings and potential ranges. Better scouting narrows the error envelope; it
+does not change the underlying player. The simulation, AI, contracts, and trade evaluation
+continue to use the true player record.
+
+Scouting level is derived from the team's staff and financial state. This makes staff
+quality and staffing decisions affect information quality without introducing unreproducible
+randomness into the UI.
+
 ## Injuries
 
 `injuries.ts` provides a simple availability model:
@@ -171,7 +183,7 @@ Injured players have `status: "injured"` and an `injury` object with type, descr
 - Optional `teams` or `useMiniLeague` (6-team sample rosters)
 - Optional `userTeamId`
 
-New leagues are created with the current `SAVE_VERSION` (`16`). There is no save migration; clear local IndexedDB saves after schema changes during development.
+New leagues are created with the current `SAVE_VERSION` (`18`). There is no save migration; clear local IndexedDB saves after schema changes during development.
 
 ## Offseason loop
 
@@ -182,7 +194,9 @@ complete → beginOffseason → staff → re_signing → draft → free_agency �
 ```
 
 - **Begin offseason** opens staff week and prepares offseason financial state.
-- **Staff week** resolves staff-market offers, supports hiring, firing, and extensions, and carries staff philosophy into team simulation and development.
+- **Staff week** first reconciles employment against the upcoming cap season. Deals that ended before that season expire, their coaches return to the market, and team payroll and staff effects are recomputed.
+- Staff hiring and extensions create contracts beginning in the upcoming cap season. The staff budget is an annual payroll limit, so validation uses that season's salary rather than the full multiyear contract value.
+- Staff-day advancement stops at the calendar's exclusive `staffPhaseEndDay` boundary. The user must fill vacancies before the deadline; on the final market-day advance, remaining user roles receive deterministic low-level one-year interim contracts at the fixed staff minimum salary. AI vacancies are then filled deterministically from the market, with replacement-level interim coaches generated only when no candidate exists.
 - **Re-signing** lets the user negotiate with their own expired players first, then AI teams run re-signing.
 - **Draft** is required after every completed season, including Season 1. Drafted players receive rookie-scale/minimum contracts.
 - **Free agency** opens after the draft; undrafted prospects join the FA pool and the pool is topped up to at least 1.25× team count if thin.

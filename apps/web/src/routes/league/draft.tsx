@@ -4,6 +4,7 @@ import { useLeagueContext } from "@/contexts/LeagueContext"
 import { teamName } from "@/components/league/lib/teamFormat"
 import {
   getTeamScoutingLevel,
+  getProspectPotentialRange,
   getViewRatings,
   prospectTypeLabel,
 } from "@/components/league/lib/scouting"
@@ -137,10 +138,17 @@ function LeagueDraftPage() {
             </TableHeader>
             <TableBody>
               {availableProspects.map((prospect) => {
-                const viewRatings = getViewRatings(prospect.ratings, {
+                const scoutingOptions = {
                   isDraftProspect: true,
                   teamScoutingLevel: scoutingLevel,
-                })
+                  leagueSeed: seasonState.baseSeed,
+                  viewerTeamId: userTeamId ?? "league_office",
+                }
+                const viewRatings = getViewRatings(prospect, scoutingOptions)
+                const potentialRange = getProspectPotentialRange(
+                  prospect,
+                  scoutingOptions,
+                )
 
                 return (
                 <TableRow key={prospect.id}>
@@ -156,7 +164,9 @@ function LeagueDraftPage() {
                     {prospect.wingspanInches ?? prospect.heightInches + 2}" ws
                   </TableCell>
                   <TableCell>{viewRatings.overall}</TableCell>
-                  <TableCell>{viewRatings.potential}</TableCell>
+                  <TableCell>
+                    {potentialRange.low}–{potentialRange.high}
+                  </TableCell>
                   {isUserOnClock ? (
                     <TableCell className="text-right">
                       <Button

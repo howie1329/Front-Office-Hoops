@@ -43,6 +43,7 @@ export type SeasonFinancials = {
 export type LeagueFinancials = {
   baseCap: number
   growthRate: number
+  currentCapSeason: number
   bySeason: Record<number, SeasonFinancials>
 }
 
@@ -88,6 +89,7 @@ export type TeamFinancials = {
   consecutiveTaxSeasons: number
   lastTaxBill: number | null
   mleUsed: number
+  mleType: "non_taxpayer" | "taxpayer"
   mleRemaining: number
   wasUnderCapThisYear: boolean
   roomMleUsed: number

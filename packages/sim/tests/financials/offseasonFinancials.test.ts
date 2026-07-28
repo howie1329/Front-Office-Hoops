@@ -58,6 +58,11 @@ describe("offseason financial flow", () => {
     )!
     const leagueWithExpiring = {
       ...league,
+      seasonState: {
+        ...league.seasonState,
+        phase: "offseason" as const,
+        offseasonPhase: "contract_options" as const,
+      },
       contracts: league.contracts.map((contract) =>
         contract.id === expiringContract.id
           ? {
@@ -156,7 +161,11 @@ describe("offseason financial flow", () => {
     const userTeamId = league.seasonState.teams[0]!.id
     const freeAgencyLeague = {
       ...league,
-      userTeamId,
+      userTeamId: null,
+      leagueFinancials: {
+        ...league.leagueFinancials,
+        currentCapSeason: 2,
+      },
       seasonState: {
         ...league.seasonState,
         phase: "offseason" as const,
@@ -182,7 +191,7 @@ describe("offseason financial flow", () => {
     )
     const next = startNextSeason({
       seasonState: completed.seasonState,
-      userTeamId,
+      userTeamId: null,
       freeAgentPool: completed.freeAgentPool,
       rng: createRng("start-season-two-next"),
       league: {

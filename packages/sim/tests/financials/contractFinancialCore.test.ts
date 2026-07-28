@@ -5,12 +5,10 @@ import {
   createLeague,
   createRng,
   getTeamFinancialPosition,
+  processOffseasonFinancials,
 } from "../../src"
 import { createDeadCapFromWaive } from "../../src/financials/deadCap"
-import {
-  expireOneYearContracts,
-  processContractOptions,
-} from "../../src/financials/contracts/processContracts"
+import { processContractOptions } from "../../src/financials/contracts/processContracts"
 import { validateContractGuarantees } from "../../src/financials/contracts/validateContract"
 import { canAffordOffer } from "../../src/financials/ai/offers"
 import { createRookieScaleContract } from "../../src/financials/contracts/createContract"
@@ -158,6 +156,7 @@ describe("contract financial core", () => {
       seasonState: {
         ...league.seasonState,
         phase: "offseason" as const,
+        offseasonPhase: "contract_options" as const,
         teams: league.seasonState.teams.map((entry) =>
           entry.id === team.id
             ? {
@@ -180,7 +179,10 @@ describe("contract financial core", () => {
       ),
     }
 
-    const expired = expireOneYearContracts(expiring)
+    const expired = processOffseasonFinancials(
+      expiring,
+      createRng("cap-hold-rollover"),
+    )
     const activeHold = expired.teamFinancials
       .find((entry) => entry.teamId === team.id)!
       .capHolds.find((hold) => hold.playerId === player.id)

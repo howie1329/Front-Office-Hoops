@@ -1,5 +1,7 @@
 # Product
 
+The product-level source of truth is [`docs/product-brief.md`](../docs/product-brief.md). This file defines the audience vocabulary, brand personality, and UX principles used by the web application.
+
 ## Register
 
 product

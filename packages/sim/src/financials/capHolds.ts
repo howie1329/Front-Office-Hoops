@@ -89,7 +89,7 @@ export function renouncePlayerRights(
   teamId: string,
   playerId: string,
 ): LeagueRecord {
-  const season = league.seasonState.season + 1
+  const season = league.leagueFinancials.currentCapSeason
   const hold = getActiveCapHold(league, teamId, playerId, season)
   if (!hold) {
     throw new Error("No active cap hold exists for this player")

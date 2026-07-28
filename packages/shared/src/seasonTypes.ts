@@ -26,7 +26,12 @@ export type SeasonPhase =
   | "playoffs"
   | "complete"
   | "offseason"
-export type OffseasonPhase = "staff" | "re_signing" | "draft" | "free_agency"
+export type OffseasonPhase =
+  | "contract_options"
+  | "staff"
+  | "re_signing"
+  | "draft"
+  | "free_agency"
 
 export type PlayoffRound = 1 | 2 | 3 | 4
 

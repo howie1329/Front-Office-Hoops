@@ -18,7 +18,7 @@ export function getTeamFinancialPosition(
     throw new Error(`Team financials not found: ${teamId}`)
   }
 
-  const resolvedSeason = season ?? league.seasonState.season
+  const resolvedSeason = season ?? league.leagueFinancials.currentCapSeason
   const seasonFinancials = getSeasonFinancials(league.leagueFinancials, resolvedSeason)
   const contractPayroll = getContractPayroll(teamId, league.contracts)
   const deadCap = getTeamDeadCapPayroll(teamFinance.deadCapCharges)

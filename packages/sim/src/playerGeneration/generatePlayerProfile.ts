@@ -219,6 +219,10 @@ export function generatePlayerProfile({
       isOwnRoster: false,
     })
   const fuzz = genFuzz(rng, resolvedScouting)
+  const potentialFuzz = Math.max(
+    -8,
+    Math.min(8, (fuzz.offensiveIQ ?? 0) - (fuzz.defensiveIQ ?? 0)),
+  )
 
   return {
     firstName,
@@ -235,6 +239,7 @@ export function generatePlayerProfile({
     ratings: {
       ...adjustedSkills,
       fuzz,
+      potentialFuzz,
       overall: Math.max(RATING_MIN, Math.min(RATING_MAX, overall)),
       potential,
       usage: Math.max(
@@ -256,6 +261,7 @@ export function createEmptyRatings(base = 50): PlayerRatings {
   return {
     ...skills,
     fuzz: emptyFuzz(),
+    potentialFuzz: 0,
     overall: base,
     potential: base,
     usage: 10,

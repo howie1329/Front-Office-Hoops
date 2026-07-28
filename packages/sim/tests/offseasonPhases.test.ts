@@ -32,17 +32,20 @@ function createOffseasonLeague() {
 }
 
 describe("offseason phases", () => {
-  it("enters staff when offseason begins", () => {
+  it("enters contract options when offseason begins", () => {
     const { state } = createOffseasonLeague()
 
     expect(state.phase).toBe("offseason")
-    expect(state.offseasonPhase).toBe("staff")
+    expect(state.offseasonPhase).toBe("contract_options")
   })
 
   it("advances from staff to re-signing after completeStaffPhase", () => {
     const { league, state } = createOffseasonLeague()
     const afterStaff = completeStaffPhase(
-      { ...league, seasonState: state },
+      {
+        ...league,
+        seasonState: { ...state, offseasonPhase: "staff" },
+      },
       createRng("staff-complete"),
     )
 

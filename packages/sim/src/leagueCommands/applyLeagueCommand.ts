@@ -1,16 +1,13 @@
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
-import { archivePlayerCareerSnapshots } from "../playerProfiles"
 import { advanceLeague } from "../advance/advanceSeason"
 import {
   beginRegularSeason,
   skipRemainingExhibitions,
 } from "../preseason/beginRegularSeason"
-import { derivePlayerSeasonProfiles } from "../playerSeasonProfiles"
-import { assignSeasonAwards } from "../awards"
-import { beginOffseason } from "../beginOffseason"
 import { beginPlayoffs } from "../beginPlayoffs"
-import { evaluateOwnerGoals, generateOwnerGoals } from "../owners"
+import { generateOwnerGoals } from "../owners"
+import { beginLeagueOffseason } from "../offseason/beginLeagueOffseason"
 import { simAiPick, simToUserPick } from "../draft/simAiPick"
 import { makeDraftPick } from "../draft/makeDraftPick"
 import { prepareDraftForLeague } from "../draft/prepareDraft"
@@ -19,11 +16,15 @@ import {
   advanceToDraftPhase,
   completeFreeAgencyPhase,
 } from "../offseason/phases"
-import { beginStaffMarket, completeStaffPhase } from "../offseason/staffPhase"
+import {
+  advanceStaffMarketDay,
+  completeStaffPhase,
+} from "../offseason/staffPhase"
+import { completeContractOptions } from "../offseason/contractOptions"
 import { completeReSigningPhase } from "../offseason/reSigning"
 import {
   ensureFaPoolMinimum,
-  processOffseasonFinancials,
+  decideTeamOption,
   renouncePlayerRights,
 } from "../financials"
 import {
@@ -35,8 +36,6 @@ import {
 import { extendStaffContract, fireStaff } from "../staff"
 import {
   advanceFreeAgencyMarketDay,
-  advanceStaffMarketDay,
-  resetPlayerOfferNegotiations,
   submitPlayerContractOffer,
   submitPlayerExtensionOffer,
   submitStaffContractOffer,
@@ -58,6 +57,7 @@ const PHASE_GATED_TYPES = new Set<LeagueCommand["type"]>([
   "beginRegularSeason",
   "beginPlayoffs",
   "beginOffseason",
+  "completeContractOptions",
   "completeStaffPhase",
   "completeReSignings",
   "advanceToDraft",
@@ -110,12 +110,16 @@ function applyLeagueCommandInternal(
 
   switch (command.type) {
     case "advance": {
-      const { league: advanced } = advanceLeague(league, {
-        target: command.target,
-        userTeamId: league.userTeamId,
+      const { league: advanced } = advanceLeague(
         league,
-        rngNonce: league.rngNonce,
-      }, resolvedRng)
+        {
+          target: command.target,
+          userTeamId: league.userTeamId,
+          league,
+          rngNonce: league.rngNonce,
+        },
+        resolvedRng
+      )
       return advanced
     }
 
@@ -128,7 +132,7 @@ function applyLeagueCommandInternal(
           league,
           rngNonce: league.rngNonce,
         },
-        resolvedRng,
+        resolvedRng
       )
       return advanced
     }
@@ -142,7 +146,7 @@ function applyLeagueCommandInternal(
           league,
           rngNonce: league.rngNonce,
         },
-        resolvedRng,
+        resolvedRng
       )
       return advanced
     }
@@ -184,39 +188,14 @@ function applyLeagueCommandInternal(
       }
 
     case "beginOffseason": {
-      const completedLeague = archivePlayerCareerSnapshots(
-        evaluateOwnerGoals(assignSeasonAwards(league))
-      )
-      const profiles = derivePlayerSeasonProfiles(
-        completedLeague.seasonState.teams,
-        completedLeague.seasonState.playerSeasonStats,
-        completedLeague.seasonState.games.length,
-        completedLeague.seasonState.season
-      )
-      const nextState = beginOffseason(
-        completedLeague.seasonState,
-        profiles
-      )
-      return beginStaffMarket(
-        resetPlayerOfferNegotiations(
-          processOffseasonFinancials(
-            {
-              ...completedLeague,
-              seasonState: nextState,
-              playerSeasonProfiles: [
-                ...completedLeague.playerSeasonProfiles.filter(
-                  (entry) => entry.season !== completedLeague.seasonState.season
-                ),
-                ...profiles,
-              ],
-            },
-            resolvedRng
-          ),
-          ["extension", "re_signing"],
-        ),
-        resolvedRng
-      )
+      return beginLeagueOffseason(league, resolvedRng)
     }
+
+    case "decideTeamOption":
+      return decideTeamOption(league, command.contractId, command.decision)
+
+    case "completeContractOptions":
+      return completeContractOptions(league, resolvedRng)
 
     case "completeStaffPhase":
       return completeStaffPhase(league, resolvedRng)
@@ -280,11 +259,7 @@ function applyLeagueCommandInternal(
       if (!league.userTeamId) {
         throw new Error("User team must be selected before renouncing rights")
       }
-      return renouncePlayerRights(
-        league,
-        league.userTeamId,
-        command.playerId,
-      )
+      return renouncePlayerRights(league, league.userTeamId, command.playerId)
     }
 
     case "submitPlayerContractOffer": {
@@ -326,7 +301,7 @@ function applyLeagueCommandInternal(
         league,
         league.userTeamId,
         command.staffId,
-        command.offer,
+        command.offer
       )
     }
 
@@ -357,7 +332,7 @@ function applyLeagueCommandInternal(
         league,
         league.userTeamId,
         command.staffId,
-        command.offer,
+        command.offer
       )
       if (!result.ok) {
         throw new Error(result.reason)
@@ -393,13 +368,17 @@ function applyLeagueCommandInternal(
 
     case "acceptTradeOffer":
       if (!league.userTeamId) {
-        throw new Error("User team must be selected before accepting a trade offer")
+        throw new Error(
+          "User team must be selected before accepting a trade offer"
+        )
       }
       return acceptTradeOffer(league, command.offerId)
 
     case "rejectTradeOffer":
       if (!league.userTeamId) {
-        throw new Error("User team must be selected before rejecting a trade offer")
+        throw new Error(
+          "User team must be selected before rejecting a trade offer"
+        )
       }
       return rejectTradeOffer(league, command.offerId)
 

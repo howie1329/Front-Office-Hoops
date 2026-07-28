@@ -27,6 +27,7 @@ import {
 import { refreshPotentialProjection } from "./monteCarloPotential"
 import { evaluateRetirement } from "./retirement"
 import type { SkillDeltas } from "./types"
+import { estimatePerformanceDrift } from "../playerValue/performanceDrift"
 
 function findSeasonStats(
   playerSeasonStats: PlayerSeasonStats[],
@@ -154,6 +155,7 @@ export function progressPlayer(input: ProgressPlayerInput): ProgressPlayerOutput
   const agedPlayer: Player = {
     ...player,
     age: player.age + 1,
+    performanceDrift: estimatePerformanceDrift(player, seasonStats),
     injuryHistory: updateInjuryHistoryFromProfile(
       player,
       seasonProfile,

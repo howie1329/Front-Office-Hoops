@@ -55,8 +55,8 @@ export function RosterCard({
   currentDay = null,
 }: RosterCardProps) {
   const sortedPlayers = [...roster.players].sort((a, b) => {
-    const aRatings = getViewRatings(a.ratings, { isOwnRoster, teamScoutingLevel })
-    const bRatings = getViewRatings(b.ratings, { isOwnRoster, teamScoutingLevel })
+    const aRatings = getViewRatings(a, { isOwnRoster, teamScoutingLevel })
+    const bRatings = getViewRatings(b, { isOwnRoster, teamScoutingLevel })
     return (
       bRatings.overall - aRatings.overall ||
       bRatings.potential - aRatings.potential ||
@@ -112,7 +112,7 @@ export function RosterCard({
                   contract,
                   currentDay,
                 )
-                const viewRatings = getViewRatings(player.ratings, {
+                const viewRatings = getViewRatings(player, {
                   isOwnRoster,
                   teamScoutingLevel,
                 })

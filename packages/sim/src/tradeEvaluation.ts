@@ -47,10 +47,7 @@ function bundle(values: number[]): number {
 
 function playerAssetValue(league: LeagueRecord, team: TeamWithRoster, player: Player): { total: number; financial: number; projected: ReturnType<typeof getProjectedPlayerValueBreakdown> } {
   const projected = getProjectedPlayerValueBreakdown(player, { league })
-  const financialSeason =
-    league.seasonState.phase === "offseason"
-      ? league.seasonState.season + 1
-      : league.seasonState.season
+  const financialSeason = league.leagueFinancials.currentCapSeason
   const financials = getSeasonFinancials(league.leagueFinancials, financialSeason)
   const contract = getPlayerContract(league.contracts, player)
   const finance = league.teamFinancials.find((entry) => entry.teamId === team.id)

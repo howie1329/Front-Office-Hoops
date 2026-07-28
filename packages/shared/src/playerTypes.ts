@@ -69,6 +69,8 @@ export type PlayerRatings = SkillRatings & {
   potential: number
   usage: number
   fuzz: Record<SkillKey, number>
+  /** Deterministic uncertainty shown to teams with different scouting quality. */
+  potentialFuzz?: number
 }
 
 export type Player = {

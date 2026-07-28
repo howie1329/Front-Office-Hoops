@@ -2,6 +2,7 @@ import type { SeasonState } from "@workspace/shared/types"
 import type { LeagueRecord, Rng } from "@workspace/shared/types"
 
 import { getCurrentCalendar } from "../calendar"
+import { applyAiCapBehavior } from "../financials/ai/capCuts"
 import {
   advanceFreeAgencyMarketDay,
   fillAiRostersAfterFreeAgency,
@@ -79,5 +80,7 @@ export function completeFreeAgencyPhase(
     throw new Error("AI free agency can only run during free agency")
   }
 
-  return fillAiRostersAfterFreeAgency(advanceFreeAgencyMarketDay(league, rng), rng)
+  const resolved = advanceFreeAgencyMarketDay(league, rng)
+  const capReady = applyAiCapBehavior(resolved, rng)
+  return fillAiRostersAfterFreeAgency(capReady, rng)
 }

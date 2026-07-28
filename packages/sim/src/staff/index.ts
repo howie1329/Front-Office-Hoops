@@ -30,6 +30,22 @@ export {
 } from "./schemeFit"
 export { staffBudgetForOwner } from "./staffBudget"
 export { getStaffPayroll, getTeamStaffPayroll } from "./staffPayroll"
-export { hireStaff } from "./hireStaff"
+export {
+  getStaffEmploymentSeason,
+  getVacantStaffRoles,
+  reconcileStaffEmployment,
+} from "./employmentLifecycle"
+export { commitStaffHire, hireStaff } from "./hireStaff"
 export { fireStaff } from "./fireStaff"
 export { extendStaffContract } from "./extendStaffContract"
+export {
+  processAiStaffRetention,
+  roleRating,
+  scoreStaffCandidate,
+  staffRetentionScore,
+  staffSchemeFit,
+} from "./aiStaff"
+export {
+  archiveStaffCareerSnapshots,
+  progressStaffLifecycle,
+} from "./staffLifecycle"
