@@ -1,8 +1,10 @@
 # Front Office Hoops v2 Roadmap
 
 **Purpose:** sequenced development plan for the first rewrite.  
-**Status:** Phase 0/1 foundations and player-generation calibration are complete; the next active work is game-simulation calibration, followed by production and player-value calibration.
+**Status:** Phase 0/1 foundations and the initial generation/assembly workbench are complete; calibration acceptance is still incomplete. The next active work is the Game & Matchup Lab, followed by Season Production & Value.
 **Principle:** build the smallest complete vertical slice only after the contracts and calibration boundaries are clear.
+
+The [V2 lab strategy](./foh-v2-lab-strategy.md) defines the permanent lab surfaces, headless batch harnesses, fixture boundaries, and promotion rules for this roadmap. This roadmap remains the delivery sequence; it does not require a separate visual route for every simulation subsystem.
 
 ## Current execution position — July 2026
 
@@ -15,10 +17,10 @@ Completed or substantially complete:
 
 The project is currently in Phase 2 calibration. The next two roadmap items are:
 
-1. Game simulation calibration.
-2. Simple production composite and visible universal player value.
+1. Game & Matchup Lab: deterministic matchup fixtures, box-score reconciliation, and repeated-game benchmarks.
+2. Season Production & Value Lab: 82-game production aggregation followed by the visible universal player value.
 
-The full Phase 3 league shell follows those experiments. The current Team Assembly lab is a developer calibration surface, not yet the authoritative league-creation flow. V1 remains runnable while V2 progresses.
+The full Phase 3 league shell follows those experiments. The current Player Generation and Team Assembly routes are one upstream Population & Roster workbench, not yet the authoritative league-creation flow. V1 remains runnable while V2 progresses.
 
 ## v2 outcome
 
@@ -38,8 +40,9 @@ Ship a browser-hosted, local-first, single-player front-office simulation in whi
 - No v2 gameplay feature is accepted without a command, schema, invariant, and user-facing failure state.
 - Standard settings must work without advanced tuning.
 - Advanced settings are available at league creation but bounded and documented.
-- Experiments produce benchmark reports before model assumptions become product behavior.
+- Experiments produce benchmark reports before model assumptions become product behavior. A benchmark report is not authoritative gameplay state until its production module and invariants are promoted.
 - Worker, snapshot, event, and repository boundaries are established before broad UI implementation.
+- Headless batch harnesses are preferred for distributional questions; visual labs are reserved for scenario setup, outliers, comparisons, and explanation inspection.
 - Multi-year AI, morale, advanced CBA, rich scouting, narrative, and cloud services remain later phases.
 
 ## Phase 0 — Product and technical freeze
@@ -98,16 +101,19 @@ Priority experiments:
 
 Work:
 
-- Create `packages/calibration`.
+- Create the small `packages/calibration` batch/report/fixture toolkit. Keep canonical scenario types in `domain-v2` and JSON validation/migrations in `league-schema`.
 - Add explicit seeded batch runs and downloadable reports.
 - Add benchmark profiles for games, players, careers, salaries, injuries, and competition.
 - Keep model outputs separate from the UI until reports pass.
+- Build the Game & Matchup Lab first, then the Season Production & Value Lab. Combine development, aging, injury, and retirement in a cohort harness; do not create separate permanent routes for each.
+- Combine individual contract valuation, acceptance, market clearing, and simple finance inspection in one Market & Rules Lab while keeping legality, affordability, demand, and acceptance as separate production results.
 
 Exit criteria:
 
 - Standard defaults have accepted ranges for game, player, development, injury, and salary behavior.
 - The value model has a visible breakdown and stable behavior across generated leagues.
 - Failed seeds and outliers are retained as fixtures.
+- The game, production, and value modules can consume the same typed fixtures that the future league loop will consume.
 
 ## Phase 3 — League creation and player universe
 
@@ -115,6 +121,7 @@ Exit criteria:
 
 Work:
 
+- Promote the validated initial universe into `LeagueDocument` through a league-creation adapter; the current Team Assembly route remains a fixture generator until this exists.
 - Fixed 30-team parody-name universe and NBA-like locations.
 - Market-size categories.
 - Owner personality and goal generation.
@@ -144,7 +151,7 @@ Work:
 - Head-scout fog-of-war precision.
 - Simulate-to-next-game/date/deadline controls.
 - Web Worker progress and recovery.
-- Possession-based game simulation.
+- The same production game engine calibrated by the Game & Matchup Lab.
 - Final box scores and player game logs.
 - Standings, injuries, game events, and phase gates.
 - Current snapshot and event history saves.
@@ -189,7 +196,7 @@ Work:
 - Playoffs and season evaluation.
 - Three owner goals, strikes, and job security.
 - Season archives, records, player/team timelines, and retained box scores.
-- Next-season generation, development, aging, retirement, and new draft class.
+- Next-season generation, development, aging, retirement, and new draft class, using the Career Cohort findings and the same production transitions used by the League Loop Lab.
 
 Exit criteria:
 
@@ -239,10 +246,10 @@ Only begin these after the first-v2 readiness bar passes:
 The initial three slices are now complete or underway as follows:
 
 1. **V2 document/worker/repository fixture:** complete.
-2. **Player-generation and ratings calibration lab:** complete, with initial player-universe groundwork in place.
-3. **Game/production/value calibration lab:** next, beginning with game simulation calibration and then production/player value.
+2. **Population & Roster workbench:** implemented as a deterministic upstream fixture source; distributional acceptance and authoritative league embedding remain open.
+3. **Game & Matchup Lab:** next, followed by Season Production & Value and then the first in-season vertical slice.
 
-Do not build the full league shell until the game and production/value calibration boundaries have accepted ranges. A thin fixture may be used by the experiments, but authoritative league creation remains a Phase 3 deliverable.
+Do not build the full league shell until the game and production/value calibration boundaries have accepted ranges and a validated league-creation adapter exists. A thin developer fixture may be used by experiments, but authoritative league creation remains a Phase 3 deliverable.
 
 Do not begin with the full dashboard, advanced cap, AI narrative, or polished transaction screens. Their contracts depend on the calibrated model.
 

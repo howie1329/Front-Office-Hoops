@@ -1,6 +1,19 @@
 # Front Office Hoops v2 Experiment Backlog
 
-Experiments are ordered by risk to the first-v2 product. Each experiment should be independent of the polished UI, use explicit deterministic seeds where reproducibility is required, produce downloadable reports, and retain failed cases as fixtures.
+Experiments are ordered by risk to the first-v2 product. Each experiment should be independent of the polished UI, use explicit deterministic seeds where reproducibility is required, produce downloadable reports, and retain failed cases as fixtures. The [lab strategy](./foh-v2-lab-strategy.md) maps these experiments to a smaller set of visual surfaces and headless harnesses.
+
+## Strategy alignment
+
+- E1 should establish the shared fixture, batch, metrics, progress, cancellation, and report contracts that will become the small `packages/calibration` toolkit.
+- E2 and E3 remain upstream population evidence; they are modes of the existing Population & Roster workbench, not separate permanent routes.
+- E4 is the next active implementation slice. It should produce the production game contract before any season, value, contract, or AI work is connected.
+- E5 is one Production & Value surface but two production modules: season/player aggregation and universal player value.
+- E6 and E7 are one Market & Rules surface. Keep player demand, offer acceptance, legality, affordability, market clearing, and finance as separate results and tests.
+- E8 is a combined Career Cohort harness. Simple annual transitions required for season two can land before the full cohort report is complete.
+- E10 owns the later Draft & Decision surface. It includes baseline draft AI; a generic AI Decision Lab is not required.
+- E11 is a matched-league effects experiment for owners/staff, not a prerequisite for game simulation and not a full staff-market route.
+- E12 and E9 are cross-cutting integration gates used by the League Loop Lab, not reasons to create more visual labs.
+- E13 and E14 remain post-loop product experiments and must not pull the management shell or narrative layer ahead of simulation contracts.
 
 ## E1 — V2 document, worker, and repository prototype
 

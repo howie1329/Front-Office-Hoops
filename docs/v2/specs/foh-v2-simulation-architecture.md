@@ -37,6 +37,10 @@ packages/db              v1 adapter plus v2 Dexie document repository
 
 V2 must not import v1 `LeagueRecord`, v1 valuation functions, v1 phase gates, or v1 game/stat-allocation logic. Safe early sharing is limited to UI primitives, generic formatting, serialization, and utilities after contract tests. A future shared primitive may be extracted only when it has no v1 domain assumptions.
 
+The [lab strategy](../plans/foh-v2-lab-strategy.md) is authoritative for calibration surface boundaries. Visual labs are scenario inspectors over production modules; batch calibration, distribution sweeps, finance rules, career cohorts, and AI policy checks should run headlessly. A lab report or diagnostic fixture is never a second simulation truth.
+
+The current branch is still at the foundation boundary: `LeaguePhase` is `"foundation"`, `SimulationConfig` contains only a preset ID and version, and `LeagueCommand` supports `NoOp` plus a deliberately rejected `AdvanceDay`. The architecture below describes the target contracts, not features that are already implemented.
+
 ## Worker protocol
 
 ```ts
@@ -82,6 +86,8 @@ type RandomSource = {
 ```
 
 `RandomSource` supports both normal entropy-backed runs and deterministic lab runs without making normal leagues repeatable from a user-visible seed.
+
+Calibration runs use a versioned scenario envelope containing a fixture kind, source/config versions, seed, input, and optional expected invariants. Full leagues use `LeagueDocument`; matchup, season, career, market, draft, and loop fixtures are typed scenario inputs validated through `league-schema`. Calibration reports live in `packages/calibration` and are not importable as gameplay state.
 
 ## Domain model
 
@@ -342,9 +348,9 @@ Head coach controls tactical identity. Offensive and defensive assistants provid
 
 ## Testing and calibration
 
-`packages/calibration` should provide batch runners for Game, Season, Career, Player Generation, Draft Class, Development, Injury, Contract Market, Trade Market, League Economy, and baseline AI labs.
+`packages/calibration` should provide shared batch runners and report infrastructure for the smaller lab surfaces: Population & Roster, Game & Matchup, Production & Value, Career Cohorts, Market & Rules, Draft & Decision, and League Loop. Development, injury, retirement, finance, owner/staff effects, and baseline AI are modes or headless harnesses within those surfaces rather than separate visual products.
 
-Normal games use fresh runtime randomness. Lab runs use explicit seeds and produce reports containing means, standard deviations, percentiles, correlations, histograms, failed seeds, and explanations.
+Normal games use fresh runtime randomness. Lab runs use explicit seeds and produce reports containing means, standard deviations, percentiles, correlations, histograms, failed seeds, explanations, progress, cancellation state, and performance metrics. `sim-v2` must not import the calibration package.
 
 Required invariant layers:
 
