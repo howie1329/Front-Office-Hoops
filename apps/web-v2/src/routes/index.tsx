@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import * as React from "react"
 
 import { V2LeagueRepository } from "@workspace/db-v2"
@@ -11,7 +11,9 @@ import { runLeagueCommand } from "@/lib/leagueWorker"
 export const Route = createFileRoute("/")({ component: V2HomePage })
 
 function V2HomePage() {
-  const [status, setStatus] = React.useState("Ready to run the foundation round trip.")
+  const [status, setStatus] = React.useState(
+    "Ready to run the foundation round trip."
+  )
 
   async function runFoundationRoundTrip() {
     const league = createFoundationLeague()
@@ -46,7 +48,7 @@ function V2HomePage() {
       setStatus(
         unchanged
           ? "Round trip complete: worker, Dexie, and JSON preserved the fixture."
-          : "Round trip completed, but the fixture changed.",
+          : "Round trip completed, but the fixture changed."
       )
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Round trip failed.")
@@ -55,14 +57,21 @@ function V2HomePage() {
 
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center">
-      <p className="text-sm text-muted-foreground">Front Office Hoops v2 foundation</p>
-      <h1 className="text-2xl font-semibold tracking-tight">Document round trip</h1>
+      <p className="text-sm text-muted-foreground">
+        Front Office Hoops v2 foundation
+      </p>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Document round trip
+      </h1>
       <p className="max-w-md text-sm text-muted-foreground">
         Validate a fixture, send a no-op command through the worker, save it to
         Dexie, reload it, and verify the exported facts.
       </p>
       <Button onClick={() => void runFoundationRoundTrip()}>
         Run foundation round trip
+      </Button>
+      <Button variant="outline" asChild>
+        <Link to="/developer-labs">Open developer labs</Link>
       </Button>
       <p className="max-w-xl text-sm" role="status" aria-live="polite">
         {status}

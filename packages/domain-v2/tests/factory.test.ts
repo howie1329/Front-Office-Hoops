@@ -43,6 +43,7 @@ describe("createPlayerContractFixture", () => {
         },
         injuryResistance: 77,
         development: {
+          potential: 82,
           rating: 62,
           volatility: 25,
         },

@@ -1,7 +1,7 @@
 import type { LeagueDocument, PlayerEntity } from "./types"
 
 export function createPlayerContractFixture(
-  input: Partial<Pick<PlayerEntity, "id" | "name" | "age">> = {},
+  input: Partial<Pick<PlayerEntity, "id" | "name" | "age">> = {}
 ): PlayerEntity {
   return {
     id: input.id ?? "player-fixture",
@@ -28,6 +28,7 @@ export function createPlayerContractFixture(
       },
       injuryResistance: 77,
       development: {
+        potential: 82,
         rating: 62,
         volatility: 25,
       },
@@ -41,7 +42,7 @@ export function createFoundationLeague(
     id?: string
     name?: string
     now?: string
-  } = {},
+  } = {}
 ): LeagueDocument {
   const id = input.id ?? "foundation-fixture"
   const now = input.now ?? "2026-07-29T00:00:00.000Z"

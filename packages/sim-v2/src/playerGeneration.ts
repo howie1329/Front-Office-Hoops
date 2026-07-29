@@ -15,6 +15,20 @@ export type PlayerGenerationInput = {
   age?: number
 }
 
+export type PlayerGenerationTier =
+  "standard" | "70-plus" | "80-plus" | "90-plus"
+
+export type PlayerGenerationDiagnostics = {
+  latentTalent: number
+  talentTier: PlayerGenerationTier
+  rawSkills: PlayerSkills
+}
+
+export type PlayerGenerationResult = {
+  player: PlayerEntity
+  diagnostics: PlayerGenerationDiagnostics
+}
+
 function clamp(value: number, range: NumericRange): number {
   return Math.min(range.max, Math.max(range.min, value))
 }
@@ -54,6 +68,22 @@ function drawTalent(
     config.talentDistribution.center,
     config.talentDistribution.spread
   )
+}
+
+function getTalentTier(talent: number): PlayerGenerationTier {
+  if (talent >= 90) {
+    return "90-plus"
+  }
+
+  if (talent >= 80) {
+    return "80-plus"
+  }
+
+  if (talent >= 70) {
+    return "70-plus"
+  }
+
+  return "standard"
 }
 
 function drawTraits(
@@ -123,11 +153,17 @@ function applySkillCorrelations(
   return correlated
 }
 
-export function generatePlayer(
+function getCurrentAbility(skills: PlayerSkills): number {
+  const total = playerSkillKeys.reduce((sum, key) => sum + skills[key], 0)
+
+  return Math.round(total / playerSkillKeys.length)
+}
+
+export function generatePlayerWithDiagnostics(
   random: RandomSource,
   input: PlayerGenerationInput,
   config: PlayerGenerationConfig = STANDARD_PLAYER_GENERATION_CONFIG
-): PlayerEntity {
+): PlayerGenerationResult {
   const talentRandom = random.fork("talent")
   const physicalRandom = random.fork("physical")
   const skillRandom = random.fork("skills")
@@ -189,6 +225,16 @@ export function generatePlayer(
     ),
   }
   const skills = applySkillCorrelations(rawSkills, talent, config)
+  const currentAbility = getCurrentAbility(skills)
+  const potential = Math.max(
+    currentAbility,
+    drawInteger(
+      developmentRandom.fork("potential"),
+      config.ratingBounds,
+      config.development.potential.center,
+      config.development.potential.spread
+    )
+  )
 
   const heightInches = drawInteger(
     physicalRandom.fork("height"),
@@ -197,7 +243,7 @@ export function generatePlayer(
     4
   )
 
-  return {
+  const player: PlayerEntity = {
     id: input.id,
     name: input.name,
     age,
@@ -243,6 +289,7 @@ export function generatePlayer(
         14
       ),
       development: {
+        potential,
         rating: drawInteger(
           developmentRandom.fork("rating"),
           config.ratingBounds,
@@ -259,4 +306,21 @@ export function generatePlayer(
       traits: drawTraits(traitRandom, config),
     },
   }
+
+  return {
+    player,
+    diagnostics: {
+      latentTalent: talent,
+      talentTier: getTalentTier(talent),
+      rawSkills,
+    },
+  }
+}
+
+export function generatePlayer(
+  random: RandomSource,
+  input: PlayerGenerationInput,
+  config: PlayerGenerationConfig = STANDARD_PLAYER_GENERATION_CONFIG
+): PlayerEntity {
+  return generatePlayerWithDiagnostics(random, input, config).player
 }

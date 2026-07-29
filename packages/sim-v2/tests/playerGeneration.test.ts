@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest"
 
 import { createStandardPlayerGenerationConfig } from "@workspace/domain-v2"
 
-import { createDeterministicRandom, generatePlayer } from "../src"
+import {
+  createDeterministicRandom,
+  generatePlayer,
+  generatePlayerWithDiagnostics,
+} from "../src"
 
 const input = {
   id: "player-1",
@@ -19,6 +23,30 @@ describe("generatePlayer", () => {
     ).toEqual(
       generatePlayer(createDeterministicRandom("player-seed"), input, config)
     )
+  })
+
+  it("keeps diagnostics out of the player while exposing reproducible lab facts", () => {
+    const config = createStandardPlayerGenerationConfig()
+    const result = generatePlayerWithDiagnostics(
+      createDeterministicRandom("diagnostic-seed"),
+      input,
+      config
+    )
+
+    expect(result.player).toEqual(
+      generatePlayer(
+        createDeterministicRandom("diagnostic-seed"),
+        input,
+        config
+      )
+    )
+    expect(result.diagnostics.latentTalent).toBeGreaterThanOrEqual(
+      config.ratingBounds.min
+    )
+    expect(result.diagnostics.latentTalent).toBeLessThanOrEqual(
+      config.ratingBounds.max
+    )
+    expect(result.player).not.toHaveProperty("latentTalent")
   })
 
   it("generates a bounded, contract-complete profile", () => {
@@ -46,13 +74,58 @@ describe("generatePlayer", () => {
       player.profile.physical.strength,
       player.profile.physical.vertical,
       player.profile.injuryResistance,
+      player.profile.development.potential,
       player.profile.development.rating,
       player.profile.development.volatility,
       ...Object.values(player.profile.skills),
     ]
 
     expect(ratings.every((rating) => rating >= 25 && rating <= 92)).toBe(true)
+    const currentAbility = Math.round(
+      Object.values(player.profile.skills).reduce(
+        (sum, rating) => sum + rating,
+        0
+      ) / Object.values(player.profile.skills).length
+    )
+    expect(player.profile.development.potential).toBeGreaterThanOrEqual(
+      currentAbility
+    )
     expect(player.profile.traits.length).toBeLessThanOrEqual(3)
+  })
+
+  it("uses an isolated potential stream without changing the existing profile", () => {
+    const standardConfig = createStandardPlayerGenerationConfig()
+    const higherPotentialConfig = createStandardPlayerGenerationConfig()
+    higherPotentialConfig.development.potential = {
+      center: 92,
+      spread: 0,
+      shape: "long-tailed",
+    }
+
+    const standardPlayer = generatePlayer(
+      createDeterministicRandom("potential-isolation-seed"),
+      input,
+      standardConfig
+    )
+    const higherPotentialPlayer = generatePlayer(
+      createDeterministicRandom("potential-isolation-seed"),
+      input,
+      higherPotentialConfig
+    )
+    const { potential: standardPotential, ...standardDevelopment } =
+      standardPlayer.profile.development
+    const { potential: higherPotential, ...higherDevelopment } =
+      higherPotentialPlayer.profile.development
+
+    expect(higherPotential).toBeGreaterThanOrEqual(standardPotential)
+    expect(higherDevelopment).toEqual(standardDevelopment)
+    expect({
+      ...higherPotentialPlayer.profile,
+      development: higherDevelopment,
+    }).toEqual({
+      ...standardPlayer.profile,
+      development: standardDevelopment,
+    })
   })
 
   it("applies configured skill correlations across a population", () => {

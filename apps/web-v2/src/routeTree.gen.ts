@@ -9,38 +9,65 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as DeveloperLabsRouteImport } from './routes/developer-labs'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
 
+const DeveloperLabsRoute = DeveloperLabsRouteImport.update({
+  id: '/developer-labs',
+  path: '/developer-labs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeveloperLabsPlayerGenerationRoute =
+  DeveloperLabsPlayerGenerationRouteImport.update({
+    id: '/player-generation',
+    path: '/player-generation',
+    getParentRoute: () => DeveloperLabsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/developer-labs': typeof DeveloperLabsRouteWithChildren
+  '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/developer-labs': typeof DeveloperLabsRouteWithChildren
+  '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/developer-labs': typeof DeveloperLabsRouteWithChildren
+  '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/developer-labs' | '/developer-labs/player-generation'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/developer-labs' | '/developer-labs/player-generation'
+  id: '__root__' | '/' | '/developer-labs' | '/developer-labs/player-generation'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DeveloperLabsRoute: typeof DeveloperLabsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/developer-labs': {
+      id: '/developer-labs'
+      path: '/developer-labs'
+      fullPath: '/developer-labs'
+      preLoaderRoute: typeof DeveloperLabsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +75,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/developer-labs/player-generation': {
+      id: '/developer-labs/player-generation'
+      path: '/player-generation'
+      fullPath: '/developer-labs/player-generation'
+      preLoaderRoute: typeof DeveloperLabsPlayerGenerationRouteImport
+      parentRoute: typeof DeveloperLabsRoute
+    }
   }
 }
 
+interface DeveloperLabsRouteChildren {
+  DeveloperLabsPlayerGenerationRoute: typeof DeveloperLabsPlayerGenerationRoute
+}
+
+const DeveloperLabsRouteChildren: DeveloperLabsRouteChildren = {
+  DeveloperLabsPlayerGenerationRoute: DeveloperLabsPlayerGenerationRoute,
+}
+
+const DeveloperLabsRouteWithChildren = DeveloperLabsRoute._addFileChildren(
+  DeveloperLabsRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DeveloperLabsRoute: DeveloperLabsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

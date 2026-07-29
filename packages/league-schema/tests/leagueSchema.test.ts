@@ -45,13 +45,13 @@ describe("league schema", () => {
     }
 
     expect(() => migrateLeagueDocument(futureDocument)).toThrow(
-      "No migration is available",
+      "No migration is available"
     )
   })
 
   it("rejects malformed JSON", () => {
     expect(() => deserializeLeagueDocument("not-json")).toThrow(
-      LeagueDocumentValidationError,
+      LeagueDocumentValidationError
     )
   })
 
@@ -66,9 +66,9 @@ describe("league schema", () => {
 
   it("previews valid and invalid imports without persisting them", () => {
     const valid = previewLeagueImport(
-      serializeLeagueDocument(createFoundationLeague()),
+      serializeLeagueDocument(createFoundationLeague())
     )
-    const invalid = previewLeagueImport("{\"schema\":{\"version\":99}}")
+    const invalid = previewLeagueImport('{"schema":{"version":99}}')
 
     expect(valid).toMatchObject({
       status: "ready",
@@ -121,6 +121,51 @@ describe("league schema", () => {
     })
 
     expect(invalid.valid).toBe(false)
+
+    const missingPotential = validateLeagueDocument({
+      ...fixture,
+      entities: {
+        ...fixture.entities,
+        players: {
+          "player-fixture": {
+            ...fixture.entities.players["player-fixture"],
+            profile: {
+              ...fixture.entities.players["player-fixture"]!.profile,
+              development: {
+                rating: 62,
+                volatility: 25,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    expect(missingPotential.valid).toBe(false)
+
+    for (const potential of [-1, 101]) {
+      const invalidPotential = validateLeagueDocument({
+        ...fixture,
+        entities: {
+          ...fixture.entities,
+          players: {
+            "player-fixture": {
+              ...fixture.entities.players["player-fixture"],
+              profile: {
+                ...fixture.entities.players["player-fixture"]!.profile,
+                development: {
+                  ...fixture.entities.players["player-fixture"]!.profile
+                    .development,
+                  potential,
+                },
+              },
+            },
+          },
+        },
+      })
+
+      expect(invalidPotential.valid).toBe(false)
+    }
   })
 
   it("validates the standard player generation config", () => {
@@ -131,7 +176,7 @@ describe("league schema", () => {
       playerGenerationConfigSchema.safeParse({
         ...config,
         starTailFrequency: { ...config.starTailFrequency, above90: 2 },
-      }).success,
+      }).success
     ).toBe(false)
   })
 })

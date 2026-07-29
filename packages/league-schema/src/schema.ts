@@ -35,6 +35,7 @@ export const playerGenerationConfigSchema = z.object({
     vertical: numericRangeSchema,
   }),
   development: z.object({
+    potential: distributionConfigSchema,
     rating: distributionConfigSchema,
     volatility: distributionConfigSchema,
   }),
@@ -63,7 +64,7 @@ export const playerGenerationConfigSchema = z.object({
         "stamina",
       ]),
       strength: z.number().min(-1).max(1),
-    }),
+    })
   ),
 })
 
@@ -88,6 +89,7 @@ const playerSkillsSchema = z.object({
 })
 
 const developmentProfileSchema = z.object({
+  potential: ratingSchema,
   rating: ratingSchema,
   volatility: ratingSchema,
 })
@@ -117,7 +119,7 @@ const eventSchema = z.object({
     z.object({
       type: z.string().min(1),
       id: z.string().min(1),
-    }),
+    })
   ),
   payload: jsonRecordSchema,
   summary: z.string(),
@@ -165,13 +167,13 @@ export const leagueDocumentSchema = z.object({
         id: z.string().min(1),
         label: z.string().min(1),
         status: z.enum(["pending", "completed", "blocked"]),
-      }),
+      })
     ),
   }),
   entities: z.object({
     teams: z.record(
       z.string(),
-      z.object({ id: z.string().min(1), name: z.string().min(1) }),
+      z.object({ id: z.string().min(1), name: z.string().min(1) })
     ),
     players: z.record(z.string(), playerEntitySchema),
     owners: z.record(z.string(), jsonRecordSchema),

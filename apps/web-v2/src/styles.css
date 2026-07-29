@@ -54,14 +54,6 @@ body {
   min-width: 320px;
 }
 
-main {
-  display: grid;
-  min-height: 100svh;
-  place-content: center;
-  gap: 0.5rem;
-  padding: 2rem;
-}
-
 h1,
 p {
   margin: 0;

@@ -1,5 +1,8 @@
 export { executeLeagueCommand } from "./executeCommand"
-export { generatePlayer } from "./playerGeneration"
+export {
+  generatePlayer,
+  generatePlayerWithDiagnostics,
+} from "./playerGeneration"
 export {
   createDeterministicRandom,
   createRandomSource,
@@ -7,4 +10,9 @@ export {
 } from "./randomness"
 export type { RandomSource, RandomSourceOptions } from "./randomness"
 export type { WorkerRequest, WorkerResult } from "./protocol"
-export type { PlayerGenerationInput } from "./playerGeneration"
+export type {
+  PlayerGenerationDiagnostics,
+  PlayerGenerationInput,
+  PlayerGenerationResult,
+  PlayerGenerationTier,
+} from "./playerGeneration"

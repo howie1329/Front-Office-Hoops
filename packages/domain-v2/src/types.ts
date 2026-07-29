@@ -80,6 +80,7 @@ export type PlayerGenerationConfig = {
     vertical: NumericRange
   }
   development: {
+    potential: DistributionConfig
     rating: DistributionConfig
     volatility: DistributionConfig
   }
@@ -89,6 +90,7 @@ export type PlayerGenerationConfig = {
 }
 
 export type DevelopmentProfile = {
+  potential: number
   rating: number
   volatility: number
 }
