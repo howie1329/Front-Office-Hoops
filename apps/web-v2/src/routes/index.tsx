@@ -29,7 +29,13 @@ function V2HomePage() {
       })
 
       if (result.status !== "completed" || !result.league) {
-        setStatus(result.reason?.message ?? "The worker rejected the command.")
+        const fallback =
+          result.status === "failed"
+            ? "The worker failed to run the command."
+            : result.status === "rejected"
+              ? "The worker rejected the command."
+              : "The worker completed without a league document."
+        setStatus(result.reason?.message ?? fallback)
         return
       }
 
