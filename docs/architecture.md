@@ -1,6 +1,6 @@
 # Architecture
 
-> This document describes the existing v1 architecture. The approved v2 architecture is documented in [FOH v2 Simulation Architecture](./specs/foh-v2-simulation-architecture.md) and should not be inferred from v1 package boundaries.
+> This document describes the existing v1 architecture. The approved v2 architecture is documented in [FOH v2 Simulation Architecture](./v2/specs/foh-v2-simulation-architecture.md) and should not be inferred from v1 package boundaries.
 
 ## Overview
 

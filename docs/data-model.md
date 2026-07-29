@@ -1,6 +1,6 @@
 # Data Model
 
-> This document describes the existing v1 `LeagueRecord` model. The v2 canonical document is defined in [FOH v2 Data and Export Design](./specs/foh-v2-data-and-export-design.md).
+> This document describes the existing v1 `LeagueRecord` model. The v2 canonical document is defined in [FOH v2 Data and Export Design](./v2/specs/foh-v2-data-and-export-design.md).
 
 Domain types live in `packages/shared`. Persistence shape mirrors these types directly in IndexedDB.
 

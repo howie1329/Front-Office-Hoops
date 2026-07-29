@@ -47,7 +47,7 @@ The v2 application can initially render a shell and a generated fixture while en
 
 ## Roadmap relationship
 
-The [v2 roadmap](./foh-v2-roadmap.md) is the delivery sequence. This document defines coexistence, migration, rollback, and replacement gates. The current [v1 roadmap](../roadmap.md) remains the record of the shipped prototype and should not be rewritten as if v2 already exists.
+The [v2 roadmap](./foh-v2-roadmap.md) is the delivery sequence. This document defines coexistence, migration, rollback, and replacement gates. The current [v1 roadmap](../../roadmap.md) remains the record of the shipped prototype and should not be rewritten as if v2 already exists.
 
 ## Migration and coexistence milestones
 
