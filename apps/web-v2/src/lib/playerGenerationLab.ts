@@ -1,14 +1,23 @@
-import { createStandardPlayerGenerationConfig } from "@workspace/domain-v2"
+import {
+  createStandardPlayerGenerationConfig,
+  formatPlayerIdentity,
+} from "@workspace/domain-v2"
 import type {
   PlayerGenerationConfig,
   PlayerSkillKey,
 } from "@workspace/domain-v2"
 import { playerGenerationConfigSchema } from "@workspace/league-schema"
 import {
-  createDeterministicRandom,
-  generatePlayerWithDiagnostics,
+  generatePlayerPopulation,
+  PLAYER_IDENTITY_GENERATOR_VERSION,
 } from "@workspace/sim-v2"
-import type { PlayerGenerationResult } from "@workspace/sim-v2"
+import type {
+  PlayerGenerationResult,
+  PlayerIdentityMode,
+  PlayerPopulationContext,
+  PlayerPopulationMetadata,
+  PlayerPopulationResult,
+} from "@workspace/sim-v2"
 
 export type LabMode = "single" | "batch"
 
@@ -17,7 +26,13 @@ export type LabRunOptions = {
   mode: LabMode
   count: number
   sampleIndex: number
+  identityMode: PlayerIdentityMode
   config: PlayerGenerationConfig
+}
+
+export const LAB_POPULATION_CONTEXT: PlayerPopulationContext = {
+  kind: "lab",
+  id: "player-generation-lab",
 }
 
 export type LabMetricKey =
@@ -159,28 +174,64 @@ export const LAB_METRICS: Array<LabMetric> = [
   },
 ]
 
+function getPopulationShape(options: LabRunOptions) {
+  return options.mode === "single"
+    ? { count: 1, startIndex: options.sampleIndex }
+    : { count: options.count, startIndex: 1 }
+}
+
+export function createLabPopulation(
+  options: LabRunOptions
+): PlayerPopulationResult {
+  return generatePlayerPopulation({
+    seed: options.seed,
+    context: LAB_POPULATION_CONTEXT,
+    ...getPopulationShape(options),
+    identityMode: options.identityMode,
+    config: options.config,
+  })
+}
+
 export function createLabPlayers(
   options: LabRunOptions
 ): Array<PlayerGenerationResult> {
-  if (!options.seed.trim()) {
-    throw new Error("A seed is required for reproducible generation.")
+  return createLabPopulation(options).results
+}
+
+export function getLabPlayerIndex(result: PlayerGenerationResult): number {
+  const index = Number(result.player.id.split(":").at(-1))
+
+  if (!Number.isInteger(index) || index < 1) {
+    throw new Error(
+      `Lab player ID has no valid sample index: ${result.player.id}`
+    )
   }
 
-  const indexes =
-    options.mode === "single"
-      ? [options.sampleIndex]
-      : Array.from({ length: options.count }, (_, index) => index + 1)
+  return index
+}
 
-  return indexes.map((index) => {
-    const label = `Player ${String(index).padStart(3, "0")}`
-    const random = createDeterministicRandom(`${options.seed}:player:${index}`)
+export function getLabPlayerDisplayName(
+  result: PlayerGenerationResult
+): string {
+  return (
+    formatPlayerIdentity(result.player.identity) ??
+    `Player ${String(getLabPlayerIndex(result)).padStart(3, "0")}`
+  )
+}
 
-    return generatePlayerWithDiagnostics(
-      random,
-      { id: `lab-player-${index}`, name: label },
-      options.config
-    )
-  })
+function getLabPopulationMetadata(
+  options: LabRunOptions
+): PlayerPopulationMetadata {
+  const shape = getPopulationShape(options)
+
+  return {
+    seed: options.seed,
+    context: { ...LAB_POPULATION_CONTEXT },
+    ...shape,
+    identityMode: options.identityMode,
+    playerGenerationVersion: options.config.version,
+    identityGeneratorVersion: PLAYER_IDENTITY_GENERATOR_VERSION,
+  }
 }
 
 export function summarizeLabPlayers(results: Array<PlayerGenerationResult>) {
@@ -329,11 +380,15 @@ export function serializeLabReport(
   return JSON.stringify(
     {
       schema: "foh-player-generation-lab",
-      version: 4,
+      version: 5,
       seed: options.seed,
       mode: options.mode,
       count: options.count,
       sampleIndex: options.sampleIndex,
+      identityMode: options.identityMode,
+      identityGeneratorVersion: PLAYER_IDENTITY_GENERATOR_VERSION,
+      context: LAB_POPULATION_CONTEXT,
+      population: getLabPopulationMetadata(options),
       config: options.config,
       results,
     },

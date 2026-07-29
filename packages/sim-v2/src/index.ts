@@ -3,6 +3,11 @@ export {
   generatePlayer,
   generatePlayerWithDiagnostics,
 } from "./playerGeneration"
+export {
+  generatePlayerIdentity,
+  PLAYER_IDENTITY_GENERATOR_VERSION,
+} from "./playerIdentity"
+export { generatePlayerPopulation } from "./playerPopulation"
 export { derivePlayerRole } from "./playerRole"
 export {
   createDeterministicRandom,
@@ -17,4 +22,12 @@ export type {
   PlayerGenerationResult,
   PlayerGenerationTier,
 } from "./playerGeneration"
+export type {
+  PlayerIdentityMode,
+  PlayerPopulationContext,
+  PlayerPopulationContextKind,
+  PlayerPopulationInput,
+  PlayerPopulationMetadata,
+  PlayerPopulationResult,
+} from "./playerPopulation"
 export type { PlayerRoleDiagnostics, PlayerRoleResult } from "./playerRole"

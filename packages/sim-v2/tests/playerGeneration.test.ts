@@ -10,7 +10,10 @@ import {
 
 const input = {
   id: "player-1",
-  name: "Test Player",
+  identity: {
+    firstName: "Test",
+    lastName: "Player",
+  },
   age: 24,
 }
 
@@ -64,6 +67,26 @@ describe("generatePlayer", () => {
     expect(result.player).not.toHaveProperty("latentTalent")
   })
 
+  it("keeps identity changes outside basketball generation", () => {
+    const first = generatePlayerWithDiagnostics(
+      createDeterministicRandom("identity-isolation-seed"),
+      {
+        ...input,
+        identity: { firstName: "First", lastName: "Player" },
+      }
+    )
+    const second = generatePlayerWithDiagnostics(
+      createDeterministicRandom("identity-isolation-seed"),
+      {
+        ...input,
+        identity: { firstName: "Second", lastName: "Player" },
+      }
+    )
+
+    expect(first.player.profile).toEqual(second.player.profile)
+    expect(first.diagnostics).toEqual(second.diagnostics)
+  })
+
   it("generates a bounded, contract-complete profile", () => {
     const config = createStandardPlayerGenerationConfig()
     const player = generatePlayer(
@@ -74,7 +97,7 @@ describe("generatePlayer", () => {
 
     expect(player).toMatchObject({
       id: input.id,
-      name: input.name,
+      identity: input.identity,
       age: input.age,
     })
     expect(player.profile.physical.heightInches).toBeGreaterThanOrEqual(70)
@@ -193,7 +216,7 @@ describe("generatePlayer", () => {
       Array.from({ length: 500 }, (_, index) =>
         generatePlayer(
           createDeterministicRandom(`correlation-seed-${index}`),
-          { id: `player-${index}`, name: `Player ${index}` },
+          { id: `player-${index}` },
           config
         )
       )
@@ -250,10 +273,21 @@ describe("generatePlayer", () => {
   it("generates age when the caller does not provide one", () => {
     const player = generatePlayer(createDeterministicRandom("age-seed"), {
       id: "player-age",
-      name: "Age Test",
     })
 
     expect(player.age).toBeGreaterThanOrEqual(19)
     expect(player.age).toBeLessThanOrEqual(34)
+  })
+
+  it("supports direct generation of a fully nameless player", () => {
+    const player = generatePlayer(createDeterministicRandom("nameless-seed"), {
+      id: "nameless-player",
+      age: 24,
+    })
+
+    expect(player.identity).toEqual({
+      firstName: null,
+      lastName: null,
+    })
   })
 })

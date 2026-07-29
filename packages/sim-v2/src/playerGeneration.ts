@@ -2,6 +2,7 @@ import type {
   NumericRange,
   PlayerEntity,
   PlayerGenerationConfig,
+  PlayerIdentity,
   PlayerSkillKey,
   PlayerSkills,
 } from "@workspace/domain-v2"
@@ -13,7 +14,7 @@ import type { PlayerRoleDiagnostics } from "./playerRole"
 
 export type PlayerGenerationInput = {
   id: string
-  name: string
+  identity?: PlayerIdentity
   age?: number
 }
 
@@ -303,7 +304,10 @@ export function generatePlayerWithDiagnostics(
 
   const player: PlayerEntity = {
     id: input.id,
-    name: input.name,
+    identity: input.identity ?? {
+      firstName: null,
+      lastName: null,
+    },
     age,
     profile: {
       physical,

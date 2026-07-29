@@ -14,6 +14,8 @@ import {
   createLabPlayers,
   formatRoleLabel,
   getLabMetric,
+  getLabPlayerDisplayName,
+  getLabPlayerIndex,
   LAB_METRICS,
   serializeLabReport,
   summarizeLabPlayers,
@@ -30,7 +32,10 @@ import type {
   PlayerGenerationConfig,
   PlayerSkillKey,
 } from "@workspace/domain-v2"
-import type { PlayerGenerationResult } from "@workspace/sim-v2"
+import type {
+  PlayerGenerationResult,
+  PlayerIdentityMode,
+} from "@workspace/sim-v2"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -212,6 +217,8 @@ function PlayerGenerationLabPage() {
   )
   const [seed, setSeed] = React.useState("player-lab")
   const [mode, setMode] = React.useState<LabMode>("batch")
+  const [identityMode, setIdentityMode] =
+    React.useState<PlayerIdentityMode>("generated")
   const [count, setCount] = React.useState(25)
   const [sampleIndex, setSampleIndex] = React.useState(1)
   const [results, setResults] = React.useState<Array<PlayerGenerationResult>>(
@@ -249,6 +256,7 @@ function PlayerGenerationLabPage() {
       mode,
       count: Math.min(500, Math.max(1, count)),
       sampleIndex: Math.max(1, sampleIndex),
+      identityMode,
       config,
     }
     const nextResults = createLabPlayers(options)
@@ -261,6 +269,7 @@ function PlayerGenerationLabPage() {
     setConfig(createDefaultLabConfig())
     setSeed("player-lab")
     setMode("batch")
+    setIdentityMode("generated")
     setCount(25)
     setSampleIndex(1)
     setIsDirty(true)
@@ -272,6 +281,7 @@ function PlayerGenerationLabPage() {
       mode,
       count,
       sampleIndex,
+      identityMode,
       config,
     }
     const blob = new Blob([serializeLabReport(options, results)], {
@@ -288,9 +298,19 @@ function PlayerGenerationLabPage() {
   const columns = React.useMemo<Array<ColumnDef<PlayerGenerationResult>>>(
     () => [
       {
-        accessorKey: "player.name",
+        id: "player",
         header: "Player",
-        cell: ({ row }) => row.original.player.name,
+        accessorFn: (row) => getLabPlayerDisplayName(row),
+        cell: ({ row }) => (
+          <div className="grid gap-0.5">
+            <span className="font-medium">
+              {getLabPlayerDisplayName(row.original)}
+            </span>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              Sample {String(getLabPlayerIndex(row.original)).padStart(3, "0")}
+            </span>
+          </div>
+        ),
       },
       {
         accessorKey: "diagnostics.talentTier",
@@ -469,6 +489,43 @@ function PlayerGenerationLabPage() {
                       Single
                     </Button>
                   </div>
+                  <fieldset className="grid gap-2">
+                    <legend className="text-xs font-medium">Identity</legend>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          identityMode === "generated" ? "default" : "outline"
+                        }
+                        aria-pressed={identityMode === "generated"}
+                        onClick={() => {
+                          setIdentityMode("generated")
+                          setIsDirty(true)
+                        }}
+                      >
+                        Generated names
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          identityMode === "none" ? "default" : "outline"
+                        }
+                        aria-pressed={identityMode === "none"}
+                        onClick={() => {
+                          setIdentityMode("none")
+                          setIsDirty(true)
+                        }}
+                      >
+                        Numbered placeholders
+                      </Button>
+                    </div>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      Placeholders are display-only; exported players remain
+                      nameless.
+                    </p>
+                  </fieldset>
                   {mode === "batch" ? (
                     <NumberField
                       id="lab-count"
@@ -1247,14 +1304,16 @@ function PlayerGenerationLabPage() {
 
 function PlayerDetail({ result }: { result: PlayerGenerationResult }) {
   const { player, diagnostics } = result
+  const sampleIndex = getLabPlayerIndex(result)
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>{player.name}</CardTitle>
+            <CardTitle>{getLabPlayerDisplayName(result)}</CardTitle>
             <CardDescription>
-              {player.age} years old · {diagnostics.talentTier} talent tier
+              Sample {String(sampleIndex).padStart(3, "0")} · {player.age} years
+              old · {diagnostics.talentTier} talent tier
             </CardDescription>
           </div>
           <Badge>{diagnostics.latentTalent} latent talent</Badge>

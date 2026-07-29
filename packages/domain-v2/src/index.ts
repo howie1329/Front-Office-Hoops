@@ -1,4 +1,5 @@
 export { createFoundationLeague, createPlayerContractFixture } from "./factory"
+export { formatPlayerIdentity } from "./playerIdentity"
 export {
   createStandardPlayerGenerationConfig,
   STANDARD_PLAYER_GENERATION_CONFIG,
@@ -14,6 +15,7 @@ export type {
   PhaseTaskState,
   DevelopmentProfile,
   PlayerArchetype,
+  PlayerIdentity,
   PhysicalProfile,
   PotentialHeadroomConfig,
   PlayerProfile,

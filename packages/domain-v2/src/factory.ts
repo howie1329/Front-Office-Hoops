@@ -1,11 +1,14 @@
 import type { LeagueDocument, PlayerEntity } from "./types"
 
 export function createPlayerContractFixture(
-  input: Partial<Pick<PlayerEntity, "id" | "name" | "age">> = {}
+  input: Partial<Pick<PlayerEntity, "id" | "identity" | "age">> = {}
 ): PlayerEntity {
   return {
     id: input.id ?? "player-fixture",
-    name: input.name ?? "Alex Example",
+    identity: input.identity ?? {
+      firstName: "Alex",
+      lastName: "Example",
+    },
     age: input.age ?? 24,
     profile: {
       physical: {

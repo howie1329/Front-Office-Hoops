@@ -5,6 +5,8 @@ import {
   createHistogram,
   createLabPlayers,
   getLabMetric,
+  getLabPlayerDisplayName,
+  getLabPlayerIndex,
   serializeLabReport,
   summarizeLabPlayers,
   validateLabConfig,
@@ -17,6 +19,7 @@ describe("player generation lab helpers", () => {
       mode: "batch" as const,
       count: 3,
       sampleIndex: 1,
+      identityMode: "generated" as const,
       config: createStandardPlayerGenerationConfig(),
     }
 
@@ -24,24 +27,28 @@ describe("player generation lab helpers", () => {
     const second = createLabPlayers(options)
 
     expect(first).toEqual(second)
-    expect(first.map((result) => result.player.name)).toEqual([
-      "Player 001",
-      "Player 002",
-      "Player 003",
-    ])
+    expect(first.map(getLabPlayerIndex)).toEqual([1, 2, 3])
+    expect(first.map(getLabPlayerDisplayName).every(Boolean)).toBe(true)
+    expect(first.every((result) => result.player.identity.firstName)).toBe(true)
   })
 
-  it("supports single-sample mode without changing the label sequence", () => {
+  it("supports single-sample placeholder mode without storing its label", () => {
     const results = createLabPlayers({
       seed: "lab-seed",
       mode: "single",
       count: 25,
       sampleIndex: 7,
+      identityMode: "none",
       config: createStandardPlayerGenerationConfig(),
     })
 
     expect(results).toHaveLength(1)
-    expect(results[0].player.name).toBe("Player 007")
+    expect(results[0].player.identity).toEqual({
+      firstName: null,
+      lastName: null,
+    })
+    expect(getLabPlayerDisplayName(results[0])).toBe("Player 007")
+    expect(getLabPlayerIndex(results[0])).toBe(7)
     expect(getLabMetric("potential").getValue(results[0])).toBe(
       results[0].player.profile.development.potential
     )
@@ -53,6 +60,7 @@ describe("player generation lab helpers", () => {
       mode: "batch",
       count: 20,
       sampleIndex: 1,
+      identityMode: "generated",
       config: createStandardPlayerGenerationConfig(),
     })
     const summary = summarizeLabPlayers(results)
@@ -91,21 +99,43 @@ describe("player generation lab helpers", () => {
     )
   })
 
-  it("exports version three reports with anchored potential diagnostics", () => {
+  it("exports version five reports with population and identity metadata", () => {
     const options = {
       seed: "export-seed",
       mode: "single" as const,
       count: 1,
       sampleIndex: 1,
+      identityMode: "generated" as const,
       config: createStandardPlayerGenerationConfig(),
     }
     const results = createLabPlayers(options)
     const report = JSON.parse(serializeLabReport(options, results)) as {
       version: number
+      identityMode: string
+      identityGeneratorVersion: number
+      context: { kind: string; id: string }
+      population: {
+        count: number
+        startIndex: number
+        identityMode: string
+        identityGeneratorVersion: number
+      }
       results: typeof results
     }
 
-    expect(report.version).toBe(4)
+    expect(report.version).toBe(5)
+    expect(report.identityMode).toBe("generated")
+    expect(report.identityGeneratorVersion).toBe(1)
+    expect(report.context).toEqual({
+      kind: "lab",
+      id: "player-generation-lab",
+    })
+    expect(report.population).toMatchObject({
+      count: 1,
+      startIndex: 1,
+      identityMode: "generated",
+      identityGeneratorVersion: 1,
+    })
     expect(report.results[0].player.profile.development.potential).toBe(
       results[0].player.profile.development.potential
     )

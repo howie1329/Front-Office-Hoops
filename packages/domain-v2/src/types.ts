@@ -22,6 +22,11 @@ export type TeamEntity = {
 
 export type PlayerTrait = string
 
+export type PlayerIdentity = {
+  firstName: string | null
+  lastName: string | null
+}
+
 export type PlayerPosition = "PG" | "SG" | "SF" | "PF" | "C"
 
 export type PlayerArchetype =
@@ -142,7 +147,7 @@ export type PlayerProfile = {
 
 export type PlayerEntity = {
   id: string
-  name: string
+  identity: PlayerIdentity
   age: number
   profile: PlayerProfile
 }

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { createFoundationLeague, createPlayerContractFixture } from "../src"
+import {
+  createFoundationLeague,
+  createPlayerContractFixture,
+  formatPlayerIdentity,
+} from "../src"
 
 describe("createFoundationLeague", () => {
   it("creates a stable minimal document", () => {
@@ -28,7 +32,10 @@ describe("createPlayerContractFixture", () => {
 
     expect(player).toMatchObject({
       id: "player-fixture",
-      name: "Alex Example",
+      identity: {
+        firstName: "Alex",
+        lastName: "Example",
+      },
       age: 24,
       profile: {
         physical: {
@@ -50,5 +57,15 @@ describe("createPlayerContractFixture", () => {
         traits: ["hard-worker"],
       },
     })
+  })
+
+  it("formats complete, partial, and nameless identities", () => {
+    expect(
+      formatPlayerIdentity({ firstName: "Alex", lastName: "Example" })
+    ).toBe("Alex Example")
+    expect(formatPlayerIdentity({ firstName: "Alex", lastName: null })).toBe(
+      "Alex"
+    )
+    expect(formatPlayerIdentity({ firstName: null, lastName: null })).toBeNull()
   })
 })

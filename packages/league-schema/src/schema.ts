@@ -163,7 +163,10 @@ const playerProfileSchema = z.object({
 
 export const playerEntitySchema = z.object({
   id: z.string().min(1),
-  name: z.string().min(1),
+  identity: z.object({
+    firstName: z.string().trim().min(1).nullable(),
+    lastName: z.string().trim().min(1).nullable(),
+  }),
   age: z.number().int().min(18).max(50),
   profile: playerProfileSchema,
 })

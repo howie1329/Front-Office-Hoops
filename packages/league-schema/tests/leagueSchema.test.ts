@@ -14,6 +14,7 @@ import {
   migrateLeagueDocument,
   previewLeagueImport,
   playerGenerationConfigSchema,
+  playerEntitySchema,
   serializeLeagueDocument,
   validateLeagueDocument,
 } from "../src"
@@ -186,6 +187,37 @@ describe("league schema", () => {
 
       expect(invalidPotential.valid).toBe(false)
     }
+  })
+
+  it("validates structured nullable player identities", () => {
+    const player = createPlayerContractFixture()
+
+    expect(
+      playerEntitySchema.safeParse({
+        ...player,
+        identity: { firstName: null, lastName: null },
+      }).success
+    ).toBe(true)
+
+    for (const identity of [
+      { firstName: "", lastName: "Player" },
+      { firstName: "   ", lastName: null },
+      { firstName: "Test" },
+      "Test Player",
+    ]) {
+      expect(
+        playerEntitySchema.safeParse({
+          ...player,
+          identity,
+        }).success
+      ).toBe(false)
+    }
+
+    const league = createFoundationLeague()
+    league.entities.players[player.id] = player
+    expect(deserializeLeagueDocument(serializeLeagueDocument(league))).toEqual(
+      league
+    )
   })
 
   it("validates the standard player generation config", () => {
