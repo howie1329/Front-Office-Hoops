@@ -28,14 +28,18 @@ function V2HomePage() {
         league,
       })
 
-      if (result.status !== "completed" || !result.league) {
-        const fallback =
-          result.status === "failed"
-            ? "The worker failed to run the command."
-            : result.status === "rejected"
-              ? "The worker rejected the command."
-              : "The worker completed without a league document."
-        setStatus(result.reason?.message ?? fallback)
+      if (result.status !== "completed") {
+        setStatus(
+          result.reason?.message ??
+          (result.status === "failed"
+            ? "The worker failed to execute the command."
+            : "The worker rejected the command.")
+        )
+        return
+      }
+
+      if (!result.league) {
+        setStatus("The worker rejected the command.")
         return
       }
 

@@ -2,15 +2,28 @@ import { z } from "zod"
 
 import { CURRENT_SCHEMA_VERSION } from "./version"
 
-const jsonRecordSchema = z.record(z.string(), z.unknown())
+type JsonValue =
+  null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue }
+
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+  z.union([
+    z.null(),
+    z.boolean(),
+    z.number(),
+    z.string(),
+    z.array(jsonValueSchema),
+    z.record(z.string(), jsonValueSchema),
+  ])
+)
+const jsonRecordSchema = z.record(z.string(), jsonValueSchema)
 const ratingSchema = z.number().int().min(0).max(100)
 const numericRangeSchema = z
-  .object({ min: z.number(), max: z.number() })
+  .strictObject({ min: z.number(), max: z.number() })
   .refine((range) => range.min <= range.max, {
     message: "The minimum must not exceed the maximum.",
   })
 
-const distributionConfigSchema = z.object({
+const distributionConfigSchema = z.strictObject({
   center: z.number(),
   spread: z.number().nonnegative(),
   shape: z.literal("long-tailed"),
@@ -24,7 +37,7 @@ const potentialHeadroomConfigSchema = distributionConfigSchema
     message: "Potential headroom center must not exceed its maximum.",
   })
 
-const classificationConfigSchema = z.object({
+const classificationConfigSchema = z.strictObject({
   minPositionFit: z.number().int().min(0).max(100),
   maxSecondaryPositionGap: z.number().int().min(0).max(100),
   minArchetypeFit: z.number().int().min(0).max(100),
@@ -32,17 +45,17 @@ const classificationConfigSchema = z.object({
   maxSecondaryArchetypeGap: z.number().int().min(0).max(100),
 })
 
-export const playerGenerationConfigSchema = z.object({
+export const playerGenerationConfigSchema = z.strictObject({
   version: z.number().int().positive(),
   age: numericRangeSchema,
   ratingBounds: numericRangeSchema,
   talentDistribution: distributionConfigSchema,
-  starTailFrequency: z.object({
+  starTailFrequency: z.strictObject({
     above70: z.number().min(0).max(1),
     above80: z.number().min(0).max(1),
     above90: z.number().min(0).max(1),
   }),
-  physical: z.object({
+  physical: z.strictObject({
     heightInches: numericRangeSchema,
     weightPounds: numericRangeSchema,
     wingspanInches: numericRangeSchema,
@@ -50,7 +63,7 @@ export const playerGenerationConfigSchema = z.object({
     strength: numericRangeSchema,
     vertical: numericRangeSchema,
   }),
-  development: z.object({
+  development: z.strictObject({
     potential: potentialHeadroomConfigSchema,
     rating: distributionConfigSchema,
     volatility: distributionConfigSchema,
@@ -59,7 +72,7 @@ export const playerGenerationConfigSchema = z.object({
   traitFrequency: z.number().min(0).max(1),
   availableTraits: z.array(z.string().min(1)),
   skillCorrelations: z.array(
-    z.object({
+    z.strictObject({
       first: z.enum([
         "shooting",
         "finishing",
@@ -85,7 +98,7 @@ export const playerGenerationConfigSchema = z.object({
   ),
 })
 
-const physicalProfileSchema = z.object({
+const physicalProfileSchema = z.strictObject({
   heightInches: z.number().int().min(48).max(96),
   weightPounds: z.number().int().min(80).max(500),
   wingspanInches: z.number().int().min(48).max(110),
@@ -94,7 +107,7 @@ const physicalProfileSchema = z.object({
   vertical: ratingSchema,
 })
 
-const playerSkillsSchema = z.object({
+const playerSkillsSchema = z.strictObject({
   shooting: ratingSchema,
   finishing: ratingSchema,
   passing: ratingSchema,
@@ -105,7 +118,7 @@ const playerSkillsSchema = z.object({
   stamina: ratingSchema,
 })
 
-const playerRoleSchema = z.object({
+const playerRoleSchema = z.strictObject({
   primaryPosition: z.enum(["PG", "SG", "SF", "PF", "C"]),
   secondaryPosition: z.enum(["PG", "SG", "SF", "PF", "C"]).nullable(),
   primaryArchetype: z.enum([
@@ -144,13 +157,13 @@ const playerRoleSchema = z.object({
     .nullable(),
 })
 
-const developmentProfileSchema = z.object({
+const developmentProfileSchema = z.strictObject({
   potential: ratingSchema,
   rating: ratingSchema,
   volatility: ratingSchema,
 })
 
-const playerProfileSchema = z.object({
+const playerProfileSchema = z.strictObject({
   physical: physicalProfileSchema,
   skills: playerSkillsSchema,
   role: playerRoleSchema,
@@ -159,40 +172,37 @@ const playerProfileSchema = z.object({
   traits: z.array(z.string().min(1)).max(3),
 })
 
-export const playerEntitySchema = z.object({
+export const playerEntitySchema = z.strictObject({
   id: z.string().min(1),
-  identity: z.object({
+  identity: z.strictObject({
     firstName: z.string().trim().min(1).nullable(),
     lastName: z.string().trim().min(1).nullable(),
   }),
   leagueStatus: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("unassigned") }).strict(),
-    z
-      .object({ kind: z.literal("rostered"), teamId: z.string().min(1) })
-      .strict(),
-    z
-      .object({ kind: z.literal("re-signing"), teamId: z.string().min(1) })
-      .strict(),
-    z.object({ kind: z.literal("free-agent") }).strict(),
-    z
-      .object({
-        kind: z.literal("draft-prospect"),
-        draftClassId: z.string().min(1),
-      })
-      .strict(),
+    z.strictObject({ kind: z.literal("unassigned") }),
+    z.strictObject({ kind: z.literal("rostered"), teamId: z.string().min(1) }),
+    z.strictObject({
+      kind: z.literal("re-signing"),
+      teamId: z.string().min(1),
+    }),
+    z.strictObject({ kind: z.literal("free-agent") }),
+    z.strictObject({
+      kind: z.literal("draft-prospect"),
+      draftClassId: z.string().min(1),
+    }),
   ]),
   age: z.number().int().min(18).max(50),
   profile: playerProfileSchema,
 })
 
-const eventSchema = z.object({
+const eventSchema = z.strictObject({
   id: z.string().min(1),
   type: z.enum(["command.completed", "migration.applied"]),
   season: z.number().int().nonnegative(),
   phase: z.literal("foundation"),
   leagueDay: z.number().int().nonnegative(),
   entityRefs: z.array(
-    z.object({
+    z.strictObject({
       type: z.string().min(1),
       id: z.string().min(1),
     })
@@ -201,55 +211,55 @@ const eventSchema = z.object({
   summary: z.string(),
   importance: z.enum(["routine", "notable", "major"]),
   storyTags: z.array(z.string()),
-  source: z.object({
+  source: z.strictObject({
     kind: z.enum(["command", "simulation", "migration"]),
     id: z.string().min(1),
   }),
 })
 
-const leagueDocumentShape = z.object({
-  schema: z.object({
+const leagueDocumentShape = z.strictObject({
+  schema: z.strictObject({
     name: z.literal("foh-league"),
     version: z.literal(CURRENT_SCHEMA_VERSION),
     rulesVersion: z.number().int().positive(),
   }),
-  metadata: z.object({
+  metadata: z.strictObject({
     id: z.string().min(1),
     name: z.string().min(1),
     createdAt: z.string().datetime({ offset: true }),
     updatedAt: z.string().datetime({ offset: true }),
   }),
-  settings: z.object({
+  settings: z.strictObject({
     standardPresetId: z.string().min(1),
-    resolvedConfig: z.object({
+    resolvedConfig: z.strictObject({
       presetId: z.string().min(1),
       version: z.number().int().positive(),
     }),
     advancedOverrides: jsonRecordSchema,
   }),
-  randomness: z.object({
+  randomness: z.strictObject({
     mode: z.enum(["normal", "deterministic-lab"]),
     createdWithEntropy: z.boolean(),
     debugScopes: z.record(z.string(), z.string()).optional(),
   }),
-  state: z.object({
+  state: z.strictObject({
     season: z.number().int().positive(),
     phase: z.literal("foundation"),
     leagueDay: z.number().int().nonnegative(),
     userTeamId: z.string().min(1).nullable(),
-    calendar: z.object({ kind: z.literal("foundation") }),
+    calendar: z.strictObject({ kind: z.literal("foundation") }),
     phaseTasks: z.array(
-      z.object({
+      z.strictObject({
         id: z.string().min(1),
         label: z.string().min(1),
         status: z.enum(["pending", "completed", "blocked"]),
       })
     ),
   }),
-  entities: z.object({
+  entities: z.strictObject({
     teams: z.record(
       z.string(),
-      z.object({ id: z.string().min(1), name: z.string().min(1) })
+      z.strictObject({ id: z.string().min(1), name: z.string().min(1) })
     ),
     players: z.record(z.string(), playerEntitySchema),
     owners: z.record(z.string(), jsonRecordSchema),
@@ -258,17 +268,17 @@ const leagueDocumentShape = z.object({
     draftAssets: z.record(z.string(), jsonRecordSchema),
     offers: z.record(z.string(), jsonRecordSchema),
   }),
-  projections: z.object({
+  projections: z.strictObject({
     standings: z.array(jsonRecordSchema),
     payroll: z.array(jsonRecordSchema),
   }),
-  history: z.object({
+  history: z.strictObject({
     events: z.array(eventSchema),
     seasonArchives: z.array(jsonRecordSchema),
     records: z.array(jsonRecordSchema),
   }),
   optionalData: z
-    .object({
+    .strictObject({
       games: z.array(jsonRecordSchema).optional(),
       playerGameLogs: z.array(jsonRecordSchema).optional(),
       labDiagnostics: z.array(jsonRecordSchema).optional(),

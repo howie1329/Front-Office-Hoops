@@ -18,9 +18,10 @@ import type {
   PlayerGenerationResult,
   PlayerIdentityMode,
   PlayerPopulationContext,
-  PlayerPopulationMetadata,
   PlayerPopulationResult,
 } from "@workspace/sim-v2"
+
+export const PLAYER_GENERATION_LAB_REPORT_VERSION = 6
 
 export type LabMode = "single" | "batch"
 export type LabPopulationPresetId = PlayerPopulationPresetId | "custom"
@@ -231,21 +232,6 @@ export function getLabPlayerDisplayName(
   )
 }
 
-function getLabPopulationMetadata(
-  options: LabRunOptions
-): PlayerPopulationMetadata {
-  const shape = getPopulationShape(options)
-
-  return {
-    seed: options.seed,
-    context: { ...LAB_POPULATION_CONTEXT },
-    ...shape,
-    identityMode: options.identityMode,
-    playerGenerationVersion: options.config.version,
-    identityGeneratorVersion: PLAYER_IDENTITY_GENERATOR_VERSION,
-  }
-}
-
 export function summarizeLabPlayers(results: Array<PlayerGenerationResult>) {
   const talentValues = results.map((result) => result.diagnostics.latentTalent)
   const currentAbilityValues = results.map(
@@ -402,12 +388,12 @@ export function createLabPresetDefaults(id: PlayerPopulationPresetId) {
 
 export function serializeLabReport(
   options: LabRunOptions,
-  results: Array<PlayerGenerationResult>
+  population: PlayerPopulationResult
 ) {
   return JSON.stringify(
     {
       schema: "foh-player-generation-lab",
-      version: 6,
+      version: PLAYER_GENERATION_LAB_REPORT_VERSION,
       seed: options.seed,
       mode: options.mode,
       count: options.count,
@@ -418,9 +404,9 @@ export function serializeLabReport(
       populationPresetVersion: PLAYER_POPULATION_PRESET_VERSION,
       identityGeneratorVersion: PLAYER_IDENTITY_GENERATOR_VERSION,
       context: LAB_POPULATION_CONTEXT,
-      population: getLabPopulationMetadata(options),
+      population: population.metadata,
       config: options.config,
-      results,
+      results: population.results,
     },
     null,
     2

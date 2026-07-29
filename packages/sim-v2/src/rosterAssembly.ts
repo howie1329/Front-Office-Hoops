@@ -151,9 +151,7 @@ function validateInput(
   }
 
   if (
-    input.players.some(
-      (player) => player.leagueStatus.kind !== "unassigned"
-    )
+    input.players.some((player) => player.leagueStatus.kind !== "unassigned")
   ) {
     throw new Error("Roster assembly players must begin unassigned.")
   }
@@ -331,10 +329,14 @@ export function assembleInitialRosters(
           (player) =>
             requiredPosition === null || isEligible(player, requiredPosition)
         )
+        .map((player) => ({
+          player,
+          currentAbility: getPlayerCurrentAbility(player),
+        }))
         .sort(
           (left, right) =>
-            getPlayerCurrentAbility(right) - getPlayerCurrentAbility(left) ||
-            left.id.localeCompare(right.id)
+            right.currentAbility - left.currentAbility ||
+            left.player.id.localeCompare(right.player.id)
         )
         .slice(0, config.shortlistSize)
 
@@ -345,8 +347,7 @@ export function assembleInitialRosters(
       }
 
       const shortlist = candidates
-        .map((player) => {
-          const currentAbility = getPlayerCurrentAbility(player)
+        .map(({ player, currentAbility }) => {
           const selectionNoise = round(
             createDeterministicRandom(
               `${assemblySeed}:pick:${overallPick}:player:${player.id}`

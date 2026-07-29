@@ -99,6 +99,16 @@ function validateGenerationInput(
   }
 
   if (
+    input.teamIds.length === 0 ||
+    input.teamIds.some((teamId) => teamId.trim().length === 0) ||
+    new Set(input.teamIds).size !== input.teamIds.length
+  ) {
+    throw new Error(
+      "Initial player universe team IDs must be nonempty and unique."
+    )
+  }
+
+  if (
     !Number.isInteger(config.initialFreeAgentCount) ||
     config.initialFreeAgentCount < 1
   ) {

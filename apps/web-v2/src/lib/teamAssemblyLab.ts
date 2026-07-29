@@ -37,7 +37,7 @@ export function createTeamAssemblyLabRun(
   options: TeamAssemblyLabOptions
 ): InitialPlayerUniverse {
   const rosterAssembly: RosterAssemblyConfig = {
-    ...structuredClone(STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.rosterAssembly),
+    ...STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.rosterAssembly,
     coreDepthPerPosition: options.coreDepthPerPosition,
     shortlistSize: options.shortlistSize,
     selectionVariance: options.selectionVariance,
@@ -48,7 +48,7 @@ export function createTeamAssemblyLabRun(
     leagueId: "team-assembly-lab",
     teamIds: createTeamAssemblyLabTeamIds(),
     config: {
-      ...structuredClone(STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG),
+      ...STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG,
       rosterAssembly,
     },
   })

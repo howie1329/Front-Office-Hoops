@@ -113,13 +113,19 @@ describe("initial player universe", () => {
   })
 
   it("rejects malformed universe inputs", () => {
-    expect(() =>
-      generateInitialPlayerUniverse({
-        seed: "seed",
-        leagueId: "league-1",
-        teamIds: [...teamIds, teamIds[0]!],
-      })
-    ).toThrow("team IDs")
+    for (const invalidTeamIds of [
+      [],
+      ["team-1", "   "],
+      [...teamIds, teamIds[0]!],
+    ]) {
+      expect(() =>
+        generateInitialPlayerUniverse({
+          seed: "seed",
+          leagueId: "league-1",
+          teamIds: invalidTeamIds,
+        })
+      ).toThrow("team IDs")
+    }
 
     expect(() =>
       generateInitialPlayerUniverse({

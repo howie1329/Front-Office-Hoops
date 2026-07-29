@@ -41,6 +41,33 @@ describe("executeLeagueCommand", () => {
 
     expect(result.status).toBe("rejected")
     expect(result.reason?.code).toBe("invalid_league_document")
+    expect(result.diagnostics[0]).toMatchObject({
+      code: result.reason?.code,
+      message: result.reason?.message,
+      path: result.reason?.path,
+      severity: "error",
+    })
+  })
+
+  it("returns structured failures for malformed requests and unknown commands", () => {
+    const malformed = executeLeagueCommand(null)
+    const unknownCommand = executeLeagueCommand({
+      requestId: "request-unknown",
+      command: { type: "Unexpected", commandId: "command-unknown" },
+      league: createFoundationLeague(),
+    })
+
+    expect(malformed).toMatchObject({
+      requestId: "unknown-request",
+      status: "failed",
+    })
+    expect(unknownCommand).toMatchObject({
+      requestId: "request-unknown",
+      status: "failed",
+    })
+    expect(unknownCommand.diagnostics[0]?.message).toContain(
+      "Unsupported worker command type"
+    )
   })
 
   it("returns a structured failure when command execution throws", () => {

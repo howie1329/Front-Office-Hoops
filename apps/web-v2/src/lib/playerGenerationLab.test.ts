@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest"
 import {
   createLabPresetDefaults,
   createHistogram,
+  createLabPopulation,
   createLabPlayers,
   getLabMetric,
   getLabPlayerDisplayName,
   getLabPlayerIndex,
+  PLAYER_GENERATION_LAB_REPORT_VERSION,
   serializeLabReport,
   summarizeLabPlayers,
   validateLabConfig,
@@ -117,8 +119,9 @@ describe("player generation lab helpers", () => {
       basePresetId: "draft-class" as const,
       config: createStandardPlayerGenerationConfig(),
     }
-    const results = createLabPlayers(options)
-    const report = JSON.parse(serializeLabReport(options, results)) as {
+    const population = createLabPopulation(options)
+    const results = population.results
+    const report = JSON.parse(serializeLabReport(options, population)) as {
       version: number
       identityMode: string
       identityGeneratorVersion: number
@@ -132,9 +135,9 @@ describe("player generation lab helpers", () => {
       results: typeof results
     }
 
-    expect(report.version).toBe(6)
+    expect(report.version).toBe(PLAYER_GENERATION_LAB_REPORT_VERSION)
     expect(report.identityMode).toBe("generated")
-    expect(report.identityGeneratorVersion).toBe(1)
+    expect(report.identityGeneratorVersion).toBe(2)
     expect(report).toMatchObject({
       presetId: "draft-class",
       basePresetId: "draft-class",
@@ -148,7 +151,7 @@ describe("player generation lab helpers", () => {
       count: 1,
       startIndex: 1,
       identityMode: "generated",
-      identityGeneratorVersion: 1,
+      identityGeneratorVersion: 2,
     })
     expect(report.results[0].player.profile.development.potential).toBe(
       results[0].player.profile.development.potential

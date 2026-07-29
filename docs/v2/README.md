@@ -4,7 +4,7 @@ This folder contains the product, architecture, research, specification, experim
 
 ## Current status
 
-V2 document/schema/repository foundations and the player-generation calibration work are complete. The current player-universe groundwork includes structured identities and league statuses, population presets, 450 rostered players, 100 free agents, 90 draft prospects, and deterministic 30-team roster assembly.
+V2 document/schema/repository foundations and the player-generation and roster-assembly groundwork are complete. Distributional player-generation calibration acceptance remains pending. The current player-universe groundwork includes structured identities and league statuses, population presets, 450 rostered players, 100 free agents, 90 draft prospects, and deterministic 30-team roster assembly.
 
 The next work is calibration rather than the full league shell:
 

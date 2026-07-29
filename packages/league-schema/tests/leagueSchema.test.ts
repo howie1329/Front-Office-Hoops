@@ -38,6 +38,32 @@ describe("league schema", () => {
     }
   })
 
+  it("rejects non-JSON values in open document payloads", () => {
+    const fixture = createFoundationLeague()
+    ;(
+      fixture.settings.advancedOverrides as Record<string, unknown>
+    ).invalidValue = 1n
+
+    expect(validateLeagueDocument(fixture).valid).toBe(false)
+  })
+
+  it("rejects unknown fields when importing fixed document structures", () => {
+    const fixture = createFoundationLeague()
+    const documents = [
+      { ...fixture, unknownRootField: true },
+      {
+        ...fixture,
+        metadata: { ...fixture.metadata, unknownMetadataField: true },
+      },
+    ]
+
+    for (const document of documents) {
+      expect(() => deserializeLeagueDocument(JSON.stringify(document))).toThrow(
+        LeagueDocumentValidationError
+      )
+    }
+  })
+
   it("rejects unsupported schema versions", () => {
     const fixture = createFoundationLeague()
     const futureDocument = {

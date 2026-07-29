@@ -63,6 +63,20 @@ describe("standard player generation config", () => {
     expect(second.availableTraits).not.toContain("test-only")
   })
 
+  it("isolates the roster preset from mutations to the exported standard config", () => {
+    const originalMinimumAge = STANDARD_PLAYER_GENERATION_CONFIG.age.min
+
+    try {
+      STANDARD_PLAYER_GENERATION_CONFIG.age.min = 99
+
+      expect(
+        createPlayerPopulationPreset("initial-roster").config.age.min
+      ).toBe(originalMinimumAge)
+    } finally {
+      STANDARD_PLAYER_GENERATION_CONFIG.age.min = originalMinimumAge
+    }
+  })
+
   it("provides independent production population presets", () => {
     const roster = createPlayerPopulationPreset("initial-roster")
     const freeAgents = createPlayerPopulationPreset("initial-free-agents")

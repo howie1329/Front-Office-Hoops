@@ -154,7 +154,7 @@ const PLAYER_POPULATION_PRESETS: Record<
     label: "Initial roster",
     defaultCount: 450,
     contextKind: "initial-league",
-    config: STANDARD_PLAYER_GENERATION_CONFIG,
+    config: structuredClone(STANDARD_PLAYER_GENERATION_CONFIG),
   },
   "initial-free-agents": {
     version: PLAYER_POPULATION_PRESET_VERSION,

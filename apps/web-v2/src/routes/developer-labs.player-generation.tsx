@@ -11,7 +11,7 @@ import * as React from "react"
 import {
   createDefaultLabConfig,
   createHistogram,
-  createLabPlayers,
+  createLabPopulation,
   createLabPresetDefaults,
   formatRoleLabel,
   getLabMetric,
@@ -39,6 +39,7 @@ import type {
 import type {
   PlayerGenerationResult,
   PlayerIdentityMode,
+  PlayerPopulationResult,
 } from "@workspace/sim-v2"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
@@ -239,6 +240,8 @@ function PlayerGenerationLabPage() {
   const [results, setResults] = React.useState<Array<PlayerGenerationResult>>(
     []
   )
+  const [population, setPopulation] =
+    React.useState<PlayerPopulationResult | null>(null)
   const [selectedResult, setSelectedResult] =
     React.useState<PlayerGenerationResult | null>(null)
   const [metricKey, setMetricKey] = React.useState<LabMetricKey>("latentTalent")
@@ -277,9 +280,10 @@ function PlayerGenerationLabPage() {
       basePresetId,
       config,
     }
-    const nextResults = createLabPlayers(options)
-    setResults(nextResults)
-    setSelectedResult(nextResults[0] ?? null)
+    const nextPopulation = createLabPopulation(options)
+    setPopulation(nextPopulation)
+    setResults(nextPopulation.results)
+    setSelectedResult(nextPopulation.results[0] ?? null)
     setIsDirty(false)
   }
 
@@ -296,6 +300,8 @@ function PlayerGenerationLabPage() {
   }
 
   function handleDownload() {
+    if (!population) return
+
     const options: LabRunOptions = {
       seed,
       mode,
@@ -306,7 +312,7 @@ function PlayerGenerationLabPage() {
       basePresetId,
       config,
     }
-    const blob = new Blob([serializeLabReport(options, results)], {
+    const blob = new Blob([serializeLabReport(options, population)], {
       type: "application/json",
     })
     const url = URL.createObjectURL(blob)

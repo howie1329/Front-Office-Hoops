@@ -14,9 +14,9 @@ import {
   getTeamAssemblyLabTeamName,
   serializeTeamAssemblyLabReport,
   summarizeUniversePopulation,
+  TEAM_ASSEMBLY_LAB_TEAM_COUNT,
 } from "@/lib/teamAssemblyLab"
 import type { TeamAssemblyLabOptions } from "@/lib/teamAssemblyLab"
-import { formatPlayerIdentity } from "@workspace/domain-v2"
 import type { PlayerPosition } from "@workspace/domain-v2"
 import {
   getPlayerCurrentAbility,
@@ -51,6 +51,13 @@ export const Route = createFileRoute("/developer-labs/team-assembly")({
 })
 
 const positions: Array<PlayerPosition> = ["PG", "SG", "SF", "PF", "C"]
+const rosterPlayerCount =
+  TEAM_ASSEMBLY_LAB_TEAM_COUNT *
+  STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.rosterSize
+const totalPlayerCount =
+  rosterPlayerCount +
+  STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.initialFreeAgentCount +
+  STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.draftProspectCount
 
 function NumberField({
   id,
@@ -111,6 +118,8 @@ function TeamAssemblyLabPage() {
   const [universe, setUniverse] = React.useState<InitialPlayerUniverse | null>(
     null
   )
+  const [runOptions, setRunOptions] =
+    React.useState<TeamAssemblyLabOptions | null>(null)
   const [selectedTeamId, setSelectedTeamId] = React.useState<string | null>(
     null
   )
@@ -120,12 +129,6 @@ function TeamAssemblyLabPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [isDirty, setIsDirty] = React.useState(true)
 
-  const options: TeamAssemblyLabOptions = {
-    seed,
-    coreDepthPerPosition,
-    shortlistSize,
-    selectionVariance,
-  }
   const teams = universe
     ? Object.values(universe.assemblyDiagnostics.teams)
     : []
@@ -158,7 +161,7 @@ function TeamAssemblyLabPage() {
 
   function handleGenerate() {
     try {
-      const nextUniverse = createTeamAssemblyLabRun({
+      const effectiveOptions: TeamAssemblyLabOptions = {
         seed,
         coreDepthPerPosition: Math.min(
           2,
@@ -166,13 +169,16 @@ function TeamAssemblyLabPage() {
         ),
         shortlistSize: Math.min(10, Math.max(1, Math.round(shortlistSize))),
         selectionVariance: Math.min(10, Math.max(0, selectionVariance)),
-      })
+      }
+      const nextUniverse = createTeamAssemblyLabRun(effectiveOptions)
       setUniverse(nextUniverse)
+      setRunOptions(effectiveOptions)
       setSelectedTeamId(nextUniverse.assemblyDiagnostics.teamOrder[0] ?? null)
       setError(null)
       setIsDirty(false)
     } catch (caught) {
       setUniverse(null)
+      setRunOptions(null)
       setSelectedTeamId(null)
       setError(
         caught instanceof Error
@@ -192,17 +198,20 @@ function TeamAssemblyLabPage() {
   }
 
   function handleDownload() {
-    if (!universe) return
+    if (!universe || !runOptions) return
 
-    const blob = new Blob([serializeTeamAssemblyLabReport(options, universe)], {
-      type: "application/json",
-    })
+    const blob = new Blob(
+      [serializeTeamAssemblyLabReport(runOptions, universe)],
+      {
+        type: "application/json",
+      }
+    )
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement("a")
     anchor.href = url
-    anchor.download = `foh-team-assembly-${seed || "run"}.json`
+    anchor.download = `foh-team-assembly-${runOptions.seed || "run"}.json`
     anchor.click()
-    URL.revokeObjectURL(url)
+    setTimeout(() => URL.revokeObjectURL(url), 0)
   }
 
   const columns = React.useMemo<Array<ColumnDef<TeamAssemblyDiagnostics>>>(
@@ -222,14 +231,17 @@ function TeamAssemblyLabPage() {
         id: "topTen",
         header: "Top 10",
         accessorFn: (team) => team.topTenAverageAbility,
+        cell: ({ row }) => formatNumber(row.original.topTenAverageAbility),
       },
       {
         accessorKey: "topFiveAverageAbility",
         header: "Top 5",
+        cell: ({ row }) => formatNumber(row.original.topFiveAverageAbility),
       },
       {
         accessorKey: "bestPlayerAbility",
         header: "Best",
+        cell: ({ row }) => formatNumber(row.original.bestPlayerAbility),
       },
       {
         accessorKey: "averageAge",
@@ -287,8 +299,9 @@ function TeamAssemblyLabPage() {
               Team assembly lab
             </h1>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Inspect how the standard player universe becomes thirty legal,
-              position-covered rosters through a reproducible snake allocation.
+              Inspect how the standard player universe becomes{" "}
+              {TEAM_ASSEMBLY_LAB_TEAM_COUNT} legal, position-covered rosters
+              through a reproducible snake allocation.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -361,15 +374,21 @@ function TeamAssemblyLabPage() {
               <div className="grid grid-cols-3 gap-2 border-y border-border py-4 text-xs">
                 <div>
                   <p className="text-muted-foreground">Teams</p>
-                  <p className="mt-1 font-medium text-foreground">30</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {TEAM_ASSEMBLY_LAB_TEAM_COUNT}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Roster</p>
-                  <p className="mt-1 font-medium text-foreground">15</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.rosterSize}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Players</p>
-                  <p className="mt-1 font-medium text-foreground">640</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {totalPlayerCount}
+                  </p>
                 </div>
               </div>
 
@@ -423,8 +442,14 @@ function TeamAssemblyLabPage() {
                     Generate the standard universe
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    The lab will create 450 roster players, 100 free agents, and
-                    90 draft prospects before assembling all thirty teams.
+                    The lab will create {rosterPlayerCount} roster players,{" "}
+                    {
+                      STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.initialFreeAgentCount
+                    }{" "}
+                    free agents, and{" "}
+                    {STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.draftProspectCount}{" "}
+                    draft prospects before assembling all{" "}
+                    {TEAM_ASSEMBLY_LAB_TEAM_COUNT} teams.
                   </p>
                 </div>
               </div>
@@ -438,7 +463,7 @@ function TeamAssemblyLabPage() {
                         ? "Passed"
                         : `${universe.validationIssues.length} issues`
                     }
-                    detail="640 unique players"
+                    detail={`${totalPlayerCount} unique players`}
                   />
                   <SummaryBlock
                     label="Top-10 strength spread"
@@ -481,7 +506,7 @@ function TeamAssemblyLabPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <Table>
+                    <Table role="grid">
                       <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                           <TableRow key={headerGroup.id}>
@@ -515,7 +540,11 @@ function TeamAssemblyLabPage() {
                         {table.getRowModel().rows.map((row) => (
                           <TableRow
                             key={row.id}
+                            role="row"
                             tabIndex={0}
+                            aria-selected={
+                              selectedTeamId === row.original.teamId
+                            }
                             data-state={
                               selectedTeamId === row.original.teamId
                                 ? "selected"
@@ -583,9 +612,10 @@ function TeamAssemblyLabPage() {
                                   <TableCell>
                                     <div className="grid gap-0.5">
                                       <span className="font-medium">
-                                        {formatPlayerIdentity(
-                                          player.identity
-                                        ) ?? player.id}
+                                        {getTeamAssemblyLabPlayerName(
+                                          universe,
+                                          player.id
+                                        )}
                                       </span>
                                       <span className="max-w-56 truncate text-xs text-muted-foreground">
                                         {player.id}
