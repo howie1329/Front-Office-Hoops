@@ -1,4 +1,8 @@
 export { createFoundationLeague, createPlayerContractFixture } from "./factory"
+export {
+  createStandardPlayerGenerationConfig,
+  STANDARD_PLAYER_GENERATION_CONFIG,
+} from "./playerGeneration"
 export type {
   DiagnosticEntry,
   JsonRecord,
@@ -14,6 +18,11 @@ export type {
   PlayerSkills,
   PlayerTrait,
   PlayerEntity,
+  PlayerGenerationConfig,
+  PlayerSkillKey,
+  NumericRange,
+  DistributionConfig,
+  SkillCorrelation,
   RandomMode,
   SimulationConfig,
   TeamEntity,

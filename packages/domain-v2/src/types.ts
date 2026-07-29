@@ -42,6 +42,50 @@ export type PlayerSkills = {
   stamina: number
 }
 
+export type PlayerSkillKey = keyof PlayerSkills
+
+export type NumericRange = {
+  min: number
+  max: number
+}
+
+export type DistributionConfig = {
+  center: number
+  spread: number
+  shape: "long-tailed"
+}
+
+export type SkillCorrelation = {
+  first: PlayerSkillKey
+  second: PlayerSkillKey
+  strength: number
+}
+
+export type PlayerGenerationConfig = {
+  version: number
+  ratingBounds: NumericRange
+  talentDistribution: DistributionConfig
+  starTailFrequency: {
+    above70: number
+    above80: number
+    above90: number
+  }
+  physical: {
+    heightInches: NumericRange
+    weightPounds: NumericRange
+    wingspanInches: NumericRange
+    speed: NumericRange
+    strength: NumericRange
+    vertical: NumericRange
+  }
+  development: {
+    rating: DistributionConfig
+    volatility: DistributionConfig
+  }
+  availableTraits: PlayerTrait[]
+  skillCorrelations: SkillCorrelation[]
+}
+
 export type DevelopmentProfile = {
   rating: number
   volatility: number

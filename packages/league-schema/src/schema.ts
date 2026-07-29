@@ -4,6 +4,66 @@ import { CURRENT_SCHEMA_VERSION } from "./version"
 
 const jsonRecordSchema = z.record(z.string(), z.unknown())
 const ratingSchema = z.number().int().min(0).max(100)
+const numericRangeSchema = z
+  .object({ min: z.number(), max: z.number() })
+  .refine((range) => range.min <= range.max, {
+    message: "The minimum must not exceed the maximum.",
+  })
+
+const distributionConfigSchema = z.object({
+  center: z.number(),
+  spread: z.number().nonnegative(),
+  shape: z.literal("long-tailed"),
+})
+
+export const playerGenerationConfigSchema = z.object({
+  version: z.number().int().positive(),
+  ratingBounds: numericRangeSchema,
+  talentDistribution: distributionConfigSchema,
+  starTailFrequency: z.object({
+    above70: z.number().min(0).max(1),
+    above80: z.number().min(0).max(1),
+    above90: z.number().min(0).max(1),
+  }),
+  physical: z.object({
+    heightInches: numericRangeSchema,
+    weightPounds: numericRangeSchema,
+    wingspanInches: numericRangeSchema,
+    speed: numericRangeSchema,
+    strength: numericRangeSchema,
+    vertical: numericRangeSchema,
+  }),
+  development: z.object({
+    rating: distributionConfigSchema,
+    volatility: distributionConfigSchema,
+  }),
+  availableTraits: z.array(z.string().min(1)),
+  skillCorrelations: z.array(
+    z.object({
+      first: z.enum([
+        "shooting",
+        "finishing",
+        "passing",
+        "handling",
+        "rebounding",
+        "defense",
+        "basketballIQ",
+        "stamina",
+      ]),
+      second: z.enum([
+        "shooting",
+        "finishing",
+        "passing",
+        "handling",
+        "rebounding",
+        "defense",
+        "basketballIQ",
+        "stamina",
+      ]),
+      strength: z.number().min(-1).max(1),
+    }),
+  ),
+})
 
 const physicalProfileSchema = z.object({
   heightInches: z.number().int().min(48).max(96),

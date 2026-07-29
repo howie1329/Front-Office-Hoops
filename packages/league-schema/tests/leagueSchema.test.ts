@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   createFoundationLeague,
   createPlayerContractFixture,
+  createStandardPlayerGenerationConfig,
 } from "@workspace/domain-v2"
 
 import {
@@ -12,6 +13,7 @@ import {
   getLeagueDocumentJsonSchema,
   migrateLeagueDocument,
   previewLeagueImport,
+  playerGenerationConfigSchema,
   serializeLeagueDocument,
   validateLeagueDocument,
 } from "../src"
@@ -119,5 +121,17 @@ describe("league schema", () => {
     })
 
     expect(invalid.valid).toBe(false)
+  })
+
+  it("validates the standard player generation config", () => {
+    const config = createStandardPlayerGenerationConfig()
+
+    expect(playerGenerationConfigSchema.safeParse(config).success).toBe(true)
+    expect(
+      playerGenerationConfigSchema.safeParse({
+        ...config,
+        starTailFrequency: { ...config.starTailFrequency, above90: 2 },
+      }).success,
+    ).toBe(false)
   })
 })

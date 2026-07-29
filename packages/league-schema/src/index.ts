@@ -3,6 +3,7 @@ export { CURRENT_SCHEMA_VERSION, LeagueMigrationError, migrateLeagueDocument } f
 export {
   getLeagueDocumentJsonSchema,
   leagueDocumentSchema,
+  playerGenerationConfigSchema,
   playerEntitySchema,
 } from "./schema"
 export type { LeagueDocumentInput } from "./schema"
