@@ -22,6 +22,24 @@ export type TeamEntity = {
 
 export type PlayerTrait = string
 
+export type PlayerPosition = "PG" | "SG" | "SF" | "PF" | "C"
+
+export type PlayerArchetype =
+  | "lead_guard"
+  | "scoring_guard"
+  | "defensive_guard"
+  | "combo_guard"
+  | "shooting_wing"
+  | "three_and_d_wing"
+  | "slashing_wing"
+  | "point_forward"
+  | "utility_wing"
+  | "stretch_big"
+  | "interior_scorer"
+  | "rim_protector"
+  | "rebounding_big"
+  | "utility_big"
+
 export type PhysicalProfile = {
   heightInches: number
   weightPounds: number
@@ -88,6 +106,13 @@ export type PlayerGenerationConfig = {
     rating: DistributionConfig
     volatility: DistributionConfig
   }
+  classification: {
+    minPositionFit: number
+    maxSecondaryPositionGap: number
+    minArchetypeFit: number
+    minSecondaryArchetypeFit: number
+    maxSecondaryArchetypeGap: number
+  }
   traitFrequency: number
   availableTraits: PlayerTrait[]
   skillCorrelations: SkillCorrelation[]
@@ -99,9 +124,17 @@ export type DevelopmentProfile = {
   volatility: number
 }
 
+export type PlayerRoleProfile = {
+  primaryPosition: PlayerPosition
+  secondaryPosition: PlayerPosition | null
+  primaryArchetype: PlayerArchetype
+  secondaryArchetype: PlayerArchetype | null
+}
+
 export type PlayerProfile = {
   physical: PhysicalProfile
   skills: PlayerSkills
+  role: PlayerRoleProfile
   injuryResistance: number
   development: DevelopmentProfile
   traits: PlayerTrait[]

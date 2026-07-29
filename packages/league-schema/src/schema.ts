@@ -24,6 +24,14 @@ const potentialHeadroomConfigSchema = distributionConfigSchema
     message: "Potential headroom center must not exceed its maximum.",
   })
 
+const classificationConfigSchema = z.object({
+  minPositionFit: z.number().int().min(0).max(100),
+  maxSecondaryPositionGap: z.number().int().min(0).max(100),
+  minArchetypeFit: z.number().int().min(0).max(100),
+  minSecondaryArchetypeFit: z.number().int().min(0).max(100),
+  maxSecondaryArchetypeGap: z.number().int().min(0).max(100),
+})
+
 export const playerGenerationConfigSchema = z.object({
   version: z.number().int().positive(),
   age: numericRangeSchema,
@@ -47,6 +55,7 @@ export const playerGenerationConfigSchema = z.object({
     rating: distributionConfigSchema,
     volatility: distributionConfigSchema,
   }),
+  classification: classificationConfigSchema,
   traitFrequency: z.number().min(0).max(1),
   availableTraits: z.array(z.string().min(1)),
   skillCorrelations: z.array(
@@ -96,6 +105,47 @@ const playerSkillsSchema = z.object({
   stamina: ratingSchema,
 })
 
+const playerRoleSchema = z.object({
+  primaryPosition: z.enum(["PG", "SG", "SF", "PF", "C"]),
+  secondaryPosition: z
+    .enum(["PG", "SG", "SF", "PF", "C"])
+    .nullable(),
+  primaryArchetype: z.enum([
+    "lead_guard",
+    "scoring_guard",
+    "defensive_guard",
+    "combo_guard",
+    "shooting_wing",
+    "three_and_d_wing",
+    "slashing_wing",
+    "point_forward",
+    "utility_wing",
+    "stretch_big",
+    "interior_scorer",
+    "rim_protector",
+    "rebounding_big",
+    "utility_big",
+  ]),
+  secondaryArchetype: z
+    .enum([
+      "lead_guard",
+      "scoring_guard",
+      "defensive_guard",
+      "combo_guard",
+      "shooting_wing",
+      "three_and_d_wing",
+      "slashing_wing",
+      "point_forward",
+      "utility_wing",
+      "stretch_big",
+      "interior_scorer",
+      "rim_protector",
+      "rebounding_big",
+      "utility_big",
+    ])
+    .nullable(),
+})
+
 const developmentProfileSchema = z.object({
   potential: ratingSchema,
   rating: ratingSchema,
@@ -105,6 +155,7 @@ const developmentProfileSchema = z.object({
 const playerProfileSchema = z.object({
   physical: physicalProfileSchema,
   skills: playerSkillsSchema,
+  role: playerRoleSchema,
   injuryResistance: ratingSchema,
   development: developmentProfileSchema,
   traits: z.array(z.string().min(1)).max(3),

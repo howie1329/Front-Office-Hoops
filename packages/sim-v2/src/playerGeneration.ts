@@ -8,6 +8,8 @@ import type {
 import { STANDARD_PLAYER_GENERATION_CONFIG } from "@workspace/domain-v2"
 
 import type { RandomSource } from "./randomness"
+import { derivePlayerRole } from "./playerRole"
+import type { PlayerRoleDiagnostics } from "./playerRole"
 
 export type PlayerGenerationInput = {
   id: string
@@ -25,6 +27,7 @@ export type PlayerGenerationDiagnostics = {
   potentialBase: number
   potentialUpside: number
   rawSkills: PlayerSkills
+  role: PlayerRoleDiagnostics
 }
 
 export type PlayerGenerationResult = {
@@ -248,66 +251,71 @@ export function generatePlayerWithDiagnostics(
     4
   )
 
+  const physical = {
+    heightInches,
+    weightPounds: drawInteger(
+      physicalRandom.fork("weight"),
+      config.physical.weightPounds,
+      165 + (heightInches - 70) * 6,
+      12
+    ),
+    wingspanInches: drawInteger(
+      physicalRandom.fork("wingspan"),
+      config.physical.wingspanInches,
+      heightInches + 2,
+      3
+    ),
+    speed: drawInteger(
+      physicalRandom.fork("speed"),
+      config.physical.speed,
+      talent,
+      12
+    ),
+    strength: drawInteger(
+      physicalRandom.fork("strength"),
+      config.physical.strength,
+      talent,
+      12
+    ),
+    vertical: drawInteger(
+      physicalRandom.fork("vertical"),
+      config.physical.vertical,
+      talent,
+      12
+    ),
+  }
+  const development = {
+    potential,
+    rating: drawInteger(
+      developmentRandom.fork("rating"),
+      config.ratingBounds,
+      config.development.rating.center,
+      config.development.rating.spread
+    ),
+    volatility: drawInteger(
+      developmentRandom.fork("volatility"),
+      config.ratingBounds,
+      config.development.volatility.center,
+      config.development.volatility.spread
+    ),
+  }
+  const roleResult = derivePlayerRole({ physical, skills }, config)
+
   const player: PlayerEntity = {
     id: input.id,
     name: input.name,
     age,
     profile: {
-      physical: {
-        heightInches,
-        weightPounds: drawInteger(
-          physicalRandom.fork("weight"),
-          config.physical.weightPounds,
-          165 + (heightInches - 70) * 6,
-          12
-        ),
-        wingspanInches: drawInteger(
-          physicalRandom.fork("wingspan"),
-          config.physical.wingspanInches,
-          heightInches + 2,
-          3
-        ),
-        speed: drawInteger(
-          physicalRandom.fork("speed"),
-          config.physical.speed,
-          talent,
-          12
-        ),
-        strength: drawInteger(
-          physicalRandom.fork("strength"),
-          config.physical.strength,
-          talent,
-          12
-        ),
-        vertical: drawInteger(
-          physicalRandom.fork("vertical"),
-          config.physical.vertical,
-          talent,
-          12
-        ),
-      },
+      physical,
       skills,
+      role: roleResult.role,
       injuryResistance: drawInteger(
         physicalRandom.fork("injury-resistance"),
         config.ratingBounds,
         60,
         14
       ),
-      development: {
-        potential,
-        rating: drawInteger(
-          developmentRandom.fork("rating"),
-          config.ratingBounds,
-          config.development.rating.center,
-          config.development.rating.spread
-        ),
-        volatility: drawInteger(
-          developmentRandom.fork("volatility"),
-          config.ratingBounds,
-          config.development.volatility.center,
-          config.development.volatility.spread
-        ),
-      },
+      development,
       traits: drawTraits(traitRandom, config),
     },
   }
@@ -321,6 +329,7 @@ export function generatePlayerWithDiagnostics(
       potentialBase,
       potentialUpside,
       rawSkills,
+      role: roleResult.diagnostics,
     },
   }
 }

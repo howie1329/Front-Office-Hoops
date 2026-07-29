@@ -43,6 +43,12 @@ export type LabMetric = {
   getValue: (result: PlayerGenerationResult) => number
 }
 
+export function formatRoleLabel(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase())
+}
+
 export const LAB_METRICS: Array<LabMetric> = [
   {
     key: "latentTalent",
@@ -194,6 +200,17 @@ export function summarizeLabPlayers(results: Array<PlayerGenerationResult>) {
     values.length
       ? values.reduce((sum, value) => sum + value, 0) / values.length
       : 0
+  const countBy = <T extends string>(values: Array<T>): Record<string, number> =>
+    values.reduce<Record<string, number>>((counts, value) => {
+      counts[value] = (counts[value] ?? 0) + 1
+      return counts
+    }, {})
+  const primaryPositions = results.map(
+    (result) => result.player.profile.role.primaryPosition
+  )
+  const primaryArchetypes = results.map(
+    (result) => result.player.profile.role.primaryArchetype
+  )
 
   return {
     count: results.length,
@@ -217,6 +234,28 @@ export function summarizeLabPlayers(results: Array<PlayerGenerationResult>) {
       results.length === 0
         ? 0
         : results.filter((result) => result.player.profile.traits.length > 0)
+            .length / results.length,
+    primaryPositionCounts: countBy(primaryPositions),
+    primaryArchetypeCounts: countBy(primaryArchetypes),
+    secondaryPositionRate:
+      results.length === 0
+        ? 0
+        : results.filter((result) => result.player.profile.role.secondaryPosition)
+            .length / results.length,
+    secondaryArchetypeRate:
+      results.length === 0
+        ? 0
+        : results.filter((result) => result.player.profile.role.secondaryArchetype)
+            .length / results.length,
+    lowPositionConfidenceRate:
+      results.length === 0
+        ? 0
+        : results.filter((result) => result.diagnostics.role.positionConfidence < 5)
+            .length / results.length,
+    lowArchetypeConfidenceRate:
+      results.length === 0
+        ? 0
+        : results.filter((result) => result.diagnostics.role.archetypeConfidence < 5)
             .length / results.length,
   }
 }
@@ -290,7 +329,7 @@ export function serializeLabReport(
   return JSON.stringify(
     {
       schema: "foh-player-generation-lab",
-      version: 3,
+      version: 4,
       seed: options.seed,
       mode: options.mode,
       count: options.count,

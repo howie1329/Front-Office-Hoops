@@ -26,6 +26,12 @@ export function createPlayerContractFixture(
         basketballIQ: 73,
         stamina: 80,
       },
+      role: {
+        primaryPosition: "SF",
+        secondaryPosition: "SG",
+        primaryArchetype: "three_and_d_wing",
+        secondaryArchetype: "shooting_wing",
+      },
       injuryResistance: 77,
       development: {
         potential: 82,

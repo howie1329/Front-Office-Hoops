@@ -1,7 +1,7 @@
 import type { PlayerGenerationConfig } from "./types"
 
 export const STANDARD_PLAYER_GENERATION_CONFIG: PlayerGenerationConfig = {
-  version: 3,
+  version: 4,
   age: { min: 19, max: 34 },
   ratingBounds: {
     min: 25,
@@ -42,6 +42,13 @@ export const STANDARD_PLAYER_GENERATION_CONFIG: PlayerGenerationConfig = {
       spread: 20,
       shape: "long-tailed",
     },
+  },
+  classification: {
+    minPositionFit: 60,
+    maxSecondaryPositionGap: 8,
+    minArchetypeFit: 60,
+    minSecondaryArchetypeFit: 58,
+    maxSecondaryArchetypeGap: 6,
   },
   traitFrequency: 0.35,
   availableTraits: [

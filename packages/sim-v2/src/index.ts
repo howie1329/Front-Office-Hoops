@@ -3,6 +3,7 @@ export {
   generatePlayer,
   generatePlayerWithDiagnostics,
 } from "./playerGeneration"
+export { derivePlayerRole } from "./playerRole"
 export {
   createDeterministicRandom,
   createRandomSource,
@@ -16,3 +17,4 @@ export type {
   PlayerGenerationResult,
   PlayerGenerationTier,
 } from "./playerGeneration"
+export type { PlayerRoleDiagnostics, PlayerRoleResult } from "./playerRole"

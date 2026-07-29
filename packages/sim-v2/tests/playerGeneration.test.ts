@@ -59,6 +59,8 @@ describe("generatePlayer", () => {
     expect(result.player.profile.development.potential).toBe(
       result.diagnostics.potentialBase + result.diagnostics.potentialUpside
     )
+    expect(result.player.profile.role.primaryPosition).toBeTruthy()
+    expect(result.player.profile.role.primaryArchetype).toBeTruthy()
     expect(result.player).not.toHaveProperty("latentTalent")
   })
 

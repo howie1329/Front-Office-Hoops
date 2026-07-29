@@ -86,6 +86,26 @@ describe("league schema", () => {
     fixture.entities.players["player-fixture"] = createPlayerContractFixture()
 
     expect(validateLeagueDocument(fixture).valid).toBe(true)
+    const invalidRole = validateLeagueDocument({
+      ...fixture,
+      entities: {
+        ...fixture.entities,
+        players: {
+          "player-fixture": {
+            ...fixture.entities.players["player-fixture"]!,
+            profile: {
+              ...fixture.entities.players["player-fixture"]!.profile,
+              role: {
+                ...fixture.entities.players["player-fixture"]!.profile.role,
+                primaryPosition: "INVALID",
+              },
+            },
+          },
+        },
+      },
+    })
+
+    expect(invalidRole.valid).toBe(false)
     const tooManyTraits = validateLeagueDocument({
       ...fixture,
       entities: {

@@ -12,6 +12,7 @@ import {
   createDefaultLabConfig,
   createHistogram,
   createLabPlayers,
+  formatRoleLabel,
   getLabMetric,
   LAB_METRICS,
   serializeLabReport,
@@ -297,6 +298,24 @@ function PlayerGenerationLabPage() {
         cell: ({ row }) => row.original.diagnostics.talentTier,
       },
       {
+        id: "position",
+        header: "Position",
+        accessorFn: (row) => row.player.profile.role.primaryPosition,
+        cell: ({ row }) => {
+          const role = row.original.player.profile.role
+          return `${role.primaryPosition}${role.secondaryPosition ? ` / ${role.secondaryPosition}` : ""}`
+        },
+      },
+      {
+        id: "archetype",
+        header: "Archetype",
+        accessorFn: (row) => row.player.profile.role.primaryArchetype,
+        cell: ({ row }) => {
+          const role = row.original.player.profile.role
+          return `${formatRoleLabel(role.primaryArchetype)}${role.secondaryArchetype ? ` / ${formatRoleLabel(role.secondaryArchetype)}` : ""}`
+        },
+      },
+      {
         accessorKey: "diagnostics.latentTalent",
         header: "Latent",
         cell: ({ row }) => row.original.diagnostics.latentTalent,
@@ -390,7 +409,8 @@ function PlayerGenerationLabPage() {
             </h1>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
               Change the generator assumptions, run a reproducible sample, and
-              inspect the profile before positions or archetypes exist.
+              inspect how each completed profile resolves into positions and
+              archetypes.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -668,6 +688,10 @@ function PlayerGenerationLabPage() {
                           potential: {
                             ...config.development.potential,
                             ...potentialDistribution,
+                            center: Math.min(
+                              potentialDistribution.center,
+                              config.development.potential.maxHeadroom
+                            ),
                           },
                         },
                       })
@@ -686,7 +710,14 @@ function PlayerGenerationLabPage() {
                           ...config.development,
                           potential: {
                             ...config.development.potential,
-                            maxHeadroom,
+                            maxHeadroom: Math.max(
+                              0,
+                              maxHeadroom
+                            ),
+                            center: Math.min(
+                              config.development.potential.center,
+                              Math.max(0, maxHeadroom)
+                            ),
                           },
                         },
                       })
@@ -741,6 +772,94 @@ function PlayerGenerationLabPage() {
                       }
                     />
                   </div>
+                </div>
+              </Section>
+
+              <Section
+                title="Role classification"
+                description="Thresholds for secondary eligibility and specialist labels"
+              >
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberField
+                    id="lab-position-fit"
+                    label="Min position fit"
+                    value={config.classification.minPositionFit}
+                    min={0}
+                    max={100}
+                    onChange={(minPositionFit) =>
+                      updateConfig({
+                        ...config,
+                        classification: {
+                          ...config.classification,
+                          minPositionFit,
+                        },
+                      })
+                    }
+                  />
+                  <NumberField
+                    id="lab-position-gap"
+                    label="Position gap"
+                    value={config.classification.maxSecondaryPositionGap}
+                    min={0}
+                    max={100}
+                    onChange={(maxSecondaryPositionGap) =>
+                      updateConfig({
+                        ...config,
+                        classification: {
+                          ...config.classification,
+                          maxSecondaryPositionGap,
+                        },
+                      })
+                    }
+                  />
+                  <NumberField
+                    id="lab-archetype-fit"
+                    label="Min archetype fit"
+                    value={config.classification.minArchetypeFit}
+                    min={0}
+                    max={100}
+                    onChange={(minArchetypeFit) =>
+                      updateConfig({
+                        ...config,
+                        classification: {
+                          ...config.classification,
+                          minArchetypeFit,
+                        },
+                      })
+                    }
+                  />
+                  <NumberField
+                    id="lab-secondary-archetype-fit"
+                    label="Secondary fit"
+                    value={config.classification.minSecondaryArchetypeFit}
+                    min={0}
+                    max={100}
+                    onChange={(minSecondaryArchetypeFit) =>
+                      updateConfig({
+                        ...config,
+                        classification: {
+                          ...config.classification,
+                          minSecondaryArchetypeFit,
+                        },
+                      })
+                    }
+                  />
+                  <NumberField
+                    id="lab-archetype-gap"
+                    label="Archetype gap"
+                    value={config.classification.maxSecondaryArchetypeGap}
+                    min={0}
+                    max={100}
+                    onChange={(maxSecondaryArchetypeGap) =>
+                      updateConfig({
+                        ...config,
+                        classification: {
+                          ...config.classification,
+                          maxSecondaryArchetypeGap,
+                        },
+                      })
+                    }
+                  />
                 </div>
               </Section>
 
@@ -1011,6 +1130,24 @@ function PlayerGenerationLabPage() {
                         )}
                       </div>
                     </div>
+                    <div className="grid gap-3 lg:grid-cols-3">
+                      <RoleSummary
+                        title="Primary positions"
+                        values={summary.primaryPositionCounts}
+                      />
+                      <RoleSummary
+                        title="Primary archetypes"
+                        values={summary.primaryArchetypeCounts}
+                        formatLabel={formatRoleLabel}
+                      />
+                      <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
+                        <h2 className="text-sm font-medium">Role confidence</h2>
+                        <Detail label="Secondary position" value={`${Math.round(summary.secondaryPositionRate * 100)}%`} />
+                        <Detail label="Secondary archetype" value={`${Math.round(summary.secondaryArchetypeRate * 100)}%`} />
+                        <Detail label="Low position confidence" value={`${Math.round(summary.lowPositionConfidenceRate * 100)}%`} />
+                        <Detail label="Low archetype confidence" value={`${Math.round(summary.lowArchetypeConfidenceRate * 100)}%`} />
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <div className="grid min-h-64 place-content-center gap-2 border border-dashed border-border px-6 text-center">
@@ -1123,7 +1260,7 @@ function PlayerDetail({ result }: { result: PlayerGenerationResult }) {
           <Badge>{diagnostics.latentTalent} latent talent</Badge>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <CardContent className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
         <DetailGroup title="Physical">
           <Detail
             label="Height"
@@ -1172,12 +1309,60 @@ function PlayerDetail({ result }: { result: PlayerGenerationResult }) {
             value={player.profile.traits.join(", ") || "None"}
           />
         </DetailGroup>
+        <DetailGroup title="Role classification">
+          <Detail
+            label="Primary position"
+            value={player.profile.role.primaryPosition}
+          />
+          <Detail
+            label="Secondary position"
+            value={player.profile.role.secondaryPosition ?? "None"}
+          />
+          <Detail
+            label="Primary archetype"
+            value={formatRoleLabel(player.profile.role.primaryArchetype)}
+          />
+          <Detail
+            label="Secondary archetype"
+            value={
+              player.profile.role.secondaryArchetype
+                ? formatRoleLabel(player.profile.role.secondaryArchetype)
+                : "None"
+            }
+          />
+          <Detail
+            label="Position confidence"
+            value={diagnostics.role.positionConfidence}
+          />
+          <Detail
+            label="Archetype confidence"
+            value={diagnostics.role.archetypeConfidence}
+          />
+        </DetailGroup>
         <DetailGroup title="Generation diagnostics">
           <Detail label="Current ability" value={diagnostics.currentAbility} />
           <Detail label="Potential base" value={diagnostics.potentialBase} />
           <Detail
             label="Generated upside"
             value={diagnostics.potentialUpside}
+          />
+          <Detail
+            label="Position fit"
+            value={diagnostics.role.positionFits[player.profile.role.primaryPosition]}
+          />
+          <Detail
+            label="Archetype fit"
+            value={diagnostics.role.archetypeFits[player.profile.role.primaryArchetype]}
+          />
+          <Detail
+            label="Gate failures"
+            value={
+              diagnostics.role.specialistGateFailures.length
+                ? diagnostics.role.specialistGateFailures
+                    .map(formatRoleLabel)
+                    .join(", ")
+                : "None"
+            }
           />
           {Object.entries(diagnostics.rawSkills).map(([skill, value]) => (
             <Detail
@@ -1212,6 +1397,35 @@ function Detail({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="flex items-center justify-between gap-3 border-b border-border/70 py-1.5 text-xs last:border-b-0">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium tabular-nums">{value}</span>
+    </div>
+  )
+}
+
+function RoleSummary({
+  title,
+  values,
+  formatLabel: labelFormatter = (value) => value,
+}: {
+  title: string
+  values: Record<string, number>
+  formatLabel?: (value: string) => string
+}) {
+  return (
+    <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
+      <h2 className="text-sm font-medium">{title}</h2>
+      {Object.entries(values)
+        .sort(([, left], [, right]) => right - left)
+        .map(([value, count]) => (
+          <div
+            key={value}
+            className="flex items-center justify-between gap-3 text-xs"
+          >
+            <span className="text-muted-foreground">
+              {labelFormatter(value)}
+            </span>
+            <span className="font-medium tabular-nums">{count}</span>
+          </div>
+        ))}
     </div>
   )
 }

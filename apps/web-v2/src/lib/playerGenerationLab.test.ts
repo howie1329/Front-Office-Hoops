@@ -68,6 +68,10 @@ describe("player generation lab helpers", () => {
     expect(
       Object.values(summary.tierCounts).reduce((sum, count) => sum + count, 0)
     ).toBe(20)
+    expect(summary.primaryPositionCounts).not.toEqual({})
+    expect(summary.primaryArchetypeCounts).not.toEqual({})
+    expect(summary.secondaryPositionRate).toBeGreaterThanOrEqual(0)
+    expect(summary.secondaryArchetypeRate).toBeGreaterThanOrEqual(0)
     expect(summary.traitRate).toBeGreaterThanOrEqual(0)
     expect(summary.traitRate).toBeLessThanOrEqual(1)
   })
@@ -101,7 +105,7 @@ describe("player generation lab helpers", () => {
       results: typeof results
     }
 
-    expect(report.version).toBe(3)
+    expect(report.version).toBe(4)
     expect(report.results[0].player.profile.development.potential).toBe(
       results[0].player.profile.development.potential
     )

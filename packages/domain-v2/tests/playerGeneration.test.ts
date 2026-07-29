@@ -10,7 +10,7 @@ describe("standard player generation config", () => {
     const config = createStandardPlayerGenerationConfig()
 
     expect(config).toMatchObject({
-      version: 3,
+      version: 4,
       age: { min: 19, max: 34 },
       ratingBounds: { min: 25, max: 92 },
       talentDistribution: {
