@@ -42,4 +42,26 @@ describe("executeLeagueCommand", () => {
     expect(result.status).toBe("rejected")
     expect(result.reason?.code).toBe("invalid_league_document")
   })
+
+  it("returns a structured failure when command execution throws", () => {
+    const request = {
+      requestId: "request-4",
+      get command(): never {
+        throw new Error("simulated interruption")
+      },
+      league: createFoundationLeague(),
+    }
+
+    const result = executeLeagueCommand(request as never)
+
+    expect(result).toMatchObject({
+      requestId: "request-4",
+      status: "failed",
+      reason: {
+        code: "worker_command_failed",
+      },
+    })
+    expect(result.league).toBeUndefined()
+    expect(result.diagnostics[0]?.message).toBe("simulated interruption")
+  })
 })

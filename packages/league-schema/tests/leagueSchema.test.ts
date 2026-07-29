@@ -6,7 +6,9 @@ import {
   CURRENT_SCHEMA_VERSION,
   LeagueDocumentValidationError,
   deserializeLeagueDocument,
+  getLeagueDocumentJsonSchema,
   migrateLeagueDocument,
+  previewLeagueImport,
   serializeLeagueDocument,
   validateLeagueDocument,
 } from "../src"
@@ -46,5 +48,31 @@ describe("league schema", () => {
     expect(() => deserializeLeagueDocument("not-json")).toThrow(
       LeagueDocumentValidationError,
     )
+  })
+
+  it("exports a JSON Schema document", () => {
+    const jsonSchema = getLeagueDocumentJsonSchema()
+
+    expect(jsonSchema).toMatchObject({
+      $schema: expect.any(String),
+      type: "object",
+    })
+  })
+
+  it("previews valid and invalid imports without persisting them", () => {
+    const valid = previewLeagueImport(
+      serializeLeagueDocument(createFoundationLeague()),
+    )
+    const invalid = previewLeagueImport("{\"schema\":{\"version\":99}}")
+
+    expect(valid).toMatchObject({
+      status: "ready",
+      documentId: "foundation-fixture",
+      schemaVersion: 1,
+    })
+    expect(invalid).toMatchObject({
+      status: "unsupported",
+      schemaVersion: 99,
+    })
   })
 })

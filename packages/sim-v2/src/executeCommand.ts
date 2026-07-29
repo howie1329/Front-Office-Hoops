@@ -17,7 +17,28 @@ function rejection(
   }
 }
 
-export function executeLeagueCommand(request: WorkerRequest): WorkerResult {
+function failure(request: WorkerRequest, error: unknown): WorkerResult {
+  const message = error instanceof Error ? error.message : "Unknown worker error."
+
+  return {
+    requestId: request.requestId,
+    status: "failed",
+    events: [],
+    diagnostics: [
+      {
+        code: "worker_command_failed",
+        message,
+        severity: "error",
+      },
+    ],
+    reason: {
+      code: "worker_command_failed",
+      message: "The command failed before a new league snapshot was committed.",
+    },
+  }
+}
+
+function executeValidatedCommand(request: WorkerRequest): WorkerResult {
   const validation = validateLeagueDocument(request.league)
 
   if (!validation.valid) {
@@ -42,5 +63,13 @@ export function executeLeagueCommand(request: WorkerRequest): WorkerResult {
         code: "command_not_implemented",
         message: "AdvanceDay is reserved for the lifecycle implementation phase.",
       })
+  }
+}
+
+export function executeLeagueCommand(request: WorkerRequest): WorkerResult {
+  try {
+    return executeValidatedCommand(request)
+  } catch (error) {
+    return failure(request, error)
   }
 }

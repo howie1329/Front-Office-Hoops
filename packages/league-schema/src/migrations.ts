@@ -1,8 +1,9 @@
 import type { LeagueDocument } from "@workspace/domain-v2"
 
 import { parseLeagueDocument } from "./validation"
+import { CURRENT_SCHEMA_VERSION } from "./version"
 
-export const CURRENT_SCHEMA_VERSION = 1
+export { CURRENT_SCHEMA_VERSION }
 
 export class LeagueMigrationError extends Error {
   constructor(message: string) {
@@ -24,7 +25,7 @@ export function migrateLeagueDocument(input: unknown): LeagueDocument {
 
   const version = schema.version
 
-  if (version !== CURRENT_SCHEMA_VERSION) {
+  if (typeof version !== "number" || version !== CURRENT_SCHEMA_VERSION) {
     throw new LeagueMigrationError(
       `No migration is available for schema version ${String(version)}.`,
     )

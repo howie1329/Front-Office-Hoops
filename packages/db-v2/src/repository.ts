@@ -1,11 +1,13 @@
 import type { LeagueDocument } from "@workspace/domain-v2"
 import {
   deserializeLeagueDocument,
+  previewLeagueImport,
   serializeLeagueDocument,
   validateLeagueDocument,
 } from "@workspace/league-schema"
 
 import { getDb, type LeagueRow } from "./database"
+import type { ImportPreview } from "@workspace/league-schema"
 
 export type LeagueSummary = {
   id: string
@@ -79,5 +81,9 @@ export class V2LeagueRepository {
 
   async import(file: Blob): Promise<LeagueDocument> {
     return deserializeLeagueDocument(await file.text())
+  }
+
+  async previewImport(file: Blob): Promise<ImportPreview> {
+    return previewLeagueImport(await file.text())
   }
 }

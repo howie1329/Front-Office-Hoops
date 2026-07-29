@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { createFoundationLeague } from "@workspace/domain-v2"
 
 import {
   LeagueRepositoryError,
   V2LeagueRepository,
+  getDb,
   resetDbForTests,
 } from "../src"
 
@@ -50,8 +51,13 @@ describe("V2LeagueRepository", () => {
 
     const exported = await repository.export(league.metadata.id)
     const imported = await repository.import(exported)
+    const preview = await repository.previewImport(exported)
 
     expect(imported).toEqual(league)
+    expect(preview).toMatchObject({
+      status: "ready",
+      documentId: league.metadata.id,
+    })
   })
 
   it("does not save invalid documents", async () => {
@@ -59,6 +65,30 @@ describe("V2LeagueRepository", () => {
       LeagueRepositoryError,
     )
     expect(await repository.list()).toEqual([])
+  })
+
+  it("preserves the last good document when a replacement save fails", async () => {
+    const original = createFoundationLeague({
+      id: "league-recovery",
+      name: "Original",
+    })
+    const replacement = createFoundationLeague({
+      id: "league-recovery",
+      name: "Replacement",
+    })
+
+    await repository.save(original)
+
+    const putSpy = vi
+      .spyOn(getDb().leagues, "put")
+      .mockRejectedValueOnce(new Error("disk full"))
+
+    await expect(repository.save(replacement)).rejects.toThrow("disk full")
+    putSpy.mockRestore()
+
+    expect((await repository.load(original.metadata.id))?.metadata.name).toBe(
+      "Original",
+    )
   })
 
   it("removes documents by id", async () => {

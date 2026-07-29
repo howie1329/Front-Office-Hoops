@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { CURRENT_SCHEMA_VERSION } from "./version"
+
 const jsonRecordSchema = z.record(z.string(), z.unknown())
 
 const eventSchema = z.object({
@@ -27,7 +29,7 @@ const eventSchema = z.object({
 export const leagueDocumentSchema = z.object({
   schema: z.object({
     name: z.literal("foh-league"),
-    version: z.number().int().positive(),
+    version: z.literal(CURRENT_SCHEMA_VERSION),
     rulesVersion: z.number().int().positive(),
   }),
   metadata: z.object({
@@ -98,3 +100,7 @@ export const leagueDocumentSchema = z.object({
 })
 
 export type LeagueDocumentInput = z.input<typeof leagueDocumentSchema>
+
+export function getLeagueDocumentJsonSchema(): Record<string, unknown> {
+  return z.toJSONSchema(leagueDocumentSchema) as Record<string, unknown>
+}
