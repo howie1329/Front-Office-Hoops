@@ -55,6 +55,64 @@ describe("generatePlayer", () => {
     expect(player.profile.traits.length).toBeLessThanOrEqual(3)
   })
 
+  it("applies configured skill correlations across a population", () => {
+    const standardConfig = createStandardPlayerGenerationConfig()
+    const uncorrelatedConfig = {
+      ...standardConfig,
+      skillCorrelations: [],
+    }
+    const correlatedPassingIQ = standardConfig.skillCorrelations.find(
+      (correlation) =>
+        correlation.first === "passing" && correlation.second === "basketballIQ"
+    )
+
+    expect(correlatedPassingIQ?.strength).toBeGreaterThan(0)
+
+    const createPopulation = (config: typeof standardConfig) =>
+      Array.from({ length: 500 }, (_, index) =>
+        generatePlayer(
+          createDeterministicRandom(`correlation-seed-${index}`),
+          { id: `player-${index}`, name: `Player ${index}` },
+          config
+        )
+      )
+
+    const correlation = (values: number[][]): number => {
+      const left = values.map(([first]) => first)
+      const right = values.map(([, second]) => second)
+      const leftMean = left.reduce((sum, value) => sum + value, 0) / left.length
+      const rightMean =
+        right.reduce((sum, value) => sum + value, 0) / right.length
+      const numerator = left.reduce(
+        (sum, value, index) =>
+          sum + (value - leftMean) * ((right[index] ?? rightMean) - rightMean),
+        0
+      )
+      const leftVariance = left.reduce(
+        (sum, value) => sum + (value - leftMean) ** 2,
+        0
+      )
+      const rightVariance = right.reduce(
+        (sum, value) => sum + (value - rightMean) ** 2,
+        0
+      )
+
+      return numerator / Math.sqrt(leftVariance * rightVariance)
+    }
+
+    const correlated = createPopulation(standardConfig).map((player) => [
+      player.profile.skills.passing,
+      player.profile.skills.basketballIQ,
+    ])
+    const uncorrelated = createPopulation(uncorrelatedConfig).map((player) => [
+      player.profile.skills.passing,
+      player.profile.skills.basketballIQ,
+    ])
+
+    expect(correlation(correlated)).toBeGreaterThan(correlation(uncorrelated))
+    expect(correlation(correlated)).toBeGreaterThan(0.5)
+  })
+
   it("uses scoped randomness so different seeds produce different players", () => {
     const first = generatePlayer(
       createDeterministicRandom("player-seed-a"),
@@ -69,10 +127,10 @@ describe("generatePlayer", () => {
   })
 
   it("generates age when the caller does not provide one", () => {
-    const player = generatePlayer(
-      createDeterministicRandom("age-seed"),
-      { id: "player-age", name: "Age Test" },
-    )
+    const player = generatePlayer(createDeterministicRandom("age-seed"), {
+      id: "player-age",
+      name: "Age Test",
+    })
 
     expect(player.age).toBeGreaterThanOrEqual(19)
     expect(player.age).toBeLessThanOrEqual(34)

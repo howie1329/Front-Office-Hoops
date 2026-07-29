@@ -2,6 +2,8 @@ import type {
   NumericRange,
   PlayerEntity,
   PlayerGenerationConfig,
+  PlayerSkillKey,
+  PlayerSkills,
 } from "@workspace/domain-v2"
 import { STANDARD_PLAYER_GENERATION_CONFIG } from "@workspace/domain-v2"
 
@@ -71,6 +73,56 @@ function drawTraits(
   return trait ? [trait] : []
 }
 
+const playerSkillKeys: PlayerSkillKey[] = [
+  "shooting",
+  "finishing",
+  "passing",
+  "handling",
+  "rebounding",
+  "defense",
+  "basketballIQ",
+  "stamina",
+]
+
+function applySkillCorrelations(
+  rawSkills: PlayerSkills,
+  talent: number,
+  config: PlayerGenerationConfig
+): PlayerSkills {
+  const correlated = { ...rawSkills }
+
+  for (const key of playerSkillKeys) {
+    const relationships = config.skillCorrelations.filter(
+      (correlation) => correlation.first === key || correlation.second === key
+    )
+
+    if (relationships.length === 0) {
+      continue
+    }
+
+    const totalWeight = relationships.reduce(
+      (sum, relationship) => sum + Math.abs(relationship.strength),
+      0
+    )
+    const neighborDeviation = relationships.reduce((sum, relationship) => {
+      const neighbor =
+        relationship.first === key ? relationship.second : relationship.first
+
+      return sum + relationship.strength * (rawSkills[neighbor] - talent)
+    }, 0)
+    const coupling = Math.min(0.6, totalWeight * 0.3)
+    const ownDeviation = rawSkills[key] - talent
+    const adjusted =
+      talent +
+      ownDeviation * (1 - coupling) +
+      (neighborDeviation / totalWeight) * coupling
+
+    correlated[key] = Math.round(clamp(adjusted, config.ratingBounds))
+  }
+
+  return correlated
+}
+
 export function generatePlayer(
   random: RandomSource,
   input: PlayerGenerationInput,
@@ -83,13 +135,10 @@ export function generatePlayer(
   const traitRandom = random.fork("traits")
   const age =
     input.age ??
-    random.int(
-      Math.ceil(config.age.min),
-      Math.floor(config.age.max),
-    )
+    random.int(Math.ceil(config.age.min), Math.floor(config.age.max))
 
   const talent = drawTalent(talentRandom, config)
-  const skills = {
+  const rawSkills: PlayerSkills = {
     shooting: drawInteger(
       skillRandom.fork("shooting"),
       config.ratingBounds,
@@ -139,6 +188,7 @@ export function generatePlayer(
       config.talentDistribution.spread * 0.55
     ),
   }
+  const skills = applySkillCorrelations(rawSkills, talent, config)
 
   const heightInches = drawInteger(
     physicalRandom.fork("height"),
