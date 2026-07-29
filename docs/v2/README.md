@@ -2,6 +2,18 @@
 
 This folder contains the product, architecture, research, specification, experiment, and migration documents for the v2 rewrite. The documents under `docs/` outside this folder describe the existing v1 application unless explicitly linked otherwise.
 
+## Current status
+
+V2 document/schema/repository foundations and the player-generation calibration work are complete. The current player-universe groundwork includes structured identities and league statuses, population presets, 450 rostered players, 100 free agents, 90 draft prospects, and deterministic 30-team roster assembly.
+
+The next work is calibration rather than the full league shell:
+
+1. Game simulation calibration.
+2. Production composite and visible universal player value.
+3. Initial league shell and complete league-creation flow.
+
+V1 remains runnable during this work. See the [V2 roadmap](./plans/foh-v2-roadmap.md) for the authoritative sequence and replacement gate.
+
 ## Start here
 
 - [Product Brief](./specs/foh-v2-product-brief.md)

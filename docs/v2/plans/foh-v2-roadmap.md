@@ -1,8 +1,24 @@
 # Front Office Hoops v2 Roadmap
 
 **Purpose:** sequenced development plan for the first rewrite.  
-**Status:** ready to begin foundation work; numerical model choices remain gated by experiments.  
+**Status:** Phase 0/1 foundations and player-generation calibration are complete; the next active work is game-simulation calibration, followed by production and player-value calibration.
 **Principle:** build the smallest complete vertical slice only after the contracts and calibration boundaries are clear.
+
+## Current execution position — July 2026
+
+Completed or substantially complete:
+
+- Phase 0 product, scope, and contract decisions.
+- Phase 1 V2 document, schema, repository, command, and worker foundation.
+- Player-generation and ratings calibration, including correlated profiles, development fields, identities, population presets, league statuses, and deterministic population assembly.
+- Initial player-universe groundwork: 450 rostered players, 100 free agents, 90 draft prospects, and deterministic 30-team roster construction.
+
+The project is currently in Phase 2 calibration. The next two roadmap items are:
+
+1. Game simulation calibration.
+2. Simple production composite and visible universal player value.
+
+The full Phase 3 league shell follows those experiments. The current Team Assembly lab is a developer calibration surface, not yet the authoritative league-creation flow. V1 remains runnable while V2 progresses.
 
 ## v2 outcome
 
@@ -220,11 +236,13 @@ Only begin these after the first-v2 readiness bar passes:
 
 ## Recommended implementation order for immediate development
 
-Start with these three slices:
+The initial three slices are now complete or underway as follows:
 
-1. **V2 document/worker/repository fixture:** proves the architectural boundary.
-2. **Player-generation and ratings calibration lab:** prevents the new league from inheriting v1 distribution assumptions.
-3. **Game/production/value calibration lab:** establishes the facts that contracts, trades, and UI will depend on.
+1. **V2 document/worker/repository fixture:** complete.
+2. **Player-generation and ratings calibration lab:** complete, with initial player-universe groundwork in place.
+3. **Game/production/value calibration lab:** next, beginning with game simulation calibration and then production/player value.
+
+Do not build the full league shell until the game and production/value calibration boundaries have accepted ranges. A thin fixture may be used by the experiments, but authoritative league creation remains a Phase 3 deliverable.
 
 Do not begin with the full dashboard, advanced cap, AI narrative, or polished transaction screens. Their contracts depend on the calibrated model.
 
