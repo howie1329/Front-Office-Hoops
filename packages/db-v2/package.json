@@ -1,0 +1,23 @@
+{
+  "name": "@workspace/db-v2",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workspace/domain-v2": "*",
+    "@workspace/league-schema": "*",
+    "dexie": "^4.0.11"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.0.0",
+    "typescript": "^6",
+    "vitest": "^3.2.4"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
