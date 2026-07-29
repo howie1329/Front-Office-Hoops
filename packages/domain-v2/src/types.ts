@@ -1,0 +1,276 @@
+export type JsonRecord = Record<string, unknown>
+
+export type LeaguePhase = "foundation"
+
+export type RandomMode = "normal" | "deterministic-lab"
+
+export type SimulationConfig = {
+  presetId: string
+  version: number
+}
+
+export type PhaseTaskState = {
+  id: string
+  label: string
+  status: "pending" | "completed" | "blocked"
+}
+
+export type TeamEntity = {
+  id: string
+  name: string
+}
+
+export type PlayerTrait = string
+
+export type PlayerIdentity = {
+  firstName: string | null
+  lastName: string | null
+}
+
+export type PlayerLeagueStatus =
+  | { kind: "unassigned" }
+  | { kind: "rostered"; teamId: string }
+  | { kind: "re-signing"; teamId: string }
+  | { kind: "free-agent" }
+  | { kind: "draft-prospect"; draftClassId: string }
+
+export type PlayerPosition = "PG" | "SG" | "SF" | "PF" | "C"
+
+export type PlayerArchetype =
+  | "lead_guard"
+  | "scoring_guard"
+  | "defensive_guard"
+  | "combo_guard"
+  | "shooting_wing"
+  | "three_and_d_wing"
+  | "slashing_wing"
+  | "point_forward"
+  | "utility_wing"
+  | "stretch_big"
+  | "interior_scorer"
+  | "rim_protector"
+  | "rebounding_big"
+  | "utility_big"
+
+export type PhysicalProfile = {
+  heightInches: number
+  weightPounds: number
+  wingspanInches: number
+  speed: number
+  strength: number
+  vertical: number
+}
+
+export type PlayerSkills = {
+  shooting: number
+  finishing: number
+  passing: number
+  handling: number
+  rebounding: number
+  defense: number
+  basketballIQ: number
+  stamina: number
+}
+
+export type PlayerSkillKey = keyof PlayerSkills
+
+export type NumericRange = {
+  min: number
+  max: number
+}
+
+export type DistributionConfig = {
+  center: number
+  spread: number
+  shape: "long-tailed"
+}
+
+export type PotentialHeadroomConfig = DistributionConfig & {
+  maxHeadroom: number
+}
+
+export type SkillCorrelation = {
+  first: PlayerSkillKey
+  second: PlayerSkillKey
+  strength: number
+}
+
+export type PlayerGenerationConfig = {
+  version: number
+  age: NumericRange
+  ratingBounds: NumericRange
+  talentDistribution: DistributionConfig
+  starTailFrequency: {
+    above70: number
+    above80: number
+    above90: number
+  }
+  physical: {
+    heightInches: NumericRange
+    weightPounds: NumericRange
+    wingspanInches: NumericRange
+    speed: NumericRange
+    strength: NumericRange
+    vertical: NumericRange
+  }
+  development: {
+    potential: PotentialHeadroomConfig
+    rating: DistributionConfig
+    volatility: DistributionConfig
+  }
+  classification: {
+    minPositionFit: number
+    maxSecondaryPositionGap: number
+    minArchetypeFit: number
+    minSecondaryArchetypeFit: number
+    maxSecondaryArchetypeGap: number
+  }
+  traitFrequency: number
+  availableTraits: PlayerTrait[]
+  skillCorrelations: SkillCorrelation[]
+}
+
+export type PlayerPopulationContextKind =
+  "lab" | "initial-league" | "draft-class" | "free-agent-pool"
+
+export type PlayerPopulationPresetId =
+  "initial-roster" | "initial-free-agents" | "draft-class"
+
+export type PlayerPopulationPreset = {
+  version: 1
+  id: PlayerPopulationPresetId
+  label: string
+  defaultCount: number
+  contextKind: PlayerPopulationContextKind
+  config: PlayerGenerationConfig
+}
+
+export type DevelopmentProfile = {
+  potential: number
+  rating: number
+  volatility: number
+}
+
+export type PlayerRoleProfile = {
+  primaryPosition: PlayerPosition
+  secondaryPosition: PlayerPosition | null
+  primaryArchetype: PlayerArchetype
+  secondaryArchetype: PlayerArchetype | null
+}
+
+export type PlayerProfile = {
+  physical: PhysicalProfile
+  skills: PlayerSkills
+  role: PlayerRoleProfile
+  injuryResistance: number
+  development: DevelopmentProfile
+  traits: PlayerTrait[]
+}
+
+export type PlayerEntity = {
+  id: string
+  identity: PlayerIdentity
+  leagueStatus: PlayerLeagueStatus
+  age: number
+  profile: PlayerProfile
+}
+
+export type LeagueEventType = "command.completed" | "migration.applied"
+
+export type LeagueEvent = {
+  id: string
+  type: LeagueEventType
+  season: number
+  phase: LeaguePhase
+  leagueDay: number
+  entityRefs: Array<{ type: string; id: string }>
+  payload: JsonRecord
+  summary: string
+  importance: "routine" | "notable" | "major"
+  storyTags: string[]
+  source: {
+    kind: "command" | "simulation" | "migration"
+    id: string
+  }
+}
+
+export type LeagueDocument = {
+  schema: {
+    name: "foh-league"
+    version: number
+    rulesVersion: number
+  }
+  metadata: {
+    id: string
+    name: string
+    createdAt: string
+    updatedAt: string
+  }
+  settings: {
+    standardPresetId: string
+    resolvedConfig: SimulationConfig
+    advancedOverrides: JsonRecord
+  }
+  randomness: {
+    mode: RandomMode
+    createdWithEntropy: boolean
+    debugScopes?: Record<string, string>
+  }
+  state: {
+    season: number
+    phase: LeaguePhase
+    leagueDay: number
+    userTeamId: string | null
+    calendar: {
+      kind: "foundation"
+    }
+    phaseTasks: PhaseTaskState[]
+  }
+  entities: {
+    teams: Record<string, TeamEntity>
+    players: Record<string, PlayerEntity>
+    owners: Record<string, JsonRecord>
+    staff: Record<string, JsonRecord>
+    contracts: Record<string, JsonRecord>
+    draftAssets: Record<string, JsonRecord>
+    offers: Record<string, JsonRecord>
+  }
+  projections: {
+    standings: JsonRecord[]
+    payroll: JsonRecord[]
+  }
+  history: {
+    events: LeagueEvent[]
+    seasonArchives: JsonRecord[]
+    records: JsonRecord[]
+  }
+  optionalData?: {
+    games?: JsonRecord[]
+    playerGameLogs?: JsonRecord[]
+    labDiagnostics?: JsonRecord[]
+    scoutingDiagnostics?: JsonRecord[]
+  }
+}
+
+export type LeagueCommand =
+  | {
+      type: "NoOp"
+      commandId: string
+    }
+  | {
+      type: "AdvanceDay"
+      commandId: string
+    }
+
+export type ValidationIssue = {
+  code: string
+  message: string
+  path?: Array<string | number>
+}
+
+export type DiagnosticEntry = {
+  code: string
+  message: string
+  severity: "info" | "warning" | "error"
+  path?: Array<string | number>
+}

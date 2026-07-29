@@ -1,0 +1,76 @@
+import type { PlayerIdentity } from "@workspace/domain-v2"
+import { names, uniqueNamesGenerator } from "unique-names-generator"
+
+export const PLAYER_IDENTITY_GENERATOR_VERSION = 2
+
+const surnames = [
+  "Anderson",
+  "Bennett",
+  "Brooks",
+  "Campbell",
+  "Carter",
+  "Collins",
+  "Cooper",
+  "Davis",
+  "Edwards",
+  "Evans",
+  "Foster",
+  "Garcia",
+  "Gray",
+  "Green",
+  "Hall",
+  "Harris",
+  "Hayes",
+  "Hill",
+  "Howard",
+  "Jackson",
+  "James",
+  "Johnson",
+  "Jones",
+  "Kelly",
+  "King",
+  "Lee",
+  "Lewis",
+  "Martin",
+  "Mitchell",
+  "Moore",
+  "Morgan",
+  "Morris",
+  "Murphy",
+  "Nelson",
+  "Parker",
+  "Perez",
+  "Phillips",
+  "Price",
+  "Reed",
+  "Richardson",
+  "Roberts",
+  "Robinson",
+  "Scott",
+  "Stewart",
+  "Taylor",
+  "Thomas",
+  "Turner",
+  "Walker",
+  "Ward",
+  "White",
+  "Williams",
+  "Wilson",
+  "Wright",
+  "Young",
+]
+
+export function generatePlayerIdentity(playerSeed: string): PlayerIdentity {
+  return {
+    firstName: uniqueNamesGenerator({
+      dictionaries: [names],
+      seed: `${playerSeed}:identity:first`,
+      style: "capital",
+    }),
+    lastName: uniqueNamesGenerator({
+      dictionaries: [surnames],
+      seed: `${playerSeed}:identity:last`,
+      style: "capital",
+    }),
+  }
+}
