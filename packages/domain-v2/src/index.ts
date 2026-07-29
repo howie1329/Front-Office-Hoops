@@ -1,4 +1,4 @@
-export { createFoundationLeague } from "./factory"
+export { createFoundationLeague, createPlayerContractFixture } from "./factory"
 export type {
   DiagnosticEntry,
   JsonRecord,
@@ -8,6 +8,11 @@ export type {
   LeagueEventType,
   LeaguePhase,
   PhaseTaskState,
+  DevelopmentProfile,
+  PhysicalProfile,
+  PlayerProfile,
+  PlayerSkills,
+  PlayerTrait,
   PlayerEntity,
   RandomMode,
   SimulationConfig,

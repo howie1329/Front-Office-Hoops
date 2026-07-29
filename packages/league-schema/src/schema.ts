@@ -3,6 +3,47 @@ import { z } from "zod"
 import { CURRENT_SCHEMA_VERSION } from "./version"
 
 const jsonRecordSchema = z.record(z.string(), z.unknown())
+const ratingSchema = z.number().int().min(0).max(100)
+
+const physicalProfileSchema = z.object({
+  heightInches: z.number().int().min(48).max(96),
+  weightPounds: z.number().int().min(80).max(500),
+  wingspanInches: z.number().int().min(48).max(110),
+  speed: ratingSchema,
+  strength: ratingSchema,
+  vertical: ratingSchema,
+})
+
+const playerSkillsSchema = z.object({
+  shooting: ratingSchema,
+  finishing: ratingSchema,
+  passing: ratingSchema,
+  handling: ratingSchema,
+  rebounding: ratingSchema,
+  defense: ratingSchema,
+  basketballIQ: ratingSchema,
+  stamina: ratingSchema,
+})
+
+const developmentProfileSchema = z.object({
+  rating: ratingSchema,
+  volatility: ratingSchema,
+})
+
+const playerProfileSchema = z.object({
+  physical: physicalProfileSchema,
+  skills: playerSkillsSchema,
+  injuryResistance: ratingSchema,
+  development: developmentProfileSchema,
+  traits: z.array(z.string().min(1)).max(3),
+})
+
+export const playerEntitySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  age: z.number().int().min(18).max(50),
+  profile: playerProfileSchema,
+})
 
 const eventSchema = z.object({
   id: z.string().min(1),
@@ -70,10 +111,7 @@ export const leagueDocumentSchema = z.object({
       z.string(),
       z.object({ id: z.string().min(1), name: z.string().min(1) }),
     ),
-    players: z.record(
-      z.string(),
-      z.object({ id: z.string().min(1), name: z.string().min(1) }),
-    ),
+    players: z.record(z.string(), playerEntitySchema),
     owners: z.record(z.string(), jsonRecordSchema),
     staff: z.record(z.string(), jsonRecordSchema),
     contracts: z.record(z.string(), jsonRecordSchema),

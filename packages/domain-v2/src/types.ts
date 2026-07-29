@@ -20,9 +20,46 @@ export type TeamEntity = {
   name: string
 }
 
+export type PlayerTrait = string
+
+export type PhysicalProfile = {
+  heightInches: number
+  weightPounds: number
+  wingspanInches: number
+  speed: number
+  strength: number
+  vertical: number
+}
+
+export type PlayerSkills = {
+  shooting: number
+  finishing: number
+  passing: number
+  handling: number
+  rebounding: number
+  defense: number
+  basketballIQ: number
+  stamina: number
+}
+
+export type DevelopmentProfile = {
+  rating: number
+  volatility: number
+}
+
+export type PlayerProfile = {
+  physical: PhysicalProfile
+  skills: PlayerSkills
+  injuryResistance: number
+  development: DevelopmentProfile
+  traits: PlayerTrait[]
+}
+
 export type PlayerEntity = {
   id: string
   name: string
+  age: number
+  profile: PlayerProfile
 }
 
 export type LeagueEventType = "command.completed" | "migration.applied"

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest"
 
-import { createFoundationLeague } from "@workspace/domain-v2"
+import {
+  createFoundationLeague,
+  createPlayerContractFixture,
+} from "@workspace/domain-v2"
 
 import {
   CURRENT_SCHEMA_VERSION,
@@ -74,5 +77,47 @@ describe("league schema", () => {
       status: "unsupported",
       schemaVersion: 99,
     })
+  })
+
+  it("validates the player profile contract inside a league document", () => {
+    const fixture = createFoundationLeague()
+    fixture.entities.players["player-fixture"] = createPlayerContractFixture()
+
+    expect(validateLeagueDocument(fixture).valid).toBe(true)
+    const tooManyTraits = validateLeagueDocument({
+      ...fixture,
+      entities: {
+        ...fixture.entities,
+        players: {
+          "player-fixture": {
+            ...fixture.entities.players["player-fixture"],
+            profile: {
+              ...fixture.entities.players["player-fixture"]!.profile,
+              traits: ["one", "two", "three", "four"],
+            },
+          },
+        },
+      },
+    })
+
+    expect(tooManyTraits.valid).toBe(false)
+
+    const invalid = validateLeagueDocument({
+      ...fixture,
+      entities: {
+        ...fixture.entities,
+        players: {
+          "player-fixture": {
+            ...fixture.entities.players["player-fixture"],
+            profile: {
+              ...fixture.entities.players["player-fixture"]!.profile,
+              injuryResistance: 101,
+            },
+          },
+        },
+      },
+    })
+
+    expect(invalid.valid).toBe(false)
   })
 })

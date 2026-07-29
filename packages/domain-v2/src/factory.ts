@@ -1,4 +1,40 @@
-import type { LeagueDocument } from "./types"
+import type { LeagueDocument, PlayerEntity } from "./types"
+
+export function createPlayerContractFixture(
+  input: Partial<Pick<PlayerEntity, "id" | "name" | "age">> = {},
+): PlayerEntity {
+  return {
+    id: input.id ?? "player-fixture",
+    name: input.name ?? "Alex Example",
+    age: input.age ?? 24,
+    profile: {
+      physical: {
+        heightInches: 78,
+        weightPounds: 220,
+        wingspanInches: 82,
+        speed: 72,
+        strength: 68,
+        vertical: 75,
+      },
+      skills: {
+        shooting: 74,
+        finishing: 70,
+        passing: 66,
+        handling: 64,
+        rebounding: 58,
+        defense: 61,
+        basketballIQ: 73,
+        stamina: 80,
+      },
+      injuryResistance: 77,
+      development: {
+        rating: 62,
+        volatility: 25,
+      },
+      traits: ["hard-worker"],
+    },
+  }
+}
 
 export function createFoundationLeague(
   input: {
