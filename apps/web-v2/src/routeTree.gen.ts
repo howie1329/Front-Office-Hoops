@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DeveloperLabsRouteImport } from './routes/developer-labs'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DeveloperLabsTeamAssemblyRouteImport } from './routes/developer-labs.team-assembly'
 import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
 
 const DeveloperLabsRoute = DeveloperLabsRouteImport.update({
@@ -23,6 +24,12 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeveloperLabsTeamAssemblyRoute =
+  DeveloperLabsTeamAssemblyRouteImport.update({
+    id: '/team-assembly',
+    path: '/team-assembly',
+    getParentRoute: () => DeveloperLabsRoute,
+  } as any)
 const DeveloperLabsPlayerGenerationRoute =
   DeveloperLabsPlayerGenerationRouteImport.update({
     id: '/player-generation',
@@ -34,24 +41,40 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
+  '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
+  '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
+  '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/developer-labs' | '/developer-labs/player-generation'
+  fullPaths:
+    | '/'
+    | '/developer-labs'
+    | '/developer-labs/player-generation'
+    | '/developer-labs/team-assembly'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/developer-labs' | '/developer-labs/player-generation'
-  id: '__root__' | '/' | '/developer-labs' | '/developer-labs/player-generation'
+  to:
+    | '/'
+    | '/developer-labs'
+    | '/developer-labs/player-generation'
+    | '/developer-labs/team-assembly'
+  id:
+    | '__root__'
+    | '/'
+    | '/developer-labs'
+    | '/developer-labs/player-generation'
+    | '/developer-labs/team-assembly'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -75,6 +98,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/developer-labs/team-assembly': {
+      id: '/developer-labs/team-assembly'
+      path: '/team-assembly'
+      fullPath: '/developer-labs/team-assembly'
+      preLoaderRoute: typeof DeveloperLabsTeamAssemblyRouteImport
+      parentRoute: typeof DeveloperLabsRoute
+    }
     '/developer-labs/player-generation': {
       id: '/developer-labs/player-generation'
       path: '/player-generation'
@@ -87,10 +117,12 @@ declare module '@tanstack/react-router' {
 
 interface DeveloperLabsRouteChildren {
   DeveloperLabsPlayerGenerationRoute: typeof DeveloperLabsPlayerGenerationRoute
+  DeveloperLabsTeamAssemblyRoute: typeof DeveloperLabsTeamAssemblyRoute
 }
 
 const DeveloperLabsRouteChildren: DeveloperLabsRouteChildren = {
   DeveloperLabsPlayerGenerationRoute: DeveloperLabsPlayerGenerationRoute,
+  DeveloperLabsTeamAssemblyRoute: DeveloperLabsTeamAssemblyRoute,
 }
 
 const DeveloperLabsRouteWithChildren = DeveloperLabsRoute._addFileChildren(

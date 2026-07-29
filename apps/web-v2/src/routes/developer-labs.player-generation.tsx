@@ -12,11 +12,13 @@ import {
   createDefaultLabConfig,
   createHistogram,
   createLabPlayers,
+  createLabPresetDefaults,
   formatRoleLabel,
   getLabMetric,
   getLabPlayerDisplayName,
   getLabPlayerIndex,
   LAB_METRICS,
+  LAB_POPULATION_PRESET_IDS,
   serializeLabReport,
   summarizeLabPlayers,
   validateLabConfig,
@@ -24,12 +26,14 @@ import {
 import type {
   LabMetricKey,
   LabMode,
+  LabPopulationPresetId,
   LabRunOptions,
 } from "@/lib/playerGenerationLab"
 import type {
   DistributionConfig,
   NumericRange,
   PlayerGenerationConfig,
+  PlayerPopulationPresetId,
   PlayerSkillKey,
 } from "@workspace/domain-v2"
 import type {
@@ -47,6 +51,13 @@ import {
 } from "@workspace/ui/components/card"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 import {
   Table,
   TableBody,
@@ -217,9 +228,13 @@ function PlayerGenerationLabPage() {
   )
   const [seed, setSeed] = React.useState("player-lab")
   const [mode, setMode] = React.useState<LabMode>("batch")
+  const [presetId, setPresetId] =
+    React.useState<LabPopulationPresetId>("initial-roster")
+  const [basePresetId, setBasePresetId] =
+    React.useState<PlayerPopulationPresetId>("initial-roster")
   const [identityMode, setIdentityMode] =
     React.useState<PlayerIdentityMode>("generated")
-  const [count, setCount] = React.useState(25)
+  const [count, setCount] = React.useState(450)
   const [sampleIndex, setSampleIndex] = React.useState(1)
   const [results, setResults] = React.useState<Array<PlayerGenerationResult>>(
     []
@@ -240,6 +255,7 @@ function PlayerGenerationLabPage() {
 
   function updateConfig(next: PlayerGenerationConfig) {
     setConfig(next)
+    setPresetId("custom")
     setIsDirty(true)
   }
 
@@ -257,6 +273,8 @@ function PlayerGenerationLabPage() {
       count: Math.min(500, Math.max(1, count)),
       sampleIndex: Math.max(1, sampleIndex),
       identityMode,
+      presetId,
+      basePresetId,
       config,
     }
     const nextResults = createLabPlayers(options)
@@ -266,11 +284,13 @@ function PlayerGenerationLabPage() {
   }
 
   function handleReset() {
-    setConfig(createDefaultLabConfig())
+    const defaults = createLabPresetDefaults(basePresetId)
+    setConfig(defaults.config)
     setSeed("player-lab")
     setMode("batch")
     setIdentityMode("generated")
-    setCount(25)
+    setPresetId(basePresetId)
+    setCount(defaults.count)
     setSampleIndex(1)
     setIsDirty(true)
   }
@@ -282,6 +302,8 @@ function PlayerGenerationLabPage() {
       count,
       sampleIndex,
       identityMode,
+      presetId,
+      basePresetId,
       config,
     }
     const blob = new Blob([serializeLabReport(options, results)], {
@@ -293,6 +315,21 @@ function PlayerGenerationLabPage() {
     anchor.download = `foh-player-generation-${seed || "run"}.json`
     anchor.click()
     URL.revokeObjectURL(url)
+  }
+
+  function handlePresetChange(value: string) {
+    if (value === "custom") {
+      return
+    }
+
+    const nextPresetId = value as PlayerPopulationPresetId
+    const defaults = createLabPresetDefaults(nextPresetId)
+    setConfig(defaults.config)
+    setCount(defaults.count)
+    setMode("batch")
+    setPresetId(nextPresetId)
+    setBasePresetId(nextPresetId)
+    setIsDirty(true)
   }
 
   const columns = React.useMemo<Array<ColumnDef<PlayerGenerationResult>>>(
@@ -434,6 +471,9 @@ function PlayerGenerationLabPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/developer-labs/team-assembly">Team assembly lab</Link>
+            </Button>
             <Button variant="outline" size="sm" onClick={handleReset}>
               Reset defaults
             </Button>
@@ -454,6 +494,39 @@ function PlayerGenerationLabPage() {
             <CardContent className="grid gap-5">
               <Section title="Run" description="Seed and sample shape">
                 <div className="grid gap-3">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="lab-population-preset">
+                      Population preset
+                    </Label>
+                    <Select value={presetId} onValueChange={handlePresetChange}>
+                      <SelectTrigger
+                        id="lab-population-preset"
+                        className="h-9 w-full px-3 text-sm"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LAB_POPULATION_PRESET_IDS.map((id) => (
+                          <SelectItem key={id} value={id}>
+                            {
+                              {
+                                "initial-roster": "Initial roster",
+                                "initial-free-agents": "Initial free agents",
+                                "draft-class": "Draft class",
+                              }[id]
+                            }
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="custom" disabled>
+                          Custom
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      Presets use the same defaults as production league
+                      generation.
+                    </p>
+                  </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="lab-seed">Seed</Label>
                     <Input
@@ -535,6 +608,7 @@ function PlayerGenerationLabPage() {
                       max={500}
                       onChange={(value) => {
                         setCount(value)
+                        setPresetId("custom")
                         setIsDirty(true)
                       }}
                     />
@@ -767,10 +841,7 @@ function PlayerGenerationLabPage() {
                           ...config.development,
                           potential: {
                             ...config.development.potential,
-                            maxHeadroom: Math.max(
-                              0,
-                              maxHeadroom
-                            ),
+                            maxHeadroom: Math.max(0, maxHeadroom),
                             center: Math.min(
                               config.development.potential.center,
                               Math.max(0, maxHeadroom)
@@ -1199,10 +1270,22 @@ function PlayerGenerationLabPage() {
                       />
                       <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
                         <h2 className="text-sm font-medium">Role confidence</h2>
-                        <Detail label="Secondary position" value={`${Math.round(summary.secondaryPositionRate * 100)}%`} />
-                        <Detail label="Secondary archetype" value={`${Math.round(summary.secondaryArchetypeRate * 100)}%`} />
-                        <Detail label="Low position confidence" value={`${Math.round(summary.lowPositionConfidenceRate * 100)}%`} />
-                        <Detail label="Low archetype confidence" value={`${Math.round(summary.lowArchetypeConfidenceRate * 100)}%`} />
+                        <Detail
+                          label="Secondary position"
+                          value={`${Math.round(summary.secondaryPositionRate * 100)}%`}
+                        />
+                        <Detail
+                          label="Secondary archetype"
+                          value={`${Math.round(summary.secondaryArchetypeRate * 100)}%`}
+                        />
+                        <Detail
+                          label="Low position confidence"
+                          value={`${Math.round(summary.lowPositionConfidenceRate * 100)}%`}
+                        />
+                        <Detail
+                          label="Low archetype confidence"
+                          value={`${Math.round(summary.lowArchetypeConfidenceRate * 100)}%`}
+                        />
                       </div>
                     </div>
                   </>
@@ -1407,11 +1490,17 @@ function PlayerDetail({ result }: { result: PlayerGenerationResult }) {
           />
           <Detail
             label="Position fit"
-            value={diagnostics.role.positionFits[player.profile.role.primaryPosition]}
+            value={
+              diagnostics.role.positionFits[player.profile.role.primaryPosition]
+            }
           />
           <Detail
             label="Archetype fit"
-            value={diagnostics.role.archetypeFits[player.profile.role.primaryArchetype]}
+            value={
+              diagnostics.role.archetypeFits[
+                player.profile.role.primaryArchetype
+              ]
+            }
           />
           <Detail
             label="Gate failures"

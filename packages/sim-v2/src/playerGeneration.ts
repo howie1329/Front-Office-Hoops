@@ -3,6 +3,7 @@ import type {
   PlayerEntity,
   PlayerGenerationConfig,
   PlayerIdentity,
+  PlayerLeagueStatus,
   PlayerSkillKey,
   PlayerSkills,
 } from "@workspace/domain-v2"
@@ -15,6 +16,7 @@ import type { PlayerRoleDiagnostics } from "./playerRole"
 export type PlayerGenerationInput = {
   id: string
   identity?: PlayerIdentity
+  leagueStatus?: PlayerLeagueStatus
   age?: number
 }
 
@@ -160,10 +162,16 @@ function applySkillCorrelations(
   return correlated
 }
 
-function getCurrentAbility(skills: PlayerSkills): number {
+function getSkillsCurrentAbility(skills: PlayerSkills): number {
   const total = playerSkillKeys.reduce((sum, key) => sum + skills[key], 0)
 
   return Math.round(total / playerSkillKeys.length)
+}
+
+export function getPlayerCurrentAbility(
+  player: Pick<PlayerEntity, "profile">
+): number {
+  return getSkillsCurrentAbility(player.profile.skills)
 }
 
 export function generatePlayerWithDiagnostics(
@@ -232,7 +240,7 @@ export function generatePlayerWithDiagnostics(
     ),
   }
   const skills = applySkillCorrelations(rawSkills, talent, config)
-  const currentAbility = getCurrentAbility(skills)
+  const currentAbility = getSkillsCurrentAbility(skills)
   const potentialBase = Math.max(currentAbility, talent)
   const rolledPotentialUpside = drawInteger(
     developmentRandom.fork("potential"),
@@ -308,6 +316,7 @@ export function generatePlayerWithDiagnostics(
       firstName: null,
       lastName: null,
     },
+    leagueStatus: input.leagueStatus ?? { kind: "unassigned" },
     age,
     profile: {
       physical,

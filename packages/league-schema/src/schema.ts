@@ -107,9 +107,7 @@ const playerSkillsSchema = z.object({
 
 const playerRoleSchema = z.object({
   primaryPosition: z.enum(["PG", "SG", "SF", "PF", "C"]),
-  secondaryPosition: z
-    .enum(["PG", "SG", "SF", "PF", "C"])
-    .nullable(),
+  secondaryPosition: z.enum(["PG", "SG", "SF", "PF", "C"]).nullable(),
   primaryArchetype: z.enum([
     "lead_guard",
     "scoring_guard",
@@ -167,6 +165,22 @@ export const playerEntitySchema = z.object({
     firstName: z.string().trim().min(1).nullable(),
     lastName: z.string().trim().min(1).nullable(),
   }),
+  leagueStatus: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("unassigned") }).strict(),
+    z
+      .object({ kind: z.literal("rostered"), teamId: z.string().min(1) })
+      .strict(),
+    z
+      .object({ kind: z.literal("re-signing"), teamId: z.string().min(1) })
+      .strict(),
+    z.object({ kind: z.literal("free-agent") }).strict(),
+    z
+      .object({
+        kind: z.literal("draft-prospect"),
+        draftClassId: z.string().min(1),
+      })
+      .strict(),
+  ]),
   age: z.number().int().min(18).max(50),
   profile: playerProfileSchema,
 })
@@ -193,7 +207,7 @@ const eventSchema = z.object({
   }),
 })
 
-export const leagueDocumentSchema = z.object({
+const leagueDocumentShape = z.object({
   schema: z.object({
     name: z.literal("foh-league"),
     version: z.literal(CURRENT_SCHEMA_VERSION),
@@ -262,6 +276,42 @@ export const leagueDocumentSchema = z.object({
     })
     .optional(),
 })
+
+export const leagueDocumentSchema = leagueDocumentShape.superRefine(
+  (league, context) => {
+    for (const [teamKey, team] of Object.entries(league.entities.teams)) {
+      if (teamKey !== team.id) {
+        context.addIssue({
+          code: "custom",
+          message: "The team record key must match the team ID.",
+          path: ["entities", "teams", teamKey, "id"],
+        })
+      }
+    }
+
+    for (const [playerKey, player] of Object.entries(league.entities.players)) {
+      if (playerKey !== player.id) {
+        context.addIssue({
+          code: "custom",
+          message: "The player record key must match the player ID.",
+          path: ["entities", "players", playerKey, "id"],
+        })
+      }
+
+      const status = player.leagueStatus
+      if (
+        (status.kind === "rostered" || status.kind === "re-signing") &&
+        !league.entities.teams[status.teamId]
+      ) {
+        context.addIssue({
+          code: "custom",
+          message: "The player league status references a missing team.",
+          path: ["entities", "players", playerKey, "leagueStatus", "teamId"],
+        })
+      }
+    }
+  }
+)
 
 export type LeagueDocumentInput = z.input<typeof leagueDocumentSchema>
 

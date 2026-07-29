@@ -1,7 +1,9 @@
 export { createFoundationLeague, createPlayerContractFixture } from "./factory"
 export { formatPlayerIdentity } from "./playerIdentity"
 export {
+  createPlayerPopulationPreset,
   createStandardPlayerGenerationConfig,
+  PLAYER_POPULATION_PRESET_VERSION,
   STANDARD_PLAYER_GENERATION_CONFIG,
 } from "./playerGeneration"
 export type {
@@ -16,6 +18,7 @@ export type {
   DevelopmentProfile,
   PlayerArchetype,
   PlayerIdentity,
+  PlayerLeagueStatus,
   PhysicalProfile,
   PotentialHeadroomConfig,
   PlayerProfile,
@@ -23,6 +26,9 @@ export type {
   PlayerTrait,
   PlayerEntity,
   PlayerGenerationConfig,
+  PlayerPopulationContextKind,
+  PlayerPopulationPreset,
+  PlayerPopulationPresetId,
   PlayerPosition,
   PlayerRoleProfile,
   PlayerSkillKey,

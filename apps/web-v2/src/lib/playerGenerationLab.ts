@@ -1,9 +1,12 @@
 import {
+  createPlayerPopulationPreset,
   createStandardPlayerGenerationConfig,
   formatPlayerIdentity,
+  PLAYER_POPULATION_PRESET_VERSION,
 } from "@workspace/domain-v2"
 import type {
   PlayerGenerationConfig,
+  PlayerPopulationPresetId,
   PlayerSkillKey,
 } from "@workspace/domain-v2"
 import { playerGenerationConfigSchema } from "@workspace/league-schema"
@@ -20,6 +23,7 @@ import type {
 } from "@workspace/sim-v2"
 
 export type LabMode = "single" | "batch"
+export type LabPopulationPresetId = PlayerPopulationPresetId | "custom"
 
 export type LabRunOptions = {
   seed: string
@@ -27,8 +31,16 @@ export type LabRunOptions = {
   count: number
   sampleIndex: number
   identityMode: PlayerIdentityMode
+  presetId: LabPopulationPresetId
+  basePresetId: PlayerPopulationPresetId
   config: PlayerGenerationConfig
 }
+
+export const LAB_POPULATION_PRESET_IDS: Array<PlayerPopulationPresetId> = [
+  "initial-roster",
+  "initial-free-agents",
+  "draft-class",
+]
 
 export const LAB_POPULATION_CONTEXT: PlayerPopulationContext = {
   kind: "lab",
@@ -251,7 +263,9 @@ export function summarizeLabPlayers(results: Array<PlayerGenerationResult>) {
     values.length
       ? values.reduce((sum, value) => sum + value, 0) / values.length
       : 0
-  const countBy = <T extends string>(values: Array<T>): Record<string, number> =>
+  const countBy = <T extends string>(
+    values: Array<T>
+  ): Record<string, number> =>
     values.reduce<Record<string, number>>((counts, value) => {
       counts[value] = (counts[value] ?? 0) + 1
       return counts
@@ -291,23 +305,27 @@ export function summarizeLabPlayers(results: Array<PlayerGenerationResult>) {
     secondaryPositionRate:
       results.length === 0
         ? 0
-        : results.filter((result) => result.player.profile.role.secondaryPosition)
-            .length / results.length,
+        : results.filter(
+            (result) => result.player.profile.role.secondaryPosition
+          ).length / results.length,
     secondaryArchetypeRate:
       results.length === 0
         ? 0
-        : results.filter((result) => result.player.profile.role.secondaryArchetype)
-            .length / results.length,
+        : results.filter(
+            (result) => result.player.profile.role.secondaryArchetype
+          ).length / results.length,
     lowPositionConfidenceRate:
       results.length === 0
         ? 0
-        : results.filter((result) => result.diagnostics.role.positionConfidence < 5)
-            .length / results.length,
+        : results.filter(
+            (result) => result.diagnostics.role.positionConfidence < 5
+          ).length / results.length,
     lowArchetypeConfidenceRate:
       results.length === 0
         ? 0
-        : results.filter((result) => result.diagnostics.role.archetypeConfidence < 5)
-            .length / results.length,
+        : results.filter(
+            (result) => result.diagnostics.role.archetypeConfidence < 5
+          ).length / results.length,
   }
 }
 
@@ -373,6 +391,15 @@ export function createDefaultLabConfig() {
   return createStandardPlayerGenerationConfig()
 }
 
+export function createLabPresetDefaults(id: PlayerPopulationPresetId) {
+  const preset = createPlayerPopulationPreset(id)
+
+  return {
+    config: preset.config,
+    count: preset.defaultCount,
+  }
+}
+
 export function serializeLabReport(
   options: LabRunOptions,
   results: Array<PlayerGenerationResult>
@@ -380,12 +407,15 @@ export function serializeLabReport(
   return JSON.stringify(
     {
       schema: "foh-player-generation-lab",
-      version: 5,
+      version: 6,
       seed: options.seed,
       mode: options.mode,
       count: options.count,
       sampleIndex: options.sampleIndex,
       identityMode: options.identityMode,
+      presetId: options.presetId,
+      basePresetId: options.basePresetId,
+      populationPresetVersion: PLAYER_POPULATION_PRESET_VERSION,
       identityGeneratorVersion: PLAYER_IDENTITY_GENERATOR_VERSION,
       context: LAB_POPULATION_CONTEXT,
       population: getLabPopulationMetadata(options),

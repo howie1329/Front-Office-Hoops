@@ -27,6 +27,13 @@ export type PlayerIdentity = {
   lastName: string | null
 }
 
+export type PlayerLeagueStatus =
+  | { kind: "unassigned" }
+  | { kind: "rostered"; teamId: string }
+  | { kind: "re-signing"; teamId: string }
+  | { kind: "free-agent" }
+  | { kind: "draft-prospect"; draftClassId: string }
+
 export type PlayerPosition = "PG" | "SG" | "SF" | "PF" | "C"
 
 export type PlayerArchetype =
@@ -123,6 +130,21 @@ export type PlayerGenerationConfig = {
   skillCorrelations: SkillCorrelation[]
 }
 
+export type PlayerPopulationContextKind =
+  "lab" | "initial-league" | "draft-class" | "free-agent-pool"
+
+export type PlayerPopulationPresetId =
+  "initial-roster" | "initial-free-agents" | "draft-class"
+
+export type PlayerPopulationPreset = {
+  version: 1
+  id: PlayerPopulationPresetId
+  label: string
+  defaultCount: number
+  contextKind: PlayerPopulationContextKind
+  config: PlayerGenerationConfig
+}
+
 export type DevelopmentProfile = {
   potential: number
   rating: number
@@ -148,6 +170,7 @@ export type PlayerProfile = {
 export type PlayerEntity = {
   id: string
   identity: PlayerIdentity
+  leagueStatus: PlayerLeagueStatus
   age: number
   profile: PlayerProfile
 }

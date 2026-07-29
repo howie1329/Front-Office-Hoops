@@ -2,6 +2,7 @@ import { createStandardPlayerGenerationConfig } from "@workspace/domain-v2"
 import { describe, expect, it } from "vitest"
 
 import {
+  createLabPresetDefaults,
   createHistogram,
   createLabPlayers,
   getLabMetric,
@@ -20,6 +21,8 @@ describe("player generation lab helpers", () => {
       count: 3,
       sampleIndex: 1,
       identityMode: "generated" as const,
+      presetId: "initial-roster" as const,
+      basePresetId: "initial-roster" as const,
       config: createStandardPlayerGenerationConfig(),
     }
 
@@ -39,6 +42,8 @@ describe("player generation lab helpers", () => {
       count: 25,
       sampleIndex: 7,
       identityMode: "none",
+      presetId: "initial-roster",
+      basePresetId: "initial-roster",
       config: createStandardPlayerGenerationConfig(),
     })
 
@@ -61,6 +66,8 @@ describe("player generation lab helpers", () => {
       count: 20,
       sampleIndex: 1,
       identityMode: "generated",
+      presetId: "initial-roster",
+      basePresetId: "initial-roster",
       config: createStandardPlayerGenerationConfig(),
     })
     const summary = summarizeLabPlayers(results)
@@ -99,13 +106,15 @@ describe("player generation lab helpers", () => {
     )
   })
 
-  it("exports version five reports with population and identity metadata", () => {
+  it("exports version six reports with preset and population metadata", () => {
     const options = {
       seed: "export-seed",
       mode: "single" as const,
       count: 1,
       sampleIndex: 1,
       identityMode: "generated" as const,
+      presetId: "draft-class" as const,
+      basePresetId: "draft-class" as const,
       config: createStandardPlayerGenerationConfig(),
     }
     const results = createLabPlayers(options)
@@ -123,9 +132,14 @@ describe("player generation lab helpers", () => {
       results: typeof results
     }
 
-    expect(report.version).toBe(5)
+    expect(report.version).toBe(6)
     expect(report.identityMode).toBe("generated")
     expect(report.identityGeneratorVersion).toBe(1)
+    expect(report).toMatchObject({
+      presetId: "draft-class",
+      basePresetId: "draft-class",
+      populationPresetVersion: 1,
+    })
     expect(report.context).toEqual({
       kind: "lab",
       id: "player-generation-lab",
@@ -149,5 +163,20 @@ describe("player generation lab helpers", () => {
       report.results[0].player.profile.development.potential -
         report.results[0].diagnostics.currentAbility
     )
+  })
+
+  it("loads shared production defaults for each lab preset", () => {
+    expect(createLabPresetDefaults("initial-roster")).toMatchObject({
+      count: 450,
+      config: { age: { min: 19, max: 34 } },
+    })
+    expect(createLabPresetDefaults("initial-free-agents")).toMatchObject({
+      count: 100,
+      config: { talentDistribution: { center: 43 } },
+    })
+    expect(createLabPresetDefaults("draft-class")).toMatchObject({
+      count: 90,
+      config: { age: { min: 18, max: 23 } },
+    })
   })
 })

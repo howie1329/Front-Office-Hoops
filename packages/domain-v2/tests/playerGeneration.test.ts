@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  createPlayerPopulationPreset,
   createStandardPlayerGenerationConfig,
+  PLAYER_POPULATION_PRESET_VERSION,
   STANDARD_PLAYER_GENERATION_CONFIG,
 } from "../src"
 
@@ -59,5 +61,42 @@ describe("standard player generation config", () => {
     first.availableTraits.push("test-only")
 
     expect(second.availableTraits).not.toContain("test-only")
+  })
+
+  it("provides independent production population presets", () => {
+    const roster = createPlayerPopulationPreset("initial-roster")
+    const freeAgents = createPlayerPopulationPreset("initial-free-agents")
+    const draftClass = createPlayerPopulationPreset("draft-class")
+    const secondDraftClass = createPlayerPopulationPreset("draft-class")
+
+    expect(roster).toMatchObject({
+      version: PLAYER_POPULATION_PRESET_VERSION,
+      defaultCount: 450,
+      contextKind: "initial-league",
+    })
+    expect(freeAgents).toMatchObject({
+      defaultCount: 100,
+      config: {
+        age: { min: 20, max: 36 },
+        talentDistribution: { center: 43, spread: 9 },
+        starTailFrequency: { above70: 0.02, above80: 0.002, above90: 0 },
+      },
+    })
+    expect(draftClass).toMatchObject({
+      defaultCount: 90,
+      config: {
+        age: { min: 18, max: 23 },
+        talentDistribution: { center: 44, spread: 11 },
+        development: {
+          potential: { center: 14, spread: 7, maxHeadroom: 30 },
+          rating: { center: 65, spread: 18 },
+          volatility: { center: 50, spread: 22 },
+        },
+      },
+    })
+
+    draftClass.config.age.min = 99
+    expect(secondDraftClass.config.age.min).toBe(18)
+    expect(roster.config).toEqual(createStandardPlayerGenerationConfig())
   })
 })

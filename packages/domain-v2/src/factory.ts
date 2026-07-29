@@ -1,7 +1,9 @@
 import type { LeagueDocument, PlayerEntity } from "./types"
 
 export function createPlayerContractFixture(
-  input: Partial<Pick<PlayerEntity, "id" | "identity" | "age">> = {}
+  input: Partial<
+    Pick<PlayerEntity, "id" | "identity" | "leagueStatus" | "age">
+  > = {}
 ): PlayerEntity {
   return {
     id: input.id ?? "player-fixture",
@@ -9,6 +11,7 @@ export function createPlayerContractFixture(
       firstName: "Alex",
       lastName: "Example",
     },
+    leagueStatus: input.leagueStatus ?? { kind: "unassigned" },
     age: input.age ?? 24,
     profile: {
       physical: {

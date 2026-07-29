@@ -1,4 +1,10 @@
-import type { PlayerGenerationConfig } from "./types"
+import type {
+  PlayerGenerationConfig,
+  PlayerPopulationPreset,
+  PlayerPopulationPresetId,
+} from "./types"
+
+export const PLAYER_POPULATION_PRESET_VERSION = 1
 
 export const STANDARD_PLAYER_GENERATION_CONFIG: PlayerGenerationConfig = {
   version: 4,
@@ -70,6 +76,110 @@ export const STANDARD_PLAYER_GENERATION_CONFIG: PlayerGenerationConfig = {
   ],
 }
 
+const INITIAL_FREE_AGENT_CONFIG: PlayerGenerationConfig = {
+  ...structuredClone(STANDARD_PLAYER_GENERATION_CONFIG),
+  age: { min: 20, max: 36 },
+  talentDistribution: {
+    center: 43,
+    spread: 9,
+    shape: "long-tailed",
+  },
+  starTailFrequency: {
+    above70: 0.02,
+    above80: 0.002,
+    above90: 0,
+  },
+  development: {
+    ...structuredClone(STANDARD_PLAYER_GENERATION_CONFIG.development),
+    potential: {
+      center: 5,
+      spread: 4,
+      maxHeadroom: 15,
+      shape: "long-tailed",
+    },
+    rating: {
+      center: 45,
+      spread: 15,
+      shape: "long-tailed",
+    },
+    volatility: {
+      center: 30,
+      spread: 18,
+      shape: "long-tailed",
+    },
+  },
+}
+
+const DRAFT_CLASS_CONFIG: PlayerGenerationConfig = {
+  ...structuredClone(STANDARD_PLAYER_GENERATION_CONFIG),
+  age: { min: 18, max: 23 },
+  talentDistribution: {
+    center: 44,
+    spread: 11,
+    shape: "long-tailed",
+  },
+  starTailFrequency: {
+    above70: 0.08,
+    above80: 0.015,
+    above90: 0.001,
+  },
+  development: {
+    ...structuredClone(STANDARD_PLAYER_GENERATION_CONFIG.development),
+    potential: {
+      center: 14,
+      spread: 7,
+      maxHeadroom: 30,
+      shape: "long-tailed",
+    },
+    rating: {
+      center: 65,
+      spread: 18,
+      shape: "long-tailed",
+    },
+    volatility: {
+      center: 50,
+      spread: 22,
+      shape: "long-tailed",
+    },
+  },
+}
+
+const PLAYER_POPULATION_PRESETS: Record<
+  PlayerPopulationPresetId,
+  PlayerPopulationPreset
+> = {
+  "initial-roster": {
+    version: PLAYER_POPULATION_PRESET_VERSION,
+    id: "initial-roster",
+    label: "Initial roster",
+    defaultCount: 450,
+    contextKind: "initial-league",
+    config: STANDARD_PLAYER_GENERATION_CONFIG,
+  },
+  "initial-free-agents": {
+    version: PLAYER_POPULATION_PRESET_VERSION,
+    id: "initial-free-agents",
+    label: "Initial free agents",
+    defaultCount: 100,
+    contextKind: "free-agent-pool",
+    config: INITIAL_FREE_AGENT_CONFIG,
+  },
+  "draft-class": {
+    version: PLAYER_POPULATION_PRESET_VERSION,
+    id: "draft-class",
+    label: "Draft class",
+    defaultCount: 90,
+    contextKind: "draft-class",
+    config: DRAFT_CLASS_CONFIG,
+  },
+}
+
+export function createPlayerPopulationPreset(
+  id: PlayerPopulationPresetId
+): PlayerPopulationPreset {
+  return structuredClone(PLAYER_POPULATION_PRESETS[id])
+}
+
 export function createStandardPlayerGenerationConfig(): PlayerGenerationConfig {
-  return structuredClone(STANDARD_PLAYER_GENERATION_CONFIG)
+  return createPlayerPopulationPreset("initial-roster").config
 }

@@ -220,6 +220,54 @@ describe("league schema", () => {
     )
   })
 
+  it("validates player league statuses and referenced teams", () => {
+    const fixture = createFoundationLeague()
+    fixture.entities.teams["team-1"] = { id: "team-1", name: "Team 1" }
+    const player = createPlayerContractFixture()
+
+    for (const leagueStatus of [
+      { kind: "unassigned" },
+      { kind: "rostered", teamId: "team-1" },
+      { kind: "re-signing", teamId: "team-1" },
+      { kind: "free-agent" },
+      { kind: "draft-prospect", draftClassId: "draft-1" },
+    ]) {
+      expect(
+        playerEntitySchema.safeParse({
+          ...player,
+          leagueStatus,
+        }).success
+      ).toBe(true)
+    }
+
+    for (const leagueStatus of [
+      { kind: "rostered", teamId: "" },
+      { kind: "re-signing" },
+      { kind: "free-agent", teamId: "team-1" },
+      { kind: "draft-prospect", draftClassId: "" },
+      { kind: "unknown" },
+    ]) {
+      expect(
+        playerEntitySchema.safeParse({
+          ...player,
+          leagueStatus,
+        }).success
+      ).toBe(false)
+    }
+
+    fixture.entities.players[player.id] = {
+      ...player,
+      leagueStatus: { kind: "rostered", teamId: "missing-team" },
+    }
+    expect(validateLeagueDocument(fixture).valid).toBe(false)
+
+    fixture.entities.players[player.id] = {
+      ...player,
+      leagueStatus: { kind: "re-signing", teamId: "team-1" },
+    }
+    expect(validateLeagueDocument(fixture).valid).toBe(true)
+  })
+
   it("validates the standard player generation config", () => {
     const config = createStandardPlayerGenerationConfig()
 

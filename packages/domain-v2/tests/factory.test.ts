@@ -36,6 +36,7 @@ describe("createPlayerContractFixture", () => {
         firstName: "Alex",
         lastName: "Example",
       },
+      leagueStatus: { kind: "unassigned" },
       age: 24,
       profile: {
         physical: {

@@ -1,4 +1,7 @@
-import type { PlayerGenerationConfig } from "@workspace/domain-v2"
+import type {
+  PlayerGenerationConfig,
+  PlayerPopulationContextKind,
+} from "@workspace/domain-v2"
 
 import {
   generatePlayerWithDiagnostics,
@@ -9,9 +12,6 @@ import {
   PLAYER_IDENTITY_GENERATOR_VERSION,
 } from "./playerIdentity"
 import { createDeterministicRandom } from "./randomness"
-
-export type PlayerPopulationContextKind =
-  "lab" | "initial-league" | "draft-class" | "free-agent-pool"
 
 export type PlayerIdentityMode = "generated" | "none"
 

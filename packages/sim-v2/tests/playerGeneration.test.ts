@@ -98,6 +98,7 @@ describe("generatePlayer", () => {
     expect(player).toMatchObject({
       id: input.id,
       identity: input.identity,
+      leagueStatus: { kind: "unassigned" },
       age: input.age,
     })
     expect(player.profile.physical.heightInches).toBeGreaterThanOrEqual(70)
@@ -288,6 +289,19 @@ describe("generatePlayer", () => {
     expect(player.identity).toEqual({
       firstName: null,
       lastName: null,
+    })
+    expect(player.leagueStatus).toEqual({ kind: "unassigned" })
+  })
+
+  it("preserves an explicitly supplied league status", () => {
+    const player = generatePlayer(createDeterministicRandom("status-seed"), {
+      id: "re-signing-player",
+      leagueStatus: { kind: "re-signing", teamId: "team-1" },
+    })
+
+    expect(player.leagueStatus).toEqual({
+      kind: "re-signing",
+      teamId: "team-1",
     })
   })
 })

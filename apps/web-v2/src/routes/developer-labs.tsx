@@ -75,11 +75,35 @@ function DeveloperLabsPage() {
             </Card>
           </Link>
 
+          <Link
+            to="/developer-labs/team-assembly"
+            className="group rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <Card className="h-full transition-colors group-hover:bg-muted/40">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle>Team assembly</CardTitle>
+                  <Badge variant="default">Active</Badge>
+                </div>
+                <CardDescription>
+                  Build deterministic rosters, verify position coverage, and
+                  inspect every seeded selection.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>30 teams + three populations</span>
+                <span className="font-medium text-foreground transition-transform group-hover:translate-x-0.5">
+                  Open lab →
+                </span>
+              </CardContent>
+            </Card>
+          </Link>
+
           {[
             ["Game calibration", "Possession model and box-score ranges"],
             ["Development cohorts", "Career curves, volatility, and aging"],
             ["Contract market", "Demand, supply, and offer continuity"],
-            ["Draft class", "Scouting ranges and class strength"],
+            ["Draft scouting", "Scouting ranges and class strength"],
             ["League economy", "Payroll spread and tax pressure"],
           ].map(([title, description]) => (
             <Card key={title} className="h-full opacity-65">
