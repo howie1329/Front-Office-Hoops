@@ -1,5 +1,7 @@
 # Simulation Engine
 
+> This document describes the existing v1 simulation. The v2 simulation contract, worker boundary, and randomness policy are defined in [FOH v2 Simulation Architecture](./specs/foh-v2-simulation-architecture.md).
+
 The simulation engine lives in `packages/sim`. It is **pure TypeScript** — no framework dependencies — and is fully unit tested with Vitest.
 
 ## Design philosophy

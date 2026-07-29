@@ -1,5 +1,7 @@
 # Architecture
 
+> This document describes the existing v1 architecture. The approved v2 architecture is documented in [FOH v2 Simulation Architecture](./specs/foh-v2-simulation-architecture.md) and should not be inferred from v1 package boundaries.
+
 ## Overview
 
 Front Office Hoops is a **npm workspaces monorepo** orchestrated by **Turborepo**. The app follows a layered architecture: UI → hooks/context → persistence, with all game logic isolated in a pure simulation package.

@@ -15,6 +15,20 @@ Documentation for Front Office Hoops, a simulation-first basketball general-mana
 | [Development](./development.md) | Local setup, scripts, conventions, and tests |
 | [Roadmap](./roadmap.md) | Current implementation status and remaining work |
 
+## v2 planning
+
+The v2 documents are the current rewrite planning set. They supersede v1 assumptions where they conflict, while the v1 documents remain the record of the existing application.
+
+| Document | Description |
+| --- | --- |
+| [v2 Product Brief](./specs/foh-v2-product-brief.md) | Approved product direction and first-release scope |
+| [v2 Roadmap](./plans/foh-v2-roadmap.md) | Sequenced rewrite development plan |
+| [v2 Simulation Architecture](./specs/foh-v2-simulation-architecture.md) | Client-first worker, domain, lifecycle, simulation, and economy boundaries |
+| [v2 Data and Export Design](./specs/foh-v2-data-and-export-design.md) | Canonical JSON document, local persistence, events, migrations, and exports |
+| [v2 UI Information Architecture](./specs/foh-v2-ui-information-architecture.md) | Screen inventory, phase actions, tables, and responsive management workflows |
+| [v2 Migration Plan](./plans/foh-v2-migration-plan.md) | v1/v2 coexistence, validation gates, and rollback |
+| [v2 Experiment Backlog](./plans/foh-v2-experiment-backlog.md) | Calibration and architecture experiments ordered by risk |
+
 ## Project at a glance
 
 - **Web-first and mobile-friendly** — a TanStack Start application with responsive league-office workflows.

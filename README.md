@@ -56,6 +56,9 @@ The current project docs live in [`docs/`](./docs/README.md):
 - [Contract Offer Market](./docs/contract-offer-market.md) — player and staff offer resolution
 - [Development](./docs/development.md) — setup, conventions, and testing
 - [Roadmap](./docs/roadmap.md) — shipped functionality and remaining work
+- [v2 Product Brief](./docs/specs/foh-v2-product-brief.md) — approved rewrite direction and first-release scope
+- [v2 Roadmap](./docs/plans/foh-v2-roadmap.md) — sequenced rewrite development plan
+- [v2 Architecture](./docs/specs/foh-v2-simulation-architecture.md) — worker, domain, lifecycle, simulation, and economy boundaries
 - [Product](./apps/web/PRODUCT.md) — audience, product vocabulary, and UX principles
 - [Design](./apps/web/DESIGN.md) — visual system and accessibility guidance
 

@@ -1,25 +1,87 @@
 # Front Office Hoops v2 Simulation Architecture
 
-## Goals
+## Architecture decision
 
-The v2 engine must be deterministic under a seed and command stream, configurable through versioned presets, testable without a browser, explainable at event level, and able to simulate many seasons without making UI state or persistence the simulation's source of truth.
+V2 is a client-first TanStack Start application with no gameplay backend. TanStack Start owns the browser application shell. The simulation engine is pure TypeScript and runs in a Web Worker. IndexedDB/Dexie stores completed snapshots locally. JSON is the portable league contract.
+
+```text
+TanStack Start UI
+  ├── sends LeagueCommand to simulation worker
+  ├── renders read-only LeagueView
+  └── persists returned snapshot through Dexie adapter
+
+Simulation worker
+  ├── owns active in-memory LeagueDocument
+  ├── validates commands and phase gates
+  ├── runs simulation and market logic
+  ├── emits LeagueEvent[] and diagnostics
+  └── returns a new snapshot after each completed command/day
+```
+
+The worker is an execution boundary, not a second source of truth. The canonical state is the v2 league document; React state is a view and Dexie is storage.
 
 ## Package boundaries
 
 ```text
-apps/web                 v1 application; remains runnable
-apps/web-v2              v2 application and information architecture
-packages/shared          stable UI/general primitives only
+apps/web                 current v1 application; remains runnable
+apps/web-v2              v2 TanStack Start application
+packages/shared          safe UI/general primitives only
 packages/domain-v2       canonical entities, commands, events, projections
-packages/league-schema    JSON schema, validators, migrations, export profiles
-packages/sim-v2           game, season, player, market, and lifecycle simulation
-packages/calibration      batch runners, benchmark profiles, reports
-packages/story-packets    factual summaries for future narrative generation
-packages/ui               visual primitives and accessible controls
-packages/db               adapters; v1 and v2 document persistence
+packages/league-schema   JSON schema, validation, migrations, export profiles
+packages/sim-v2          game, season, player, market, lifecycle simulation
+packages/calibration     seeded labs, benchmark profiles, batch reports
+packages/story-packets   factual narrative inputs for a later release
+packages/ui              shadcn/ui primitives and accessible controls
+packages/db              v1 adapter plus v2 Dexie document repository
 ```
 
-Initial v2 packages must not import v1 `LeagueRecord` or v1 valuation functions. Safe sharing is limited to tested generic primitives: deterministic RNG implementation after a compatibility contract, money formatting, date/ID utilities, and UI components. A future `sim-core` extraction is allowed only after golden tests prove that the primitive has no v1 domain assumptions.
+V2 must not import v1 `LeagueRecord`, v1 valuation functions, v1 phase gates, or v1 game/stat-allocation logic. Safe early sharing is limited to UI primitives, generic formatting, serialization, and utilities after contract tests. A future shared primitive may be extracted only when it has no v1 domain assumptions.
+
+## Worker protocol
+
+```ts
+type WorkerRequest = {
+  requestId: string
+  command: LeagueCommand
+  league: LeagueDocument
+}
+
+type WorkerResult = {
+  requestId: string
+  status: "completed" | "rejected" | "failed"
+  league?: LeagueDocument
+  events: LeagueEvent[]
+  diagnostics: DiagnosticEntry[]
+  progress?: { completed: number; total?: number; label: string }
+  reason?: ValidationIssue
+}
+```
+
+The first implementation may keep the active document in the worker and send only view updates, but every command must be valid if evaluated from a serialized document. A crash or reload must be recoverable from the last committed snapshot.
+
+## Randomness model
+
+Normal gameplay follows the Basketball GM-like model chosen during discovery:
+
+- Each new league receives fresh runtime randomness.
+- Games, injuries, negotiations, and development are not predetermined solely by a visible league seed.
+- Completed outcomes become saved facts.
+- A rerun from an earlier checkpoint may produce a different outcome in normal mode.
+- Labs and regression fixtures use explicit deterministic seeds.
+- Debug mode may preserve RNG scopes and checkpoints for exact replay.
+
+The simulation APIs should receive a random source explicitly rather than call global randomness from domain code. The source can be:
+
+```ts
+type RandomSource = {
+  next(): number
+  int(min: number, max: number): number
+  normal(mean: number, deviation: number): number
+  fork(scope: string): RandomSource
+}
+```
+
+`RandomSource` supports both normal entropy-backed runs and deterministic lab runs without making normal leagues repeatable from a user-visible seed.
 
 ## Domain model
 
@@ -27,16 +89,17 @@ Separate authoritative entities from derived projections:
 
 ```text
 LeagueDocument
-├── metadata, rules, determinism, currentState
-├── teams, players, staff, contracts, draftAssets
-├── transactions, offers, injuries, awards
+├── metadata, rules, settings, randomMode
+├── state: season, phase, calendar, userTeamId
+├── teams, players, staff, owners
+├── contracts, draftAssets, offers, injuries
+├── projections: standings, payroll, scouting, player values
 ├── events[]                         authoritative history
 ├── seasonArchives[]                 immutable summaries
-├── projections/derived               standings, payroll, scouting views
-└── optionalData/                    games, playByPlay, raw lab diagnostics
+└── optionalData/                    games, diagnostics, story packets
 ```
 
-Entities are normalized by stable ID. A command reads a document, validates preconditions, produces a new document plus events and diagnostics, and never depends on React or IndexedDB.
+Entities are normalized by stable ID. Derived views can be rebuilt from authoritative records and events. A command reads a document, validates preconditions, produces a new document, and returns events and diagnostics. It never imports React, Dexie, or browser APIs.
 
 ## Simulation configuration
 
@@ -48,43 +111,94 @@ type SimulationConfig = {
   playerGeneration: PlayerGenerationConfig
   development: DevelopmentConfig
   injuries: InjuryConfig
+  retirement: RetirementConfig
   economy: EconomyConfig
+  tradeMarket: TradeMarketConfig
   rules: LeagueRulesConfig
-  diagnostics: DiagnosticConfig
 }
 ```
 
-Each config has typed bounds, a documented default, a preset ID, and a version. Product sliders should change safe grouped variables such as pace, scoring environment, development volatility, injury frequency, and market volatility. Developer controls may expose lower-level parameters. League export includes the resolved config so a save can be reproduced.
+Every setting has a typed bound, default, description, and preset. Users see standard settings plus an advanced league-creation panel. The UI should expose grouped concepts, not raw coefficients. Examples include `marketVolatility`, `draftClassVariance`, `developmentVolatility`, `injuryFrequency`, and `tradeAggressiveness`.
 
-Initial presets: `modern-balanced`, `high-offense`, `defense-heavy`, `fast-pace`, `historic-low-pace`, `stable-development`, `volatile-development`, `low-injury`, and `high-injury`.
+Initial standard preset:
+
+- Fixed 30-team NBA-shaped structure.
+- 82 games and fixed playoff/lottery format.
+- Soft cap plus luxury tax.
+- Modern-balanced game environment.
+- Correlated latent player generation.
+- Moderate development and injury volatility.
+- Three-stage free agency.
+- Baseline AI teams.
+
+Candidate alternative presets include high offense, defense-heavy, fast pace, historic low pace, stable development, volatile development, low injury, high injury, and high market volatility.
 
 ## Lifecycle orchestration
 
-Use a calendar-driven finite-state workflow with serializable tasks:
+Use a calendar-driven finite-state workflow with two product-level gates and explicit subphases:
 
 ```text
-preseason
-  -> regularSeason (calendar days)
-  -> tradeDeadline
-  -> regularSeasonComplete
-  -> playoffs
-  -> awards
-  -> offseason/contractOptions
-  -> offseason/staff
-  -> offseason/reSigning
-  -> offseason/lotteryAndDraft
-  -> offseason/freeAgency
-  -> trainingCamp
-  -> next preseason
+IN-SEASON
+  preseason
+  ownerGoals
+  regularSeason
+  tradeDeadline
+  playoffs
+  seasonEvaluation
+
+OFFSEASON
+  contractDecisions
+  staff
+  reSigning
+  lotteryAndDraft
+  freeAgencyStage1
+  freeAgencyStage2
+  freeAgencyStage3
+  rosterCompletion
+  preseasonSetup
 ```
 
-The transition table is the authority. Each phase exposes user tasks, automatic league tasks, deadlines, and completion conditions. Parallel actions are represented as task status rather than hidden boolean gates. `AdvanceCalendar` should run only eligible automatic work and return the stop reason; it should not own every offseason subsystem.
+The transition table is authoritative. Each phase exposes required user tasks, automatic AI tasks, deadlines, and completion conditions. A phase cannot advance when the user’s team lacks a legal roster, required staff, valid contracts, or a draft selection that must be made.
 
-Commands are small: `SetRotation`, `SimulateDay`, `OfferContract`, `ResolveOffer`, `ProposeTrade`, `AcceptTrade`, `ScoutProspect`, `MakeDraftPick`, `SetTeamPlan`, `ProcessOptions`, and `AdvancePhase`. A command result contains `nextDocument`, `events`, `diagnostics`, and `rejectedReason` when applicable.
+The owner-goal phase occurs between the offseason and preseason. Each owner assigns one easy, one medium, and one hard goal. Failing all three goals produces one job-security strike; three strikes terminate the user.
 
-## Event architecture
+Simulation controls are command variants such as:
 
-Every authoritative change emits an event:
+- `SimulateToNextGame`.
+- `SimulateToDate`.
+- `SimulateToDeadline`.
+- `SimulateToPlayoffs`.
+- `SimulateToOffseason`.
+- `StartDraft`.
+- `SimulateToNextPick`.
+- `SimulateToUserPick`.
+- `SimulateToDraftEnd`.
+
+`Advance` is a planner that executes eligible automatic work and reports a stop reason. It does not own every offseason subsystem.
+
+## Commands and events
+
+Commands are small and replayable at the document boundary:
+
+```text
+SetRotation
+SetTeamPlan
+SimulateToNextGame
+SimulateToDate
+OfferContract
+ResolveContractStage
+ProposeTrade
+AcceptTrade
+HireStaff
+ReleasePlayer
+ScoutProspect
+StartDraft
+MakeDraftPick
+CompleteOwnerGoals
+AdvancePhase
+```
+
+Each authoritative change emits an event:
 
 ```ts
 type LeagueEvent = {
@@ -102,95 +216,146 @@ type LeagueEvent = {
 }
 ```
 
-Games, injuries, trades, signings, releases, extensions, draft selections, development changes, awards, records, coaching changes, role changes, milestones, playoff eliminations, championships, expansion, and rule changes need event types. Events power history, transactions, timelines, news, StoryPackets, exports, and debugging.
+Required event families include games, injuries, trades, signings, releases, extensions, draft selections, development, awards, records, coaching changes, owner goals, strikes, playoff eliminations, championships, and rule/configuration changes.
 
 ## Player generation
 
-Use a hybrid latent model:
+The generator creates players before assigning archetypes:
 
 1. Generate physical profile, age, background, durability, and latent talent factors.
 2. Generate correlated skill clusters: creation, shooting, finishing, passing, rebounding, perimeter defense, interior defense, decision-making, athleticism, and stamina.
-3. Assign role/archetype as a probabilistic identity, not a fixed rating bucket.
+3. Generate permanent personality traits, no more than approximately three.
 4. Generate development trajectory, peak range, volatility, and injury susceptibility.
-5. Produce public scouting reports from team-specific noisy observations.
+5. Derive one primary position and optional secondary position.
+6. Derive one primary archetype and optional secondary archetype from the completed profile.
+7. Produce scouting estimates from team-specific noise.
 
-Class-level strength changes the latent distribution and positional supply. Prospect outcomes include stars, starters, role specialists, busts, sleepers, late bloomers, and generational outliers. V2 must validate correlations, positional scarcity, class strength, and tails with generated-league reports.
+Archetype quotas do not fill rosters. Class-level strength and positional supply shift latent distributions. The generator must support stars, starters, role specialists, busts, sleepers, late bloomers, generational prospects, and unusual profiles.
+
+## Ratings and scouting
+
+Use one user-facing general overall derived from skills. Individual skills remain visible for known players. League percentile and rank are derived from overall. Role-fit evaluations are separate internal calculations.
+
+Traits are permanent, mostly visible, capped at approximately three, and have uncertain effect strength. Traits affect behavior and outcomes rather than directly adding rating points.
+
+Players have primary and optional secondary positions. Rotation validation rejects out-of-position assignments.
+
+The head scout changes only fog-of-war precision in the first release. Poor scouting creates wider, less accurate ranges; strong scouting creates narrower, more accurate ranges. There are no reports, interviews, or year-round scouting workflows initially.
 
 ## Game simulation
 
-Retain the useful v1 idea of seeded possession simulation and separate game from season orchestration. Rework scoring so player and lineup roles participate in possession outcomes before team totals are allocated. A game should model:
+V2 should retain a seeded/calibratable possession model but not preserve v1’s aggregate assumptions. The engine should model:
 
 - possessions from pace, opponent, fatigue, and context;
 - lineup and role opportunity;
 - shot creation, shot quality, turnovers, fouls, offensive rebounds, and transition;
-- matchup and scheme effects;
-- player outcomes with team totals reconciled as an invariant;
-- variance controlled by config and seed.
+- head-coach offensive/defensive philosophy and pace;
+- assistant-coach alignment modifiers;
+- player outcomes with exact team/player reconciliation;
+- runtime variance controlled by configuration.
 
-Use a centralized `GameConfig` for pace, shot mix, efficiency, free throws, turnovers, rebounds, assists, steals, blocks, fouls, home court, overtime, and playoff effects. Validate team and player distributions separately. Do not add momentum or narrative modifiers until baseline calibration is stable.
+The first user experience is final box scores only. No play-by-play or live coaching. Every completed game is retained as a compact box-score record and emits game/injury/milestone events.
 
-## Development and aging
+## Rotations
 
-Model skill trajectories rather than overall deltas. Distinguish:
+The user controls:
+
+- Starting five.
+- Bench/depth order.
+- Target minutes.
+
+The coach controls rotation tendency. The simulation handles foul trouble, injuries, overtime, and minute normalization. Players cannot be assigned outside primary or secondary positions. If a valid lineup cannot be formed, simulation stops with an actionable roster gate.
+
+## Development, aging, injuries, and retirement
+
+Model skill trajectories rather than broad overall deltas. Distinguish:
 
 - true trajectory: simulation state;
-- development forecast: probabilistic engine output;
-- scouting estimate: evaluator-facing range;
-- realized production: observed season evidence.
+- development forecast: internal probabilistic estimate;
+- scouting estimate: user-facing range;
+- realized production: observed output.
 
-Growth depends on age, skill headroom, role/minutes, coaching, staff, training, health, decision quality, and random development events. Athletic traits decline earlier; shooting, passing, and recognition can improve later. Injury events may create missed time, altered skills, changed roles, or early retirement. High-floor/low-ceiling and high-risk/high-ceiling profiles should be generated deliberately.
+Development responds to age, skill headroom, minutes, coaching, staff, health, and randomness. Athletic skills can decline earlier; shooting, passing, and recognition can improve later. Injuries affect availability and can alter future trajectories, but should not simply subtract overall.
 
-## Player-value architecture
+Traits remain permanent in v2. Morale, role promises, playing-time security, and trait evolution are deferred.
 
-Do not return one `number` from a universal value function. Use explicit records:
+## Player value
+
+Use one visible universal player value plus explicit context modifiers:
 
 ```text
-TrueTalentSnapshot       engine belief about ability
-ScoutingReport           team/user belief with confidence and uncertainty
-ProductionRésumé         multi-season observed output and context
-Projection               future contribution over a defined horizon
-Reputation               public/market perception
-ContractMarketQuote      current clearing-market salary range
-SurplusValue             projected contribution minus contract/risk
-TeamFitAssessment        roster, timeline, strategy, and role value
+Universal player value
+  = current ability
+  + simple recent production
+  + age/trajectory
+  + potential/upside
+  + durability
+  + bounded scarcity context
+
+Trade value
+  = player value
+  + contract adjustment
+  + simple team-fit adjustment
 ```
 
-These values influence each other through named inputs, not aliases. Production should update reputation and projection confidence without rewriting true talent. Team fit should affect trade and roster choices, not league-wide salary truth.
+The base value is not a raw sum. It is a small weighted model with a structured breakdown. Production is a role-adjusted, multi-season box-score composite using scoring/efficiency, assists/turnovers, rebounding, steals/blocks, games/minutes, and basic role context. Player value is visible; exact contract utility may be hidden unless an advanced setting exposes it.
 
-## Contract market
+For a free agent, current contract liability is zero. That does not make player value zero; it makes the contract adjustment neutral or positive depending on the offer.
 
-Run a market-clearing phase:
+## Contracts and free agency
 
-1. Build player market profiles from talent, production résumé, projection, reputation, age, health, prior salary, role, and career status.
-2. Build team demand from cap room, exceptions, need, timeline, owner constraints, alternatives, and strategy.
-3. Generate comparable-contract bands from recent signed deals in the same league economy.
-4. Match players and teams over market days using preferences, security, role, winning, loyalty, and timing.
-5. Emit a quote and explanation factors before signing.
+The first contract model uses a configurable soft cap plus luxury tax. Cap amount, tax line, salary minimum/maximum, and annual growth are settings. Aprons, sign-and-trades, complex exceptions, role guarantees, and playing-time security are deferred.
 
-Year-to-year salary movement should have a continuity prior. Exceed it only when explanation factors pass a threshold. Examples include injury, role loss, cap-room exhaustion, oversupply, a bidding war, contender discount, or retention rights.
+Contract demand can consider player value, recent production, age, projection, durability, previous salary, comparables, market supply/demand, cap room, and broad player preferences such as money, market size, winning organization, loyalty, and recent team success.
+
+Free agency has three fixed stages:
+
+```text
+Stage 1: AI offers → user sees offers → user submits offers → player accepts or waits
+Stage 2: AI offers → user sees offers → user submits offers → player accepts or waits
+Stage 3: AI offers → user sees offers → user submits offers → player accepts or market closes
+```
+
+The player uses an internal contract utility. In the first release, the best contract value generally wins; richer preference behavior can expand later. The UI shows terms and labels such as “strong interest” or “competitive offer,” not the exact score. An advanced setting may reveal exact utility for analysis.
 
 ## Cap and rules profiles
 
-Implement rules as data-driven policies selected by `rules.presetId`. Simple handles cap/tax/min/max/rookie/Bird/basic matching. Standard adds selected exceptions/options/extensions/RFA/protected picks. Advanced adds aprons, detailed exceptions, sign-and-trades, and complex matching. Every transaction returns rule decisions and reasons for diagnostics.
+V2 begins with one default model: soft cap plus luxury tax. Keep the rules data-driven so future profiles can add:
 
-## Team AI
+- Simple soft cap.
+- Standard selected exceptions and options.
+- Advanced apron-inspired restrictions.
 
-An AI team is a persistent organization, not a stateless evaluator. Store a plan with competitive timeline, owner constraints, core players, positional needs, cap plan, draft strategy, risk tolerance, coach preferences, and multi-year goals. Daily decisions are scored against the plan and current state; plan changes are explicit events. Validate AI behavior over ten-year leagues for roster balance, cap coherence, draft accumulation, dynasty frequency, rebuild timing, and transaction explanations.
+Every transaction returns rule decisions, rejected reasons, and cap/tax consequences. Do not implement advanced CBA behavior until the baseline economy is calibrated.
 
-## Testing and calibration architecture
+## Draft and baseline AI
 
-`packages/calibration` should provide seeded batch runners and reports for Game, Season, Career, Player Generation, Draft Class, Development, Injury, Contract Market, Trade Market, League Economy, and AI Team-Building labs. Reports include means, standard deviations, percentiles, correlations, histograms, and failure examples.
+The draft is one day with two rounds and fixed lottery behavior. The user can start it, simulate to the next pick, simulate to their next pick, or simulate to the end. Manual selections are available at user picks. Simulated user picks select the next best available player.
+
+AI teams use best available prospect as the baseline with small team-need, team-mode, scouting, mock-draft, and rookie-contract adjustments. They do not yet have persistent multi-year organization plans. Multi-year rebuilding, contender windows, ownership constraints, and organizational memory are later roadmap work.
+
+## Owners and staff
+
+Owners set three season goals and influence spending, patience, market expectations, and job security. They do not approve or veto ordinary transactions.
+
+Head coach controls tactical identity. Offensive and defensive assistants provide small alignment effects. The head scout controls scouting precision. Staff hiring, contracts, and development effects are required in the first playable v2 but remain bounded and explainable.
+
+## Testing and calibration
+
+`packages/calibration` should provide batch runners for Game, Season, Career, Player Generation, Draft Class, Development, Injury, Contract Market, Trade Market, League Economy, and baseline AI labs.
+
+Normal games use fresh runtime randomness. Lab runs use explicit seeds and produce reports containing means, standard deviations, percentiles, correlations, histograms, failed seeds, and explanations.
 
 Required invariant layers:
 
 - unit correctness;
-- entity and accounting invariants after every command;
+- entity/accounting invariants after every command;
 - season integration;
 - multi-season statistical calibration;
-- golden save and replay regression;
+- JSON round-trip and migration fixtures;
 - browser E2E for critical workflows;
-- performance, memory, and file-size budgets.
+- performance, memory, worker, and file-size budgets.
 
 ## Observability
 
-Every command gets a deterministic ID and seed scope. Diagnostics record config version, RNG scope, input entity IDs, major model factors, and output. A developer can replay a command sequence from a golden league file and inspect why a game, contract, trade, or development event occurred.
+Every command records request ID, phase, settings version, random mode/scope, input entity IDs, output events, major value factors, and validation diagnostics. Normal runs need not be perfectly replayable; developer runs must be replayable from explicit fixtures and seeds.

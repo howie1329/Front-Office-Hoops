@@ -1,5 +1,7 @@
 # Front Office Hoops — Product Brief
 
+> This document describes the existing v1 product. The approved rewrite direction is in the [FOH v2 Product Brief](./specs/foh-v2-product-brief.md), with delivery sequencing in the [FOH v2 Roadmap](./plans/foh-v2-roadmap.md).
+
 **Status:** Working product brief<br>
 **Product stage:** Early local-first prototype<br>
 **Last updated:** July 26, 2026

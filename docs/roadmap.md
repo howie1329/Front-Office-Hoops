@@ -1,5 +1,7 @@
 # Front Office Hoops — Roadmap
 
+> This document tracks the existing v1 implementation. The rewrite is tracked separately in the [FOH v2 Roadmap](./plans/foh-v2-roadmap.md).
+
 **Roadmap horizon:** July 2026 onward<br>
 **Current product stage:** Early local-first prototype (`0.0.1`)<br>
 **Current save schema:** `18`
