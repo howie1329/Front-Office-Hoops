@@ -302,9 +302,21 @@ function PlayerGenerationLabPage() {
         cell: ({ row }) => row.original.diagnostics.latentTalent,
       },
       {
+        accessorKey: "diagnostics.currentAbility",
+        header: "Current",
+        cell: ({ row }) => row.original.diagnostics.currentAbility,
+      },
+      {
         id: "potential",
         header: "Potential",
         accessorFn: (row) => row.player.profile.development.potential,
+      },
+      {
+        id: "potentialGap",
+        header: "Gap",
+        accessorFn: (row) =>
+          row.player.profile.development.potential -
+          row.diagnostics.currentAbility,
       },
       { accessorKey: "player.age", header: "Age" },
       {
@@ -641,17 +653,42 @@ function PlayerGenerationLabPage() {
 
               <Section
                 title="Development"
-                description="Career ceiling, growth, and unpredictability"
+                description="Ceiling headroom, growth, and unpredictability"
               >
                 <div className="grid gap-4">
                   <DistributionFields
                     id="lab-potential"
-                    label="Potential"
+                    label="Potential headroom"
                     value={config.development.potential}
-                    onChange={(potential) =>
+                    onChange={(potentialDistribution) =>
                       updateConfig({
                         ...config,
-                        development: { ...config.development, potential },
+                        development: {
+                          ...config.development,
+                          potential: {
+                            ...config.development.potential,
+                            ...potentialDistribution,
+                          },
+                        },
+                      })
+                    }
+                  />
+                  <NumberField
+                    id="lab-potential-max-headroom"
+                    label="Maximum potential headroom"
+                    value={config.development.potential.maxHeadroom}
+                    min={0}
+                    max={100}
+                    onChange={(maxHeadroom) =>
+                      updateConfig({
+                        ...config,
+                        development: {
+                          ...config.development,
+                          potential: {
+                            ...config.development.potential,
+                            maxHeadroom,
+                          },
+                        },
                       })
                     }
                   />
@@ -865,14 +902,19 @@ function PlayerGenerationLabPage() {
               <CardContent className="grid gap-5">
                 {results.length ? (
                   <>
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {[
                         ["Players", summary.count],
-                        ["Avg latent talent", summary.averageTalent.toFixed(1)],
                         [
-                          "Latent range",
-                          `${summary.minimumTalent}–${summary.maximumTalent}`,
+                          "Avg current ability",
+                          summary.averageCurrentAbility.toFixed(1),
                         ],
+                        ["Avg potential", summary.averagePotential.toFixed(1)],
+                        [
+                          "Avg potential gap",
+                          summary.averagePotentialGap.toFixed(1),
+                        ],
+                        ["Avg latent talent", summary.averageTalent.toFixed(1)],
                         [
                           "With traits",
                           `${Math.round(summary.traitRate * 100)}%`,
@@ -1131,6 +1173,12 @@ function PlayerDetail({ result }: { result: PlayerGenerationResult }) {
           />
         </DetailGroup>
         <DetailGroup title="Generation diagnostics">
+          <Detail label="Current ability" value={diagnostics.currentAbility} />
+          <Detail label="Potential base" value={diagnostics.potentialBase} />
+          <Detail
+            label="Generated upside"
+            value={diagnostics.potentialUpside}
+          />
           {Object.entries(diagnostics.rawSkills).map(([skill, value]) => (
             <Detail
               key={skill}

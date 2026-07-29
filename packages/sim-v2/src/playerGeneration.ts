@@ -21,6 +21,9 @@ export type PlayerGenerationTier =
 export type PlayerGenerationDiagnostics = {
   latentTalent: number
   talentTier: PlayerGenerationTier
+  currentAbility: number
+  potentialBase: number
+  potentialUpside: number
   rawSkills: PlayerSkills
 }
 
@@ -226,15 +229,17 @@ export function generatePlayerWithDiagnostics(
   }
   const skills = applySkillCorrelations(rawSkills, talent, config)
   const currentAbility = getCurrentAbility(skills)
-  const potential = Math.max(
-    currentAbility,
-    drawInteger(
-      developmentRandom.fork("potential"),
-      config.ratingBounds,
-      config.development.potential.center,
-      config.development.potential.spread
-    )
+  const potentialBase = Math.max(currentAbility, talent)
+  const rolledPotentialUpside = drawInteger(
+    developmentRandom.fork("potential"),
+    { min: 0, max: config.development.potential.maxHeadroom },
+    config.development.potential.center,
+    config.development.potential.spread
   )
+  const potential = Math.round(
+    clamp(potentialBase + rolledPotentialUpside, config.ratingBounds)
+  )
+  const potentialUpside = potential - potentialBase
 
   const heightInches = drawInteger(
     physicalRandom.fork("height"),
@@ -312,6 +317,9 @@ export function generatePlayerWithDiagnostics(
     diagnostics: {
       latentTalent: talent,
       talentTier: getTalentTier(talent),
+      currentAbility,
+      potentialBase,
+      potentialUpside,
       rawSkills,
     },
   }

@@ -14,6 +14,7 @@ export type {
   PhaseTaskState,
   DevelopmentProfile,
   PhysicalProfile,
+  PotentialHeadroomConfig,
   PlayerProfile,
   PlayerSkills,
   PlayerTrait,

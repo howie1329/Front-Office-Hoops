@@ -178,5 +178,30 @@ describe("league schema", () => {
         starTailFrequency: { ...config.starTailFrequency, above90: 2 },
       }).success
     ).toBe(false)
+    expect(
+      playerGenerationConfigSchema.safeParse({
+        ...config,
+        development: {
+          ...config.development,
+          potential: {
+            ...config.development.potential,
+            center: 26,
+            maxHeadroom: 25,
+          },
+        },
+      }).success
+    ).toBe(false)
+    expect(
+      playerGenerationConfigSchema.safeParse({
+        ...config,
+        development: {
+          ...config.development,
+          potential: {
+            ...config.development.potential,
+            maxHeadroom: -1,
+          },
+        },
+      }).success
+    ).toBe(false)
   })
 })

@@ -60,6 +60,11 @@ describe("player generation lab helpers", () => {
     expect(summary.count).toBe(20)
     expect(summary.minimumTalent).toBeLessThanOrEqual(summary.averageTalent)
     expect(summary.averageTalent).toBeLessThanOrEqual(summary.maximumTalent)
+    expect(summary.averageCurrentAbility).toBeGreaterThan(0)
+    expect(summary.averagePotential).toBeGreaterThanOrEqual(
+      summary.averageCurrentAbility
+    )
+    expect(summary.averagePotentialGap).toBeGreaterThanOrEqual(0)
     expect(
       Object.values(summary.tierCounts).reduce((sum, count) => sum + count, 0)
     ).toBe(20)
@@ -82,7 +87,7 @@ describe("player generation lab helpers", () => {
     )
   })
 
-  it("exports version two reports with generated potential", () => {
+  it("exports version three reports with anchored potential diagnostics", () => {
     const options = {
       seed: "export-seed",
       mode: "single" as const,
@@ -96,9 +101,19 @@ describe("player generation lab helpers", () => {
       results: typeof results
     }
 
-    expect(report.version).toBe(2)
+    expect(report.version).toBe(3)
     expect(report.results[0].player.profile.development.potential).toBe(
       results[0].player.profile.development.potential
+    )
+    expect(report.results[0].diagnostics.potentialBase).toBe(
+      Math.max(
+        report.results[0].diagnostics.currentAbility,
+        report.results[0].diagnostics.latentTalent
+      )
+    )
+    expect(getLabMetric("potentialGap").getValue(report.results[0])).toBe(
+      report.results[0].player.profile.development.potential -
+        report.results[0].diagnostics.currentAbility
     )
   })
 })

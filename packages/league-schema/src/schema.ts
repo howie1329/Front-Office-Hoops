@@ -16,6 +16,14 @@ const distributionConfigSchema = z.object({
   shape: z.literal("long-tailed"),
 })
 
+const potentialHeadroomConfigSchema = distributionConfigSchema
+  .extend({
+    maxHeadroom: z.number().int().nonnegative(),
+  })
+  .refine((config) => config.center <= config.maxHeadroom, {
+    message: "Potential headroom center must not exceed its maximum.",
+  })
+
 export const playerGenerationConfigSchema = z.object({
   version: z.number().int().positive(),
   age: numericRangeSchema,
@@ -35,7 +43,7 @@ export const playerGenerationConfigSchema = z.object({
     vertical: numericRangeSchema,
   }),
   development: z.object({
-    potential: distributionConfigSchema,
+    potential: potentialHeadroomConfigSchema,
     rating: distributionConfigSchema,
     volatility: distributionConfigSchema,
   }),

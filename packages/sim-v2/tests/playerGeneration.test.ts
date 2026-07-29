@@ -46,6 +46,19 @@ describe("generatePlayer", () => {
     expect(result.diagnostics.latentTalent).toBeLessThanOrEqual(
       config.ratingBounds.max
     )
+    expect(result.diagnostics.currentAbility).toBeLessThanOrEqual(
+      result.diagnostics.potentialBase
+    )
+    expect(result.diagnostics.latentTalent).toBeLessThanOrEqual(
+      result.diagnostics.potentialBase
+    )
+    expect(result.diagnostics.potentialUpside).toBeGreaterThanOrEqual(0)
+    expect(result.diagnostics.potentialUpside).toBeLessThanOrEqual(
+      config.development.potential.maxHeadroom
+    )
+    expect(result.player.profile.development.potential).toBe(
+      result.diagnostics.potentialBase + result.diagnostics.potentialUpside
+    )
     expect(result.player).not.toHaveProperty("latentTalent")
   })
 
@@ -97,8 +110,9 @@ describe("generatePlayer", () => {
     const standardConfig = createStandardPlayerGenerationConfig()
     const higherPotentialConfig = createStandardPlayerGenerationConfig()
     higherPotentialConfig.development.potential = {
-      center: 92,
+      center: 25,
       spread: 0,
+      maxHeadroom: 25,
       shape: "long-tailed",
     }
 
@@ -126,6 +140,38 @@ describe("generatePlayer", () => {
       ...standardPlayer.profile,
       development: standardDevelopment,
     })
+  })
+
+  it("anchors potential to the player profile and caps configured upside", () => {
+    const config = createStandardPlayerGenerationConfig()
+    config.talentDistribution = {
+      center: 25,
+      spread: 0,
+      shape: "long-tailed",
+    }
+    config.starTailFrequency = {
+      above70: 0,
+      above80: 0,
+      above90: 0,
+    }
+    config.development.potential = {
+      center: 25,
+      spread: 0,
+      maxHeadroom: 25,
+      shape: "long-tailed",
+    }
+
+    const result = generatePlayerWithDiagnostics(
+      createDeterministicRandom("low-base-potential-seed"),
+      input,
+      config
+    )
+
+    expect(result.diagnostics.latentTalent).toBe(25)
+    expect(result.diagnostics.currentAbility).toBe(25)
+    expect(result.diagnostics.potentialBase).toBe(25)
+    expect(result.diagnostics.potentialUpside).toBe(25)
+    expect(result.player.profile.development.potential).toBe(50)
   })
 
   it("applies configured skill correlations across a population", () => {

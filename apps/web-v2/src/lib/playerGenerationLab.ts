@@ -22,6 +22,8 @@ export type LabRunOptions = {
 
 export type LabMetricKey =
   | "latentTalent"
+  | "currentAbility"
+  | "potentialGap"
   | "age"
   | "heightInches"
   | "weightPounds"
@@ -46,6 +48,17 @@ export const LAB_METRICS: Array<LabMetric> = [
     key: "latentTalent",
     label: "Latent talent",
     getValue: (r) => r.diagnostics.latentTalent,
+  },
+  {
+    key: "currentAbility",
+    label: "Current ability",
+    getValue: (r) => r.diagnostics.currentAbility,
+  },
+  {
+    key: "potentialGap",
+    label: "Potential gap",
+    getValue: (r) =>
+      r.player.profile.development.potential - r.diagnostics.currentAbility,
   },
   { key: "age", label: "Age", getValue: (r) => r.player.age },
   {
@@ -166,13 +179,28 @@ export function createLabPlayers(
 
 export function summarizeLabPlayers(results: Array<PlayerGenerationResult>) {
   const talentValues = results.map((result) => result.diagnostics.latentTalent)
-  const average = talentValues.length
-    ? talentValues.reduce((sum, value) => sum + value, 0) / talentValues.length
-    : 0
+  const currentAbilityValues = results.map(
+    (result) => result.diagnostics.currentAbility
+  )
+  const potentialValues = results.map(
+    (result) => result.player.profile.development.potential
+  )
+  const potentialGapValues = results.map(
+    (result) =>
+      result.player.profile.development.potential -
+      result.diagnostics.currentAbility
+  )
+  const average = (values: Array<number>) =>
+    values.length
+      ? values.reduce((sum, value) => sum + value, 0) / values.length
+      : 0
 
   return {
     count: results.length,
-    averageTalent: average,
+    averageTalent: average(talentValues),
+    averageCurrentAbility: average(currentAbilityValues),
+    averagePotential: average(potentialValues),
+    averagePotentialGap: average(potentialGapValues),
     minimumTalent: talentValues.length ? Math.min(...talentValues) : 0,
     maximumTalent: talentValues.length ? Math.max(...talentValues) : 0,
     tierCounts: {
@@ -262,7 +290,7 @@ export function serializeLabReport(
   return JSON.stringify(
     {
       schema: "foh-player-generation-lab",
-      version: 2,
+      version: 3,
       seed: options.seed,
       mode: options.mode,
       count: options.count,

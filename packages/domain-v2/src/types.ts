@@ -55,6 +55,10 @@ export type DistributionConfig = {
   shape: "long-tailed"
 }
 
+export type PotentialHeadroomConfig = DistributionConfig & {
+  maxHeadroom: number
+}
+
 export type SkillCorrelation = {
   first: PlayerSkillKey
   second: PlayerSkillKey
@@ -80,7 +84,7 @@ export type PlayerGenerationConfig = {
     vertical: NumericRange
   }
   development: {
-    potential: DistributionConfig
+    potential: PotentialHeadroomConfig
     rating: DistributionConfig
     volatility: DistributionConfig
   }
