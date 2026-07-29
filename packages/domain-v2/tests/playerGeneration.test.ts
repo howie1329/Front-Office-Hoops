@@ -11,12 +11,14 @@ describe("standard player generation config", () => {
 
     expect(config).toMatchObject({
       version: 1,
+      age: { min: 19, max: 34 },
       ratingBounds: { min: 25, max: 92 },
       talentDistribution: {
         center: 50,
         spread: 10,
         shape: "long-tailed",
       },
+      traitFrequency: 0.35,
       starTailFrequency: {
         above70: 0.1,
         above80: 0.02,

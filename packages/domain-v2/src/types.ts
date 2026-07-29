@@ -63,6 +63,7 @@ export type SkillCorrelation = {
 
 export type PlayerGenerationConfig = {
   version: number
+  age: NumericRange
   ratingBounds: NumericRange
   talentDistribution: DistributionConfig
   starTailFrequency: {
@@ -82,6 +83,7 @@ export type PlayerGenerationConfig = {
     rating: DistributionConfig
     volatility: DistributionConfig
   }
+  traitFrequency: number
   availableTraits: PlayerTrait[]
   skillCorrelations: SkillCorrelation[]
 }

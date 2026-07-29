@@ -18,6 +18,7 @@ const distributionConfigSchema = z.object({
 
 export const playerGenerationConfigSchema = z.object({
   version: z.number().int().positive(),
+  age: numericRangeSchema,
   ratingBounds: numericRangeSchema,
   talentDistribution: distributionConfigSchema,
   starTailFrequency: z.object({
@@ -37,6 +38,7 @@ export const playerGenerationConfigSchema = z.object({
     rating: distributionConfigSchema,
     volatility: distributionConfigSchema,
   }),
+  traitFrequency: z.number().min(0).max(1),
   availableTraits: z.array(z.string().min(1)),
   skillCorrelations: z.array(
     z.object({
