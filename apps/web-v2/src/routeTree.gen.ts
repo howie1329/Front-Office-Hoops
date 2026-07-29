@@ -13,6 +13,7 @@ import { Route as DeveloperLabsRouteImport } from './routes/developer-labs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeveloperLabsTeamAssemblyRouteImport } from './routes/developer-labs.team-assembly'
 import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
+import { Route as DeveloperLabsDevelopmentCohortsRouteImport } from './routes/developer-labs.development-cohorts'
 
 const DeveloperLabsRoute = DeveloperLabsRouteImport.update({
   id: '/developer-labs',
@@ -36,16 +37,24 @@ const DeveloperLabsPlayerGenerationRoute =
     path: '/player-generation',
     getParentRoute: () => DeveloperLabsRoute,
   } as any)
+const DeveloperLabsDevelopmentCohortsRoute =
+  DeveloperLabsDevelopmentCohortsRouteImport.update({
+    id: '/development-cohorts',
+    path: '/development-cohorts',
+    getParentRoute: () => DeveloperLabsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
+  '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
+  '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
@@ -53,6 +62,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
+  '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
@@ -61,18 +71,21 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/developer-labs'
+    | '/developer-labs/development-cohorts'
     | '/developer-labs/player-generation'
     | '/developer-labs/team-assembly'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/developer-labs'
+    | '/developer-labs/development-cohorts'
     | '/developer-labs/player-generation'
     | '/developer-labs/team-assembly'
   id:
     | '__root__'
     | '/'
     | '/developer-labs'
+    | '/developer-labs/development-cohorts'
     | '/developer-labs/player-generation'
     | '/developer-labs/team-assembly'
   fileRoutesById: FileRoutesById
@@ -112,15 +125,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeveloperLabsPlayerGenerationRouteImport
       parentRoute: typeof DeveloperLabsRoute
     }
+    '/developer-labs/development-cohorts': {
+      id: '/developer-labs/development-cohorts'
+      path: '/development-cohorts'
+      fullPath: '/developer-labs/development-cohorts'
+      preLoaderRoute: typeof DeveloperLabsDevelopmentCohortsRouteImport
+      parentRoute: typeof DeveloperLabsRoute
+    }
   }
 }
 
 interface DeveloperLabsRouteChildren {
+  DeveloperLabsDevelopmentCohortsRoute: typeof DeveloperLabsDevelopmentCohortsRoute
   DeveloperLabsPlayerGenerationRoute: typeof DeveloperLabsPlayerGenerationRoute
   DeveloperLabsTeamAssemblyRoute: typeof DeveloperLabsTeamAssemblyRoute
 }
 
 const DeveloperLabsRouteChildren: DeveloperLabsRouteChildren = {
+  DeveloperLabsDevelopmentCohortsRoute: DeveloperLabsDevelopmentCohortsRoute,
   DeveloperLabsPlayerGenerationRoute: DeveloperLabsPlayerGenerationRoute,
   DeveloperLabsTeamAssemblyRoute: DeveloperLabsTeamAssemblyRoute,
 }

@@ -99,9 +99,32 @@ function DeveloperLabsPage() {
             </Card>
           </Link>
 
+          <Link
+            to="/developer-labs/development-cohorts"
+            className="group rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <Card className="h-full border-primary/30 transition-colors group-hover:bg-muted/40">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle>Development cohorts</CardTitle>
+                  <Badge variant="secondary">UI preview</Badge>
+                </div>
+                <CardDescription>
+                  Compare career-shape assumptions across age, volatility,
+                  health, minutes, and coaching contexts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Fixture-backed workspace</span>
+                <span className="font-medium text-foreground transition-transform group-hover:translate-x-0.5">
+                  Open preview →
+                </span>
+              </CardContent>
+            </Card>
+          </Link>
+
           {[
             ["Game calibration", "Possession model and box-score ranges"],
-            ["Development cohorts", "Career curves, volatility, and aging"],
             ["Contract market", "Demand, supply, and offer continuity"],
             ["Draft scouting", "Scouting ranges and class strength"],
             ["League economy", "Payroll spread and tax pressure"],
