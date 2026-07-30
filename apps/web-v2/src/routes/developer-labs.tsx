@@ -100,6 +100,30 @@ function DeveloperLabsPage() {
           </Link>
 
           <Link
+            to="/developer-labs/game-matchup"
+            className="group rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          >
+            <Card className="h-full border-primary/30 transition-colors group-hover:bg-muted/40">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle>Game &amp; matchup</CardTitle>
+                  <Badge variant="default">Active</Badge>
+                </div>
+                <CardDescription>
+                  Run seeded possession games, inspect box-score reconciliation,
+                  and compare repeated matchup distributions.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Single + batch modes</span>
+                <span className="font-medium text-foreground transition-transform group-hover:translate-x-0.5">
+                  Open lab →
+                </span>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link
             to="/developer-labs/development-cohorts"
             className="group rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
@@ -124,7 +148,6 @@ function DeveloperLabsPage() {
           </Link>
 
           {[
-            ["Game calibration", "Possession model and box-score ranges"],
             ["Contract market", "Demand, supply, and offer continuity"],
             ["Draft scouting", "Scouting ranges and class strength"],
             ["League economy", "Payroll spread and tax pressure"],

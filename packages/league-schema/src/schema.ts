@@ -195,6 +195,102 @@ export const playerEntitySchema = z.strictObject({
   profile: playerProfileSchema,
 })
 
+const gameSimulationConfigSchema = z.strictObject({
+  version: z.number().int().positive(),
+  presetId: z.enum(["standard", "custom"]),
+  environment: z.strictObject({
+    pace: z.number().min(0).max(100),
+    scoringEnvironment: z.number().min(0).max(100),
+    gameVariance: z.number().min(0).max(100),
+    talentSeparation: z.number().min(0).max(100),
+    homeCourtAdvantage: z.number().min(0).max(100),
+  }),
+  offense: z.strictObject({
+    threePointRate: z.number().min(0).max(100),
+    rimRate: z.number().min(0).max(100),
+    midrangeRate: z.number().min(0).max(100),
+    shotSelectionDiscipline: z.number().min(0).max(100),
+    starUsage: z.number().min(0).max(100),
+    ballMovement: z.number().min(0).max(100),
+    isolationRate: z.number().min(0).max(100),
+    transitionRate: z.number().min(0).max(100),
+    offensiveRebounding: z.number().min(0).max(100),
+  }),
+  defense: z.strictObject({
+    pressure: z.number().min(0).max(100),
+    helpDefense: z.number().min(0).max(100),
+    switching: z.number().min(0).max(100),
+    doubleTeamRate: z.number().min(0).max(100),
+    turnoverPressure: z.number().min(0).max(100),
+    foulDiscipline: z.number().min(0).max(100),
+  }),
+  rotation: z.strictObject({
+    adherence: z.number().min(0).max(100),
+    benchUsage: z.number().min(0).max(100),
+    starterWorkload: z.number().min(0).max(100),
+    fatigueImpact: z.number().min(0).max(100),
+  }),
+  coaching: z.strictObject({
+    influence: z.number().min(0).max(100),
+    paceInfluence: z.number().min(0).max(100),
+    shotSelectionInfluence: z.number().min(0).max(100),
+    defensiveInfluence: z.number().min(0).max(100),
+  }),
+  injuries: z.strictObject({
+    frequency: z.enum(["off", "rare", "normal", "frequent"]),
+    severity: z.enum(["minor", "mixed"]),
+    maxGamesOut: z.number().int().min(0).max(82),
+    inGameInjuries: z.boolean(),
+  }),
+  overtime: z.strictObject({
+    enabled: z.boolean(),
+    segmentMinutes: z.number().int().min(1).max(20),
+    maxSegments: z.number().int().min(1).max(20),
+  }),
+})
+
+const gameAvailabilitySchema = z.strictObject({
+  available: z.boolean(),
+  gamesRemaining: z.number().int().min(0).max(82),
+  restriction: z.enum(["none", "minutes-limited"]).optional(),
+  minutesLimit: z.number().min(0).max(48).optional(),
+})
+
+const gameRotationSchema = z.strictObject({
+  starters: z.array(z.string().min(1)),
+  depthOrder: z.array(z.string().min(1)),
+  targetMinutes: z.record(z.string().min(1), z.number().min(0).max(60)),
+})
+
+const gameCoachingProfileSchema = z.strictObject({
+  pace: z.number().min(0).max(100),
+  offensiveStyle: z.number().min(0).max(100),
+  defensivePressure: z.number().min(0).max(100),
+  shotSelection: z.number().min(0).max(100),
+  rotationDepth: z.number().min(0).max(100),
+})
+
+export const gameMatchupFixtureSchema = z.strictObject({
+  version: z.number().int().positive(),
+  source: z.strictObject({
+    kind: z.enum(["initial-player-universe", "league-document", "manual"]),
+    id: z.string().min(1),
+    version: z.number().int().positive(),
+  }),
+  seed: z.string().min(1),
+  homeTeamId: z.string().min(1),
+  awayTeamId: z.string().min(1),
+  teams: z.record(
+    z.string().min(1),
+    z.strictObject({ id: z.string().min(1), name: z.string().min(1) })
+  ),
+  players: z.record(z.string().min(1), playerEntitySchema),
+  rotations: z.record(z.string().min(1), gameRotationSchema),
+  availability: z.record(z.string().min(1), gameAvailabilitySchema),
+  coaching: z.record(z.string().min(1), gameCoachingProfileSchema),
+  config: gameSimulationConfigSchema,
+})
+
 const eventSchema = z.strictObject({
   id: z.string().min(1),
   type: z.enum(["command.completed", "migration.applied"]),
@@ -215,6 +311,157 @@ const eventSchema = z.strictObject({
     kind: z.enum(["command", "simulation", "migration"]),
     id: z.string().min(1),
   }),
+})
+
+const gamePeriodSchema = z.strictObject({
+  number: z.number().int().positive(),
+  kind: z.enum(["regulation", "overtime"]),
+  minutes: z.number().positive(),
+  teamPoints: z.record(z.string().min(1), z.number().int().nonnegative()),
+  teamPossessions: z.record(
+    z.string().min(1),
+    z.number().int().nonnegative()
+  ),
+})
+
+const gamePlayerBoxScoreSchema = z.strictObject({
+  playerId: z.string().min(1),
+  teamId: z.string().min(1),
+  starter: z.boolean(),
+  minutes: z.number().nonnegative(),
+  opportunities: z.number().int().nonnegative(),
+  usageRate: z.number().nonnegative(),
+  points: z.number().int().nonnegative(),
+  fieldGoalsMade: z.number().int().nonnegative(),
+  fieldGoalsAttempted: z.number().int().nonnegative(),
+  threePointersMade: z.number().int().nonnegative(),
+  threePointersAttempted: z.number().int().nonnegative(),
+  freeThrowsMade: z.number().int().nonnegative(),
+  freeThrowsAttempted: z.number().int().nonnegative(),
+  offensiveRebounds: z.number().int().nonnegative(),
+  defensiveRebounds: z.number().int().nonnegative(),
+  rebounds: z.number().int().nonnegative(),
+  assists: z.number().int().nonnegative(),
+  turnovers: z.number().int().nonnegative(),
+  steals: z.number().int().nonnegative(),
+  blocks: z.number().int().nonnegative(),
+  fouls: z.number().int().nonnegative(),
+  shotProfile: z.strictObject({
+    rimAttempts: z.number().int().nonnegative(),
+    midrangeAttempts: z.number().int().nonnegative(),
+    threePointAttempts: z.number().int().nonnegative(),
+  }),
+  role: z.strictObject({
+    label: z.string().min(1),
+    creationShare: z.number().nonnegative(),
+    scoringShare: z.number().nonnegative(),
+  }),
+  availability: gameAvailabilitySchema,
+})
+
+const gameTeamBoxScoreSchema = z.strictObject({
+  teamId: z.string().min(1),
+  points: z.number().int().nonnegative(),
+  possessions: z.number().int().nonnegative(),
+  fieldGoalsMade: z.number().int().nonnegative(),
+  fieldGoalsAttempted: z.number().int().nonnegative(),
+  threePointersMade: z.number().int().nonnegative(),
+  threePointersAttempted: z.number().int().nonnegative(),
+  freeThrowsMade: z.number().int().nonnegative(),
+  freeThrowsAttempted: z.number().int().nonnegative(),
+  offensiveRebounds: z.number().int().nonnegative(),
+  defensiveRebounds: z.number().int().nonnegative(),
+  rebounds: z.number().int().nonnegative(),
+  assists: z.number().int().nonnegative(),
+  turnovers: z.number().int().nonnegative(),
+  steals: z.number().int().nonnegative(),
+  blocks: z.number().int().nonnegative(),
+  fouls: z.number().int().nonnegative(),
+  pace: z.number().nonnegative(),
+  offensiveEfficiency: z.number().nonnegative(),
+  shotProfile: z.strictObject({
+    rimAttempts: z.number().int().nonnegative(),
+    midrangeAttempts: z.number().int().nonnegative(),
+    threePointAttempts: z.number().int().nonnegative(),
+  }),
+})
+
+const gameEventSchema = z.strictObject({
+  id: z.string().min(1),
+  type: z.literal("injury"),
+  teamId: z.string().min(1),
+  playerId: z.string().min(1),
+  period: z.number().int().positive(),
+  description: z.string().min(1),
+  gamesRemaining: z.number().int().positive(),
+})
+
+const gameDiagnosticSchema = z.strictObject({
+  code: z.string().min(1),
+  message: z.string().min(1),
+  severity: z.enum(["info", "warning", "error"]),
+  path: z.array(z.union([z.string(), z.number()])).optional(),
+  scope: z.enum(["fixture", "rotation", "possession", "box-score", "injury"]),
+})
+
+const gameReconciliationCheckSchema = z.strictObject({
+  code: z.string().min(1),
+  label: z.string().min(1),
+  passed: z.boolean(),
+  actual: z.number(),
+  expected: z.number(),
+  difference: z.number(),
+})
+
+export const gameResultSchema = z.strictObject({
+  version: z.number().int().positive(),
+  seed: z.string().min(1),
+  status: z.enum(["completed", "rejected", "failed"]),
+  homeTeamId: z.string().min(1),
+  awayTeamId: z.string().min(1),
+  winnerTeamId: z.string().min(1).nullable(),
+  periods: z.array(gamePeriodSchema),
+  teams: z.record(z.string().min(1), gameTeamBoxScoreSchema),
+  players: z.record(z.string().min(1), gamePlayerBoxScoreSchema),
+  events: z.array(gameEventSchema),
+  diagnostics: z.array(gameDiagnosticSchema),
+  reconciliation: z.strictObject({
+    passed: z.boolean(),
+    checks: z.array(gameReconciliationCheckSchema),
+  }),
+})
+
+export const gameResultEnvelopeSchema = z.strictObject({
+  schema: z.literal("foh-game-result"),
+  result: gameResultSchema,
+})
+
+const matchupCalibrationMetricSchema = z.strictObject({
+  count: z.number().int().nonnegative(),
+  mean: z.number(),
+  minimum: z.number(),
+  maximum: z.number(),
+  p10: z.number(),
+  median: z.number(),
+  p90: z.number(),
+})
+
+export const matchupBatchReportSchema = z.strictObject({
+  schema: z.literal("foh-matchup-calibration"),
+  version: z.literal(1),
+  baseSeed: z.string().min(1),
+  count: z.number().int().positive(),
+  completed: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  metrics: z.record(z.string().min(1), matchupCalibrationMetricSchema),
+  results: z.array(gameResultSchema),
+  failures: z.array(
+    z.strictObject({
+      seed: z.string().min(1),
+      fixture: gameMatchupFixtureSchema,
+      result: gameResultSchema,
+    })
+  ),
 })
 
 const leagueDocumentShape = z.strictObject({

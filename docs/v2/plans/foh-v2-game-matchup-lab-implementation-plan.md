@@ -1,9 +1,13 @@
 # V2 Game & Matchup Lab — Implementation Plan
 
-**Status:** Proposed
+**Status:** Implemented initial slice; calibration acceptance pending
 **Date:** 2026-07-29
 **Feature branch:** `codex/game-matchup-lab`
 **Roadmap position:** Phase 2, Slice 1
+
+## Implementation note
+
+The typed fixture/config/result boundary, deterministic possession engine, rotation and availability validation, seeded calibration batch runner, worker-backed lab, JSON import/export, and reconciliation evidence are implemented on this branch. The standard preset is an explicit NBA-like starting target, not yet an accepted calibration profile. Full benchmark modes, accepted-range comparisons, and final roadmap status remain follow-up work after calibration review.
 
 ## Objective
 
@@ -467,14 +471,14 @@ Use the repository’s actual workspace runner if a command differs from the ins
 
 ## Completion checklist
 
-- [ ] Dedicated feature branch contains the work.
-- [ ] Typed game contracts and schemas exist.
-- [ ] Standard preset is explicit and versioned.
-- [ ] Single-game engine passes deterministic and reconciliation tests.
-- [ ] Rotation, availability, role, coaching, overtime, and injury behavior are covered.
-- [ ] Calibration reports and failed-seed fixtures are exportable.
-- [ ] Game & Matchup Lab exposes shared settings plus lab-only controls.
-- [ ] Desktop and narrow layouts preserve readable evidence and usable controls.
-- [ ] Worker progress/cancellation protects the browser during batches.
-- [ ] V2 checks pass.
+- [x] Dedicated feature branch contains the work.
+- [x] Typed game contracts and schemas exist.
+- [x] Standard preset is explicit and versioned.
+- [x] Single-game engine passes deterministic and reconciliation tests.
+- [x] Rotation, availability, role, coaching, overtime, and injury behavior are implemented and surfaced in the lab.
+- [x] Calibration reports and failed-seed fixtures are exportable.
+- [x] Game & Matchup Lab exposes shared settings plus lab-only controls.
+- [x] Desktop and responsive layouts preserve readable evidence and usable controls.
+- [x] Worker progress/cancellation protects the browser during batches.
+- [ ] V2 checks pass; focused V2 checks pass, while an unrelated pre-existing V1 calibration test remains over its rebound upper bound.
 - [ ] Roadmap/README status is updated only after acceptance.

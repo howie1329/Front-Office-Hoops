@@ -13,6 +13,7 @@ import { Route as DeveloperLabsRouteImport } from './routes/developer-labs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeveloperLabsTeamAssemblyRouteImport } from './routes/developer-labs.team-assembly'
 import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
+import { Route as DeveloperLabsGameMatchupRouteImport } from './routes/developer-labs.game-matchup'
 import { Route as DeveloperLabsDevelopmentCohortsRouteImport } from './routes/developer-labs.development-cohorts'
 
 const DeveloperLabsRoute = DeveloperLabsRouteImport.update({
@@ -37,6 +38,12 @@ const DeveloperLabsPlayerGenerationRoute =
     path: '/player-generation',
     getParentRoute: () => DeveloperLabsRoute,
   } as any)
+const DeveloperLabsGameMatchupRoute =
+  DeveloperLabsGameMatchupRouteImport.update({
+    id: '/game-matchup',
+    path: '/game-matchup',
+    getParentRoute: () => DeveloperLabsRoute,
+  } as any)
 const DeveloperLabsDevelopmentCohortsRoute =
   DeveloperLabsDevelopmentCohortsRouteImport.update({
     id: '/development-cohorts',
@@ -48,6 +55,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
+  '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
@@ -55,6 +63,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
+  '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
@@ -63,6 +72,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
+  '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
@@ -72,6 +82,7 @@ export interface FileRouteTypes {
     | '/'
     | '/developer-labs'
     | '/developer-labs/development-cohorts'
+    | '/developer-labs/game-matchup'
     | '/developer-labs/player-generation'
     | '/developer-labs/team-assembly'
   fileRoutesByTo: FileRoutesByTo
@@ -79,6 +90,7 @@ export interface FileRouteTypes {
     | '/'
     | '/developer-labs'
     | '/developer-labs/development-cohorts'
+    | '/developer-labs/game-matchup'
     | '/developer-labs/player-generation'
     | '/developer-labs/team-assembly'
   id:
@@ -86,6 +98,7 @@ export interface FileRouteTypes {
     | '/'
     | '/developer-labs'
     | '/developer-labs/development-cohorts'
+    | '/developer-labs/game-matchup'
     | '/developer-labs/player-generation'
     | '/developer-labs/team-assembly'
   fileRoutesById: FileRoutesById
@@ -125,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeveloperLabsPlayerGenerationRouteImport
       parentRoute: typeof DeveloperLabsRoute
     }
+    '/developer-labs/game-matchup': {
+      id: '/developer-labs/game-matchup'
+      path: '/game-matchup'
+      fullPath: '/developer-labs/game-matchup'
+      preLoaderRoute: typeof DeveloperLabsGameMatchupRouteImport
+      parentRoute: typeof DeveloperLabsRoute
+    }
     '/developer-labs/development-cohorts': {
       id: '/developer-labs/development-cohorts'
       path: '/development-cohorts'
@@ -137,12 +157,14 @@ declare module '@tanstack/react-router' {
 
 interface DeveloperLabsRouteChildren {
   DeveloperLabsDevelopmentCohortsRoute: typeof DeveloperLabsDevelopmentCohortsRoute
+  DeveloperLabsGameMatchupRoute: typeof DeveloperLabsGameMatchupRoute
   DeveloperLabsPlayerGenerationRoute: typeof DeveloperLabsPlayerGenerationRoute
   DeveloperLabsTeamAssemblyRoute: typeof DeveloperLabsTeamAssemblyRoute
 }
 
 const DeveloperLabsRouteChildren: DeveloperLabsRouteChildren = {
   DeveloperLabsDevelopmentCohortsRoute: DeveloperLabsDevelopmentCohortsRoute,
+  DeveloperLabsGameMatchupRoute: DeveloperLabsGameMatchupRoute,
   DeveloperLabsPlayerGenerationRoute: DeveloperLabsPlayerGenerationRoute,
   DeveloperLabsTeamAssemblyRoute: DeveloperLabsTeamAssemblyRoute,
 }
