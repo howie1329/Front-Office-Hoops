@@ -47,8 +47,8 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
-  CardTitle,
 } from "@workspace/ui/components/card"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
@@ -121,6 +121,7 @@ function NumberField({
         max={max}
         step={step}
         value={value}
+        className="h-9 px-3 text-sm md:text-sm"
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </div>
@@ -205,21 +206,43 @@ function Section({
   title,
   description,
   children,
+  alwaysOpen = false,
 }: {
   title: string
   description: string
   children: React.ReactNode
+  alwaysOpen?: boolean
 }) {
+  if (alwaysOpen) {
+    return (
+      <section className="grid gap-4 px-5 py-5">
+        <div>
+          <h3 className="text-base font-semibold">{title}</h3>
+          <p className="mt-1 text-sm leading-5 text-[#5f6470]">{description}</p>
+        </div>
+        {children}
+      </section>
+    )
+  }
+
   return (
-    <section className="grid gap-4 border-b border-border pb-5 last:border-b-0 last:pb-0">
-      <div>
-        <h2 className="text-sm font-medium">{title}</h2>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          {description}
-        </p>
-      </div>
-      {children}
-    </section>
+    <details className="group border-t border-[#e5e7eb]">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 transition-colors outline-none hover:bg-[#f6f7f9] focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:ring-inset [&::-webkit-details-marker]:hidden">
+        <span>
+          <span className="block text-sm font-semibold">{title}</span>
+          <span className="mt-0.5 block text-xs leading-5 text-[#5f6470]">
+            {description}
+          </span>
+        </span>
+        <span
+          aria-hidden="true"
+          className="shrink-0 text-lg leading-none text-[#5f6470] transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
+        >
+          ⌄
+        </span>
+      </summary>
+      <div className="px-5 pt-2 pb-5">{children}</div>
+    </details>
   )
 }
 
@@ -455,50 +478,79 @@ function PlayerGenerationLabPage() {
   })
 
   return (
-    <main className="min-h-svh bg-background px-4 py-5 text-foreground sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5">
-        <header className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <Link to="/developer-labs" className="hover:text-foreground">
+    <main className="min-h-svh bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8 lg:py-8">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6">
+        <header className="flex flex-col gap-5 border-b border-[#e5e7eb] pb-7 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-[#5f6470]">
+              <Link
+                to="/developer-labs"
+                className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:ring-offset-2 focus-visible:outline-none"
+              >
                 Developer Labs
               </Link>
               <span aria-hidden="true">/</span>
-              <span>Player Generation</span>
+              <span>Player generation</span>
               <Badge variant="outline">Developer only</Badge>
             </div>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-balance">
+            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.025em] text-balance">
               Player generation lab
             </h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+            <p className="mt-2 max-w-2xl text-base leading-7 text-pretty text-[#5f6470]">
               Change the generator assumptions, run a reproducible sample, and
               inspect how each completed profile resolves into positions and
               archetypes.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" asChild className="h-10 px-3 text-sm">
               <Link to="/developer-labs/team-assembly">Team assembly lab</Link>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleReset}>
+            <Button
+              variant="outline"
+              className="h-10 px-3 text-sm"
+              onClick={handleReset}
+            >
               Reset defaults
             </Button>
-            <Button variant="outline" size="sm" asChild>
+            <Button variant="outline" asChild className="h-10 px-3 text-sm">
               <Link to="/developer-labs">All labs</Link>
             </Button>
           </div>
         </header>
 
-        <div className="grid items-start gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
-          <Card className="xl:sticky xl:top-4">
-            <CardHeader>
-              <CardTitle>Run configuration</CardTitle>
-              <CardDescription>
-                Every control is included in the exported report.
-              </CardDescription>
+        <div className="grid items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <Card className="gap-0 overflow-hidden py-0 ring-[#e5e7eb] xl:sticky xl:top-4 xl:h-[calc(100svh-13rem)] xl:min-h-[500px]">
+            <CardHeader className="border-b border-[#e5e7eb] px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold">Run configuration</h2>
+                  <CardDescription className="mt-1 text-sm">
+                    Every control is included in the export.
+                  </CardDescription>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={
+                    isDirty && results.length
+                      ? "border-[#3157d5]/20 bg-[#eef2ff] text-[#3157d5]"
+                      : "text-[#5f6470]"
+                  }
+                >
+                  {results.length
+                    ? isDirty
+                      ? "Settings changed"
+                      : "Settings current"
+                    : "Ready to run"}
+                </Badge>
+              </div>
             </CardHeader>
-            <CardContent className="grid gap-5">
-              <Section title="Run" description="Seed and sample shape">
+            <CardContent className="min-h-0 flex-1 overflow-y-auto p-0">
+              <Section
+                title="Run"
+                description="Seed and sample shape"
+                alwaysOpen
+              >
                 <div className="grid gap-3">
                   <div className="grid gap-1.5">
                     <Label htmlFor="lab-population-preset">
@@ -537,6 +589,7 @@ function PlayerGenerationLabPage() {
                     <Label htmlFor="lab-seed">Seed</Label>
                     <Input
                       id="lab-seed"
+                      className="h-9 px-3 text-sm md:text-sm"
                       value={seed}
                       onChange={(event) => {
                         setSeed(event.target.value)
@@ -549,6 +602,12 @@ function PlayerGenerationLabPage() {
                       type="button"
                       size="sm"
                       variant={mode === "batch" ? "default" : "outline"}
+                      aria-pressed={mode === "batch"}
+                      className={
+                        mode === "batch"
+                          ? "h-10 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0]"
+                          : "h-10 text-sm"
+                      }
                       onClick={() => {
                         setMode("batch")
                         setIsDirty(true)
@@ -560,6 +619,12 @@ function PlayerGenerationLabPage() {
                       type="button"
                       size="sm"
                       variant={mode === "single" ? "default" : "outline"}
+                      aria-pressed={mode === "single"}
+                      className={
+                        mode === "single"
+                          ? "h-10 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0]"
+                          : "h-10 text-sm"
+                      }
                       onClick={() => {
                         setMode("single")
                         setIsDirty(true)
@@ -578,6 +643,11 @@ function PlayerGenerationLabPage() {
                           identityMode === "generated" ? "default" : "outline"
                         }
                         aria-pressed={identityMode === "generated"}
+                        className={
+                          identityMode === "generated"
+                            ? "h-10 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0]"
+                            : "h-10 text-sm"
+                        }
                         onClick={() => {
                           setIdentityMode("generated")
                           setIsDirty(true)
@@ -591,13 +661,19 @@ function PlayerGenerationLabPage() {
                         variant={
                           identityMode === "none" ? "default" : "outline"
                         }
+                        aria-label="Numbered placeholders"
                         aria-pressed={identityMode === "none"}
+                        className={
+                          identityMode === "none"
+                            ? "h-10 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0]"
+                            : "h-10 text-sm"
+                        }
                         onClick={() => {
                           setIdentityMode("none")
                           setIsDirty(true)
                         }}
                       >
-                        Numbered placeholders
+                        Placeholders
                       </Button>
                     </div>
                     <p className="text-xs leading-5 text-muted-foreground">
@@ -1107,7 +1183,7 @@ function PlayerGenerationLabPage() {
 
               {errors.length > 0 ? (
                 <div
-                  className="grid gap-1 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive"
+                  className="mx-5 mb-5 grid gap-1 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive"
                   role="alert"
                 >
                   {errors.map((error) => (
@@ -1115,23 +1191,28 @@ function PlayerGenerationLabPage() {
                   ))}
                 </div>
               ) : null}
-
+            </CardContent>
+            <CardFooter className="flex-col items-stretch gap-2 border-t border-[#e5e7eb] bg-[#f6f7f9] px-5 py-4">
               <Button
+                className="h-11 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0] focus-visible:border-[#3157d5] focus-visible:ring-[#3157d5]/30"
                 disabled={errors.length > 0 || !seed.trim()}
                 onClick={handleGenerate}
               >
                 Generate {mode === "batch" ? `${count} players` : "player"}
               </Button>
-            </CardContent>
+              <p className="text-center text-xs leading-5 text-[#5f6470]">
+                Deterministic from the visible seed and settings.
+              </p>
+            </CardFooter>
           </Card>
 
           <section className="grid min-w-0 gap-5" aria-live="polite">
-            <Card>
-              <CardHeader>
+            <Card className="gap-0 py-0 ring-[#e5e7eb]">
+              <CardHeader className="border-b border-[#e5e7eb] px-5 py-4 sm:px-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <CardTitle>Evidence</CardTitle>
-                    <CardDescription>
+                    <h2 className="text-lg font-semibold">Evidence</h2>
+                    <CardDescription className="mt-1 text-sm">
                       {results.length
                         ? `${results.length} deterministic result${results.length === 1 ? "" : "s"} from “${seed}”.`
                         : "Run the generator to inspect a profile or population."}
@@ -1143,7 +1224,7 @@ function PlayerGenerationLabPage() {
                     ) : null}
                     <Button
                       variant="outline"
-                      size="sm"
+                      className="h-10 px-3 text-sm"
                       disabled={!results.length}
                       onClick={handleDownload}
                     >
@@ -1152,10 +1233,10 @@ function PlayerGenerationLabPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="grid gap-5">
+              <CardContent className="grid gap-6 px-5 py-5 sm:px-6 sm:py-6">
                 {results.length ? (
                   <>
-                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid overflow-hidden rounded-lg bg-[#f6f7f9] sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
                       {[
                         ["Players", summary.count],
                         [
@@ -1173,14 +1254,11 @@ function PlayerGenerationLabPage() {
                           `${Math.round(summary.traitRate * 100)}%`,
                         ],
                       ].map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="rounded-md border border-border bg-muted/30 px-3 py-2"
-                        >
-                          <p className="text-xs text-muted-foreground">
+                        <div key={label} className="px-4 py-3">
+                          <p className="text-xs font-medium text-[#5f6470]">
                             {label}
                           </p>
-                          <p className="mt-1 text-lg font-semibold tabular-nums">
+                          <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums">
                             {value}
                           </p>
                         </div>
@@ -1190,16 +1268,16 @@ function PlayerGenerationLabPage() {
                       <div className="grid gap-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <h2 className="text-sm font-medium">
-                              Distribution
-                            </h2>
-                            <p className="text-xs text-muted-foreground">
+                            <h3 className="text-base font-semibold">
+                              {metric.label} distribution
+                            </h3>
+                            <p className="mt-1 text-sm text-[#5f6470]">
                               Developer diagnostic; not a player overall.
                             </p>
                           </div>
                           <select
                             aria-label="Histogram metric"
-                            className="h-7 rounded-md border border-input bg-input/20 px-2 text-xs"
+                            className="h-9 rounded-md border border-input bg-input/20 px-3 text-sm outline-none focus-visible:border-[#3157d5] focus-visible:ring-2 focus-visible:ring-[#3157d5]/30"
                             value={metricKey}
                             onChange={(event) =>
                               setMetricKey(event.target.value as LabMetricKey)
@@ -1225,7 +1303,7 @@ function PlayerGenerationLabPage() {
                                 title={`${bucket.label}: ${bucket.count}`}
                               >
                                 <div
-                                  className="w-full rounded-t-sm bg-primary/75 transition-[height] duration-200 ease-out"
+                                  className="w-full rounded-t-sm bg-[#3157d5] transition-[height] duration-200 ease-out motion-reduce:transition-none"
                                   style={{
                                     height: `${Math.max(4, (bucket.count / max) * 100)}%`,
                                   }}
@@ -1244,9 +1322,9 @@ function PlayerGenerationLabPage() {
                         </div>
                       </div>
                       <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
-                        <h2 className="text-sm font-medium">
+                        <h3 className="text-base font-semibold">
                           Latent talent tiers
-                        </h2>
+                        </h3>
                         {Object.entries(summary.tierCounts).map(
                           ([tier, value]) => (
                             <div
@@ -1275,7 +1353,7 @@ function PlayerGenerationLabPage() {
                         formatLabel={formatRoleLabel}
                       />
                       <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
-                        <h2 className="text-sm font-medium">Role confidence</h2>
+                        <h3 className="text-sm font-medium">Role confidence</h3>
                         <Detail
                           label="Secondary position"
                           value={`${Math.round(summary.secondaryPositionRate * 100)}%`}
@@ -1296,13 +1374,21 @@ function PlayerGenerationLabPage() {
                     </div>
                   </>
                 ) : (
-                  <div className="grid min-h-64 place-content-center gap-2 border border-dashed border-border px-6 text-center">
-                    <p className="text-sm font-medium">No run yet</p>
-                    <p className="mx-auto max-w-sm text-xs leading-5 text-muted-foreground">
-                      Adjust the assumptions on the left, then generate a
-                      reproducible sample. The result table and diagnostics will
-                      appear here.
+                  <div className="grid min-h-[360px] place-content-center gap-3 rounded-lg bg-[#f6f7f9] px-6 text-center">
+                    <p className="text-lg font-semibold">No run yet</p>
+                    <p className="mx-auto max-w-md text-base leading-7 text-pretty text-[#5f6470]">
+                      Review the visible run settings, then generate a
+                      reproducible sample. Population evidence and player
+                      diagnostics will appear here.
                     </p>
+                    <div className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm font-medium text-[#5f6470]">
+                      <span className="tabular-nums">Seed · {seed || "—"}</span>
+                      <span>
+                        {mode === "batch"
+                          ? `${count} players`
+                          : `Sample ${sampleIndex}`}
+                      </span>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1313,15 +1399,15 @@ function PlayerGenerationLabPage() {
             ) : null}
 
             {results.length && mode === "batch" ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Generated players</CardTitle>
-                  <CardDescription>
+              <Card className="gap-0 py-0 ring-[#e5e7eb]">
+                <CardHeader className="border-b border-[#e5e7eb] px-5 py-4 sm:px-6">
+                  <h2 className="text-lg font-semibold">Generated players</h2>
+                  <CardDescription className="mt-1 text-sm">
                     Click a row to inspect raw and final skill values.
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <Table>
+                <CardContent className="overflow-x-auto p-0">
+                  <Table className="min-w-[1050px]">
                     <TableHeader>
                       {table.getHeaderGroups().map((headerGroup) => (
                         <TableRow key={headerGroup.id}>
@@ -1330,7 +1416,7 @@ function PlayerGenerationLabPage() {
                               {header.isPlaceholder ? null : (
                                 <button
                                   type="button"
-                                  className="font-medium hover:text-primary"
+                                  className="rounded-sm font-medium hover:text-[#3157d5] focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:ring-offset-2 focus-visible:outline-none"
                                   onClick={header.column.getToggleSortingHandler()}
                                 >
                                   {flexRender(
@@ -1356,7 +1442,12 @@ function PlayerGenerationLabPage() {
                         <TableRow
                           key={row.id}
                           tabIndex={0}
-                          className="cursor-pointer"
+                          aria-selected={selectedResult === row.original}
+                          className={
+                            selectedResult === row.original
+                              ? "cursor-pointer bg-[#eef2ff] hover:bg-[#eef2ff] focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:outline-none focus-visible:ring-inset"
+                              : "cursor-pointer hover:bg-[#f6f7f9] focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:outline-none focus-visible:ring-inset"
+                          }
                           onClick={() => setSelectedResult(row.original)}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
@@ -1395,20 +1486,24 @@ function PlayerDetail({ result }: { result: PlayerGenerationResult }) {
   const { player, diagnostics } = result
   const sampleIndex = getLabPlayerIndex(result)
   return (
-    <Card>
-      <CardHeader>
+    <Card className="gap-0 py-0 ring-[#e5e7eb]">
+      <CardHeader className="border-b border-[#e5e7eb] px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>{getLabPlayerDisplayName(result)}</CardTitle>
-            <CardDescription>
+            <h2 className="text-lg font-semibold">
+              {getLabPlayerDisplayName(result)}
+            </h2>
+            <CardDescription className="mt-1 text-sm">
               Sample {String(sampleIndex).padStart(3, "0")} · {player.age} years
               old · {diagnostics.talentTier} talent tier
             </CardDescription>
           </div>
-          <Badge>{diagnostics.latentTalent} latent talent</Badge>
+          <Badge className="bg-[#eef2ff] text-[#3157d5]">
+            {diagnostics.latentTalent} latent talent
+          </Badge>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+      <CardContent className="grid gap-6 px-5 py-5 sm:px-6 md:grid-cols-2 xl:grid-cols-5">
         <DetailGroup title="Physical">
           <Detail
             label="Height"
@@ -1540,7 +1635,7 @@ function DetailGroup({
 }) {
   return (
     <div className="grid content-start gap-2">
-      <h2 className="text-sm font-medium">{title}</h2>
+      <h3 className="text-sm font-medium">{title}</h3>
       <div className="grid gap-1.5">{children}</div>
     </div>
   )
@@ -1566,7 +1661,7 @@ function RoleSummary({
 }) {
   return (
     <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
-      <h2 className="text-sm font-medium">{title}</h2>
+      <h3 className="text-sm font-medium">{title}</h3>
       {Object.entries(values)
         .sort(([, left], [, right]) => right - left)
         .map(([value, count]) => (
