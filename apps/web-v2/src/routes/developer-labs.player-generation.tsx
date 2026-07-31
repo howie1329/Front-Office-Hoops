@@ -218,7 +218,9 @@ function Section({
       <section className="grid gap-4 px-5 py-5">
         <div>
           <h3 className="text-base font-semibold">{title}</h3>
-          <p className="mt-1 text-sm leading-5 text-[#5f6470]">{description}</p>
+          <p className="mt-1 text-sm leading-5 text-muted-foreground">
+            {description}
+          </p>
         </div>
         {children}
       </section>
@@ -226,17 +228,17 @@ function Section({
   }
 
   return (
-    <details className="group border-t border-[#e5e7eb]">
-      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 transition-colors outline-none hover:bg-[#f6f7f9] focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:ring-inset [&::-webkit-details-marker]:hidden">
+    <details className="group border-t border-border">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 transition-colors outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset motion-reduce:transition-none [&::-webkit-details-marker]:hidden">
         <span>
           <span className="block text-sm font-semibold">{title}</span>
-          <span className="mt-0.5 block text-xs leading-5 text-[#5f6470]">
+          <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
             {description}
           </span>
         </span>
         <span
           aria-hidden="true"
-          className="shrink-0 text-lg leading-none text-[#5f6470] transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
+          className="shrink-0 text-lg leading-none text-muted-foreground transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
         >
           ⌄
         </span>
@@ -478,50 +480,72 @@ function PlayerGenerationLabPage() {
   })
 
   return (
-    <main className="min-h-svh bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8 lg:py-8">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6">
-        <header className="flex flex-col gap-5 border-b border-[#e5e7eb] pb-7 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-[#5f6470]">
-              <Link
-                to="/developer-labs"
-                className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:ring-offset-2 focus-visible:outline-none"
-              >
-                Developer Labs
-              </Link>
-              <span aria-hidden="true">/</span>
-              <span>Player generation</span>
-              <Badge variant="outline">Developer only</Badge>
+    <main className="min-h-svh bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8 lg:py-10">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-8">
+        <header className="border-b border-border pb-7">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <Link
+                  to="/developer-labs"
+                  className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none"
+                >
+                  Developer Labs
+                </Link>
+                <span aria-hidden="true">/</span>
+                <span>Player generation</span>
+                <Badge variant="outline" className="font-medium">
+                  Developer only
+                </Badge>
+              </div>
+              <h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-balance">
+                Player generation lab
+              </h1>
+              <p className="mt-2 max-w-2xl text-base leading-7 text-pretty text-muted-foreground">
+                Configure a reproducible player population, then inspect the
+                generated profiles and diagnostics that feed the league model.
+              </p>
             </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-[-0.025em] text-balance">
-              Player generation lab
-            </h1>
-            <p className="mt-2 max-w-2xl text-base leading-7 text-pretty text-[#5f6470]">
-              Change the generator assumptions, run a reproducible sample, and
-              inspect how each completed profile resolves into positions and
-              archetypes.
-            </p>
+            <nav className="flex flex-wrap gap-2" aria-label="Lab actions">
+              <Button variant="outline" asChild className="h-10 px-3 text-sm">
+                <Link to="/developer-labs/team-assembly">
+                  Team assembly lab
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                className="h-10 px-3 text-sm"
+                onClick={handleReset}
+              >
+                Reset defaults
+              </Button>
+              <Button variant="outline" asChild className="h-10 px-3 text-sm">
+                <Link to="/developer-labs">All labs</Link>
+              </Button>
+            </nav>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild className="h-10 px-3 text-sm">
-              <Link to="/developer-labs/team-assembly">Team assembly lab</Link>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-10 px-3 text-sm"
-              onClick={handleReset}
-            >
-              Reset defaults
-            </Button>
-            <Button variant="outline" asChild className="h-10 px-3 text-sm">
-              <Link to="/developer-labs">All labs</Link>
-            </Button>
+
+          <div className="mt-7 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+            <span className="font-semibold tracking-[0.12em] text-foreground uppercase">
+              Workflow
+            </span>
+            <span className="rounded-md border border-border bg-muted px-2 py-1">
+              1. Configure
+            </span>
+            <span aria-hidden="true">→</span>
+            <span className="rounded-md border border-border bg-muted px-2 py-1">
+              2. Generate
+            </span>
+            <span aria-hidden="true">→</span>
+            <span className="rounded-md border border-border bg-muted px-2 py-1">
+              3. Inspect evidence
+            </span>
           </div>
         </header>
 
-        <div className="grid items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <Card className="gap-0 overflow-hidden py-0 ring-[#e5e7eb] xl:sticky xl:top-4 xl:h-[calc(100svh-13rem)] xl:min-h-[500px]">
-            <CardHeader className="border-b border-[#e5e7eb] px-5 py-4">
+        <div className="grid items-start gap-6 xl:grid-cols-[336px_minmax(0,1fr)]">
+          <Card className="gap-0 overflow-hidden py-0 ring-border xl:sticky xl:top-4 xl:h-[calc(100svh-14rem)] xl:min-h-[560px]">
+            <CardHeader className="border-b border-border bg-muted/20 px-5 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-base font-semibold">Run configuration</h2>
@@ -533,8 +557,8 @@ function PlayerGenerationLabPage() {
                   variant="outline"
                   className={
                     isDirty && results.length
-                      ? "border-[#3157d5]/20 bg-[#eef2ff] text-[#3157d5]"
-                      : "text-[#5f6470]"
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground"
                   }
                 >
                   {results.length
@@ -603,11 +627,7 @@ function PlayerGenerationLabPage() {
                       size="sm"
                       variant={mode === "batch" ? "default" : "outline"}
                       aria-pressed={mode === "batch"}
-                      className={
-                        mode === "batch"
-                          ? "h-10 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0]"
-                          : "h-10 text-sm"
-                      }
+                      className="h-10 text-sm"
                       onClick={() => {
                         setMode("batch")
                         setIsDirty(true)
@@ -620,11 +640,7 @@ function PlayerGenerationLabPage() {
                       size="sm"
                       variant={mode === "single" ? "default" : "outline"}
                       aria-pressed={mode === "single"}
-                      className={
-                        mode === "single"
-                          ? "h-10 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0]"
-                          : "h-10 text-sm"
-                      }
+                      className="h-10 text-sm"
                       onClick={() => {
                         setMode("single")
                         setIsDirty(true)
@@ -643,11 +659,7 @@ function PlayerGenerationLabPage() {
                           identityMode === "generated" ? "default" : "outline"
                         }
                         aria-pressed={identityMode === "generated"}
-                        className={
-                          identityMode === "generated"
-                            ? "h-10 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0]"
-                            : "h-10 text-sm"
-                        }
+                        className="h-10 text-sm"
                         onClick={() => {
                           setIdentityMode("generated")
                           setIsDirty(true)
@@ -663,11 +675,7 @@ function PlayerGenerationLabPage() {
                         }
                         aria-label="Numbered placeholders"
                         aria-pressed={identityMode === "none"}
-                        className={
-                          identityMode === "none"
-                            ? "h-10 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0]"
-                            : "h-10 text-sm"
-                        }
+                        className="h-10 text-sm"
                         onClick={() => {
                           setIdentityMode("none")
                           setIsDirty(true)
@@ -1192,23 +1200,23 @@ function PlayerGenerationLabPage() {
                 </div>
               ) : null}
             </CardContent>
-            <CardFooter className="flex-col items-stretch gap-2 border-t border-[#e5e7eb] bg-[#f6f7f9] px-5 py-4">
+            <CardFooter className="flex-col items-stretch gap-2 border-t border-border bg-muted/40 px-5 py-4">
               <Button
-                className="h-11 bg-[#3157d5] text-sm text-white hover:bg-[#294bc0] focus-visible:border-[#3157d5] focus-visible:ring-[#3157d5]/30"
+                className="h-11 text-sm"
                 disabled={errors.length > 0 || !seed.trim()}
                 onClick={handleGenerate}
               >
                 Generate {mode === "batch" ? `${count} players` : "player"}
               </Button>
-              <p className="text-center text-xs leading-5 text-[#5f6470]">
+              <p className="text-center text-xs leading-5 text-muted-foreground">
                 Deterministic from the visible seed and settings.
               </p>
             </CardFooter>
           </Card>
 
           <section className="grid min-w-0 gap-5" aria-live="polite">
-            <Card className="gap-0 py-0 ring-[#e5e7eb]">
-              <CardHeader className="border-b border-[#e5e7eb] px-5 py-4 sm:px-6">
+            <Card className="gap-0 py-0 ring-border">
+              <CardHeader className="border-b border-border px-5 py-4 sm:px-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold">Evidence</h2>
@@ -1219,6 +1227,14 @@ function PlayerGenerationLabPage() {
                     </CardDescription>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className="hidden font-medium sm:inline-flex"
+                    >
+                      {mode === "batch"
+                        ? `${results.length || count} profiles`
+                        : `Single · sample ${sampleIndex}`}
+                    </Badge>
                     {isDirty && results.length ? (
                       <Badge variant="outline">Settings changed</Badge>
                     ) : null}
@@ -1235,153 +1251,230 @@ function PlayerGenerationLabPage() {
               </CardHeader>
               <CardContent className="grid gap-6 px-5 py-5 sm:px-6 sm:py-6">
                 {results.length ? (
-                  <>
-                    <div className="grid overflow-hidden rounded-lg bg-[#f6f7f9] sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
-                      {[
-                        ["Players", summary.count],
-                        [
-                          "Avg current ability",
-                          summary.averageCurrentAbility.toFixed(1),
-                        ],
-                        ["Avg potential", summary.averagePotential.toFixed(1)],
-                        [
-                          "Avg potential gap",
-                          summary.averagePotentialGap.toFixed(1),
-                        ],
-                        ["Avg latent talent", summary.averageTalent.toFixed(1)],
-                        [
-                          "With traits",
-                          `${Math.round(summary.traitRate * 100)}%`,
-                        ],
-                      ].map(([label, value]) => (
-                        <div key={label} className="px-4 py-3">
-                          <p className="text-xs font-medium text-[#5f6470]">
-                            {label}
-                          </p>
-                          <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums">
-                            {value}
-                          </p>
+                  mode === "single" && selectedResult ? (
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+                      <div className="rounded-lg border border-border bg-muted/20 p-4">
+                        <p className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                          Selected profile
+                        </p>
+                        <h3 className="mt-2 text-2xl font-semibold tracking-[-0.025em]">
+                          {getLabPlayerDisplayName(selectedResult)}
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Sample{" "}
+                          {String(getLabPlayerIndex(selectedResult)).padStart(
+                            3,
+                            "0"
+                          )}{" "}
+                          · {selectedResult.player.age} years old ·{" "}
+                          {selectedResult.diagnostics.talentTier} talent tier
+                        </p>
+                        <div className="mt-5 grid gap-x-5 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-1">
+                          <Detail
+                            label="Primary position"
+                            value={
+                              selectedResult.player.profile.role.primaryPosition
+                            }
+                          />
+                          <Detail
+                            label="Primary archetype"
+                            value={formatRoleLabel(
+                              selectedResult.player.profile.role
+                                .primaryArchetype
+                            )}
+                          />
+                          <Detail
+                            label="Current ability"
+                            value={selectedResult.diagnostics.currentAbility}
+                          />
+                          <Detail
+                            label="Potential"
+                            value={
+                              selectedResult.player.profile.development
+                                .potential
+                            }
+                          />
                         </div>
-                      ))}
+                        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                          Full profile, role classification, and raw skill
+                          values are available in the inspector below.
+                        </p>
+                      </div>
+                      <div className="grid content-start gap-2 rounded-lg border border-border bg-background p-4">
+                        <h3 className="text-sm font-semibold">Run snapshot</h3>
+                        <Detail label="Seed" value={seed || "—"} />
+                        <Detail label="Preset" value={presetId} />
+                        <Detail
+                          label="Identity"
+                          value={
+                            identityMode === "generated"
+                              ? "Generated names"
+                              : "Placeholders"
+                          }
+                        />
+                        <Detail
+                          label="Diagnostic metric"
+                          value={metric.label}
+                        />
+                      </div>
                     </div>
-                    <div className="grid gap-3 lg:grid-cols-[1fr_240px]">
-                      <div className="grid gap-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <h3 className="text-base font-semibold">
-                              {metric.label} distribution
-                            </h3>
-                            <p className="mt-1 text-sm text-[#5f6470]">
-                              Developer diagnostic; not a player overall.
+                  ) : (
+                    <>
+                      <div className="grid overflow-hidden rounded-lg border border-border bg-muted/40 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+                        {[
+                          ["Players", summary.count],
+                          [
+                            "Avg current ability",
+                            summary.averageCurrentAbility.toFixed(1),
+                          ],
+                          [
+                            "Avg potential",
+                            summary.averagePotential.toFixed(1),
+                          ],
+                          [
+                            "Avg potential gap",
+                            summary.averagePotentialGap.toFixed(1),
+                          ],
+                          [
+                            "Avg latent talent",
+                            summary.averageTalent.toFixed(1),
+                          ],
+                          [
+                            "With traits",
+                            `${Math.round(summary.traitRate * 100)}%`,
+                          ],
+                        ].map(([label, value]) => (
+                          <div key={label} className="px-4 py-3">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {label}
+                            </p>
+                            <p className="mt-1 text-xl font-semibold tracking-tight tabular-nums">
+                              {value}
                             </p>
                           </div>
-                          <select
-                            aria-label="Histogram metric"
-                            className="h-9 rounded-md border border-input bg-input/20 px-3 text-sm outline-none focus-visible:border-[#3157d5] focus-visible:ring-2 focus-visible:ring-[#3157d5]/30"
-                            value={metricKey}
-                            onChange={(event) =>
-                              setMetricKey(event.target.value as LabMetricKey)
-                            }
-                          >
-                            {LAB_METRICS.map((option) => (
-                              <option key={option.key} value={option.key}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex h-32 items-end gap-1 border-b border-l border-border px-2 pt-4 pb-2">
-                          {histogram.map((bucket) => {
-                            const max = Math.max(
-                              ...histogram.map((item) => item.count),
-                              1
-                            )
-                            return (
-                              <div
-                                key={bucket.label}
-                                className="group relative flex h-full flex-1 items-end"
-                                title={`${bucket.label}: ${bucket.count}`}
-                              >
+                        ))}
+                      </div>
+                      <div className="grid gap-3 lg:grid-cols-[1fr_240px]">
+                        <div className="grid gap-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <h3 className="text-base font-semibold">
+                                {metric.label} distribution
+                              </h3>
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                Developer diagnostic; not a player overall.
+                              </p>
+                            </div>
+                            <select
+                              aria-label="Histogram metric"
+                              className="h-9 rounded-md border border-input bg-input/20 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                              value={metricKey}
+                              onChange={(event) =>
+                                setMetricKey(event.target.value as LabMetricKey)
+                              }
+                            >
+                              {LAB_METRICS.map((option) => (
+                                <option key={option.key} value={option.key}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex h-32 items-end gap-1 border-b border-l border-border px-2 pt-4 pb-2">
+                            {histogram.map((bucket) => {
+                              const max = Math.max(
+                                ...histogram.map((item) => item.count),
+                                1
+                              )
+                              return (
                                 <div
-                                  className="w-full rounded-t-sm bg-[#3157d5] transition-[height] duration-200 ease-out motion-reduce:transition-none"
-                                  style={{
-                                    height: `${Math.max(4, (bucket.count / max) * 100)}%`,
-                                  }}
-                                />
+                                  key={bucket.label}
+                                  className="group relative flex h-full flex-1 items-end"
+                                  title={`${bucket.label}: ${bucket.count}`}
+                                >
+                                  <div
+                                    className="w-full rounded-t-sm bg-foreground transition-[height] duration-200 ease-out motion-reduce:transition-none"
+                                    style={{
+                                      height: `${Math.max(4, (bucket.count / max) * 100)}%`,
+                                    }}
+                                  />
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div className="grid grid-cols-4 text-[0.625rem] text-muted-foreground">
+                            <span>{histogram[0]?.label}</span>
+                            <span />
+                            <span />
+                            <span className="text-right">
+                              {histogram.at(-1)?.label}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
+                          <h3 className="text-base font-semibold">
+                            Latent talent tiers
+                          </h3>
+                          {Object.entries(summary.tierCounts).map(
+                            ([tier, value]) => (
+                              <div
+                                key={tier}
+                                className="flex items-center justify-between gap-3 text-xs"
+                              >
+                                <span className="text-muted-foreground">
+                                  {tier}
+                                </span>
+                                <span className="font-medium tabular-nums">
+                                  {value}
+                                </span>
                               </div>
                             )
-                          })}
-                        </div>
-                        <div className="grid grid-cols-4 text-[0.625rem] text-muted-foreground">
-                          <span>{histogram[0]?.label}</span>
-                          <span />
-                          <span />
-                          <span className="text-right">
-                            {histogram.at(-1)?.label}
-                          </span>
+                          )}
                         </div>
                       </div>
-                      <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
-                        <h3 className="text-base font-semibold">
-                          Latent talent tiers
-                        </h3>
-                        {Object.entries(summary.tierCounts).map(
-                          ([tier, value]) => (
-                            <div
-                              key={tier}
-                              className="flex items-center justify-between gap-3 text-xs"
-                            >
-                              <span className="text-muted-foreground">
-                                {tier}
-                              </span>
-                              <span className="font-medium tabular-nums">
-                                {value}
-                              </span>
-                            </div>
-                          )
-                        )}
+                      <div className="grid gap-3 lg:grid-cols-3">
+                        <RoleSummary
+                          title="Primary positions"
+                          values={summary.primaryPositionCounts}
+                        />
+                        <RoleSummary
+                          title="Primary archetypes"
+                          values={summary.primaryArchetypeCounts}
+                          formatLabel={formatRoleLabel}
+                        />
+                        <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
+                          <h3 className="text-sm font-medium">
+                            Role confidence
+                          </h3>
+                          <Detail
+                            label="Secondary position"
+                            value={`${Math.round(summary.secondaryPositionRate * 100)}%`}
+                          />
+                          <Detail
+                            label="Secondary archetype"
+                            value={`${Math.round(summary.secondaryArchetypeRate * 100)}%`}
+                          />
+                          <Detail
+                            label="Low position confidence"
+                            value={`${Math.round(summary.lowPositionConfidenceRate * 100)}%`}
+                          />
+                          <Detail
+                            label="Low archetype confidence"
+                            value={`${Math.round(summary.lowArchetypeConfidenceRate * 100)}%`}
+                          />
+                        </div>
                       </div>
-                    </div>
-                    <div className="grid gap-3 lg:grid-cols-3">
-                      <RoleSummary
-                        title="Primary positions"
-                        values={summary.primaryPositionCounts}
-                      />
-                      <RoleSummary
-                        title="Primary archetypes"
-                        values={summary.primaryArchetypeCounts}
-                        formatLabel={formatRoleLabel}
-                      />
-                      <div className="grid content-start gap-2 rounded-md border border-border bg-muted/20 p-3">
-                        <h3 className="text-sm font-medium">Role confidence</h3>
-                        <Detail
-                          label="Secondary position"
-                          value={`${Math.round(summary.secondaryPositionRate * 100)}%`}
-                        />
-                        <Detail
-                          label="Secondary archetype"
-                          value={`${Math.round(summary.secondaryArchetypeRate * 100)}%`}
-                        />
-                        <Detail
-                          label="Low position confidence"
-                          value={`${Math.round(summary.lowPositionConfidenceRate * 100)}%`}
-                        />
-                        <Detail
-                          label="Low archetype confidence"
-                          value={`${Math.round(summary.lowArchetypeConfidenceRate * 100)}%`}
-                        />
-                      </div>
-                    </div>
-                  </>
+                    </>
+                  )
                 ) : (
-                  <div className="grid min-h-[360px] place-content-center gap-3 rounded-lg bg-[#f6f7f9] px-6 text-center">
+                  <div className="grid min-h-[360px] place-content-center gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-6 text-center">
                     <p className="text-lg font-semibold">No run yet</p>
-                    <p className="mx-auto max-w-md text-base leading-7 text-pretty text-[#5f6470]">
+                    <p className="mx-auto max-w-md text-base leading-7 text-pretty text-muted-foreground">
                       Review the visible run settings, then generate a
                       reproducible sample. Population evidence and player
                       diagnostics will appear here.
                     </p>
-                    <div className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm font-medium text-[#5f6470]">
+                    <div className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm font-medium text-muted-foreground">
                       <span className="tabular-nums">Seed · {seed || "—"}</span>
                       <span>
                         {mode === "batch"
@@ -1399,8 +1492,8 @@ function PlayerGenerationLabPage() {
             ) : null}
 
             {results.length && mode === "batch" ? (
-              <Card className="gap-0 py-0 ring-[#e5e7eb]">
-                <CardHeader className="border-b border-[#e5e7eb] px-5 py-4 sm:px-6">
+              <Card className="gap-0 py-0 ring-border">
+                <CardHeader className="border-b border-border px-5 py-4 sm:px-6">
                   <h2 className="text-lg font-semibold">Generated players</h2>
                   <CardDescription className="mt-1 text-sm">
                     Click a row to inspect raw and final skill values.
@@ -1416,7 +1509,7 @@ function PlayerGenerationLabPage() {
                               {header.isPlaceholder ? null : (
                                 <button
                                   type="button"
-                                  className="rounded-sm font-medium hover:text-[#3157d5] focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:ring-offset-2 focus-visible:outline-none"
+                                  className="rounded-sm font-medium hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                                   onClick={header.column.getToggleSortingHandler()}
                                 >
                                   {flexRender(
@@ -1445,8 +1538,8 @@ function PlayerGenerationLabPage() {
                           aria-selected={selectedResult === row.original}
                           className={
                             selectedResult === row.original
-                              ? "cursor-pointer bg-[#eef2ff] hover:bg-[#eef2ff] focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:outline-none focus-visible:ring-inset"
-                              : "cursor-pointer hover:bg-[#f6f7f9] focus-visible:ring-2 focus-visible:ring-[#3157d5] focus-visible:outline-none focus-visible:ring-inset"
+                              ? "cursor-pointer bg-muted hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+                              : "cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
                           }
                           onClick={() => setSelectedResult(row.original)}
                           onKeyDown={(event) => {
@@ -1486,8 +1579,8 @@ function PlayerDetail({ result }: { result: PlayerGenerationResult }) {
   const { player, diagnostics } = result
   const sampleIndex = getLabPlayerIndex(result)
   return (
-    <Card className="gap-0 py-0 ring-[#e5e7eb]">
-      <CardHeader className="border-b border-[#e5e7eb] px-5 py-4 sm:px-6">
+    <Card className="gap-0 py-0 ring-border">
+      <CardHeader className="border-b border-border bg-muted/20 px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">
@@ -1498,7 +1591,7 @@ function PlayerDetail({ result }: { result: PlayerGenerationResult }) {
               old · {diagnostics.talentTier} talent tier
             </CardDescription>
           </div>
-          <Badge className="bg-[#eef2ff] text-[#3157d5]">
+          <Badge variant="outline" className="font-medium tabular-nums">
             {diagnostics.latentTalent} latent talent
           </Badge>
         </div>
@@ -1634,7 +1727,7 @@ function DetailGroup({
   children: React.ReactNode
 }) {
   return (
-    <div className="grid content-start gap-2">
+    <div className="grid content-start gap-2 rounded-lg border border-border bg-muted/20 p-3">
       <h3 className="text-sm font-medium">{title}</h3>
       <div className="grid gap-1.5">{children}</div>
     </div>
