@@ -4,20 +4,171 @@ import {
   createFoundationLeague,
   createPlayerContractFixture,
   createStandardPlayerGenerationConfig,
+  type GameSimulationConfig,
 } from "@workspace/domain-v2"
 
 import {
   CURRENT_SCHEMA_VERSION,
   LeagueDocumentValidationError,
   deserializeLeagueDocument,
+  gameSimulationConfigSchema,
   getLeagueDocumentJsonSchema,
   migrateLeagueDocument,
+  matchupBatchReportSchema,
   previewLeagueImport,
   playerGenerationConfigSchema,
   playerEntitySchema,
   serializeLeagueDocument,
   validateLeagueDocument,
 } from "../src"
+
+function createGameSimulationConfig(): GameSimulationConfig {
+  return {
+    version: 1,
+    presetId: "standard",
+    environment: {
+      pace: 50,
+      scoringEnvironment: 50,
+      gameVariance: 50,
+      talentSeparation: 50,
+      homeCourtAdvantage: 50,
+    },
+    offense: {
+      threePointRate: 50,
+      rimRate: 50,
+      midrangeRate: 50,
+      shotSelectionDiscipline: 50,
+      starUsage: 50,
+      ballMovement: 50,
+      isolationRate: 50,
+      transitionRate: 50,
+      offensiveRebounding: 50,
+    },
+    defense: {
+      pressure: 50,
+      helpDefense: 50,
+      switching: 50,
+      doubleTeamRate: 50,
+      turnoverPressure: 50,
+      foulDiscipline: 50,
+    },
+    rotation: {
+      adherence: 50,
+      benchUsage: 50,
+      starterWorkload: 50,
+      fatigueImpact: 50,
+    },
+    coaching: {
+      influence: 50,
+      paceInfluence: 50,
+      shotSelectionInfluence: 50,
+      defensiveInfluence: 50,
+    },
+    injuries: {
+      frequency: "off",
+      severity: "minor",
+      maxGamesOut: 6,
+      inGameInjuries: false,
+    },
+    overtime: {
+      enabled: true,
+      segmentMinutes: 5,
+      maxSegments: 6,
+    },
+  }
+}
+
+function createSchemaTeam(teamId: string) {
+  return {
+    teamId,
+    points: 0,
+    possessions: 0,
+    fieldGoalsMade: 0,
+    fieldGoalsAttempted: 0,
+    threePointersMade: 0,
+    threePointersAttempted: 0,
+    freeThrowsMade: 0,
+    freeThrowsAttempted: 0,
+    offensiveRebounds: 0,
+    defensiveRebounds: 0,
+    rebounds: 0,
+    assists: 0,
+    turnovers: 0,
+    steals: 0,
+    blocks: 0,
+    fouls: 0,
+    pace: 0,
+    offensiveEfficiency: 0,
+    shotProfile: {
+      rimAttempts: 0,
+      midrangeAttempts: 0,
+      threePointAttempts: 0,
+    },
+  }
+}
+
+function createSchemaBatchReport() {
+  const metric = {
+    count: 1,
+    mean: 0,
+    minimum: 0,
+    maximum: 0,
+    p10: 0,
+    median: 0,
+    p90: 0,
+  }
+  const result = {
+    version: 1,
+    seed: "schema-seed",
+    status: "completed" as const,
+    homeTeamId: "home",
+    awayTeamId: "away",
+    winnerTeamId: null,
+    periods: [
+      {
+        number: 1,
+        kind: "regulation" as const,
+        minutes: 12,
+        teamPoints: { home: 0, away: 0 },
+        teamPossessions: { home: 0, away: 0 },
+      },
+    ],
+    teams: {
+      home: createSchemaTeam("home"),
+      away: createSchemaTeam("away"),
+    },
+    players: {},
+    events: [],
+    diagnostics: [],
+    reconciliation: { passed: true, checks: [] },
+  }
+
+  return {
+    schema: "foh-matchup-calibration" as const,
+    version: 2 as const,
+    baseSeed: "schema-batch",
+    count: 1,
+    completed: 1,
+    failed: 0,
+    effectiveConfig: createGameSimulationConfig(),
+    metrics: { teamPoints: metric },
+    benchmark: {
+      profileId: "test-profile-v1",
+      label: "Test profile",
+      passed: true,
+      checks: {
+        teamPoints: {
+          metric: "teamPoints",
+          actual: metric,
+          target: { min: 0, max: 1 },
+          passed: true,
+        },
+      },
+    },
+    results: [result],
+    failures: [],
+  }
+}
 
 describe("league schema", () => {
   it("accepts and round-trips the foundation fixture", () => {
@@ -106,6 +257,56 @@ describe("league schema", () => {
       status: "unsupported",
       schemaVersion: 99,
     })
+  })
+
+  it("validates version-2 matchup calibration reports", () => {
+    const report = createSchemaBatchReport()
+
+    expect(
+      gameSimulationConfigSchema.safeParse(report.effectiveConfig).success
+    ).toBe(true)
+    expect(matchupBatchReportSchema.safeParse(report).success).toBe(true)
+  })
+
+  it("rejects malformed version-2 calibration report contracts", () => {
+    const report = createSchemaBatchReport()
+    const missingConfig: Record<string, unknown> = { ...report }
+    delete missingConfig.effectiveConfig
+
+    expect(matchupBatchReportSchema.safeParse(missingConfig).success).toBe(
+      false
+    )
+    expect(
+      matchupBatchReportSchema.safeParse({
+        ...report,
+        version: 1,
+      }).success
+    ).toBe(false)
+    expect(
+      matchupBatchReportSchema.safeParse({
+        ...report,
+        metrics: {
+          teamPoints: {
+            ...report.metrics.teamPoints,
+            mean: "invalid",
+          },
+        },
+      }).success
+    ).toBe(false)
+    expect(
+      matchupBatchReportSchema.safeParse({
+        ...report,
+        benchmark: {
+          ...report.benchmark,
+          checks: {
+            teamPoints: {
+              ...report.benchmark!.checks.teamPoints,
+              target: { min: 2, max: 1 },
+            },
+          },
+        },
+      }).success
+    ).toBe(false)
   })
 
   it("validates the player profile contract inside a league document", () => {

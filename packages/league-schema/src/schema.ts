@@ -195,7 +195,7 @@ export const playerEntitySchema = z.strictObject({
   profile: playerProfileSchema,
 })
 
-const gameSimulationConfigSchema = z.strictObject({
+export const gameSimulationConfigSchema = z.strictObject({
   version: z.number().int().positive(),
   presetId: z.enum(["standard", "custom"]),
   environment: z.strictObject({
@@ -318,10 +318,7 @@ const gamePeriodSchema = z.strictObject({
   kind: z.enum(["regulation", "overtime"]),
   minutes: z.number().positive(),
   teamPoints: z.record(z.string().min(1), z.number().int().nonnegative()),
-  teamPossessions: z.record(
-    z.string().min(1),
-    z.number().int().nonnegative()
-  ),
+  teamPossessions: z.record(z.string().min(1), z.number().int().nonnegative()),
 })
 
 const gamePlayerBoxScoreSchema = z.strictObject({
@@ -446,14 +443,39 @@ const matchupCalibrationMetricSchema = z.strictObject({
   p90: z.number(),
 })
 
+const matchupCalibrationTargetSchema = z
+  .strictObject({
+    min: z.number(),
+    max: z.number(),
+  })
+  .refine((target) => target.min <= target.max, {
+    message: "Calibration target minimum must not exceed its maximum.",
+  })
+
+const matchupCalibrationBenchmarkCheckSchema = z.strictObject({
+  metric: z.string().min(1),
+  actual: matchupCalibrationMetricSchema,
+  target: matchupCalibrationTargetSchema,
+  passed: z.boolean(),
+})
+
+const matchupCalibrationBenchmarkSchema = z.strictObject({
+  profileId: z.string().min(1),
+  label: z.string().min(1),
+  passed: z.boolean(),
+  checks: z.record(z.string().min(1), matchupCalibrationBenchmarkCheckSchema),
+})
+
 export const matchupBatchReportSchema = z.strictObject({
   schema: z.literal("foh-matchup-calibration"),
-  version: z.literal(1),
+  version: z.literal(2),
   baseSeed: z.string().min(1),
   count: z.number().int().positive(),
   completed: z.number().int().nonnegative(),
   failed: z.number().int().nonnegative(),
+  effectiveConfig: gameSimulationConfigSchema,
   metrics: z.record(z.string().min(1), matchupCalibrationMetricSchema),
+  benchmark: matchupCalibrationBenchmarkSchema.nullable(),
   results: z.array(gameResultSchema),
   failures: z.array(
     z.strictObject({

@@ -76,10 +76,7 @@ function createFixture(
           starters: playerIds.slice(0, 5),
           depthOrder: playerIds,
           targetMinutes: Object.fromEntries(
-            playerIds.map((playerId, index) => [
-              playerId,
-              index < 5 ? 32 : 8,
-            ])
+            playerIds.map((playerId, index) => [playerId, index < 5 ? 32 : 8])
           ),
         },
       ]
@@ -177,9 +174,9 @@ describe("simulateGameMatchup", () => {
     const diagnostics = validateGameMatchupFixture(fixture)
     const result = simulateGameMatchup(fixture)
 
-    expect(diagnostics.some((entry) => entry.code === "unavailable-starter")).toBe(
-      true
-    )
+    expect(
+      diagnostics.some((entry) => entry.code === "unavailable-starter")
+    ).toBe(true)
     expect(result.status).toBe("rejected")
     expect(result.diagnostics[0]?.message).toContain("unavailable")
   })
@@ -192,11 +189,180 @@ describe("simulateGameMatchup", () => {
       restriction: "minutes-limited",
       minutesLimit: 12,
     }
-    fixture.rotations.home!.starters = ["home-2", "home-3", "home-4", "home-5", "home-6"]
+    fixture.rotations.home!.starters = [
+      "home-2",
+      "home-3",
+      "home-4",
+      "home-5",
+      "home-6",
+    ]
 
     const result = simulateGameMatchup(fixture)
 
     expect(result.status).toBe("completed")
     expect(result.players["home-1"]?.minutes).toBeLessThanOrEqual(12)
+  })
+
+  it("matches the current single-game characterization", () => {
+    const result = simulateGameMatchup(createFixture())
+
+    expect({
+      status: result.status,
+      periods: result.periods.length,
+      home: {
+        points: result.teams.home?.points,
+        possessions: result.teams.home?.possessions,
+        fieldGoalsMade: result.teams.home?.fieldGoalsMade,
+        fieldGoalsAttempted: result.teams.home?.fieldGoalsAttempted,
+        threePointersMade: result.teams.home?.threePointersMade,
+        threePointersAttempted: result.teams.home?.threePointersAttempted,
+        freeThrowsMade: result.teams.home?.freeThrowsMade,
+        freeThrowsAttempted: result.teams.home?.freeThrowsAttempted,
+        rebounds: result.teams.home?.rebounds,
+        assists: result.teams.home?.assists,
+        turnovers: result.teams.home?.turnovers,
+        steals: result.teams.home?.steals,
+        blocks: result.teams.home?.blocks,
+        fouls: result.teams.home?.fouls,
+      },
+      away: {
+        points: result.teams.away?.points,
+        possessions: result.teams.away?.possessions,
+        fieldGoalsMade: result.teams.away?.fieldGoalsMade,
+        fieldGoalsAttempted: result.teams.away?.fieldGoalsAttempted,
+        threePointersMade: result.teams.away?.threePointersMade,
+        threePointersAttempted: result.teams.away?.threePointersAttempted,
+        freeThrowsMade: result.teams.away?.freeThrowsMade,
+        freeThrowsAttempted: result.teams.away?.freeThrowsAttempted,
+        rebounds: result.teams.away?.rebounds,
+        assists: result.teams.away?.assists,
+        turnovers: result.teams.away?.turnovers,
+        steals: result.teams.away?.steals,
+        blocks: result.teams.away?.blocks,
+        fouls: result.teams.away?.fouls,
+      },
+      topPlayer: {
+        playerId: Object.values(result.players).sort(
+          (left, right) => right.points - left.points
+        )[0]?.playerId,
+        points: Object.values(result.players).sort(
+          (left, right) => right.points - left.points
+        )[0]?.points,
+        opportunities: Object.values(result.players).sort(
+          (left, right) => right.points - left.points
+        )[0]?.opportunities,
+      },
+      reconciliation: result.reconciliation.passed,
+    }).toEqual({
+      status: "completed",
+      periods: 4,
+      home: {
+        points: 67,
+        possessions: 109,
+        fieldGoalsMade: 27,
+        fieldGoalsAttempted: 92,
+        threePointersMade: 7,
+        threePointersAttempted: 30,
+        freeThrowsMade: 6,
+        freeThrowsAttempted: 8,
+        rebounds: 69,
+        assists: 12,
+        turnovers: 13,
+        steals: 9,
+        blocks: 3,
+        fouls: 3,
+      },
+      away: {
+        points: 59,
+        possessions: 103,
+        fieldGoalsMade: 23,
+        fieldGoalsAttempted: 90,
+        threePointersMade: 8,
+        threePointersAttempted: 36,
+        freeThrowsMade: 5,
+        freeThrowsAttempted: 7,
+        rebounds: 63,
+        assists: 5,
+        turnovers: 10,
+        steals: 7,
+        blocks: 3,
+        fouls: 4,
+      },
+      topPlayer: {
+        playerId: "home-1",
+        points: 19,
+        opportunities: 31,
+      },
+      reconciliation: true,
+    })
+  })
+
+  it("preserves box-score accounting invariants", () => {
+    const result = simulateGameMatchup(createFixture())
+    const teamIds = ["home", "away"] as const
+    const playerFields = [
+      "points",
+      "fieldGoalsMade",
+      "fieldGoalsAttempted",
+      "threePointersMade",
+      "threePointersAttempted",
+      "freeThrowsMade",
+      "freeThrowsAttempted",
+      "offensiveRebounds",
+      "defensiveRebounds",
+      "rebounds",
+      "assists",
+      "turnovers",
+      "steals",
+      "blocks",
+      "fouls",
+    ] as const
+
+    expect(result.reconciliation.passed).toBe(true)
+    for (const teamId of teamIds) {
+      const team = result.teams[teamId]!
+      const players = Object.values(result.players).filter(
+        (player) => player.teamId === teamId
+      )
+      const sumPlayerField = (field: (typeof playerFields)[number]) =>
+        players.reduce((total, player) => total + player[field], 0)
+      const periodPoints = result.periods.reduce(
+        (total, period) => total + (period.teamPoints[teamId] ?? 0),
+        0
+      )
+      const shotAttempts =
+        team.shotProfile.rimAttempts +
+        team.shotProfile.midrangeAttempts +
+        team.shotProfile.threePointAttempts
+
+      expect(team.points).toBe(
+        team.fieldGoalsMade * 2 + team.threePointersMade + team.freeThrowsMade
+      )
+      expect(team.fieldGoalsMade).toBeLessThanOrEqual(team.fieldGoalsAttempted)
+      expect(team.threePointersMade).toBeLessThanOrEqual(
+        team.threePointersAttempted
+      )
+      expect(team.threePointersMade).toBeLessThanOrEqual(team.fieldGoalsMade)
+      expect(team.freeThrowsMade).toBeLessThanOrEqual(team.freeThrowsAttempted)
+      expect(team.fieldGoalsAttempted).toBe(shotAttempts)
+      expect(team.shotProfile.threePointAttempts).toBe(
+        team.threePointersAttempted
+      )
+      expect(team.rebounds).toBe(
+        team.offensiveRebounds + team.defensiveRebounds
+      )
+      expect(team.points).toBe(periodPoints)
+      for (const field of playerFields) {
+        expect(team[field]).toBe(sumPlayerField(field))
+      }
+
+      const minutes = players.reduce(
+        (total, player) => total + player.minutes,
+        0
+      )
+      const expectedMinutes =
+        result.periods.reduce((total, period) => total + period.minutes, 0) * 5
+      expect(minutes).toBeCloseTo(expectedMinutes, 0)
+    }
   })
 })
