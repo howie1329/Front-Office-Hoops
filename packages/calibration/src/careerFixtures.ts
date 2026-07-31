@@ -3,6 +3,7 @@ import type {
   CareerCohortOptions,
   CareerPopulationContext,
   CareerDevelopmentPreset,
+  CareerTimingPreset,
   CareerMinutesPreset,
   PlayerEntity,
   PlayerGenerationConfig,
@@ -71,7 +72,8 @@ export function createCareerPlayer(
   preset: CareerDevelopmentPreset = "standard",
   config?: PlayerGenerationConfig,
   curveOverrides?: Pick<CareerCohortOptions, "growthCurve" | "declineCurve">,
-  populationContext: CareerPopulationContext = "roster"
+  populationContext: CareerPopulationContext = "roster",
+  timingPreset: CareerTimingPreset = "standard"
 ): CareerFixture {
   if (!seed.trim()) throw new Error("A career fixture seed is required.")
   if (!Number.isInteger(startingAge) || startingAge < 18 || startingAge > 40) {
@@ -91,12 +93,27 @@ export function createCareerPlayer(
     },
     effectiveConfig
   )
+  const timingOffset =
+    timingPreset === "early" ? -1 : timingPreset === "late" ? 1 : 0
+  const peakAge = Math.max(
+    startingAge,
+    Math.min(45, result.player.profile.development.peakAge + timingOffset)
+  )
+  const declineStartAge = Math.max(
+    peakAge + 1,
+    Math.min(
+      50,
+      result.player.profile.development.declineStartAge + timingOffset
+    )
+  )
   const player = {
     ...result.player,
     profile: {
       ...result.player.profile,
       development: {
         ...result.player.profile.development,
+        peakAge,
+        declineStartAge,
         ...(curveOverrides?.growthCurve &&
         curveOverrides.growthCurve !== "distribution"
           ? { growthCurve: curveOverrides.growthCurve }

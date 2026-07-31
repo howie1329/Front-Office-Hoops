@@ -9,7 +9,9 @@ import {
   advancePlayerCareerYear,
   createDeterministicRandom,
   getCareerPhase,
+  resolveCareerDevelopmentSettings,
   STANDARD_CAREER_CURVE_RULES,
+  validateCareerDevelopmentSettings,
 } from "../src"
 
 function createPlayer(
@@ -203,6 +205,62 @@ describe("advancePlayerCareerYear", () => {
       result.events.some((event) => event.type === "trajectory-change")
     ).toBe(true)
     expect(result.player.profile.development.growthCurve).not.toBe("standard")
+  })
+
+  it("resolves bounded settings and preserves curve ordering", () => {
+    const settings = resolveCareerDevelopmentSettings({
+      growthRateScale: 1.25,
+      growthMultipliers: { fast: 1.5 },
+      timingPreset: "late",
+    })
+
+    expect(settings.growthRateScale).toBe(1.25)
+    expect(settings.growthMultipliers.fast).toBe(1.5)
+    expect(settings.timingPreset).toBe("late")
+    expect(validateCareerDevelopmentSettings({ growthRateScale: 4 })).toEqual([
+      "Growth rate scale must be between 0.25 and 3.",
+    ])
+    expect(
+      validateCareerDevelopmentSettings({
+        growthMultipliers: { slow: 1.2, standard: 1 },
+      })
+    ).toEqual([
+      "Growth multipliers must be ordered slow < standard < fast < elite.",
+    ])
+  })
+
+  it("applies baseline scale and records controlled growth events", () => {
+    const player = createPlayer({ age: 22 })
+    const total = (values: Record<string, number>) =>
+      Object.values(values).reduce((sum, value) => sum + value, 0)
+    const baseline = advancePlayerCareerYear({
+      player,
+      context,
+      random: createDeterministicRandom("settings-scale"),
+      rules: STANDARD_CAREER_CURVE_RULES,
+    })
+    const accelerated = advancePlayerCareerYear({
+      player,
+      context,
+      random: createDeterministicRandom("settings-scale"),
+      rules: resolveCareerDevelopmentSettings({ growthRateScale: 2 }),
+    })
+    const stalled = advancePlayerCareerYear({
+      player,
+      context,
+      random: createDeterministicRandom("settings-events"),
+      rules: resolveCareerDevelopmentSettings({
+        stallChance: 1,
+        stallMagnitude: 1,
+      }),
+    })
+
+    expect(total(accelerated.skillDeltas)).toBeGreaterThan(
+      total(baseline.skillDeltas)
+    )
+    expect(
+      stalled.events.some((event) => event.type === "development-stall")
+    ).toBe(true)
   })
 
   it("does not develop retired players", () => {

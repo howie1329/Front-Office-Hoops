@@ -3,6 +3,8 @@ import * as React from "react"
 
 import type {
   CareerCohortReport,
+  CareerDevelopmentSettings,
+  CareerResolvedSettings,
   CareerSkillTrajectory,
   CareerTimeline,
 } from "@workspace/domain-v2"
@@ -79,6 +81,7 @@ function createCohortRunOptions(
     populationContext: settings.populationContext,
     growthCurve: settings.growthCurve,
     declineCurve: settings.declineCurve,
+    settings: structuredClone(options.settings),
     retainTimelines: true,
   }
 }
@@ -222,7 +225,7 @@ function DevelopmentCohortsPage() {
     if (!bundle) return
     const payload = {
       schema: "foh-career-cohort-harness-bundle",
-      version: 3,
+      version: 4,
       runId: createRunId(options.seed),
       harnessOptions: options,
       primary: JSON.parse(serializeCareerCohortReport(bundle.primary)),
@@ -398,6 +401,9 @@ function DevelopmentCohortsPage() {
                   primary={bundle.primary}
                   comparison={bundle.comparison}
                 />
+                <CareerSettingsPanel
+                  settings={bundle.primary.resolvedSettings}
+                />
                 {bundle.comparison ? (
                   <ComparisonPanel
                     primary={bundle.primary}
@@ -437,6 +443,22 @@ function ConfigurationRail({
   onRun: () => void
   onReset: () => void
 }) {
+  const settings = options.settings ?? {}
+  const updateSettings = (next: CareerDevelopmentSettings) =>
+    onUpdate({ settings: { ...settings, ...next } })
+  const updateGrowthMultipliers = (
+    next: NonNullable<CareerDevelopmentSettings["growthMultipliers"]>
+  ) =>
+    updateSettings({
+      growthMultipliers: { ...settings.growthMultipliers, ...next },
+    })
+  const updateDeclineMultipliers = (
+    next: NonNullable<CareerDevelopmentSettings["declineMultipliers"]>
+  ) =>
+    updateSettings({
+      declineMultipliers: { ...settings.declineMultipliers, ...next },
+    })
+
   return (
     <aside className="order-2 rounded-lg border border-border bg-card xl:sticky xl:top-4 xl:order-1">
       <div className="border-b border-border px-3 py-3">
@@ -712,6 +734,219 @@ function ConfigurationRail({
           />
         </fieldset>
 
+        <details open className="group border-t border-border pt-4">
+          <summary className="cursor-pointer list-none text-xs font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30 [&::-webkit-details-marker]:hidden">
+            <span className="mr-1 text-muted-foreground transition-transform group-open:inline-block group-open:rotate-90">
+              ›
+            </span>
+            Development settings
+          </summary>
+          <p className="mt-1 text-[0.6875rem] leading-5 text-muted-foreground">
+            These controls change the resolved engine rules and are saved with
+            the report.
+          </p>
+          <div className="mt-3 grid gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <SettingsNumberField
+                id="career-growth-rate"
+                label="Growth rate"
+                value={settings.growthRateScale ?? 1}
+                min={0.25}
+                max={3}
+                step={0.05}
+                onChange={(value) => updateSettings({ growthRateScale: value })}
+              />
+              <SettingsNumberField
+                id="career-growth-noise"
+                label="Growth noise"
+                value={settings.growthNoiseScale ?? 1}
+                min={0}
+                max={3}
+                step={0.05}
+                onChange={(value) =>
+                  updateSettings({ growthNoiseScale: value })
+                }
+              />
+            </div>
+            <fieldset className="grid gap-2">
+              <legend className="text-[0.6875rem] font-medium text-muted-foreground">
+                Growth curve multipliers
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                <SettingsNumberField
+                  id="career-growth-slow"
+                  label="Slow"
+                  value={settings.growthMultipliers?.slow ?? 0.7}
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  onChange={(value) => updateGrowthMultipliers({ slow: value })}
+                />
+                <SettingsNumberField
+                  id="career-growth-standard"
+                  label="Standard"
+                  value={settings.growthMultipliers?.standard ?? 1}
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  onChange={(value) =>
+                    updateGrowthMultipliers({ standard: value })
+                  }
+                />
+                <SettingsNumberField
+                  id="career-growth-fast"
+                  label="Fast"
+                  value={settings.growthMultipliers?.fast ?? 1.3}
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  onChange={(value) => updateGrowthMultipliers({ fast: value })}
+                />
+                <SettingsNumberField
+                  id="career-growth-elite"
+                  label="Elite"
+                  value={settings.growthMultipliers?.elite ?? 1.6}
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  onChange={(value) =>
+                    updateGrowthMultipliers({ elite: value })
+                  }
+                />
+              </div>
+            </fieldset>
+            <fieldset className="grid gap-2">
+              <legend className="text-[0.6875rem] font-medium text-muted-foreground">
+                Decline curve multipliers
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                <SettingsNumberField
+                  id="career-decline-durable"
+                  label="Durable"
+                  value={settings.declineMultipliers?.durable ?? 0.7}
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  onChange={(value) =>
+                    updateDeclineMultipliers({ durable: value })
+                  }
+                />
+                <SettingsNumberField
+                  id="career-decline-standard"
+                  label="Standard"
+                  value={settings.declineMultipliers?.standard ?? 1}
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  onChange={(value) =>
+                    updateDeclineMultipliers({ standard: value })
+                  }
+                />
+                <SettingsNumberField
+                  id="career-decline-early"
+                  label="Early"
+                  value={settings.declineMultipliers?.early ?? 1.25}
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  onChange={(value) =>
+                    updateDeclineMultipliers({ early: value })
+                  }
+                />
+                <SettingsNumberField
+                  id="career-decline-steep"
+                  label="Steep"
+                  value={settings.declineMultipliers?.steep ?? 1.6}
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  onChange={(value) =>
+                    updateDeclineMultipliers({ steep: value })
+                  }
+                />
+              </div>
+            </fieldset>
+            <div className="grid grid-cols-2 gap-2">
+              <SettingsNumberField
+                id="career-stall-chance"
+                label="Stall chance"
+                value={settings.stallChance ?? 0}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(value) => updateSettings({ stallChance: value })}
+              />
+              <SettingsNumberField
+                id="career-stall-magnitude"
+                label="Stall size"
+                value={settings.stallMagnitude ?? 0}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={(value) => updateSettings({ stallMagnitude: value })}
+              />
+              <SettingsNumberField
+                id="career-surge-chance"
+                label="Surge chance"
+                value={settings.surgeChance ?? 0}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(value) => updateSettings({ surgeChance: value })}
+              />
+              <SettingsNumberField
+                id="career-surge-magnitude"
+                label="Surge size"
+                value={settings.surgeMagnitude ?? 0}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={(value) => updateSettings({ surgeMagnitude: value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <SettingsNumberField
+                id="career-growth-transition"
+                label="Growth transition"
+                value={settings.growthTransitionChance ?? 0.01}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(value) =>
+                  updateSettings({ growthTransitionChance: value })
+                }
+              />
+              <SettingsNumberField
+                id="career-decline-transition"
+                label="Decline transition"
+                value={settings.declineTransitionChance ?? 0.01}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(value) =>
+                  updateSettings({ declineTransitionChance: value })
+                }
+              />
+            </div>
+            <ContextSelect
+              id="career-timing-preset"
+              label="Timing preset"
+              value={settings.timingPreset ?? "standard"}
+              options={[
+                ["standard", "Standard timing"],
+                ["early", "Earlier peak and decline"],
+                ["late", "Later peak and decline"],
+              ]}
+              onChange={(value) =>
+                updateSettings({
+                  timingPreset:
+                    value as CareerDevelopmentSettings["timingPreset"],
+                })
+              }
+            />
+          </div>
+        </details>
+
         <details className="group rounded-md border border-border bg-muted/20 px-2.5 py-2">
           <summary className="cursor-pointer list-none text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/30">
             <span className="mr-1 text-muted-foreground transition-transform group-open:inline-block group-open:rotate-90">
@@ -802,6 +1037,42 @@ function ContextSelect({
           ))}
         </SelectContent>
       </Select>
+    </div>
+  )
+}
+
+function SettingsNumberField({
+  id,
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  id: string
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  onChange: (value: number) => void
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id} className="text-[0.6875rem]">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="h-8 text-xs tabular-nums"
+      />
     </div>
   )
 }
@@ -1235,6 +1506,67 @@ function ComparisonPanel({
           ))}
         </TableBody>
       </Table>
+    </section>
+  )
+}
+
+function CareerSettingsPanel({
+  settings,
+}: {
+  settings: CareerResolvedSettings
+}) {
+  return (
+    <section
+      className="overflow-hidden rounded-lg border border-border bg-card"
+      aria-labelledby="career-settings-heading"
+    >
+      <div className="border-b border-border px-3 py-3">
+        <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
+          Resolved engine settings
+        </p>
+        <h2 id="career-settings-heading" className="mt-1 text-sm font-semibold">
+          Reproducibility snapshot
+        </h2>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          These are the values the worker passed into the career engine for this
+          report.
+        </p>
+      </div>
+      <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4">
+        <div className="grid gap-1.5">
+          <DiagnosticRow
+            label="Settings version"
+            value={String(settings.settingsVersion)}
+          />
+          <DiagnosticRow
+            label="Growth rate scale"
+            value={settings.growthRateScale.toFixed(2)}
+          />
+          <DiagnosticRow
+            label="Growth noise scale"
+            value={settings.growthNoiseScale.toFixed(2)}
+          />
+          <DiagnosticRow label="Timing preset" value={settings.timingPreset} />
+        </div>
+        <div className="grid gap-1.5">
+          <DiagnosticRow
+            label="Growth curves"
+            value={`${settings.growthMultipliers.slow.toFixed(2)} / ${settings.growthMultipliers.standard.toFixed(2)} / ${settings.growthMultipliers.fast.toFixed(2)} / ${settings.growthMultipliers.elite.toFixed(2)}`}
+          />
+          <DiagnosticRow
+            label="Decline curves"
+            value={`${settings.declineMultipliers.durable.toFixed(2)} / ${settings.declineMultipliers.standard.toFixed(2)} / ${settings.declineMultipliers.early.toFixed(2)} / ${settings.declineMultipliers.steep.toFixed(2)}`}
+          />
+          <DiagnosticRow
+            label="Stall / surge chance"
+            value={`${formatPercent(settings.stallChance)} / ${formatPercent(settings.surgeChance)}`}
+          />
+          <DiagnosticRow
+            label="Transition chance"
+            value={`${formatPercent(settings.growthTransitionChance)} / ${formatPercent(settings.declineTransitionChance)}`}
+          />
+        </div>
+      </div>
     </section>
   )
 }

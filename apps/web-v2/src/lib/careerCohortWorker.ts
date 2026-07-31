@@ -17,7 +17,6 @@ function createRequestId(): string {
 
 function runInWorker<T>(
   request: Record<string, unknown>,
-  expectedType: "cohort-completed",
   options: {
     signal?: AbortSignal
     onProgress?: (progress: CareerWorkerProgress) => void
@@ -51,7 +50,6 @@ function runInWorker<T>(
         reject(new Error(event.data.message))
         return
       }
-      if (event.data.type !== expectedType) return
       cleanup()
       resolve(event.data.report as T)
     }
@@ -77,7 +75,6 @@ export function runCareerCohortInWorker(
   void shouldCancel
   return runInWorker(
     { type: "cohort", options: runOptions },
-    "cohort-completed",
     { signal, onProgress }
   )
 }

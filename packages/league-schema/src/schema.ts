@@ -935,6 +935,8 @@ export const careerDevelopmentEventSchema = z.strictObject({
     "phase-change",
     "skill-development",
     "plateau-noise",
+    "development-stall",
+    "development-surge",
     "injury-effect",
     "availability",
     "trajectory-change",
@@ -1008,6 +1010,7 @@ export const careerRetirementContextSchema = z.strictObject({
 const careerContextPresetSchema = z.enum(["healthy", "normal", "injured"])
 const careerMinutesPresetSchema = z.enum(["zero", "low", "typical", "high"])
 const careerCoachingPresetSchema = z.enum(["weak", "standard", "strong"])
+const careerTimingPresetSchema = z.enum(["standard", "early", "late"])
 const careerPopulationContextSchema = z.enum([
   "draft-class",
   "roster",
@@ -1021,6 +1024,36 @@ const careerDevelopmentPresetSchema = z.enum([
   "high-volatility",
 ])
 
+export const careerDevelopmentSettingsSchema = z
+  .strictObject({
+    growthMultipliers: z
+      .strictObject({
+        slow: z.number().min(0.1).max(3),
+        standard: z.number().min(0.1).max(3),
+        fast: z.number().min(0.1).max(3),
+        elite: z.number().min(0.1).max(3),
+      })
+      .partial(),
+    declineMultipliers: z
+      .strictObject({
+        durable: z.number().min(0.1).max(3),
+        standard: z.number().min(0.1).max(3),
+        early: z.number().min(0.1).max(3),
+        steep: z.number().min(0.1).max(3),
+      })
+      .partial(),
+    growthTransitionChance: z.number().min(0).max(1),
+    declineTransitionChance: z.number().min(0).max(1),
+    growthRateScale: z.number().min(0.25).max(3),
+    growthNoiseScale: z.number().min(0).max(3),
+    stallChance: z.number().min(0).max(1),
+    stallMagnitude: z.number().min(0).max(1),
+    surgeChance: z.number().min(0).max(1),
+    surgeMagnitude: z.number().min(0).max(1),
+    timingPreset: careerTimingPresetSchema,
+  })
+  .partial()
+
 export const careerCohortOptionsSchema = z.strictObject({
   seed: z.string().min(1),
   startingAge: z.number().int().min(18).max(40),
@@ -1033,6 +1066,7 @@ export const careerCohortOptionsSchema = z.strictObject({
   populationContext: careerPopulationContextSchema,
   growthCurve: z.union([careerGrowthCurveSchema, z.literal("distribution")]),
   declineCurve: z.union([careerDeclineCurveSchema, z.literal("distribution")]),
+  settings: careerDevelopmentSettingsSchema.optional(),
   season: z.number().int().nonnegative().optional(),
 })
 
@@ -1173,37 +1207,44 @@ export const failedCareerFixtureSchema = z.strictObject({
   playerId: z.string().min(1).optional(),
 })
 
+export const careerResolvedSettingsSchema = z.strictObject({
+  settingsVersion: z.number().int().positive(),
+  populationContext: careerPopulationContextSchema,
+  growthCurve: z.union([careerGrowthCurveSchema, z.literal("distribution")]),
+  declineCurve: z.union([careerDeclineCurveSchema, z.literal("distribution")]),
+  growthCurveWeights: careerGrowthCurveWeightsSchema,
+  declineCurveWeights: careerDeclineCurveWeightsSchema,
+  growthMultipliers: z.strictObject({
+    slow: z.number().min(0.1).max(3),
+    standard: z.number().min(0.1).max(3),
+    fast: z.number().min(0.1).max(3),
+    elite: z.number().min(0.1).max(3),
+  }),
+  declineMultipliers: z.strictObject({
+    durable: z.number().min(0.1).max(3),
+    standard: z.number().min(0.1).max(3),
+    early: z.number().min(0.1).max(3),
+    steep: z.number().min(0.1).max(3),
+  }),
+  growthTransitionChance: z.number().min(0).max(1),
+  declineTransitionChance: z.number().min(0).max(1),
+  growthRateScale: z.number().min(0.25).max(3),
+  growthNoiseScale: z.number().min(0).max(3),
+  stallChance: z.number().min(0).max(1),
+  stallMagnitude: z.number().min(0).max(1),
+  surgeChance: z.number().min(0).max(1),
+  surgeMagnitude: z.number().min(0).max(1),
+  timingPreset: careerTimingPresetSchema,
+})
+
 export const careerCohortReportSchema = z.strictObject({
   schema: z.literal("foh-career-cohort-lab"),
-  version: z.literal(3),
+  version: z.literal(4),
   options: careerCohortOptionsSchema,
   completed: z.number().int().nonnegative(),
   cancelled: z.boolean(),
   summary: careerCohortSummarySchema,
-  resolvedSettings: z.strictObject({
-    populationContext: careerPopulationContextSchema,
-    growthCurve: z.union([careerGrowthCurveSchema, z.literal("distribution")]),
-    declineCurve: z.union([
-      careerDeclineCurveSchema,
-      z.literal("distribution"),
-    ]),
-    growthCurveWeights: careerGrowthCurveWeightsSchema,
-    declineCurveWeights: careerDeclineCurveWeightsSchema,
-    growthMultipliers: z.strictObject({
-      slow: z.number().positive(),
-      standard: z.number().positive(),
-      fast: z.number().positive(),
-      elite: z.number().positive(),
-    }),
-    declineMultipliers: z.strictObject({
-      durable: z.number().positive(),
-      standard: z.number().positive(),
-      early: z.number().positive(),
-      steep: z.number().positive(),
-    }),
-    growthTransitionChance: z.number().min(0).max(1),
-    declineTransitionChance: z.number().min(0).max(1),
-  }),
+  resolvedSettings: careerResolvedSettingsSchema,
   playerIndex: z.array(
     z.strictObject({
       playerId: z.string().min(1),
@@ -1230,9 +1271,10 @@ export const careerCohortReportSchema = z.strictObject({
 
 export const careerIndividualReportSchema = z.strictObject({
   schema: z.literal("foh-career-individual-lab"),
-  version: z.literal(3),
+  version: z.literal(4),
   options: careerIndividualOptionsSchema,
   timeline: careerTimelineSchema,
+  resolvedSettings: careerResolvedSettingsSchema,
   failedFixtures: z.array(failedCareerFixtureSchema),
 })
 

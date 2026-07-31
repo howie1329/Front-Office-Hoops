@@ -131,8 +131,58 @@ describe("career calibration runner", () => {
     expect(deserializeCareerCohortReport(serialized)).toEqual(report)
     expect(JSON.parse(serializeCareerCohortReport(report))).toMatchObject({
       schema: "foh-career-cohort-lab",
-      version: 3,
+      version: 4,
       completed: 3,
+    })
+  })
+
+  it("forwards development settings into the engine and report", () => {
+    const settings = {
+      growthRateScale: 1.25,
+      growthNoiseScale: 0.5,
+      growthMultipliers: {
+        slow: 0.6,
+        standard: 1,
+        fast: 1.45,
+        elite: 1.9,
+      },
+      declineMultipliers: {
+        durable: 0.6,
+        standard: 1,
+        early: 1.35,
+        steep: 1.9,
+      },
+      timingPreset: "late" as const,
+    }
+    const report = runCareerCohort({
+      ...options,
+      sampleSize: 4,
+      runYears: 3,
+      settings,
+      retainTimelines: true,
+    })
+
+    expect(report.options.settings).toEqual(settings)
+    expect(report.resolvedSettings).toMatchObject({
+      settingsVersion: 1,
+      growthRateScale: 1.25,
+      growthNoiseScale: 0.5,
+      timingPreset: "late",
+      growthMultipliers: settings.growthMultipliers,
+      declineMultipliers: settings.declineMultipliers,
+    })
+    expect(report.timelines?.[0]?.snapshots[0]?.peakAge).toBeGreaterThanOrEqual(
+      options.startingAge
+    )
+    expect(careerCohortReportSchema.safeParse(report).success).toBe(true)
+
+    const individual = runIndividualCareer({
+      ...options,
+      settings,
+    })
+    expect(individual.resolvedSettings).toMatchObject({
+      growthRateScale: 1.25,
+      timingPreset: "late",
     })
   })
 })

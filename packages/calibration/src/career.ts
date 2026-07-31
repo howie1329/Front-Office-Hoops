@@ -24,6 +24,8 @@ import {
   createDeterministicRandom,
   evaluatePlayerRetirement,
   getCareerPhase,
+  CAREER_DEVELOPMENT_SETTINGS_VERSION,
+  resolveCareerDevelopmentSettings,
   STANDARD_CAREER_CURVE_RULES,
 } from "@workspace/sim-v2"
 
@@ -260,11 +262,12 @@ function createTimeline(input: CareerTraceInput): CareerTimeline {
 }
 
 function createResolvedSettings(
-  options: CareerCohortOptions,
+  options: CareerCohortOptions | CareerIndividualOptions,
   config: PlayerGenerationConfig,
   rules: CareerCurveRules
 ): CareerResolvedSettings {
   return {
+    settingsVersion: CAREER_DEVELOPMENT_SETTINGS_VERSION,
     populationContext: options.populationContext,
     growthCurve: options.growthCurve,
     declineCurve: options.declineCurve,
@@ -276,6 +279,13 @@ function createResolvedSettings(
     declineMultipliers: structuredClone(rules.declineMultipliers),
     growthTransitionChance: rules.growthTransitionChance,
     declineTransitionChance: rules.declineTransitionChance,
+    growthRateScale: rules.growthRateScale,
+    growthNoiseScale: rules.growthNoiseScale,
+    stallChance: rules.stallChance,
+    stallMagnitude: rules.stallMagnitude,
+    surgeChance: rules.surgeChance,
+    surgeMagnitude: rules.surgeMagnitude,
+    timingPreset: rules.timingPreset,
   }
 }
 
@@ -530,26 +540,29 @@ export function runIndividualCareer(
 ): CareerIndividualReport {
   validateCommonOptions(options)
   const { config, ...reportOptions } = options
+  const rules = resolveCareerDevelopmentSettings(options.settings)
   const fixture = createCareerPlayer(
     options.seed,
     options.startingAge,
     options.developmentContext,
     config,
     options,
-    options.populationContext
+    options.populationContext,
+    rules.timingPreset
   )
   const timeline = createTimeline({
     player: fixture.player,
     seed: options.seed,
     options,
     config: fixture.config,
-    rules: STANDARD_CAREER_CURVE_RULES,
+    rules,
   })
   return {
     schema: "foh-career-individual-lab",
-    version: 3,
+    version: 4,
     options: reportOptions,
     timeline,
+    resolvedSettings: createResolvedSettings(options, fixture.config, rules),
     failedFixtures: [],
   }
 }
@@ -565,6 +578,8 @@ export function runCareerCohort(
   ) {
     throw new RangeError("Career cohort sample size must be from 1 to 100,000.")
   }
+
+  const rules = resolveCareerDevelopmentSettings(options.settings)
 
   const timelines: CareerTimeline[] = []
   const failedFixtures: FailedCareerFixture[] = []
@@ -582,7 +597,8 @@ export function runCareerCohort(
         options.developmentContext,
         undefined,
         options,
-        options.populationContext
+        options.populationContext,
+        rules.timingPreset
       )
       timelines.push(
         createTimeline({
@@ -590,7 +606,7 @@ export function runCareerCohort(
           seed,
           options,
           config: fixture.config,
-          rules: STANDARD_CAREER_CURVE_RULES,
+          rules,
         })
       )
     } catch (error) {
@@ -624,7 +640,7 @@ export function runCareerCohort(
   )
   return {
     schema: "foh-career-cohort-lab",
-    version: 3,
+    version: 4,
     options: {
       seed: options.seed,
       startingAge: options.startingAge,
@@ -637,16 +653,13 @@ export function runCareerCohort(
       populationContext: options.populationContext,
       growthCurve: options.growthCurve,
       declineCurve: options.declineCurve,
+      ...(options.settings === undefined ? {} : { settings: options.settings }),
       ...(options.season === undefined ? {} : { season: options.season }),
     },
     completed: timelines.length + failedFixtures.length,
     cancelled,
     summary,
-    resolvedSettings: createResolvedSettings(
-      options,
-      resolvedConfig,
-      STANDARD_CAREER_CURVE_RULES
-    ),
+    resolvedSettings: createResolvedSettings(options, resolvedConfig, rules),
     playerIndex: createPlayerIndex(timelines),
     timelines: options.retainTimelines ? timelines : undefined,
     benchmark,

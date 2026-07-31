@@ -2,6 +2,7 @@ import type {
   CareerAnnualContext,
   CareerAvailabilitySummary,
   CareerCurveRules,
+  CareerDevelopmentSettings,
   CareerDeclineCurve,
   CareerDevelopmentEvent,
   CareerPhase,
@@ -25,6 +26,8 @@ export type CareerDevelopmentInput = {
   rules?: CareerCurveRules
 }
 
+export const CAREER_DEVELOPMENT_SETTINGS_VERSION = 1
+
 export const STANDARD_CAREER_CURVE_RULES: CareerCurveRules = {
   growthMultipliers: {
     slow: 0.7,
@@ -40,6 +43,132 @@ export const STANDARD_CAREER_CURVE_RULES: CareerCurveRules = {
   },
   growthTransitionChance: 0.01,
   declineTransitionChance: 0.01,
+  growthRateScale: 1,
+  growthNoiseScale: 1,
+  stallChance: 0,
+  stallMagnitude: 0,
+  surgeChance: 0,
+  surgeMagnitude: 0,
+  timingPreset: "standard",
+}
+
+const GROWTH_CURVES: CareerGrowthCurve[] = ["slow", "standard", "fast", "elite"]
+const DECLINE_CURVES: CareerDeclineCurve[] = [
+  "durable",
+  "standard",
+  "early",
+  "steep",
+]
+
+function validateFiniteSetting(
+  value: number,
+  label: string,
+  minimum: number,
+  maximum: number
+): void {
+  if (!Number.isFinite(value) || value < minimum || value > maximum) {
+    throw new RangeError(`${label} must be between ${minimum} and ${maximum}.`)
+  }
+}
+
+export function resolveCareerDevelopmentSettings(
+  input: CareerDevelopmentSettings = {}
+): CareerCurveRules {
+  const resolved: CareerCurveRules = {
+    ...STANDARD_CAREER_CURVE_RULES,
+    ...input,
+    growthMultipliers: {
+      ...STANDARD_CAREER_CURVE_RULES.growthMultipliers,
+      ...input.growthMultipliers,
+    },
+    declineMultipliers: {
+      ...STANDARD_CAREER_CURVE_RULES.declineMultipliers,
+      ...input.declineMultipliers,
+    },
+  }
+
+  validateFiniteSetting(resolved.growthRateScale, "Growth rate scale", 0.25, 3)
+  validateFiniteSetting(resolved.growthNoiseScale, "Growth noise scale", 0, 3)
+  validateFiniteSetting(resolved.stallChance, "Development stall chance", 0, 1)
+  validateFiniteSetting(
+    resolved.stallMagnitude,
+    "Development stall magnitude",
+    0,
+    1
+  )
+  validateFiniteSetting(resolved.surgeChance, "Development surge chance", 0, 1)
+  validateFiniteSetting(
+    resolved.surgeMagnitude,
+    "Development surge magnitude",
+    0,
+    1
+  )
+  validateFiniteSetting(
+    resolved.growthTransitionChance,
+    "Growth transition chance",
+    0,
+    1
+  )
+  validateFiniteSetting(
+    resolved.declineTransitionChance,
+    "Decline transition chance",
+    0,
+    1
+  )
+
+  for (const curve of GROWTH_CURVES) {
+    validateFiniteSetting(
+      resolved.growthMultipliers[curve],
+      `${curve} growth multiplier`,
+      0.1,
+      3
+    )
+  }
+  for (const curve of DECLINE_CURVES) {
+    validateFiniteSetting(
+      resolved.declineMultipliers[curve],
+      `${curve} decline multiplier`,
+      0.1,
+      3
+    )
+  }
+
+  if (!(
+    resolved.growthMultipliers.slow < resolved.growthMultipliers.standard &&
+    resolved.growthMultipliers.standard < resolved.growthMultipliers.fast &&
+    resolved.growthMultipliers.fast < resolved.growthMultipliers.elite
+  )) {
+    throw new RangeError(
+      "Growth multipliers must be ordered slow < standard < fast < elite."
+    )
+  }
+  if (!(
+    resolved.declineMultipliers.durable <
+      resolved.declineMultipliers.standard &&
+    resolved.declineMultipliers.standard < resolved.declineMultipliers.early &&
+    resolved.declineMultipliers.early < resolved.declineMultipliers.steep
+  )) {
+    throw new RangeError(
+      "Decline multipliers must be ordered durable < standard < early < steep."
+    )
+  }
+
+  return structuredClone(resolved)
+}
+
+export function validateCareerDevelopmentSettings(
+  input: CareerDevelopmentSettings = {}
+): string[] {
+  try {
+    resolveCareerDevelopmentSettings(input)
+    return []
+  } catch (error) {
+    return [
+      error instanceof Error
+        ? error.message
+        : "Career development settings are invalid.",
+    ]
+  }
 }
 
 const skillKeys: PlayerSkillKey[] = [
@@ -145,6 +274,7 @@ function phaseMean(
     return (
       (0.32 + forecastSignal * 0.58) *
       developmentSignal *
+      rules.growthRateScale *
       rules.growthMultipliers[player.profile.development.growthCurve]
     )
   }
@@ -182,18 +312,6 @@ function applyTrajectoryChange(
   events: CareerDevelopmentEvent[]
 ): PlayerEntity {
   const transitionRandom = random.fork("trajectory-change")
-  const growthCurves: CareerGrowthCurve[] = [
-    "slow",
-    "standard",
-    "fast",
-    "elite",
-  ]
-  const declineCurves: CareerDeclineCurve[] = [
-    "durable",
-    "standard",
-    "early",
-    "steep",
-  ]
   let nextDevelopment = player.profile.development
 
   if (
@@ -204,7 +322,7 @@ function applyTrajectoryChange(
       transitionRandom.fork("growth-direction").next() < 0.5 ? -1 : 1
     const nextCurve = adjacentCurve(
       nextDevelopment.growthCurve,
-      growthCurves,
+      GROWTH_CURVES,
       direction
     )
     if (nextCurve !== nextDevelopment.growthCurve) {
@@ -234,7 +352,7 @@ function applyTrajectoryChange(
       transitionRandom.fork("decline-direction").next() < 0.5 ? -1 : 1
     const nextCurve = adjacentCurve(
       nextDevelopment.declineCurve,
-      declineCurves,
+      DECLINE_CURVES,
       direction
     )
     if (nextCurve !== nextDevelopment.declineCurve) {
@@ -348,6 +466,36 @@ export function advancePlayerCareerYear(
     rules,
     events
   )
+  const outcomeRandom = seasonRandom.fork("development-outcome")
+  let growthOutcomeModifier = 1
+  if (phase === "growth") {
+    if (outcomeRandom.fork("stall").next() < rules.stallChance) {
+      growthOutcomeModifier -= rules.stallMagnitude
+      events.push({
+        id: `career:${player.id}:${context.season}:development-stall`,
+        type: "development-stall",
+        season: context.season,
+        playerId: player.id,
+        phase,
+        skill: null,
+        delta: 0,
+        summary: `Development stalled for this season at ${Math.round(rules.stallMagnitude * 100)}% reduced growth.`,
+      })
+    }
+    if (outcomeRandom.fork("surge").next() < rules.surgeChance) {
+      growthOutcomeModifier += rules.surgeMagnitude
+      events.push({
+        id: `career:${player.id}:${context.season}:development-surge`,
+        type: "development-surge",
+        season: context.season,
+        playerId: player.id,
+        phase,
+        skill: null,
+        delta: 0,
+        summary: `Development surged for this season at ${Math.round(rules.surgeMagnitude * 100)}% increased growth.`,
+      })
+    }
+  }
 
   for (const skill of skillKeys) {
     const skillRandom = seasonRandom.fork(skill)
@@ -378,10 +526,17 @@ export function advancePlayerCareerYear(
         : 0
     const randomNoise = skillRandom.normal(
       0,
-      (activePlayer.profile.development.volatility / 100) * 0.2
+      (activePlayer.profile.development.volatility / 100) *
+        0.2 *
+        (phase === "growth" ? rules.growthNoiseScale : 1)
     )
     const delta = round(
-      (baseline * opportunity * coaching * injury * developmentModifier +
+      (baseline *
+        opportunity *
+        coaching *
+        injury *
+        developmentModifier *
+        growthOutcomeModifier +
         plateauNoise +
         randomNoise) *
         skillResponse[skill]

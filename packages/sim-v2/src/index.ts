@@ -60,6 +60,9 @@ export { runSeason } from "./seasonRunner"
 export {
   advancePlayerCareerYear,
   getCareerPhase,
+  CAREER_DEVELOPMENT_SETTINGS_VERSION,
+  resolveCareerDevelopmentSettings,
+  validateCareerDevelopmentSettings,
   STANDARD_CAREER_CURVE_RULES,
 } from "./careerDevelopment"
 export type { CareerDevelopmentInput } from "./careerDevelopment"

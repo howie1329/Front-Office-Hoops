@@ -40,6 +40,8 @@ export type CareerDevelopmentEvent = {
     | "phase-change"
     | "skill-development"
     | "plateau-noise"
+    | "development-stall"
+    | "development-surge"
     | "injury-effect"
     | "availability"
     | "trajectory-change"
@@ -114,6 +116,7 @@ export type RetirementEvaluation = {
 export type CareerContextPreset = "healthy" | "normal" | "injured"
 export type CareerMinutesPreset = "zero" | "low" | "typical" | "high"
 export type CareerCoachingPreset = "weak" | "standard" | "strong"
+export type CareerTimingPreset = "standard" | "early" | "late"
 export type CareerPopulationContext =
   "draft-class" | "roster" | "free-agent" | "veteran"
 export type CareerDevelopmentPreset =
@@ -124,9 +127,31 @@ export type CareerCurveRules = {
   declineMultipliers: Record<CareerDeclineCurve, number>
   growthTransitionChance: number
   declineTransitionChance: number
+  growthRateScale: number
+  growthNoiseScale: number
+  stallChance: number
+  stallMagnitude: number
+  surgeChance: number
+  surgeMagnitude: number
+  timingPreset: CareerTimingPreset
+}
+
+export type CareerDevelopmentSettings = {
+  growthMultipliers?: Partial<Record<CareerGrowthCurve, number>>
+  declineMultipliers?: Partial<Record<CareerDeclineCurve, number>>
+  growthTransitionChance?: number
+  declineTransitionChance?: number
+  growthRateScale?: number
+  growthNoiseScale?: number
+  stallChance?: number
+  stallMagnitude?: number
+  surgeChance?: number
+  surgeMagnitude?: number
+  timingPreset?: CareerTimingPreset
 }
 
 export type CareerResolvedSettings = CareerCurveRules & {
+  settingsVersion: number
   populationContext: CareerPopulationContext
   growthCurve: CareerGrowthCurve | "distribution"
   declineCurve: CareerDeclineCurve | "distribution"
@@ -146,6 +171,7 @@ export type CareerCohortOptions = {
   populationContext: CareerPopulationContext
   growthCurve: CareerGrowthCurve | "distribution"
   declineCurve: CareerDeclineCurve | "distribution"
+  settings?: CareerDevelopmentSettings
   season?: number
 }
 
@@ -267,7 +293,7 @@ export type FailedCareerFixture = {
 
 export type CareerCohortReport = {
   schema: "foh-career-cohort-lab"
-  version: 3
+  version: 4
   options: CareerCohortOptions
   completed: number
   cancelled: boolean
@@ -281,8 +307,9 @@ export type CareerCohortReport = {
 
 export type CareerIndividualReport = {
   schema: "foh-career-individual-lab"
-  version: 3
+  version: 4
   options: CareerIndividualOptions
   timeline: CareerTimeline
+  resolvedSettings: CareerResolvedSettings
   failedFixtures: FailedCareerFixture[]
 }

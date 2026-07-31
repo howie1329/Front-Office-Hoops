@@ -1,10 +1,15 @@
 import type {
   CareerCohortOptions,
+  CareerDevelopmentSettings,
   CareerDevelopmentPreset,
   CareerPopulationContext,
   CareerGrowthCurve,
   CareerDeclineCurve,
 } from "@workspace/domain-v2"
+import {
+  STANDARD_CAREER_CURVE_RULES,
+  validateCareerDevelopmentSettings,
+} from "@workspace/sim-v2"
 
 export const DEVELOPMENT_COHORT_PRESETS = [
   {
@@ -58,6 +63,9 @@ export type DevelopmentCohortOptions = CareerCohortOptions & {
   comparisonPresetId: DevelopmentCohortPresetId
 }
 
+const DEFAULT_CAREER_DEVELOPMENT_SETTINGS: CareerDevelopmentSettings =
+  structuredClone(STANDARD_CAREER_CURVE_RULES)
+
 export const DEFAULT_DEVELOPMENT_COHORT_OPTIONS: DevelopmentCohortOptions = {
   mode: "cohort",
   presetId: "balanced-rookies",
@@ -74,6 +82,7 @@ export const DEFAULT_DEVELOPMENT_COHORT_OPTIONS: DevelopmentCohortOptions = {
   developmentContext: "standard",
   growthCurve: "distribution",
   declineCurve: "distribution",
+  settings: DEFAULT_CAREER_DEVELOPMENT_SETTINGS,
 }
 
 export const CAREER_RUN_HORIZONS = [1, 5, 10, 20, 30] as const
@@ -89,7 +98,7 @@ export function validateDevelopmentCohortOptions(
   if (options.startingAge < 18 || options.startingAge > 40) {
     errors.push("Starting age must be between 18 and 40.")
   }
-  if (!(CAREER_RUN_HORIZONS as readonly number[]).includes(options.runYears)) {
+  if (!(CAREER_RUN_HORIZONS as ReadonlyArray<number>).includes(options.runYears)) {
     errors.push("Run horizon must be 1, 5, 10, 20, or 30 years.")
   }
   if (
@@ -98,5 +107,6 @@ export function validateDevelopmentCohortOptions(
   ) {
     errors.push("Choose two different cohorts to compare.")
   }
+  errors.push(...validateCareerDevelopmentSettings(options.settings))
   return errors
 }
