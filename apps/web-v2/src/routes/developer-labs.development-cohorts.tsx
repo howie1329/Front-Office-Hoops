@@ -292,11 +292,11 @@ function DevelopmentCohortsPage() {
     ) ?? null
 
   return (
-    <main className="min-h-svh bg-background px-3 py-4 text-foreground sm:px-5 lg:px-7 lg:py-6">
-      <div className="mx-auto flex w-full max-w-[1640px] flex-col gap-4">
-        <header className="flex flex-col gap-4 border-b border-border pb-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+    <main className="min-h-svh bg-background px-4 py-4 text-foreground sm:px-6 lg:px-8 lg:py-6">
+      <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-5">
+        <header className="grid gap-4 border-b border-border pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
               <Link
                 to="/developer-labs"
                 className="transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
@@ -304,39 +304,43 @@ function DevelopmentCohortsPage() {
                 Developer Labs
               </Link>
               <span aria-hidden="true">/</span>
-              <span className="text-foreground">Career cohort harness</span>
+              <span className="text-foreground">Career cohort explorer</span>
               <Badge variant="outline">Developer only</Badge>
               <Badge variant="secondary">V2 calibration</Badge>
             </div>
-            <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h1 className="text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-                  Career cohort harness
-                </h1>
-                <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-                  Inspect one player’s career trace against controlled cohort
-                  behavior before longitudinal systems become league behavior.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/developer-labs">All labs</Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleReset}
-                  disabled={runState === "running"}
-                >
-                  Reset defaults
-                </Button>
-              </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/developer-labs">All labs</Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReset}
+                disabled={runState === "running"}
+              >
+                Reset defaults
+              </Button>
             </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-[-0.03em]">
+                Career cohort explorer
+              </h1>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+                Follow a cohort from first season through peak, decline, and
+                retirement, then open any player for a season-by-season trace.
+              </p>
+            </div>
+            <p className="max-w-sm text-xs leading-5 text-muted-foreground sm:text-right">
+              Evidence-first view for tuning development curves and checking how
+              settings move the full distribution.
+            </p>
           </div>
         </header>
 
         <section
-          className="grid gap-3 rounded-lg border border-border bg-card p-3 sm:grid-cols-[auto_1fr_auto] sm:items-center"
+          className="grid gap-3 rounded-lg border border-border bg-card p-3 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center"
           aria-label="Run metadata"
         >
           <div className="flex items-center gap-2">
@@ -368,12 +372,11 @@ function DevelopmentCohortsPage() {
               Export JSON
             </Button>
             <Button
-              variant="outline"
               size="sm"
               onClick={handleRun}
               disabled={runState === "running" || errors.length > 0}
             >
-              Rerun
+              {runState === "running" ? "Running…" : "Run cohort"}
             </Button>
           </div>
           {runState === "running" ? (
@@ -395,7 +398,7 @@ function DevelopmentCohortsPage() {
           </div>
         ) : null}
 
-        <div className="grid items-start gap-4 xl:grid-cols-[15rem_minmax(0,1fr)_18rem]">
+        <div className="grid items-start gap-5 xl:grid-cols-[13rem_minmax(0,1fr)_17rem]">
           <ConfigurationRail
             options={options}
             errors={errors}
@@ -407,8 +410,14 @@ function DevelopmentCohortsPage() {
 
           <section
             className="order-1 grid min-w-0 gap-4 xl:order-2"
-            aria-label="Career trace evidence"
+            aria-label="Cohort evidence canvas"
           >
+            {bundle ? (
+              <CohortBenchmarkPanel
+                primary={bundle.primary}
+                comparison={bundle.comparison}
+              />
+            ) : null}
             {bundle ? (
               <PlayerIndexPanel
                 report={bundle.primary}
@@ -428,10 +437,6 @@ function DevelopmentCohortsPage() {
             />
             {bundle ? (
               <>
-                <CohortBenchmarkPanel
-                  primary={bundle.primary}
-                  comparison={bundle.comparison}
-                />
                 <CareerSettingsPanel
                   settings={bundle.primary.resolvedSettings}
                 />
@@ -494,23 +499,24 @@ function ConfigurationRail({
     })
 
   return (
-    <aside className="order-2 rounded-lg border border-border bg-card xl:sticky xl:top-4 xl:order-1">
+    <aside
+      className="order-2 rounded-lg border border-border bg-card xl:sticky xl:top-5 xl:order-1 xl:max-h-[calc(100svh-2.5rem)] xl:overflow-y-auto"
+      aria-label="Run configuration"
+    >
       <div className="border-b border-border px-3 py-3">
-        <p className="text-xs font-semibold tracking-[0.04em] text-foreground uppercase">
-          Controls
-        </p>
+        <p className="text-sm font-semibold text-foreground">Configuration</p>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Inputs are serialized with every run.
+          Tune the cohort, then rerun the same worker-backed report.
         </p>
       </div>
       <div className="grid gap-4 p-3">
         <fieldset className="grid gap-3">
           <legend className="text-xs font-semibold text-foreground">
-            Run shape
+            View
           </legend>
           <ContextSelect
             id="cohort-mode"
-            label="Explorer mode"
+            label="Explorer"
             value={options.mode}
             options={[
               ["cohort", "One cohort"],
@@ -586,6 +592,7 @@ function ConfigurationRail({
         </fieldset>
 
         <div className="grid gap-3 border-y border-border py-4">
+          <p className="text-xs font-semibold text-foreground">Cohort inputs</p>
           <div className="grid gap-1.5">
             <Label htmlFor="cohort-seed">Deterministic seed</Label>
             <Input
@@ -659,7 +666,7 @@ function ConfigurationRail({
 
         <fieldset className="grid gap-3">
           <legend className="text-xs font-semibold text-foreground">
-            Context
+            Player context
           </legend>
           <ContextSelect
             id="cohort-minutes"
@@ -785,7 +792,7 @@ function ConfigurationRail({
             <span className="mr-1 text-muted-foreground transition-transform group-open:inline-block group-open:rotate-90">
               ›
             </span>
-            Development settings
+            Development engine
           </summary>
           <p className="mt-1 text-[0.6875rem] leading-5 text-muted-foreground">
             These controls change the resolved engine rules and are saved with
@@ -1160,16 +1167,13 @@ function PlayerIndexPanel({
     >
       <div className="flex flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
-            Cohort player index
-          </p>
-          <h2 id="player-index-heading" className="mt-1 text-sm font-semibold">
-            Select a player to inspect the full run
+          <h2 id="player-index-heading" className="text-sm font-semibold">
+            Cohort players
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             {filteredPlayers.length.toLocaleString()} of{" "}
             {report.playerIndex.length.toLocaleString()} players · click a row
-            to follow one career.
+            to open its full career trace.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1303,8 +1307,8 @@ function TracePanel({
     >
       <div className="flex flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
-            Selected player trace
+          <p className="text-xs font-semibold text-muted-foreground">
+            Player trajectory
           </p>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <h2
@@ -1389,16 +1393,13 @@ function CohortBenchmarkPanel({
     >
       <div className="flex flex-col gap-2 border-b border-border px-3 py-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
-            {comparison ? "Cohort benchmark" : "Cohort trajectory"}
-          </p>
-          <h2 id="benchmark-heading" className="mt-1 text-sm font-semibold">
-            Average overall ability
+          <h2 id="benchmark-heading" className="text-base font-semibold">
+            Cohort trajectory
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             {comparison
-              ? "The selected player is shown against both cohort means."
-              : "The selected player is shown against the cohort distribution."}
+              ? "Baseline and variant means show how the matched setting moves the distribution."
+              : "Average overall ability across the run, with the selected player available in the inspector."}
           </p>
         </div>
         <div className="flex flex-wrap gap-3 text-[0.6875rem] text-muted-foreground">
@@ -1439,6 +1440,26 @@ function CohortBenchmarkPanel({
               detail={`${formatPercent(comparison.summary.retirementRate)} retired`}
             />
           ) : null}
+        </div>
+        <div className="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-3">
+          {[
+            ["Growth", "Skill opportunity compounds before the plateau."],
+            [
+              "Plateau",
+              "Training can still move the player, but the curve has leveled.",
+            ],
+            [
+              "Decline",
+              "Availability and decline rules shape the final seasons.",
+            ],
+          ].map(([phase, description]) => (
+            <div key={phase} className="grid gap-0.5">
+              <span className="text-xs font-medium">{phase}</span>
+              <span className="text-[0.6875rem] leading-4 text-muted-foreground">
+                {description}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -1787,18 +1808,21 @@ function InspectorPanel({
     : {}
 
   return (
-    <aside className="order-3 grid content-start gap-4 xl:sticky xl:top-4">
+    <aside
+      className="order-3 grid content-start gap-4 xl:sticky xl:top-5"
+      aria-label="Selected player inspector"
+    >
       <section
         className="overflow-hidden rounded-lg border border-border bg-card"
         aria-labelledby="inspector-heading"
       >
         <div className="border-b border-border px-3 py-3">
-          <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
-            Player inspector
-          </p>
-          <h2 id="inspector-heading" className="mt-1 text-sm font-semibold">
-            Season-by-season state
+          <h2 id="inspector-heading" className="text-sm font-semibold">
+            Selected player
           </h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Click a season to focus the trace and inspect the engine state.
+          </p>
         </div>
         {timeline ? (
           <>
@@ -1881,12 +1905,12 @@ function InspectorPanel({
         aria-labelledby="phase-heading"
       >
         <div className="border-b border-border px-3 py-3">
-          <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
-            Development phases
-          </p>
-          <h2 id="phase-heading" className="mt-1 text-sm font-semibold">
-            Observed duration
+          <h2 id="phase-heading" className="text-sm font-semibold">
+            Phase duration
           </h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Observed seasons in each phase.
+          </p>
         </div>
         <div className="grid gap-2 p-3">
           {(["growth", "plateau", "decline"] as const).map((phase) => (
@@ -2110,7 +2134,7 @@ function CohortBenchmarkChart({
   comparison: Array<CareerSkillTrajectory>
 }) {
   const width = 920
-  const height = 190
+  const height = 260
   const padding = { top: 14, right: 22, bottom: 30, left: 42 }
   const values = [...primary, ...comparison].map(
     (trajectory) => trajectory.currentAbility.average
