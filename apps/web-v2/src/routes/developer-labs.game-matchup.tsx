@@ -1,5 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import type { MatchupBatchReport } from "@workspace/calibration"
+import {
+  serializeMatchupBatchReport,
+  type MatchupBatchReport,
+} from "@workspace/calibration"
 import type {
   GameMatchupFixture,
   GameResult,
@@ -666,6 +669,14 @@ function GameMatchupLabPage() {
     )
   }
 
+  function handleBatchExport() {
+    if (!batchReport) return
+    downloadText(
+      `foh-game-matchup-batch-${batchReport.baseSeed}.json`,
+      serializeMatchupBatchReport(batchReport)
+    )
+  }
+
   async function handleImport(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ""
@@ -751,6 +762,14 @@ function GameMatchupLabPage() {
                 disabled={!result || !fixture}
               >
                 Export run
+              </Button>
+              <Button
+                variant="outline"
+                className="h-10 px-3 text-sm"
+                onClick={handleBatchExport}
+                disabled={!batchReport}
+              >
+                Export batch
               </Button>
               <Button variant="outline" asChild className="h-10 px-3 text-sm">
                 <Link to="/developer-labs">All labs</Link>

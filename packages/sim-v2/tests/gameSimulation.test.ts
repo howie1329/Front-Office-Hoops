@@ -10,6 +10,7 @@ import {
 import {
   createStandardGameSimulationConfig,
   simulateGameMatchup,
+  simulateGameMatchupWithTelemetry,
   validateGameMatchupFixture,
 } from "../src"
 
@@ -160,6 +161,55 @@ describe("simulateGameMatchup", () => {
         .reduce((sum, player) => sum + player.points, 0)
     )
     expect(result.teams.away?.points).toBeGreaterThan(0)
+  })
+
+  it("keeps foul types and second-chance continuations inside the ledger", () => {
+    let shootingFouls = 0
+    let nonShootingFouls = 0
+    let secondChanceAttempts = 0
+    let secondChancePoints = 0
+
+    for (let index = 0; index < 20; index += 1) {
+      const fixture = createFixture()
+      fixture.seed = `ledger-distributions:${index}`
+      const execution = simulateGameMatchupWithTelemetry(fixture)
+      expect(execution.result.reconciliation.passed).toBe(true)
+      for (const teamId of ["home", "away"] as const) {
+        const team = execution.result.teams[teamId]!
+        const telemetry = execution.telemetry.byTeam[teamId]!
+        const opponentTeamId = teamId === "home" ? "away" : "home"
+        const opponentTelemetry = execution.telemetry.byTeam[opponentTeamId]!
+        expect(team.possessions).toBe(telemetry.possessions)
+        expect(team.freeThrowsAttempted).toBeGreaterThanOrEqual(
+          opponentTelemetry.shootingFouls * 2
+        )
+        expect(team.freeThrowsAttempted).toBeLessThanOrEqual(
+          opponentTelemetry.shootingFouls * 3
+        )
+        shootingFouls += telemetry.shootingFouls
+        nonShootingFouls += telemetry.nonShootingFouls
+        secondChanceAttempts += telemetry.secondChanceAttempts
+        secondChancePoints += telemetry.secondChancePoints
+      }
+    }
+
+    expect(shootingFouls).toBeGreaterThan(0)
+    expect(nonShootingFouls).toBeGreaterThan(0)
+    expect(secondChanceAttempts).toBeGreaterThan(0)
+    expect(secondChancePoints).toBeGreaterThan(0)
+  })
+
+  it("catches final-counter corruption against the possession ledger", () => {
+    const execution = simulateGameMatchupWithTelemetry(createFixture())
+    execution.result.teams.home!.points += 1
+
+    const reconciliation = execution.reconcile()
+
+    expect(reconciliation.passed).toBe(false)
+    expect(
+      reconciliation.checks.find((check) => check.code === "home:ledger-points")
+        ?.passed
+    ).toBe(false)
   })
 
   it("records valid five-player lineups across the game clock", () => {
@@ -487,41 +537,41 @@ describe("simulateGameMatchup", () => {
       status: "completed",
       periods: 4,
       home: {
-        points: 95,
+        points: 119,
         possessions: 109,
-        fieldGoalsMade: 36,
-        fieldGoalsAttempted: 83,
-        threePointersMade: 7,
-        threePointersAttempted: 29,
-        freeThrowsMade: 16,
-        freeThrowsAttempted: 19,
-        rebounds: 49,
-        assists: 16,
-        turnovers: 17,
-        steals: 8,
-        blocks: 3,
-        fouls: 5,
+        fieldGoalsMade: 46,
+        fieldGoalsAttempted: 91,
+        threePointersMade: 12,
+        threePointersAttempted: 30,
+        freeThrowsMade: 15,
+        freeThrowsAttempted: 23,
+        rebounds: 39,
+        assists: 32,
+        turnovers: 14,
+        steals: 10,
+        blocks: 2,
+        fouls: 23,
       },
       away: {
-        points: 85,
+        points: 115,
         possessions: 103,
-        fieldGoalsMade: 35,
-        fieldGoalsAttempted: 85,
-        threePointersMade: 7,
-        threePointersAttempted: 28,
-        freeThrowsMade: 8,
-        freeThrowsAttempted: 10,
-        rebounds: 48,
-        assists: 12,
-        turnovers: 13,
-        steals: 8,
+        fieldGoalsMade: 41,
+        fieldGoalsAttempted: 73,
+        threePointersMade: 5,
+        threePointersAttempted: 20,
+        freeThrowsMade: 28,
+        freeThrowsAttempted: 33,
+        rebounds: 38,
+        assists: 32,
+        turnovers: 12,
+        steals: 9,
         blocks: 1,
-        fouls: 9,
+        fouls: 16,
       },
       topPlayer: {
-        playerId: "home-1",
-        points: 36,
-        opportunities: 32,
+        playerId: "home-2",
+        points: 33,
+        opportunities: 23,
       },
       reconciliation: true,
     })

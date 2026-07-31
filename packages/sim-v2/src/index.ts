@@ -1,6 +1,7 @@
 export { executeLeagueCommand } from "./executeCommand"
 export {
   simulateGameMatchup,
+  simulateGameMatchupWithTelemetry,
   validateGameMatchupFixture,
 } from "./gameSimulation"
 export {
@@ -67,6 +68,11 @@ export type {
   GameSettingDescriptor,
 } from "./gameConfig"
 export type { GameMatchupFixture, GameResult } from "@workspace/domain-v2"
+export type {
+  GameSimulationExecution,
+  GameSimulationTelemetry,
+  GameTeamSimulationTelemetry,
+} from "./gameSimulation"
 export type { PlayerPopulationContextKind } from "@workspace/domain-v2"
 export type { WorkerRequest, WorkerResult } from "./protocol"
 export type {
@@ -91,10 +97,7 @@ export type {
 } from "./playerUniverse"
 export type { ProductionAggregation } from "./production"
 export type { SeasonRunnerOptions } from "./seasonRunner"
-export type {
-  ValueSettingDescriptor,
-  ValueSettingPath,
-} from "./seasonConfig"
+export type { ValueSettingDescriptor, ValueSettingPath } from "./seasonConfig"
 export type {
   RosterAssemblyConfig,
   RosterAssemblyDiagnostics,

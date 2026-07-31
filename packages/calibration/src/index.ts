@@ -11,8 +11,9 @@ import {
 import {
   GAME_SIMULATION_VERSION,
   resolveGameSimulationConfig,
-  simulateGameMatchup,
+  simulateGameMatchupWithTelemetry,
 } from "@workspace/sim-v2"
+import type { GameSimulationTelemetry } from "@workspace/sim-v2"
 
 import type {
   CalibrationBenchmarkProfile,
@@ -121,6 +122,12 @@ const CALIBRATION_METRIC_KEYS = [
   "teamPoints",
   "teamPossessions",
   "offensiveEfficiency",
+  "fieldGoalsMade",
+  "fieldGoalsAttempted",
+  "threePointersMade",
+  "threePointersAttempted",
+  "freeThrowsMade",
+  "freeThrowsAttempted",
   "fieldGoalPercentage",
   "threePointPercentage",
   "freeThrowPercentage",
@@ -129,6 +136,7 @@ const CALIBRATION_METRIC_KEYS = [
   "rimAttemptRate",
   "midrangeAttemptRate",
   "assists",
+  "assistRate",
   "turnovers",
   "turnoverRate",
   "rebounds",
@@ -136,7 +144,17 @@ const CALIBRATION_METRIC_KEYS = [
   "defensiveRebounds",
   "steals",
   "blocks",
+  "blockRate",
   "fouls",
+  "shootingFouls",
+  "nonShootingFouls",
+  "shootingFoulRate",
+  "nonShootingFoulRate",
+  "offensiveReboundRate",
+  "secondChanceAttempts",
+  "secondChancePoints",
+  "secondChanceAttemptRate",
+  "secondChancePointsPerOffensiveRebound",
   "topPlayerOpportunityShare",
   "benchPointsShare",
   "starterMinutes",
@@ -213,7 +231,8 @@ function collectAttemptMetrics(
 
 function collectMetrics(
   result: GameResult,
-  buckets: Record<string, number[]>
+  buckets: Record<string, number[]>,
+  telemetry: GameSimulationTelemetry
 ): void {
   const teamResults = Object.values(result.teams)
   const homeTeam = result.teams[result.homeTeamId]
@@ -255,6 +274,11 @@ function collectMetrics(
       (total, player) => total + player.points,
       0
     )
+    const opponent = teamResults.find(
+      (candidate) => candidate.teamId !== team.teamId
+    )
+    const teamTelemetry = telemetry.byTeam[team.teamId]
+    const opponentDefensiveRebounds = opponent?.defensiveRebounds ?? 0
 
     addMetric(buckets, "teamPoints", team.points)
     addMetric(buckets, "teamPossessions", team.possessions)
@@ -263,6 +287,12 @@ function collectMetrics(
       "offensiveEfficiency",
       calculateRate(team.points, team.possessions)
     )
+    addMetric(buckets, "fieldGoalsMade", team.fieldGoalsMade)
+    addMetric(buckets, "fieldGoalsAttempted", team.fieldGoalsAttempted)
+    addMetric(buckets, "threePointersMade", team.threePointersMade)
+    addMetric(buckets, "threePointersAttempted", team.threePointersAttempted)
+    addMetric(buckets, "freeThrowsMade", team.freeThrowsMade)
+    addMetric(buckets, "freeThrowsAttempted", team.freeThrowsAttempted)
     addMetric(
       buckets,
       "fieldGoalPercentage",
@@ -299,6 +329,11 @@ function collectMetrics(
       calculateRate(team.shotProfile.midrangeAttempts, team.fieldGoalsAttempted)
     )
     addMetric(buckets, "assists", team.assists)
+    addMetric(
+      buckets,
+      "assistRate",
+      calculateRate(team.assists, team.fieldGoalsMade)
+    )
     addMetric(buckets, "turnovers", team.turnovers)
     addMetric(
       buckets,
@@ -310,7 +345,58 @@ function collectMetrics(
     addMetric(buckets, "defensiveRebounds", team.defensiveRebounds)
     addMetric(buckets, "steals", team.steals)
     addMetric(buckets, "blocks", team.blocks)
+    addMetric(
+      buckets,
+      "blockRate",
+      calculateRate(team.blocks, opponent?.fieldGoalsAttempted ?? 0)
+    )
     addMetric(buckets, "fouls", team.fouls)
+    addMetric(buckets, "shootingFouls", teamTelemetry?.shootingFouls ?? 0)
+    addMetric(buckets, "nonShootingFouls", teamTelemetry?.nonShootingFouls ?? 0)
+    addMetric(
+      buckets,
+      "shootingFoulRate",
+      calculateRate(teamTelemetry?.shootingFouls ?? 0, team.possessions)
+    )
+    addMetric(
+      buckets,
+      "nonShootingFoulRate",
+      calculateRate(teamTelemetry?.nonShootingFouls ?? 0, team.possessions)
+    )
+    addMetric(
+      buckets,
+      "offensiveReboundRate",
+      calculateRate(
+        team.offensiveRebounds,
+        team.offensiveRebounds + opponentDefensiveRebounds
+      )
+    )
+    addMetric(
+      buckets,
+      "secondChanceAttempts",
+      teamTelemetry?.secondChanceAttempts ?? 0
+    )
+    addMetric(
+      buckets,
+      "secondChancePoints",
+      teamTelemetry?.secondChancePoints ?? 0
+    )
+    addMetric(
+      buckets,
+      "secondChanceAttemptRate",
+      calculateRate(
+        teamTelemetry?.secondChanceAttempts ?? 0,
+        team.fieldGoalsAttempted
+      )
+    )
+    addMetric(
+      buckets,
+      "secondChancePointsPerOffensiveRebound",
+      calculateRate(
+        teamTelemetry?.secondChancePoints ?? 0,
+        team.offensiveRebounds
+      )
+    )
     addMetric(
       buckets,
       "topPlayerOpportunityShare",
@@ -427,9 +513,13 @@ export function runMatchupBatch(
       )
     }
     const fixtureValidation = gameMatchupFixtureSchema.safeParse(fixture)
-    const result = fixtureValidation.success
-      ? simulateGameMatchup(fixture)
-      : rejectedResult(fixture, seed)
+    const execution = fixtureValidation.success
+      ? simulateGameMatchupWithTelemetry(fixture)
+      : {
+          result: rejectedResult(fixture, seed),
+          telemetry: { totalPossessions: 0, byTeam: {} },
+        }
+    const result = execution.result
 
     results.push(result)
     collectAttemptMetrics(result, buckets)
@@ -437,7 +527,7 @@ export function runMatchupBatch(
       failures.push({ seed, fixture, result })
     } else {
       addMetric(buckets, "reconciliationPass", 1)
-      collectMetrics(result, buckets)
+      collectMetrics(result, buckets, execution.telemetry)
     }
     options.onProgress?.({
       completed: index + 1,
