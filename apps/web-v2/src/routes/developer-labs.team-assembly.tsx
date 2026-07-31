@@ -82,6 +82,7 @@ function NumberField({
       <Input
         id={id}
         type="number"
+        className="h-9 px-3 text-sm md:text-sm"
         value={value}
         min={min}
         max={max}
@@ -283,52 +284,95 @@ function TeamAssemblyLabPage() {
   )[0]
 
   return (
-    <main className="min-h-svh bg-background px-4 py-5 text-foreground sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5">
-        <header className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <Link to="/developer-labs" className="hover:text-foreground">
-                Developer Labs
-              </Link>
-              <span aria-hidden="true">/</span>
-              <span>Team Assembly</span>
-              <Badge variant="outline">Developer only</Badge>
+    <main className="min-h-svh bg-background px-4 py-6 text-foreground sm:px-6 lg:px-8 lg:py-10">
+      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-8">
+        <header className="border-b border-border pb-7">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                <Link
+                  to="/developer-labs"
+                  className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                >
+                  Developer Labs
+                </Link>
+                <span aria-hidden="true">/</span>
+                <span>Team assembly</span>
+                <Badge variant="outline" className="font-medium">
+                  Developer only
+                </Badge>
+              </div>
+              <h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-balance">
+                Team assembly lab
+              </h1>
+              <p className="mt-2 max-w-2xl text-base leading-7 text-pretty text-muted-foreground">
+                Assemble a legal league from the generated player universe, then
+                inspect roster strength, position coverage, and every selection
+                decision.
+              </p>
             </div>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-balance">
-              Team assembly lab
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Inspect how the standard player universe becomes{" "}
-              {TEAM_ASSEMBLY_LAB_TEAM_COUNT} legal, position-covered rosters
-              through a reproducible snake allocation.
-            </p>
+            <nav className="flex flex-wrap gap-2" aria-label="Lab actions">
+              <Button variant="outline" asChild className="h-10 px-3 text-sm">
+                <Link to="/developer-labs/player-generation">
+                  Player generation lab
+                </Link>
+              </Button>
+              <Button variant="outline" asChild className="h-10 px-3 text-sm">
+                <Link to="/developer-labs">All labs</Link>
+              </Button>
+            </nav>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/developer-labs/player-generation">
-                Player generation lab
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/developer-labs">All labs</Link>
-            </Button>
+
+          <div className="mt-7 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
+            <span className="font-semibold tracking-[0.12em] text-foreground uppercase">
+              Workflow
+            </span>
+            <span className="rounded-md border border-border bg-muted px-2 py-1">
+              1. Configure
+            </span>
+            <span aria-hidden="true">→</span>
+            <span className="rounded-md border border-border bg-muted px-2 py-1">
+              2. Assemble
+            </span>
+            <span aria-hidden="true">→</span>
+            <span className="rounded-md border border-border bg-muted px-2 py-1">
+              3. Inspect rosters
+            </span>
           </div>
         </header>
 
-        <div className="grid items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <Card className="xl:sticky xl:top-4">
-            <CardHeader>
-              <CardTitle>Assembly controls</CardTitle>
-              <CardDescription>
-                Player populations use the shared production presets.
-              </CardDescription>
+        <div className="grid items-start gap-6 xl:grid-cols-[336px_minmax(0,1fr)]">
+          <Card className="gap-0 overflow-hidden py-0 ring-border xl:sticky xl:top-4">
+            <CardHeader className="border-b border-border bg-muted/20 px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base">Assembly controls</CardTitle>
+                  <CardDescription className="mt-1 text-sm">
+                    Every control is included in the export.
+                  </CardDescription>
+                </div>
+                <Badge
+                  variant="outline"
+                  className={
+                    universe && isDirty
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground"
+                  }
+                >
+                  {universe
+                    ? isDirty
+                      ? "Settings changed"
+                      : "Run current"
+                    : "Ready to run"}
+                </Badge>
+              </div>
             </CardHeader>
-            <CardContent className="grid gap-5">
+            <CardContent className="grid gap-5 px-5 py-5">
               <div className="grid gap-1.5">
                 <Label htmlFor="assembly-seed">Seed</Label>
                 <Input
                   id="assembly-seed"
+                  className="h-9 px-3 text-sm md:text-sm"
                   value={seed}
                   onChange={(event) => {
                     setSeed(event.target.value)
@@ -392,27 +436,33 @@ function TeamAssemblyLabPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
-                  className="flex-1"
+                  className="h-10 text-sm"
                   onClick={handleGenerate}
                 >
                   Generate universe
                 </Button>
-                <Button type="button" variant="outline" onClick={handleReset}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 text-sm"
+                  onClick={handleReset}
+                >
                   Reset
                 </Button>
               </div>
               <Button
                 type="button"
                 variant="outline"
+                className="h-10 text-sm"
                 onClick={handleDownload}
                 disabled={!universe}
               >
                 Download JSON
               </Button>
-              <p className="text-xs leading-5 text-muted-foreground">
+              <p className="text-center text-xs leading-5 text-muted-foreground">
                 {universe
                   ? isDirty
                     ? "Controls changed since the displayed run."
@@ -424,6 +474,7 @@ function TeamAssemblyLabPage() {
 
           <section
             className="grid min-w-0 gap-5"
+            aria-live="polite"
             aria-label="Assembly evidence"
           >
             {error ? (
@@ -436,26 +487,58 @@ function TeamAssemblyLabPage() {
             ) : null}
 
             {!universe ? (
-              <div className="grid min-h-72 place-items-center rounded-lg border border-dashed border-border p-8 text-center">
-                <div className="max-w-md">
-                  <h2 className="text-base font-medium">
-                    Generate the standard universe
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    The lab will create {rosterPlayerCount} roster players,{" "}
-                    {
-                      STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.initialFreeAgentCount
-                    }{" "}
-                    free agents, and{" "}
-                    {STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.draftProspectCount}{" "}
-                    draft prospects before assembling all{" "}
-                    {TEAM_ASSEMBLY_LAB_TEAM_COUNT} teams.
-                  </p>
-                </div>
-              </div>
+              <Card className="gap-0 py-0 ring-border">
+                <CardHeader className="border-b border-border px-5 py-4 sm:px-6">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-lg">Evidence</CardTitle>
+                      <CardDescription className="mt-1 text-sm">
+                        Assemble a reproducible league to inspect roster
+                        quality.
+                      </CardDescription>
+                    </div>
+                    <Badge variant="outline" className="font-medium">
+                      {TEAM_ASSEMBLY_LAB_TEAM_COUNT} teams planned
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
+                  <div className="grid min-h-[360px] place-content-center gap-4 rounded-lg border border-dashed border-border bg-muted/30 px-6 text-center">
+                    <div className="mx-auto max-w-xl">
+                      <h2 className="text-lg font-semibold">
+                        Build the standard universe
+                      </h2>
+                      <p className="mt-2 text-base leading-7 text-pretty text-muted-foreground">
+                        Create {rosterPlayerCount} roster players,{" "}
+                        {
+                          STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.initialFreeAgentCount
+                        }{" "}
+                        free agents, and{" "}
+                        {
+                          STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG.draftProspectCount
+                        }{" "}
+                        draft prospects, then assemble all{" "}
+                        {TEAM_ASSEMBLY_LAB_TEAM_COUNT} teams with legal position
+                        coverage.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm font-medium text-muted-foreground">
+                      <span>{TEAM_ASSEMBLY_LAB_TEAM_COUNT} teams</span>
+                      <span>{rosterPlayerCount} roster players</span>
+                      <span>{totalPlayerCount} total players</span>
+                    </div>
+                    <Button
+                      className="mx-auto h-10 px-4 text-sm"
+                      onClick={handleGenerate}
+                    >
+                      Generate universe
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             ) : (
               <>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid divide-y divide-border overflow-hidden rounded-lg border border-border bg-muted/40 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
                   <SummaryBlock
                     label="Validation"
                     value={
@@ -498,24 +581,61 @@ function TeamAssemblyLabPage() {
                   </div>
                 ) : null}
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Team comparison</CardTitle>
-                    <CardDescription>
-                      Select a row to inspect its roster and pick history.
-                    </CardDescription>
+                <Card className="gap-0 py-0 ring-border">
+                  <CardHeader className="border-b border-border bg-muted/20 px-5 py-4 sm:px-6">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <CardTitle className="text-lg">
+                          Team comparison
+                        </CardTitle>
+                        <CardDescription className="mt-1 text-sm">
+                          Select a row to inspect its roster and pick history.
+                        </CardDescription>
+                      </div>
+                      {selectedTeam ? (
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-xs font-medium text-muted-foreground">
+                            Selected
+                          </span>
+                          <Badge variant="outline" className="font-medium">
+                            {getTeamAssemblyLabTeamName(selectedTeam.teamId)}
+                          </Badge>
+                        </div>
+                      ) : null}
+                    </div>
                   </CardHeader>
-                  <CardContent className="p-0">
-                    <Table role="grid">
+                  <CardContent className="overflow-x-auto p-0">
+                    <Table
+                      className="min-w-[900px]"
+                      aria-label="Team comparison"
+                    >
                       <TableHeader>
                         {table.getHeaderGroups().map((headerGroup) => (
                           <TableRow key={headerGroup.id}>
                             {headerGroup.headers.map((header) => (
-                              <TableHead key={header.id}>
+                              <TableHead
+                                key={header.id}
+                                className={
+                                  header.column.id === "team"
+                                    ? "sticky left-0 z-10 border-r border-border bg-background"
+                                    : undefined
+                                }
+                                aria-sort={
+                                  header.column.getIsSorted() === "asc"
+                                    ? "ascending"
+                                    : header.column.getIsSorted() === "desc"
+                                      ? "descending"
+                                      : "none"
+                                }
+                              >
                                 {header.isPlaceholder ? null : (
                                   <button
                                     type="button"
-                                    className="font-medium hover:text-primary"
+                                    aria-label={
+                                      "Sort by " +
+                                      String(header.column.columnDef.header)
+                                    }
+                                    className="rounded-sm font-medium hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                                     onClick={header.column.getToggleSortingHandler()}
                                   >
                                     {flexRender(
@@ -550,7 +670,11 @@ function TeamAssemblyLabPage() {
                                 ? "selected"
                                 : undefined
                             }
-                            className="cursor-pointer"
+                            className={
+                              selectedTeamId === row.original.teamId
+                                ? "group cursor-pointer bg-muted hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+                                : "group cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+                            }
                             onClick={() =>
                               setSelectedTeamId(row.original.teamId)
                             }
@@ -562,7 +686,16 @@ function TeamAssemblyLabPage() {
                             }}
                           >
                             {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id}>
+                              <TableCell
+                                key={cell.id}
+                                className={
+                                  cell.column.id === "team"
+                                    ? selectedTeamId === row.original.teamId
+                                      ? "sticky left-0 z-[1] border-r border-border bg-muted"
+                                      : "sticky left-0 z-[1] border-r border-border bg-background group-hover:bg-muted"
+                                    : undefined
+                                }
+                              >
                                 {flexRender(
                                   cell.column.columnDef.cell,
                                   cell.getContext()
@@ -578,17 +711,20 @@ function TeamAssemblyLabPage() {
 
                 {selectedTeam && selectedTeamId ? (
                   <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>
+                    <Card className="gap-0 py-0 ring-border">
+                      <CardHeader className="border-b border-border bg-muted/20 px-5 py-4 sm:px-6">
+                        <CardTitle className="text-lg">
                           {getTeamAssemblyLabTeamName(selectedTeamId)} roster
                         </CardTitle>
-                        <CardDescription>
+                        <CardDescription className="mt-1 text-sm">
                           Two-deep core coverage followed by five bench picks.
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="p-0">
-                        <Table>
+                      <CardContent className="overflow-x-auto p-0">
+                        <Table
+                          className="min-w-[680px]"
+                          aria-label="Selected roster"
+                        >
                           <TableHeader>
                             <TableRow>
                               <TableHead>Player</TableHead>
@@ -647,20 +783,20 @@ function TeamAssemblyLabPage() {
                       </CardContent>
                     </Card>
 
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Pick log</CardTitle>
-                        <CardDescription>
+                    <Card className="gap-0 py-0 ring-border">
+                      <CardHeader className="border-b border-border bg-muted/20 px-5 py-4 sm:px-6">
+                        <CardTitle className="text-lg">Pick log</CardTitle>
+                        <CardDescription className="mt-1 text-sm">
                           Why each player survived the configured shortlist.
                         </CardDescription>
                       </CardHeader>
-                      <CardContent className="grid gap-3">
+                      <CardContent className="grid gap-3 px-5 py-5 sm:px-6">
                         {selectedPicks.map((pick) => (
                           <details
                             key={pick.overallPick}
-                            className="rounded-md border border-border px-3 py-2"
+                            className="rounded-md border border-border bg-muted/20 px-3 py-2 transition-colors focus-within:ring-2 focus-within:ring-ring hover:bg-muted motion-reduce:transition-none"
                           >
-                            <summary className="cursor-pointer text-xs font-medium">
+                            <summary className="cursor-pointer list-none text-xs font-medium outline-none [&::-webkit-details-marker]:hidden">
                               Round {pick.round} ·{" "}
                               {pick.requiredPosition ?? "Bench"} ·{" "}
                               {getTeamAssemblyLabPlayerName(
@@ -696,21 +832,32 @@ function TeamAssemblyLabPage() {
                   </div>
                 ) : null}
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <PopulationSummary
-                    title="Initial free agents"
-                    count={freeAgentSummary?.count ?? 0}
-                    ability={freeAgentSummary?.averageAbility ?? 0}
-                    age={freeAgentSummary?.averageAge ?? 0}
-                    potential={freeAgentSummary?.averagePotential ?? 0}
-                  />
-                  <PopulationSummary
-                    title="Draft class"
-                    count={draftSummary?.count ?? 0}
-                    ability={draftSummary?.averageAbility ?? 0}
-                    age={draftSummary?.averageAge ?? 0}
-                    potential={draftSummary?.averagePotential ?? 0}
-                  />
+                <div className="grid gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      Other player pools
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Population evidence carried through from the shared
+                      universe.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <PopulationSummary
+                      title="Initial free agents"
+                      count={freeAgentSummary?.count ?? 0}
+                      ability={freeAgentSummary?.averageAbility ?? 0}
+                      age={freeAgentSummary?.averageAge ?? 0}
+                      potential={freeAgentSummary?.averagePotential ?? 0}
+                    />
+                    <PopulationSummary
+                      title="Draft class"
+                      count={draftSummary?.count ?? 0}
+                      ability={draftSummary?.averageAbility ?? 0}
+                      age={draftSummary?.averageAge ?? 0}
+                      potential={draftSummary?.averagePotential ?? 0}
+                    />
+                  </div>
                 </div>
               </>
             )}
@@ -731,7 +878,7 @@ function SummaryBlock({
   detail: string
 }) {
   return (
-    <div className="rounded-md border border-border bg-card p-4">
+    <div className="px-4 py-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
       <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
@@ -753,7 +900,7 @@ function PopulationSummary({
   potential: number
 }) {
   return (
-    <section className="rounded-md border border-border bg-card p-4">
+    <section className="rounded-lg border border-border bg-muted/20 p-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-medium">{title}</h2>
         <Badge variant="outline">{count} players</Badge>

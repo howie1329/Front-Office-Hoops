@@ -1200,7 +1200,7 @@ function PlayerGenerationLabPage() {
                 </div>
               ) : null}
             </CardContent>
-            <CardFooter className="flex-col items-stretch gap-2 border-t border-border bg-muted/40 px-5 py-4">
+            <CardFooter className="sticky bottom-0 z-10 flex-col items-stretch gap-2 border-t border-border bg-muted/40 px-5 py-4 xl:static">
               <Button
                 className="h-11 text-sm"
                 disabled={errors.length > 0 || !seed.trim()}
@@ -1231,9 +1231,13 @@ function PlayerGenerationLabPage() {
                       variant="outline"
                       className="hidden font-medium sm:inline-flex"
                     >
-                      {mode === "batch"
-                        ? `${results.length || count} profiles`
-                        : `Single · sample ${sampleIndex}`}
+                      {results.length
+                        ? mode === "batch"
+                          ? `${results.length} profiles`
+                          : `Single · sample ${sampleIndex}`
+                        : mode === "batch"
+                          ? `Batch · ${count} players`
+                          : `Single · sample ${sampleIndex}`}
                     </Badge>
                     {isDirty && results.length ? (
                       <Badge variant="outline">Settings changed</Badge>
@@ -1482,6 +1486,14 @@ function PlayerGenerationLabPage() {
                           : `Sample ${sampleIndex}`}
                       </span>
                     </div>
+                    <Button
+                      className="mx-auto mt-2 h-10 px-4 text-sm"
+                      disabled={errors.length > 0 || !seed.trim()}
+                      onClick={handleGenerate}
+                    >
+                      Generate{" "}
+                      {mode === "batch" ? `${count} players` : "player"}
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -1494,10 +1506,29 @@ function PlayerGenerationLabPage() {
             {results.length && mode === "batch" ? (
               <Card className="gap-0 py-0 ring-border">
                 <CardHeader className="border-b border-border px-5 py-4 sm:px-6">
-                  <h2 className="text-lg font-semibold">Generated players</h2>
-                  <CardDescription className="mt-1 text-sm">
-                    Click a row to inspect raw and final skill values.
-                  </CardDescription>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-lg font-semibold">
+                        Generated players
+                      </h2>
+                      <CardDescription className="mt-1 text-sm">
+                        Click a row to inspect raw and final skill values.
+                      </CardDescription>
+                    </div>
+                    {selectedResult ? (
+                      <div className="flex min-w-0 items-center gap-2 text-sm">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Selected
+                        </span>
+                        <span className="max-w-44 truncate font-medium">
+                          {getLabPlayerDisplayName(selectedResult)}
+                        </span>
+                        <Badge variant="outline" className="tabular-nums">
+                          {selectedResult.diagnostics.currentAbility} current
+                        </Badge>
+                      </div>
+                    ) : null}
+                  </div>
                 </CardHeader>
                 <CardContent className="overflow-x-auto p-0">
                   <Table className="min-w-[1050px]">
@@ -1505,10 +1536,25 @@ function PlayerGenerationLabPage() {
                       {table.getHeaderGroups().map((headerGroup) => (
                         <TableRow key={headerGroup.id}>
                           {headerGroup.headers.map((header) => (
-                            <TableHead key={header.id}>
+                            <TableHead
+                              key={header.id}
+                              className={
+                                header.column.id === "player"
+                                  ? "sticky left-0 z-10 border-r border-border bg-background"
+                                  : undefined
+                              }
+                              aria-sort={
+                                header.column.getIsSorted() === "asc"
+                                  ? "ascending"
+                                  : header.column.getIsSorted() === "desc"
+                                    ? "descending"
+                                    : "none"
+                              }
+                            >
                               {header.isPlaceholder ? null : (
                                 <button
                                   type="button"
+                                  aria-label={`Sort by ${String(header.column.columnDef.header)}`}
                                   className="rounded-sm font-medium hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
                                   onClick={header.column.getToggleSortingHandler()}
                                 >
@@ -1538,8 +1584,8 @@ function PlayerGenerationLabPage() {
                           aria-selected={selectedResult === row.original}
                           className={
                             selectedResult === row.original
-                              ? "cursor-pointer bg-muted hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
-                              : "cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+                              ? "group cursor-pointer bg-muted hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
+                              : "group cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
                           }
                           onClick={() => setSelectedResult(row.original)}
                           onKeyDown={(event) => {
@@ -1550,7 +1596,16 @@ function PlayerGenerationLabPage() {
                           }}
                         >
                           {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
+                            <TableCell
+                              key={cell.id}
+                              className={
+                                cell.column.id === "player"
+                                  ? selectedResult === row.original
+                                    ? "sticky left-0 z-[1] border-r border-border bg-muted"
+                                    : "sticky left-0 z-[1] border-r border-border bg-background group-hover:bg-muted"
+                                  : undefined
+                              }
+                            >
                               {flexRender(
                                 cell.column.columnDef.cell,
                                 cell.getContext()
