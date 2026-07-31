@@ -10,7 +10,10 @@ import { gameMatchupFixtureSchema } from "@workspace/league-schema"
 import {
   createStandardGameSimulationConfig,
   GAME_SETTING_DESCRIPTORS,
+  getGameNumericSetting,
+  updateGameNumericSetting,
 } from "@workspace/sim-v2"
+import type { GameNumericSettingPath } from "@workspace/sim-v2"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -51,29 +54,6 @@ function formatNumber(value: number, decimals = 1): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(decimals)
 }
 
-function getNumericSetting(config: GameSimulationConfig, path: string): number {
-  const [section, key] = path.split(".")
-  const target = (config as unknown as Record<string, Record<string, unknown>>)[
-    section
-  ]
-  return Number(target[key] ?? 0)
-}
-
-function updateNumericSetting(
-  config: GameSimulationConfig,
-  path: string,
-  value: number
-): GameSimulationConfig {
-  const [section, key] = path.split(".")
-  const next = structuredClone(config)
-  const target = (next as unknown as Record<string, Record<string, unknown>>)[
-    section
-  ]
-  target[key] = value
-  next.presetId = "custom"
-  return next
-}
-
 function SettingField({
   config,
   descriptor,
@@ -81,9 +61,9 @@ function SettingField({
 }: {
   config: GameSimulationConfig
   descriptor: (typeof GAME_SETTING_DESCRIPTORS)[number]
-  onChange: (path: string, value: number) => void
+  onChange: (path: GameNumericSettingPath, value: number) => void
 }) {
-  const value = getNumericSetting(config, descriptor.path)
+  const value = getGameNumericSetting(config, descriptor.path)
   return (
     <div className="grid gap-2 border-b border-border/70 pb-3 last:border-0 last:pb-0">
       <div className="flex items-start justify-between gap-3">
@@ -143,7 +123,7 @@ function SectionSettings({
 }: {
   section: NumberSection
   config: GameSimulationConfig
-  onChange: (path: string, value: number) => void
+  onChange: (path: GameNumericSettingPath, value: number) => void
 }) {
   const descriptors = GAME_SETTING_DESCRIPTORS.filter((descriptor) =>
     descriptor.path.startsWith(`${section}.`)
@@ -602,8 +582,8 @@ function GameMatchupLabPage() {
     setIsDirty(true)
   }
 
-  function handleNumericSetting(path: string, value: number) {
-    updateConfig(updateNumericSetting(config, path, value))
+  function handleNumericSetting(path: GameNumericSettingPath, value: number) {
+    updateConfig(updateGameNumericSetting(config, path, value))
   }
 
   function updateFixture(
@@ -1032,14 +1012,13 @@ function GameMatchupLabPage() {
                       max={20}
                       value={config.injuries.maxGamesOut}
                       onChange={(event) =>
-                        updateConfig({
-                          ...config,
-                          presetId: "custom",
-                          injuries: {
-                            ...config.injuries,
-                            maxGamesOut: Number(event.target.value),
-                          },
-                        })
+                        updateConfig(
+                          updateGameNumericSetting(
+                            config,
+                            "injuries.maxGamesOut",
+                            Number(event.target.value)
+                          )
+                        )
                       }
                     />
                   </div>

@@ -14,6 +14,7 @@ export {
   matchupBatchReportSchema,
   playerGenerationConfigSchema,
   playerEntitySchema,
+  sliderSensitivityReportSchema,
 } from "./schema"
 export type { LeagueDocumentInput } from "./schema"
 export {

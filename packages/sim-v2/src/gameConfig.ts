@@ -3,8 +3,47 @@ import type {
   GameSimulationPresetId,
 } from "@workspace/domain-v2"
 
+type NumericSettingMap = {
+  environment:
+    | "pace"
+    | "scoringEnvironment"
+    | "gameVariance"
+    | "talentSeparation"
+    | "homeCourtAdvantage"
+  offense:
+    | "threePointRate"
+    | "rimRate"
+    | "midrangeRate"
+    | "shotSelectionDiscipline"
+    | "starUsage"
+    | "ballMovement"
+    | "isolationRate"
+    | "transitionRate"
+    | "offensiveRebounding"
+  defense:
+    | "pressure"
+    | "helpDefense"
+    | "switching"
+    | "doubleTeamRate"
+    | "turnoverPressure"
+    | "foulDiscipline"
+  rotation: "adherence" | "benchUsage" | "starterWorkload" | "fatigueImpact"
+  coaching:
+    | "influence"
+    | "paceInfluence"
+    | "shotSelectionInfluence"
+    | "defensiveInfluence"
+  injuries: "maxGamesOut"
+}
+
+export type GameNumericSettingPath = {
+  [
+    Section in keyof NumericSettingMap
+  ]: `${Section}.${NumericSettingMap[Section]}`
+}[keyof NumericSettingMap]
+
 export type GameSettingDescriptor = {
-  path: string
+  path: GameNumericSettingPath
   label: string
   description: string
   min: number
@@ -216,7 +255,8 @@ export const GAME_SETTING_DESCRIPTORS: GameSettingDescriptor[] = [
   {
     path: "defense.doubleTeamRate",
     label: "Double-team rate",
-    description: "Changes how often defenses send a second defender at creators.",
+    description:
+      "Changes how often defenses send a second defender at creators.",
     min: 0,
     max: 100,
     step: 1,
@@ -307,9 +347,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Number.isFinite(value) ? value : min))
 }
 
-function normalizeSection<T extends Record<string, number>>(
-  section: T
-): T {
+function normalizeSection<T extends Record<string, number>>(section: T): T {
   return Object.fromEntries(
     Object.entries(section).map(([key, value]) => [key, clamp(value, 0, 100)])
   ) as T
@@ -319,6 +357,38 @@ export function cloneGameSimulationConfig(
   config: GameSimulationConfig
 ): GameSimulationConfig {
   return structuredClone(config)
+}
+
+export function getGameNumericSetting(
+  config: GameSimulationConfig,
+  path: GameNumericSettingPath
+): number {
+  const [section, key] = path.split(".") as [keyof NumericSettingMap, string]
+  const value = (config[section] as Record<string, unknown>)[key]
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error("Game simulation setting " + path + " is not numeric.")
+  }
+  return value
+}
+
+export function updateGameNumericSetting(
+  config: GameSimulationConfig,
+  path: GameNumericSettingPath,
+  value: number
+): GameSimulationConfig {
+  const descriptor = GAME_SETTING_DESCRIPTORS.find(
+    (candidate) => candidate.path === path
+  )
+  if (!descriptor) {
+    throw new Error("Unknown game simulation setting " + path + ".")
+  }
+
+  const next = cloneGameSimulationConfig(config)
+  const [section, key] = path.split(".") as [keyof NumericSettingMap, string]
+  const target = next[section] as Record<string, unknown>
+  target[key] = clamp(value, descriptor.min, descriptor.max)
+  next.presetId = "custom"
+  return next
 }
 
 export function createStandardGameSimulationConfig(): GameSimulationConfig {
@@ -346,9 +416,7 @@ export function resolveGameSimulationConfig(
     },
     overtime: {
       enabled: source.overtime.enabled,
-      segmentMinutes: Math.round(
-        clamp(source.overtime.segmentMinutes, 1, 20)
-      ),
+      segmentMinutes: Math.round(clamp(source.overtime.segmentMinutes, 1, 20)),
       maxSegments: Math.round(clamp(source.overtime.maxSegments, 1, 20)),
     },
   }

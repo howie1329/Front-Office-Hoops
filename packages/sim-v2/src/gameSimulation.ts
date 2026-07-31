@@ -1,6 +1,7 @@
 import type {
   GameDiagnostic,
   GameEvent,
+  GameCoachingProfile,
   GameMatchupFixture,
   GamePeriodResult,
   GamePlayerBoxScore,
@@ -164,6 +165,21 @@ function emptyPlayerStats(
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
+}
+
+function getEffectiveCoachProfile(
+  profile: GameCoachingProfile,
+  config: GameSimulationConfig
+): GameCoachingProfile {
+  const influence = clamp(config.coaching.influence / 100, 0, 1)
+  const resolve = (value: number) => 50 + (value - 50) * influence
+  return {
+    pace: resolve(profile.pace),
+    offensiveStyle: resolve(profile.offensiveStyle),
+    defensivePressure: resolve(profile.defensivePressure),
+    shotSelection: resolve(profile.shotSelection),
+    rotationDepth: resolve(profile.rotationDepth),
+  }
 }
 
 function round(value: number, precision = 1): number {
@@ -426,15 +442,14 @@ function buildRotationPlan(
     playerIds.map((playerId) => {
       const defaultMinutes = rotation.starters.includes(playerId) ? 32 : 12
       const configured = rotation.targetMinutes[playerId] ?? defaultMinutes
+      const adherence = config.rotation.adherence / 100
+      const blended = defaultMinutes + (configured - defaultMinutes) * adherence
       const availability = getAvailability(fixture, playerId)
       const limited =
         availability.restriction === "minutes-limited"
-          ? Math.min(configured, availability.minutesLimit ?? 24)
-          : configured
-      return [
-        playerId,
-        availability.available ? Math.max(0, limited) : 0,
-      ]
+          ? Math.min(blended, availability.minutesLimit ?? 24)
+          : blended
+      return [playerId, availability.available ? Math.max(0, limited) : 0]
     })
   ) as Record<string, number>
 
@@ -493,7 +508,9 @@ function syncTeamTotalsFromPlayers(state: SimulationState): void {
     const players = Object.values(state.players).filter(
       (player) => player.teamId === teamId
     )
-    const numericFields: Array<keyof Omit<MutableTeamStats, "teamId" | "shotProfile" | "possessions">> = [
+    const numericFields: Array<
+      keyof Omit<MutableTeamStats, "teamId" | "shotProfile" | "possessions">
+    > = [
       "points",
       "fieldGoalsMade",
       "fieldGoalsAttempted",
@@ -539,33 +556,26 @@ function chooseOffensivePlayer(
 ): string {
   const plan = state.rotations[teamId]!
   const config = state.config
-  const coach = state.fixture.coaching[teamId]!
   const entries = plan.activePlayerIds
     .filter((playerId) => playerCanPlay(state, playerId))
     .map((playerId) => {
       const player = state.fixture.players[playerId]!
       const role = state.roles[playerId]!
-      const plannedMinutes = state.rotations[teamId]!.targetMinutes[playerId] ?? 1
+      const plannedMinutes =
+        state.rotations[teamId]!.targetMinutes[playerId] ?? 1
       const starterBoost = plan.starterIds.has(playerId)
         ? 1 + config.rotation.starterWorkload / 500
-        : 1 - config.rotation.benchUsage / 600
+        : 1 + config.rotation.benchUsage / 400
+      const abilityFactor = getPlayerCurrentAbility(player) / 100
       const starBoost =
-        0.75 +
-        (getPlayerCurrentAbility(player) / 100) * 0.55 +
-        config.offense.starUsage / 240
-      const coachBoost =
-        0.85 + (coach.offensiveStyle / 100) * (config.coaching.influence / 500)
-      const fatiguePenalty =
-        period > 2 ? 1 - config.rotation.fatigueImpact / 1000 : 1
+        0.75 + abilityFactor * (0.35 + (config.offense.starUsage / 100) * 0.45)
       return {
         id: playerId,
         weight:
           plannedMinutes *
           (role.creationWeight * 0.7 + role.scoringWeight * 0.3) *
           starterBoost *
-          starBoost *
-          coachBoost *
-          fatiguePenalty,
+          starBoost,
       }
     })
 
@@ -599,7 +609,22 @@ function attemptType(
   possession: number
 ): "rim" | "midrange" | "three" {
   const offense = state.config.offense
-  const coach = state.fixture.coaching[teamId]!
+  const coach = getEffectiveCoachProfile(
+    state.fixture.coaching[teamId]!,
+    state.config
+  )
+  const transitionBias = (offense.transitionRate - 50) / 50
+  const disciplineBias = (offense.shotSelectionDiscipline - 50) / 50
+  const coachSelectionBias =
+    ((coach.shotSelection - 50) / 50) *
+    (state.config.coaching.shotSelectionInfluence / 100)
+  const quality = {
+    three: player.profile.skills.shooting,
+    rim: (player.profile.skills.finishing + player.profile.skills.handling) / 2,
+    midrange:
+      (player.profile.skills.shooting + player.profile.skills.basketballIQ) / 2,
+  }
+  const averageQuality = (quality.three + quality.rim + quality.midrange) / 3
   const weights = [
     {
       id: "three" as const,
@@ -607,7 +632,9 @@ function attemptType(
         24 +
         offense.threePointRate * 0.28 +
         player.profile.skills.shooting * 0.12 +
-        coach.offensiveStyle * 0.06,
+        (quality.three - averageQuality) * disciplineBias * 0.08 +
+        transitionBias * 2.2 +
+        coachSelectionBias * 2.2,
     },
     {
       id: "rim" as const,
@@ -615,7 +642,10 @@ function attemptType(
         35 +
         offense.rimRate * 0.25 +
         player.profile.skills.finishing * 0.16 +
-        player.profile.skills.handling * 0.04,
+        player.profile.skills.handling * 0.04 +
+        (quality.rim - averageQuality) * disciplineBias * 0.08 +
+        transitionBias * 4.8 +
+        coachSelectionBias * 3.2,
     },
     {
       id: "midrange" as const,
@@ -623,16 +653,16 @@ function attemptType(
         18 +
         offense.midrangeRate * 0.2 +
         player.profile.skills.shooting * 0.08 +
-        player.profile.skills.basketballIQ * 0.04,
+        player.profile.skills.basketballIQ * 0.04 +
+        (quality.midrange - averageQuality) * disciplineBias * 0.08 -
+        transitionBias * 4.4 -
+        coachSelectionBias * 5.4,
     },
   ]
   return weightedChoice(
     state.random.fork(`shot:${player.id}:${period}:${possession}`),
     weights
-  ) as
-    | "rim"
-    | "midrange"
-    | "three"
+  ) as "rim" | "midrange" | "three"
 }
 
 function simulateFreeThrows(
@@ -642,7 +672,8 @@ function simulateFreeThrows(
   attempts: number
 ): number {
   const makeRate = clamp(
-    0.45 + shooterEntity.profile.skills.shooting * 0.0045 +
+    0.45 +
+      shooterEntity.profile.skills.shooting * 0.0045 +
       (state.config.environment.scoringEnvironment - 50) * 0.001,
     0.55,
     0.95
@@ -672,7 +703,10 @@ function maybeCreateInjury(
         : frequency === "normal"
           ? 0.001
           : 0.0018
-  if (!state.config.injuries.inGameInjuries || state.random.next() >= probability) {
+  if (
+    !state.config.injuries.inGameInjuries ||
+    state.random.next() >= probability
+  ) {
     return
   }
 
@@ -741,13 +775,35 @@ function simulatePossession(
     state,
     defenseTeamId,
     `defender:${defenseTeamId}:${period}:${possession}`,
-    (player) => player.profile.skills.defense + player.profile.skills.basketballIQ * 0.3
+    (player) =>
+      player.profile.skills.defense + player.profile.skills.basketballIQ * 0.3
   )
   const defensePlayer = state.fixture.players[defensePlayerId]!
   const defenseStats = state.players[defensePlayerId]!
   const offenseTeam = state.teams[offenseTeamId]!
   const defenseTeam = state.teams[defenseTeamId]!
   const config = state.config
+  const defenseCoach = getEffectiveCoachProfile(
+    state.fixture.coaching[defenseTeamId]!,
+    config
+  )
+  const coachDefenseModifier =
+    ((defenseCoach.defensivePressure - 50) / 50) *
+    (config.coaching.defensiveInfluence / 100)
+  const creatorFactor = clamp(
+    (getPlayerCurrentAbility(offensePlayer) - 55) / 45,
+    0,
+    1
+  )
+  const doubleTeamChance = clamp(
+    (config.defense.doubleTeamRate / 100) * (0.04 + creatorFactor * 0.28),
+    0,
+    0.4
+  )
+  const doubleTeamActive =
+    state.random
+      .fork("double-team:" + offenseTeamId + ":" + period + ":" + possession)
+      .next() < doubleTeamChance
 
   offenseStats.opportunities += 1
   const turnoverRate = clamp(
@@ -759,8 +815,15 @@ function simulatePossession(
     0.055,
     0.22
   )
+  const adjustedTurnoverRate = clamp(
+    turnoverRate +
+      coachDefenseModifier * 0.022 +
+      (doubleTeamActive ? 0.025 + creatorFactor * 0.025 : 0),
+    0.055,
+    0.22
+  )
 
-  if (state.random.next() < turnoverRate) {
+  if (state.random.next() < adjustedTurnoverRate) {
     offenseStats.turnovers += 1
     if (state.random.next() < 0.72) defenseStats.steals += 1
     maybeCreateInjury(state, offenseTeamId, period, possession)
@@ -770,7 +833,8 @@ function simulatePossession(
   const foulRate = clamp(
     0.045 +
       config.defense.pressure * 0.00012 -
-      config.defense.foulDiscipline * 0.0001,
+      config.defense.foulDiscipline * 0.0001 +
+      coachDefenseModifier * 0.006,
     0.025,
     0.095
   )
@@ -803,17 +867,73 @@ function simulatePossession(
   const finishingSkill = offensePlayer.profile.skills.finishing
   const defensePressure =
     defensePlayer.profile.skills.defense * 0.0015 +
-    config.defense.helpDefense * 0.00025
-  const scoringEnvironment = (config.environment.scoringEnvironment - 50) * 0.0009
+    config.defense.helpDefense * 0.00025 +
+    coachDefenseModifier * 0.018 +
+    (doubleTeamActive ? 0.012 + creatorFactor * 0.008 : 0)
+  const scoringEnvironment =
+    (config.environment.scoringEnvironment - 50) * 0.0009
   const talentSeparation = config.environment.talentSeparation / 100
   const variance = config.environment.gameVariance / 100
+  const homeEfficiencyBonus =
+    offenseTeamId === state.fixture.homeTeamId
+      ? (config.environment.homeCourtAdvantage - 50) * 0.00035
+      : 0
+  const shotQuality =
+    shot === "three"
+      ? offensePlayer.profile.skills.shooting
+      : shot === "rim"
+        ? (offensePlayer.profile.skills.finishing +
+            offensePlayer.profile.skills.handling) /
+          2
+        : (offensePlayer.profile.skills.shooting +
+            offensePlayer.profile.skills.basketballIQ) /
+          2
+  const disciplineQualityBonus =
+    ((config.offense.shotSelectionDiscipline - 50) / 50) *
+    (shotQuality - 50) *
+    0.00035
+  const fatiguePenalty =
+    period > 2 ? config.rotation.fatigueImpact * 0.00045 : 0
   const randomNoise = state.random.normal(0, 0.045 * variance)
   const makeRate =
     shot === "three"
-      ? clamp(0.27 + shootingSkill * 0.00105 * talentSeparation + scoringEnvironment - defensePressure + randomNoise, 0.18, 0.52)
+      ? clamp(
+          0.27 +
+            shootingSkill * 0.00105 * talentSeparation +
+            scoringEnvironment +
+            homeEfficiencyBonus +
+            disciplineQualityBonus -
+            fatiguePenalty -
+            defensePressure +
+            randomNoise,
+          0.18,
+          0.52
+        )
       : shot === "rim"
-        ? clamp(0.42 + finishingSkill * 0.0012 * talentSeparation + scoringEnvironment - defensePressure * 0.7 + randomNoise, 0.3, 0.78)
-        : clamp(0.31 + shootingSkill * 0.0009 * talentSeparation + scoringEnvironment - defensePressure + randomNoise, 0.2, 0.58)
+        ? clamp(
+            0.42 +
+              finishingSkill * 0.0012 * talentSeparation +
+              scoringEnvironment +
+              homeEfficiencyBonus +
+              disciplineQualityBonus -
+              fatiguePenalty -
+              defensePressure * 0.7 +
+              randomNoise,
+            0.3,
+            0.78
+          )
+        : clamp(
+            0.31 +
+              shootingSkill * 0.0009 * talentSeparation +
+              scoringEnvironment +
+              homeEfficiencyBonus +
+              disciplineQualityBonus -
+              fatiguePenalty -
+              defensePressure +
+              randomNoise,
+            0.2,
+            0.58
+          )
 
   offenseStats.fieldGoalsAttempted += 1
   offenseTeam.fieldGoalsAttempted += 1
@@ -862,7 +982,8 @@ function simulatePossession(
         state,
         offenseTeamId,
         `assist:${offenseTeamId}:${period}:${possession}`,
-        (player) => player.profile.skills.passing + player.profile.skills.basketballIQ
+        (player) =>
+          player.profile.skills.passing + player.profile.skills.basketballIQ
       )
       if (passerId && passerId !== offensePlayerId) {
         state.players[passerId]!.assists += 1
@@ -872,7 +993,9 @@ function simulatePossession(
   } else {
     const blockChance = clamp(
       shot === "rim"
-        ? 0.035 + config.defense.helpDefense * 0.0006 + defensePlayer.profile.skills.defense * 0.0004
+        ? 0.035 +
+            config.defense.helpDefense * 0.0006 +
+            defensePlayer.profile.skills.defense * 0.0004
         : 0.01 + defensePlayer.profile.skills.defense * 0.00012,
       0.005,
       0.12
@@ -892,7 +1015,9 @@ function simulatePossession(
         state,
         offenseTeamId,
         `offensive-rebound:${offenseTeamId}:${period}:${possession}`,
-        (player) => player.profile.skills.rebounding + player.profile.physical.strength * 0.3
+        (player) =>
+          player.profile.skills.rebounding +
+          player.profile.physical.strength * 0.3
       )
       state.players[rebounderId]!.offensiveRebounds += 1
       state.players[rebounderId]!.rebounds += 1
@@ -903,7 +1028,9 @@ function simulatePossession(
         state,
         defenseTeamId,
         `defensive-rebound:${defenseTeamId}:${period}:${possession}`,
-        (player) => player.profile.skills.rebounding + player.profile.physical.strength * 0.3
+        (player) =>
+          player.profile.skills.rebounding +
+          player.profile.physical.strength * 0.3
       )
       state.players[rebounderId]!.defensiveRebounds += 1
       state.players[rebounderId]!.rebounds += 1
@@ -931,7 +1058,10 @@ function createPeriods(state: SimulationState): void {
         offenseTeamId === fixture.homeTeamId
           ? fixture.awayTeamId
           : fixture.homeTeamId
-      const coach = fixture.coaching[offenseTeamId]!
+      const coach = getEffectiveCoachProfile(
+        fixture.coaching[offenseTeamId]!,
+        config
+      )
       const homeBonus =
         offenseTeamId === fixture.homeTeamId
           ? (config.environment.homeCourtAdvantage - 50) * 0.04
@@ -946,7 +1076,10 @@ function createPeriods(state: SimulationState): void {
         Math.round(
           state.random
             .fork(`possessions:${offenseTeamId}:${period}`)
-            .normal(paceValue / REGULATION_PERIODS, 1.5 + config.environment.gameVariance * 0.01)
+            .normal(
+              paceValue / REGULATION_PERIODS,
+              1.5 + config.environment.gameVariance * 0.01
+            )
         )
       )
       teamPossessions[offenseTeamId] = possessions
@@ -1001,7 +1134,9 @@ function createOvertimePeriods(state: SimulationState): void {
       const possessions = Math.max(
         2,
         Math.round(
-          state.random.fork(`overtime:${overtimeNumber}:${offenseTeamId}`).normal(10, 1.2)
+          state.random
+            .fork(`overtime:${overtimeNumber}:${offenseTeamId}`)
+            .normal(10, 1.2)
         )
       )
       teamPossessions[offenseTeamId] = possessions
@@ -1027,7 +1162,8 @@ function createOvertimePeriods(state: SimulationState): void {
     if (overtimeNumber >= config.overtime.maxSegments) {
       state.diagnostics.push({
         code: "overtime-extended",
-        message: "The game required more overtime than the configured soft limit.",
+        message:
+          "The game required more overtime than the configured soft limit.",
         severity: "warning",
         scope: "possession",
       })
@@ -1043,27 +1179,34 @@ function finalizeMinutes(state: SimulationState): void {
     const playerIds = plan.playerIds
     const played = Object.fromEntries(
       playerIds.map((playerId) => {
-        const event = state.events.find((candidate) => candidate.playerId === playerId)
+        const event = state.events.find(
+          (candidate) => candidate.playerId === playerId
+        )
         const fraction = event
           ? Math.max(0.08, (event.period - 1) / state.periods.length)
           : 1
         const availability = state.availability[playerId]!
         const limited =
           availability.restriction === "minutes-limited"
-            ? Math.min(plan.targetMinutes[playerId] ?? 0, availability.minutesLimit ?? 24)
-            : plan.targetMinutes[playerId] ?? 0
+            ? Math.min(
+                plan.targetMinutes[playerId] ?? 0,
+                availability.minutesLimit ?? 24
+              )
+            : (plan.targetMinutes[playerId] ?? 0)
         return [playerId, availability.available ? limited : limited * fraction]
       })
     ) as Record<string, number>
     const total = sum(Object.values(played))
-    const activeIds = playerIds.filter((playerId) => state.availability[playerId]?.available)
+    const activeIds = playerIds.filter(
+      (playerId) => state.availability[playerId]?.available
+    )
     let remaining = Math.max(0, expectedTeamMinutes - total)
     while (remaining > 0.01) {
       const eligibleIds = activeIds.filter((playerId) => {
         const availability = state.availability[playerId]!
         const limit =
           availability.restriction === "minutes-limited"
-            ? availability.minutesLimit ?? 24
+            ? (availability.minutesLimit ?? 24)
             : Number.POSITIVE_INFINITY
         return limit - (played[playerId] ?? 0) > 0.01
       })
@@ -1076,13 +1219,12 @@ function finalizeMinutes(state: SimulationState): void {
         const availability = state.availability[playerId]!
         const limit =
           availability.restriction === "minutes-limited"
-            ? availability.minutesLimit ?? 24
+            ? (availability.minutesLimit ?? 24)
             : Number.POSITIVE_INFINITY
-        const share =
-          Math.min(
-            remaining,
-            remaining * (Math.max(1, played[playerId] ?? 0) / weightTotal)
-          )
+        const share = Math.min(
+          remaining,
+          remaining * (Math.max(1, played[playerId] ?? 0) / weightTotal)
+        )
         const addition = Math.min(share, limit - (played[playerId] ?? 0))
         played[playerId] = (played[playerId] ?? 0) + addition
         allocated += addition
@@ -1095,7 +1237,12 @@ function finalizeMinutes(state: SimulationState): void {
       if (!stats) continue
       stats.minutes = round(played[playerId] ?? 0, 1)
       stats.usageRate = plan.targetMinutes[playerId]
-        ? round((stats.opportunities / Math.max(1, state.teams[teamId]!.possessions)) * 100, 1)
+        ? round(
+            (stats.opportunities /
+              Math.max(1, state.teams[teamId]!.possessions)) *
+              100,
+            1
+          )
         : 0
     }
   }
@@ -1103,10 +1250,13 @@ function finalizeMinutes(state: SimulationState): void {
 
 function reconcile(state: SimulationState): GameReconciliationReport {
   const checks: GameReconciliationCheck[] = []
-  const totalExpectedMinutes = sum(state.periods.map((period) => period.minutes)) * 5
+  const totalExpectedMinutes =
+    sum(state.periods.map((period) => period.minutes)) * 5
   for (const teamId of [state.fixture.homeTeamId, state.fixture.awayTeamId]) {
     const team = state.teams[teamId]!
-    const players = Object.values(state.players).filter((player) => player.teamId === teamId)
+    const players = Object.values(state.players).filter(
+      (player) => player.teamId === teamId
+    )
     const check = (
       code: string,
       label: string,
@@ -1125,17 +1275,55 @@ function reconcile(state: SimulationState): GameReconciliationReport {
       })
     }
     const playerSum = (field: keyof MutablePlayerStats) =>
-      sum(players.map((player) => (typeof player[field] === "number" ? (player[field] as number) : 0)))
+      sum(
+        players.map((player) =>
+          typeof player[field] === "number" ? (player[field] as number) : 0
+        )
+      )
     check("points", "points reconcile", playerSum("points"), team.points)
-    check("field-goals", "field goals reconcile", playerSum("fieldGoalsMade"), team.fieldGoalsMade)
-    check("three-pointers", "three-pointers reconcile", playerSum("threePointersMade"), team.threePointersMade)
-    check("free-throws", "free throws reconcile", playerSum("freeThrowsMade"), team.freeThrowsMade)
-    check("rebounds", "rebounds reconcile", playerSum("rebounds"), team.rebounds)
+    check(
+      "field-goals",
+      "field goals reconcile",
+      playerSum("fieldGoalsMade"),
+      team.fieldGoalsMade
+    )
+    check(
+      "three-pointers",
+      "three-pointers reconcile",
+      playerSum("threePointersMade"),
+      team.threePointersMade
+    )
+    check(
+      "free-throws",
+      "free throws reconcile",
+      playerSum("freeThrowsMade"),
+      team.freeThrowsMade
+    )
+    check(
+      "rebounds",
+      "rebounds reconcile",
+      playerSum("rebounds"),
+      team.rebounds
+    )
     check("assists", "assists reconcile", playerSum("assists"), team.assists)
-    check("turnovers", "turnovers reconcile", playerSum("turnovers"), team.turnovers)
-    check("minutes", "minutes are legal", playerSum("minutes"), totalExpectedMinutes, 1)
+    check(
+      "turnovers",
+      "turnovers reconcile",
+      playerSum("turnovers"),
+      team.turnovers
+    )
+    check(
+      "minutes",
+      "minutes are legal",
+      playerSum("minutes"),
+      totalExpectedMinutes,
+      1
+    )
     for (const player of players) {
-      if (!state.availability[player.playerId]?.available && player.minutes > 0) {
+      if (
+        !state.availability[player.playerId]?.available &&
+        player.minutes > 0
+      ) {
         checks.push({
           code: `${teamId}:unavailable-player-minutes:${player.playerId}`,
           label: `${player.playerId} unavailable player minutes`,
@@ -1221,14 +1409,25 @@ function rejectedResult(
 }
 
 function createSimulationState(fixture: GameMatchupFixture): SimulationState {
-  const config = resolveGameSimulationConfig(fixture.config, fixture.config.presetId)
+  const config = resolveGameSimulationConfig(
+    fixture.config,
+    fixture.config.presetId
+  )
   const teams = {
     [fixture.homeTeamId]: emptyTeamStats(fixture.homeTeamId),
     [fixture.awayTeamId]: emptyTeamStats(fixture.awayTeamId),
   }
   const rotations = {
-    [fixture.homeTeamId]: buildRotationPlan(fixture, fixture.homeTeamId, config),
-    [fixture.awayTeamId]: buildRotationPlan(fixture, fixture.awayTeamId, config),
+    [fixture.homeTeamId]: buildRotationPlan(
+      fixture,
+      fixture.homeTeamId,
+      config
+    ),
+    [fixture.awayTeamId]: buildRotationPlan(
+      fixture,
+      fixture.awayTeamId,
+      config
+    ),
   }
   const availability: Record<string, PlayerAvailability> = {}
   const roles: Record<string, RoleAssignment> = {}

@@ -181,9 +181,15 @@ Season production and player value should have one route because developers need
 - universal value breakdown inspector;
 - team/league production comparison.
 
-Production should expose a confidence/sample state. A 10-game sample can be displayed as provisional; value should use a prior/current-ability fallback until a player has a meaningful sample. For first-v2 calibration, 25 games is enough to find role bugs, 82 games is the minimum production benchmark, and two completed seasons are the preferred input for a stable established-player production component. Rookies and injured players need explicit sample-size and availability fallbacks rather than fake precision.
+The first version uses regular-season `GameResult` records only. Playoff production is intentionally deferred from the core Universal Player Value; a later extension may use postseason performance as a separate signal for awards, history, reputation, or optional context.
 
-**Inputs:** completed `GameResult` records, player roles and minutes, team context, availability, current abilities, age/trajectory, potential/upside, durability, bounded scarcity context, and value configuration.
+Universal Player Value is a player-centered, unbounded additive index over a three-season horizon. It does not use a dynamic replacement-level baseline or league-relative scarcity to define the player's value. It combines a fast current-form signal with a slower projection signal, using sample size and confidence to explain movement without suppressing meaningful hot or cold performance. Percentiles and ranks are reporting views, not inputs to the core value.
+
+Production should expose a confidence/sample state. A 10-game sample can be displayed as provisional; value should use a current-ability/projection fallback until a player has a meaningful sample. For first-v2 calibration, 25 games is enough to find role bugs, 82 games is the minimum production benchmark, and two completed seasons are the preferred input for a stable established-player production component. Rookies and injured players need explicit sample-size and availability fallbacks rather than fake precision.
+
+**Inputs:** completed `GameResult` records, player roles and minutes, team context used to normalize production, availability, current abilities, age/trajectory, potential/upside, durability, and value configuration. Contract quality, team fit, timeline, roster needs, and league-relative scarcity are downstream context inputs for trade, market, and AI systems; they do not redefine the core player value.
+
+All gameplay-relevant production and value behavior must be controlled by a versioned, serializable configuration with a standard preset and bounded advanced settings exposed in the UI. Custom leagues may adjust semantic behaviors such as current-form responsiveness, production sample confidence, availability impact, projection horizon, and component emphasis within documented limits. Exact formula coefficients remain implementation details, and every run/report must preserve the effective settings and seed for deterministic reproduction.
 
 **Outputs:** game-to-season aggregation, player production records, team offense/defense records, standings inputs, production distributions, universal value records with breakdowns, and comparison reports.
 
@@ -664,4 +670,3 @@ Build the first Game & Matchup Lab slice, but keep the work scoped to contracts 
 6. Add the visual two-team inspector only after the runner and fixture contract exist.
 
 This slice establishes the production contracts needed by Season Production & Value and avoids building a game-specific prototype that must later be replaced by the league loop.
-

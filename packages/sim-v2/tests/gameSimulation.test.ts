@@ -116,6 +116,23 @@ function createFixture(
   }
 }
 
+function average(values: number[]): number {
+  return values.reduce((total, value) => total + value, 0) / values.length
+}
+
+function runSeries(
+  config: GameSimulationConfig,
+  customize?: (fixture: GameMatchupFixture) => void,
+  count = 20
+) {
+  return Array.from({ length: count }, (_, index) => {
+    const fixture = createFixture(structuredClone(config))
+    fixture.seed = "sensitivity-" + (index + 1)
+    customize?.(fixture)
+    return simulateGameMatchup(fixture)
+  })
+}
+
 describe("simulateGameMatchup", () => {
   it("reruns the same seeded fixture exactly", () => {
     const fixture = createFixture()
@@ -203,6 +220,141 @@ describe("simulateGameMatchup", () => {
     expect(result.players["home-1"]?.minutes).toBeLessThanOrEqual(12)
   })
 
+  it("uses rotation adherence to move minutes toward manual targets", () => {
+    const targetMinutes = Object.fromEntries(
+      Object.keys(createFixture().players)
+        .filter((playerId) => playerId.startsWith("home-"))
+        .map((playerId, index) => [playerId, index === 0 ? 42 : 3])
+    )
+    const lowAdherence = createStandardGameSimulationConfig()
+    lowAdherence.rotation.adherence = 0
+    const highAdherence = createStandardGameSimulationConfig()
+    highAdherence.rotation.adherence = 100
+    const lowFixture = createFixture(lowAdherence)
+    const highFixture = createFixture(highAdherence)
+    lowFixture.rotations.home!.targetMinutes = targetMinutes
+    highFixture.rotations.home!.targetMinutes = targetMinutes
+
+    const low = simulateGameMatchup(lowFixture)
+    const high = simulateGameMatchup(highFixture)
+
+    expect(high.players["home-1"]?.minutes).toBeGreaterThan(
+      low.players["home-1"]?.minutes ?? 0
+    )
+    expect(high.reconciliation.passed).toBe(true)
+    expect(low.reconciliation.passed).toBe(true)
+  })
+
+  it("makes transition rate change the early-offense shot proxy", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.offense.transitionRate = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.offense.transitionRate = 100
+    const lowResults = runSeries(lowConfig)
+    const highResults = runSeries(highConfig)
+    const proxy = (result: ReturnType<typeof simulateGameMatchup>) =>
+      Object.values(result.teams).reduce(
+        (total, team) =>
+          total +
+          team.shotProfile.rimAttempts +
+          team.shotProfile.threePointAttempts,
+        0
+      ) /
+      Object.values(result.teams).reduce(
+        (total, team) => total + team.fieldGoalsAttempted,
+        0
+      )
+
+    expect(average(highResults.map(proxy))).toBeGreaterThan(
+      average(lowResults.map(proxy))
+    )
+  })
+
+  it("uses shot-selection discipline when player shot qualities differ", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.offense.shotSelectionDiscipline = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.offense.shotSelectionDiscipline = 100
+    const customize = (fixture: GameMatchupFixture) => {
+      const player = fixture.players["home-1"]!
+      player.profile.skills = {
+        ...player.profile.skills,
+        shooting: 99,
+        finishing: 35,
+        handling: 35,
+        basketballIQ: 95,
+      }
+    }
+    const lowResults = runSeries(lowConfig, customize)
+    const highResults = runSeries(highConfig, customize)
+
+    expect(
+      average(
+        highResults.map((result) => result.teams.home?.offensiveEfficiency ?? 0)
+      )
+    ).toBeGreaterThan(
+      average(
+        lowResults.map((result) => result.teams.home?.offensiveEfficiency ?? 0)
+      )
+    )
+  })
+
+  it("makes double-team pressure affect primary creator turnovers", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.defense.doubleTeamRate = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.defense.doubleTeamRate = 100
+    const lowResults = runSeries(lowConfig)
+    const highResults = runSeries(highConfig)
+
+    expect(
+      average(
+        lowResults.map((result) => result.players["home-1"]?.turnovers ?? 0)
+      )
+    ).toBeLessThan(
+      average(
+        highResults.map((result) => result.players["home-1"]?.turnovers ?? 0)
+      )
+    )
+  })
+
+  it("amplifies non-neutral coaching profiles through coaching influence", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.coaching.influence = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.coaching.influence = 100
+    const customize = (fixture: GameMatchupFixture) => {
+      fixture.coaching.home!.pace = 85
+      fixture.coaching.away!.pace = 20
+      fixture.coaching.home!.shotSelection = 85
+      fixture.coaching.away!.shotSelection = 20
+    }
+    const lowResults = runSeries(lowConfig, customize)
+    const highResults = runSeries(highConfig, customize)
+    const possessionGap = (result: ReturnType<typeof simulateGameMatchup>) =>
+      (result.teams.home?.possessions ?? 0) -
+      (result.teams.away?.possessions ?? 0)
+
+    expect(average(highResults.map(possessionGap))).toBeGreaterThan(
+      average(lowResults.map(possessionGap))
+    )
+  })
+
+  it("adds an efficiency edge to home-court advantage", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.environment.homeCourtAdvantage = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.environment.homeCourtAdvantage = 100
+    const lowResults = runSeries(lowConfig)
+    const highResults = runSeries(highConfig)
+    const scoreGap = (result: ReturnType<typeof simulateGameMatchup>) =>
+      (result.teams.home?.points ?? 0) - (result.teams.away?.points ?? 0)
+
+    expect(average(highResults.map(scoreGap))).toBeGreaterThan(
+      average(lowResults.map(scoreGap))
+    )
+  })
+
   it("matches the current single-game characterization", () => {
     const result = simulateGameMatchup(createFixture())
 
@@ -257,40 +409,40 @@ describe("simulateGameMatchup", () => {
       status: "completed",
       periods: 4,
       home: {
-        points: 67,
+        points: 68,
         possessions: 109,
-        fieldGoalsMade: 27,
+        fieldGoalsMade: 28,
         fieldGoalsAttempted: 92,
         threePointersMade: 7,
         threePointersAttempted: 30,
-        freeThrowsMade: 6,
-        freeThrowsAttempted: 8,
-        rebounds: 69,
-        assists: 12,
-        turnovers: 13,
+        freeThrowsMade: 5,
+        freeThrowsAttempted: 6,
+        rebounds: 67,
+        assists: 10,
+        turnovers: 14,
+        steals: 9,
+        blocks: 3,
+        fouls: 4,
+      },
+      away: {
+        points: 66,
+        possessions: 103,
+        fieldGoalsMade: 26,
+        fieldGoalsAttempted: 87,
+        threePointersMade: 6,
+        threePointersAttempted: 31,
+        freeThrowsMade: 8,
+        freeThrowsAttempted: 9,
+        rebounds: 58,
+        assists: 3,
+        turnovers: 12,
         steals: 9,
         blocks: 3,
         fouls: 3,
       },
-      away: {
-        points: 59,
-        possessions: 103,
-        fieldGoalsMade: 23,
-        fieldGoalsAttempted: 90,
-        threePointersMade: 8,
-        threePointersAttempted: 36,
-        freeThrowsMade: 5,
-        freeThrowsAttempted: 7,
-        rebounds: 63,
-        assists: 5,
-        turnovers: 10,
-        steals: 7,
-        blocks: 3,
-        fouls: 4,
-      },
       topPlayer: {
         playerId: "home-1",
-        points: 19,
+        points: 16,
         opportunities: 31,
       },
       reconciliation: true,

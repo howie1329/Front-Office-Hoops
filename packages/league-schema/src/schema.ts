@@ -486,6 +486,122 @@ export const matchupBatchReportSchema = z.strictObject({
   ),
 })
 
+const gameNumericSettingPathSchema = z.enum([
+  "environment.pace",
+  "environment.scoringEnvironment",
+  "environment.gameVariance",
+  "environment.talentSeparation",
+  "environment.homeCourtAdvantage",
+  "offense.threePointRate",
+  "offense.rimRate",
+  "offense.midrangeRate",
+  "offense.shotSelectionDiscipline",
+  "offense.starUsage",
+  "offense.ballMovement",
+  "offense.isolationRate",
+  "offense.transitionRate",
+  "offense.offensiveRebounding",
+  "defense.pressure",
+  "defense.helpDefense",
+  "defense.turnoverPressure",
+  "defense.switching",
+  "defense.doubleTeamRate",
+  "defense.foulDiscipline",
+  "rotation.adherence",
+  "rotation.benchUsage",
+  "rotation.starterWorkload",
+  "rotation.fatigueImpact",
+  "coaching.influence",
+  "coaching.paceInfluence",
+  "coaching.shotSelectionInfluence",
+  "coaching.defensiveInfluence",
+  "injuries.maxGamesOut",
+])
+
+const sliderSensitivityMetricSchema = z.strictObject({
+  count: z.number().int().nonnegative(),
+  mean: z.number(),
+  minimum: z.number(),
+  maximum: z.number(),
+  p10: z.number(),
+  median: z.number(),
+  p90: z.number(),
+})
+
+const sliderSensitivityDirectionSchema = z.enum([
+  "increase",
+  "decrease",
+  "spread-increase",
+  "distance-decrease",
+  "observe",
+])
+
+const sliderSensitivityClassificationSchema = z.enum([
+  "wired",
+  "no-op",
+  "conditional",
+  "saturated",
+  "unknown",
+])
+
+const sliderSensitivityArmSchema = z.strictObject({
+  label: z.enum([
+    "minimum",
+    "lower-quartile",
+    "baseline",
+    "upper-quartile",
+    "maximum",
+  ]),
+  value: z.number(),
+  effectiveConfig: gameSimulationConfigSchema,
+  metrics: z.record(z.string().min(1), sliderSensitivityMetricSchema),
+})
+
+const sliderSensitivityMetricDeltaSchema = z.strictObject({
+  metric: z.string().min(1),
+  baseline: sliderSensitivityMetricSchema,
+  low: sliderSensitivityMetricSchema,
+  high: sliderSensitivityMetricSchema,
+  lowSignal: z.number(),
+  highSignal: z.number(),
+  delta: z.number(),
+  diagnosticFloor: z.number().nonnegative(),
+  directionalPass: z.boolean(),
+})
+
+const sliderSensitivityScenarioSchema = z
+  .strictObject({
+    scenario: z.string().min(1),
+    arms: z.array(sliderSensitivityArmSchema).min(2),
+    pairedCount: z.number().int().nonnegative(),
+    pairedChangedCount: z.number().int().nonnegative(),
+    primary: sliderSensitivityMetricDeltaSchema,
+    classification: sliderSensitivityClassificationSchema,
+    diagnostic: z.string().min(1),
+  })
+  .refine((scenario) => scenario.pairedChangedCount <= scenario.pairedCount, {
+    message: "Changed paired games cannot exceed paired games.",
+  })
+
+const sliderSensitivityResultSchema = z.strictObject({
+  path: gameNumericSettingPathSchema,
+  label: z.string().min(1),
+  primaryMetric: z.string().min(1),
+  direction: sliderSensitivityDirectionSchema,
+  classification: sliderSensitivityClassificationSchema,
+  scenarios: z.array(sliderSensitivityScenarioSchema).min(1),
+  diagnostic: z.string().min(1),
+})
+
+export const sliderSensitivityReportSchema = z.strictObject({
+  schema: z.literal("foh-slider-sensitivity"),
+  version: z.literal(1),
+  baseSeed: z.string().min(1),
+  count: z.number().int().positive(),
+  baselineConfig: gameSimulationConfigSchema,
+  results: z.array(sliderSensitivityResultSchema).min(1),
+})
+
 const leagueDocumentShape = z.strictObject({
   schema: z.strictObject({
     name: z.literal("foh-league"),

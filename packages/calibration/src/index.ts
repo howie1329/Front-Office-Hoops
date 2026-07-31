@@ -23,6 +23,22 @@ export type {
   CalibrationBenchmarkProfile,
   CalibrationTarget,
 } from "./benchmarkProfiles"
+export {
+  DEFAULT_SLIDER_SENSITIVITY_EXPECTATIONS,
+  runSliderSensitivity,
+  serializeSliderSensitivityReport,
+} from "./sensitivity"
+export type {
+  SensitivityClassification,
+  SensitivityDirection,
+  SensitivityExpectation,
+  SliderSensitivityArm,
+  SliderSensitivityOptions,
+  SliderSensitivityReport,
+  SliderSensitivityResult,
+  SliderSensitivityScenario,
+  SliderSensitivityScenarioResult,
+} from "./sensitivity"
 
 export type CalibrationProgress = {
   completed: number

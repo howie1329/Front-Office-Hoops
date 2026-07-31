@@ -19,6 +19,7 @@ import {
   playerGenerationConfigSchema,
   playerEntitySchema,
   serializeLeagueDocument,
+  sliderSensitivityReportSchema,
   validateLeagueDocument,
 } from "../src"
 
@@ -170,6 +171,62 @@ function createSchemaBatchReport() {
   }
 }
 
+function createSchemaSensitivityReport() {
+  const metric = {
+    count: 1,
+    mean: 0,
+    minimum: 0,
+    maximum: 0,
+    p10: 0,
+    median: 0,
+    p90: 0,
+  }
+  const arm = (label: "minimum" | "baseline") => ({
+    label,
+    value: label === "minimum" ? 0 : 50,
+    effectiveConfig: createGameSimulationConfig(),
+    metrics: { teamPoints: metric },
+  })
+  return {
+    schema: "foh-slider-sensitivity" as const,
+    version: 1 as const,
+    baseSeed: "sensitivity-schema",
+    count: 1,
+    baselineConfig: createGameSimulationConfig(),
+    results: [
+      {
+        path: "environment.pace" as const,
+        label: "Pace",
+        primaryMetric: "teamPoints",
+        direction: "increase" as const,
+        classification: "wired" as const,
+        scenarios: [
+          {
+            scenario: "standard",
+            arms: [arm("minimum"), arm("baseline")],
+            pairedCount: 1,
+            pairedChangedCount: 1,
+            primary: {
+              metric: "teamPoints",
+              baseline: metric,
+              low: metric,
+              high: metric,
+              lowSignal: 0,
+              highSignal: 1,
+              delta: 1,
+              diagnosticFloor: 0.25,
+              directionalPass: true,
+            },
+            classification: "wired" as const,
+            diagnostic: "Sensitivity schema fixture.",
+          },
+        ],
+        diagnostic: "Sensitivity schema fixture.",
+      },
+    ],
+  }
+}
+
 describe("league schema", () => {
   it("accepts and round-trips the foundation fixture", () => {
     const fixture = createFoundationLeague()
@@ -303,6 +360,52 @@ describe("league schema", () => {
               ...report.benchmark!.checks.teamPoints,
               target: { min: 2, max: 1 },
             },
+          },
+        },
+      }).success
+    ).toBe(false)
+  })
+
+  it("validates slider sensitivity reports and rejects malformed pairs", () => {
+    const report = createSchemaSensitivityReport()
+
+    expect(sliderSensitivityReportSchema.safeParse(report).success).toBe(true)
+    expect(
+      sliderSensitivityReportSchema.safeParse({
+        ...report,
+        results: [
+          {
+            ...report.results[0],
+            path: "environment.not-a-setting",
+          },
+        ],
+      }).success
+    ).toBe(false)
+    expect(
+      sliderSensitivityReportSchema.safeParse({
+        ...report,
+        results: [
+          {
+            ...report.results[0],
+            scenarios: [
+              {
+                ...report.results[0]!.scenarios[0],
+                pairedCount: 0,
+                pairedChangedCount: 1,
+              },
+            ],
+          },
+        ],
+      }).success
+    ).toBe(false)
+    expect(
+      sliderSensitivityReportSchema.safeParse({
+        ...report,
+        baselineConfig: {
+          ...report.baselineConfig,
+          environment: {
+            ...report.baselineConfig.environment,
+            pace: "invalid",
           },
         },
       }).success
