@@ -4,25 +4,34 @@ import * as React from "react"
 import type {
   CareerCohortReport,
   CareerDevelopmentSettings,
+  CareerMatchedCohortReport,
   CareerResolvedSettings,
   CareerSkillTrajectory,
   CareerTimeline,
 } from "@workspace/domain-v2"
 import type {
   CareerCohortRunOptions,
+  CareerMatchedCohortRunOptions,
   CareerProgress,
 } from "@workspace/calibration"
 import { serializeCareerCohortReport } from "@workspace/calibration"
 import { getPlayerCurrentAbility } from "@workspace/sim-v2"
 
-import { runCareerCohortInWorker } from "@/lib/careerCohortWorker"
 import {
+  runCareerCohortInWorker,
+  runMatchedCareerCohortInWorker,
+} from "@/lib/careerCohortWorker"
+import {
+  CAREER_MATCHED_SETTING_OPTIONS,
   DEFAULT_DEVELOPMENT_COHORT_OPTIONS,
   DEVELOPMENT_COHORT_PRESETS,
+  createMatchedVariantSettings,
+  getMatchedSettingDescriptor,
   validateDevelopmentCohortOptions,
 } from "@/lib/developmentCohortLab"
 import type {
   DevelopmentCohortOptions,
+  CareerMatchedSettingPath,
   DevelopmentCohortPresetId,
 } from "@/lib/developmentCohortLab"
 import { Badge } from "@workspace/ui/components/badge"
@@ -54,6 +63,7 @@ type RunState = "idle" | "running" | "success" | "error"
 type RunBundle = {
   primary: CareerCohortReport
   comparison: CareerCohortReport | null
+  matched: CareerMatchedCohortReport | null
 }
 
 function createCohortRunOptions(
@@ -162,26 +172,39 @@ function DevelopmentCohortsPage() {
       )
 
       try {
-        const primary = await runCareerCohortInWorker({
-          ...primaryOptions,
-          signal: controller.signal,
-          onProgress: (nextProgress) => updateProgress("primary", nextProgress),
-        })
-        const comparison = comparisonEnabled
-          ? await runCareerCohortInWorker({
-              ...createCohortRunOptions(
-                nextOptions,
-                nextOptions.comparisonPresetId,
-                false
-              ),
-              signal: controller.signal,
-              onProgress: (nextProgress) =>
-                updateProgress("comparison", nextProgress),
-            })
-          : null
+        let primary: CareerCohortReport
+        let comparison: CareerCohortReport | null = null
+        let matched: CareerMatchedCohortReport | null = null
+        if (comparisonEnabled) {
+          const matchedOptions: CareerMatchedCohortRunOptions = {
+            ...primaryOptions,
+            variantSettings: createMatchedVariantSettings(nextOptions),
+            onProgress: (nextProgress) => {
+              updateProgress(
+                nextProgress.label.startsWith("Baseline")
+                  ? "primary"
+                  : "comparison",
+                nextProgress
+              )
+            },
+          }
+          matched = await runMatchedCareerCohortInWorker({
+            ...matchedOptions,
+            signal: controller.signal,
+          })
+          primary = matched.baseline
+          comparison = matched.variant
+        } else {
+          primary = await runCareerCohortInWorker({
+            ...primaryOptions,
+            signal: controller.signal,
+            onProgress: (nextProgress) =>
+              updateProgress("primary", nextProgress),
+          })
+        }
 
         if (controller.signal.aborted) return
-        setBundle({ primary, comparison })
+        setBundle({ primary, comparison, matched })
         setSelectedPlayerId(primary.playerIndex[0]?.playerId ?? null)
         setSelectedSeason(primary.timelines?.[0]?.snapshots[0]?.season ?? null)
         setProgress({
@@ -225,12 +248,20 @@ function DevelopmentCohortsPage() {
     if (!bundle) return
     const payload = {
       schema: "foh-career-cohort-harness-bundle",
-      version: 4,
+      version: 5,
       runId: createRunId(options.seed),
       harnessOptions: options,
       primary: JSON.parse(serializeCareerCohortReport(bundle.primary)),
       comparison: bundle.comparison
         ? JSON.parse(serializeCareerCohortReport(bundle.comparison))
+        : null,
+      matched: bundle.matched
+        ? {
+            schema: bundle.matched.schema,
+            version: bundle.matched.version,
+            settingsDiff: bundle.matched.settingsDiff,
+            playerPairs: bundle.matched.playerPairs,
+          }
         : null,
       selectedPlayerId,
       selectedTimeline:
@@ -404,6 +435,9 @@ function DevelopmentCohortsPage() {
                 <CareerSettingsPanel
                   settings={bundle.primary.resolvedSettings}
                 />
+                {bundle.matched ? (
+                  <MatchedSettingsPanel matched={bundle.matched} />
+                ) : null}
                 {bundle.comparison ? (
                   <ComparisonPanel
                     primary={bundle.primary}
@@ -481,7 +515,7 @@ function ConfigurationRail({
             options={[
               ["cohort", "One cohort"],
               ["individual", "Individual trace"],
-              ["comparison", "Compare cohorts"],
+              ["comparison", "Matched setting"],
             ]}
             onChange={(value) =>
               onUpdate({ mode: value as DevelopmentCohortOptions["mode"] })
@@ -514,27 +548,39 @@ function ConfigurationRail({
             </Select>
           </div>
           {options.mode === "comparison" ? (
-            <div className="grid gap-1.5">
-              <Label htmlFor="cohort-comparison">Comparison scenario</Label>
-              <Select
-                value={options.comparisonPresetId}
-                onValueChange={(value) =>
+            <div className="grid gap-3 rounded-md border border-dashed border-border bg-muted/20 p-2.5">
+              <ContextSelect
+                id="cohort-comparison-setting"
+                label="Matched variable"
+                value={options.comparisonSetting}
+                options={CAREER_MATCHED_SETTING_OPTIONS.map((setting) => [
+                  setting.path,
+                  setting.label,
+                ])}
+                onChange={(value) => {
+                  const path = value as CareerMatchedSettingPath
                   onUpdate({
-                    comparisonPresetId: value as DevelopmentCohortPresetId,
+                    comparisonSetting: path,
+                    comparisonValue:
+                      getMatchedSettingDescriptor(path).defaultValue,
                   })
+                }}
+              />
+              <SettingsNumberField
+                id="cohort-comparison-value"
+                label="Variant value"
+                value={options.comparisonValue}
+                min={getMatchedSettingDescriptor(options.comparisonSetting).min}
+                max={getMatchedSettingDescriptor(options.comparisonSetting).max}
+                step={
+                  getMatchedSettingDescriptor(options.comparisonSetting).step
                 }
-              >
-                <SelectTrigger id="cohort-comparison" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEVELOPMENT_COHORT_PRESETS.map((preset) => (
-                    <SelectItem key={preset.id} value={preset.id}>
-                      {preset.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(value) => onUpdate({ comparisonValue: value })}
+              />
+              <p className="text-[0.6875rem] leading-4 text-muted-foreground">
+                Baseline and variant use the same generated players. Only this
+                resolved setting changes.
+              </p>
             </div>
           ) : null}
         </fieldset>
@@ -750,7 +796,7 @@ function ConfigurationRail({
               <SettingsNumberField
                 id="career-growth-rate"
                 label="Growth rate"
-                value={settings.growthRateScale ?? 1}
+                value={settings.growthRateScale ?? 1.6}
                 min={0.25}
                 max={3}
                 step={0.05}
@@ -776,7 +822,7 @@ function ConfigurationRail({
                 <SettingsNumberField
                   id="career-growth-slow"
                   label="Slow"
-                  value={settings.growthMultipliers?.slow ?? 0.7}
+                  value={settings.growthMultipliers?.slow ?? 0.6}
                   min={0.1}
                   max={3}
                   step={0.05}
@@ -796,7 +842,7 @@ function ConfigurationRail({
                 <SettingsNumberField
                   id="career-growth-fast"
                   label="Fast"
-                  value={settings.growthMultipliers?.fast ?? 1.3}
+                  value={settings.growthMultipliers?.fast ?? 1.4}
                   min={0.1}
                   max={3}
                   step={0.05}
@@ -805,7 +851,7 @@ function ConfigurationRail({
                 <SettingsNumberField
                   id="career-growth-elite"
                   label="Elite"
-                  value={settings.growthMultipliers?.elite ?? 1.6}
+                  value={settings.growthMultipliers?.elite ?? 1.8}
                   min={0.1}
                   max={3}
                   step={0.05}
@@ -870,7 +916,7 @@ function ConfigurationRail({
               <SettingsNumberField
                 id="career-stall-chance"
                 label="Stall chance"
-                value={settings.stallChance ?? 0}
+                value={settings.stallChance ?? 0.04}
                 min={0}
                 max={1}
                 step={0.01}
@@ -879,7 +925,7 @@ function ConfigurationRail({
               <SettingsNumberField
                 id="career-stall-magnitude"
                 label="Stall size"
-                value={settings.stallMagnitude ?? 0}
+                value={settings.stallMagnitude ?? 0.15}
                 min={0}
                 max={1}
                 step={0.05}
@@ -888,7 +934,7 @@ function ConfigurationRail({
               <SettingsNumberField
                 id="career-surge-chance"
                 label="Surge chance"
-                value={settings.surgeChance ?? 0}
+                value={settings.surgeChance ?? 0.04}
                 min={0}
                 max={1}
                 step={0.01}
@@ -897,7 +943,7 @@ function ConfigurationRail({
               <SettingsNumberField
                 id="career-surge-magnitude"
                 label="Surge size"
-                value={settings.surgeMagnitude ?? 0}
+                value={settings.surgeMagnitude ?? 0.15}
                 min={0}
                 max={1}
                 step={0.05}
@@ -1356,13 +1402,11 @@ function CohortBenchmarkPanel({
           </p>
         </div>
         <div className="flex flex-wrap gap-3 text-[0.6875rem] text-muted-foreground">
-          <LegendDot label={getPresetLabelFromReport(primary)} tone="primary" />
-          {comparison ? (
-            <LegendDot
-              label={getPresetLabelFromReport(comparison)}
-              tone="muted"
-            />
-          ) : null}
+          <LegendDot
+            label={comparison ? "Baseline" : getPresetLabelFromReport(primary)}
+            tone="primary"
+          />
+          {comparison ? <LegendDot label="Variant" tone="muted" /> : null}
         </div>
       </div>
       <div className="p-3 sm:p-4">
@@ -1463,6 +1507,37 @@ function ComparisonPanel({
       comparison: comparison.summary.retirementRate,
       format: formatPercent,
     },
+    {
+      label: "Mean forecast error",
+      primary: primary.summary.potentialForecastError.mean,
+      comparison: comparison.summary.potentialForecastError.mean,
+      format: formatSigned,
+    },
+    {
+      label: "Within 3 forecast points",
+      primary: primary.summary.potentialForecastError.within3Rate,
+      comparison: comparison.summary.potentialForecastError.within3Rate,
+      format: formatPercent,
+    },
+    {
+      label: "Exceeded forecast",
+      primary: primary.summary.potentialForecastError.exceededForecastRate,
+      comparison:
+        comparison.summary.potentialForecastError.exceededForecastRate,
+      format: formatPercent,
+    },
+    {
+      label: "Surge timeline rate",
+      primary: primary.summary.growthEvents.surgeRate,
+      comparison: comparison.summary.growthEvents.surgeRate,
+      format: formatPercent,
+    },
+    {
+      label: "Stall timeline rate",
+      primary: primary.summary.growthEvents.stallRate,
+      comparison: comparison.summary.growthEvents.stallRate,
+      format: formatPercent,
+    },
   ]
 
   return (
@@ -1482,9 +1557,9 @@ function ComparisonPanel({
         <TableHeader>
           <TableRow className="bg-muted/30 hover:bg-muted/30">
             <TableHead className="w-[36%]">Metric</TableHead>
-            <TableHead>{getPresetLabelFromReport(primary)}</TableHead>
-            <TableHead>{getPresetLabelFromReport(comparison)}</TableHead>
-            <TableHead>Delta B − A</TableHead>
+            <TableHead>Baseline</TableHead>
+            <TableHead>Variant</TableHead>
+            <TableHead>Delta</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1506,6 +1581,51 @@ function ComparisonPanel({
           ))}
         </TableBody>
       </Table>
+    </section>
+  )
+}
+
+function MatchedSettingsPanel({
+  matched,
+}: {
+  matched: CareerMatchedCohortReport
+}) {
+  const setting = matched.settingsDiff[0]
+  return (
+    <section
+      className="overflow-hidden rounded-lg border border-border bg-card"
+      aria-labelledby="matched-settings-heading"
+    >
+      <div className="border-b border-border px-3 py-3">
+        <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
+          Matched calibration
+        </p>
+        <h2
+          id="matched-settings-heading"
+          className="mt-1 text-sm font-semibold"
+        >
+          One-variable comparison
+        </h2>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Both arms reuse the same generated player fixtures, so the delta can
+          be attributed to this setting.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-4">
+        <DiagnosticRow label="Setting" value={setting.path} />
+        <DiagnosticRow
+          label="Baseline"
+          value={formatDiagnosticValue(setting.baseline)}
+        />
+        <DiagnosticRow
+          label="Variant"
+          value={formatDiagnosticValue(setting.variant)}
+        />
+        <DiagnosticRow
+          label="Matched players"
+          value={formatNumber(matched.playerPairs.length)}
+        />
+      </div>
     </section>
   )
 }
@@ -2225,6 +2345,10 @@ function formatTime(value: Date) {
 
 function formatNumber(value: number) {
   return Number.isFinite(value) ? value.toFixed(1) : "—"
+}
+
+function formatDiagnosticValue(value: number | string) {
+  return typeof value === "number" ? formatNumber(value) : value
 }
 
 function formatSigned(value: number) {

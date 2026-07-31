@@ -1197,6 +1197,23 @@ export const careerCohortSummarySchema = z.strictObject({
     averageRealizedPeak: z.number().min(0).max(100),
     correlation: z.number().min(-1).max(1),
   }),
+  potentialForecastError: z.strictObject({
+    mean: z.number(),
+    median: z.number(),
+    p10: z.number(),
+    p90: z.number(),
+    within1Rate: z.number().min(0).max(1),
+    within3Rate: z.number().min(0).max(1),
+    within5Rate: z.number().min(0).max(1),
+    within10Rate: z.number().min(0).max(1),
+    exceededForecastRate: z.number().min(0).max(1),
+  }),
+  growthEvents: z.strictObject({
+    surgeCount: z.number().int().nonnegative(),
+    stallCount: z.number().int().nonnegative(),
+    surgeRate: z.number().min(0).max(1),
+    stallRate: z.number().min(0).max(1),
+  }),
   failedSeeds: z.array(z.string().min(1)),
   outlierTimelines: z.array(careerTimelineSchema),
 })
@@ -1239,7 +1256,7 @@ export const careerResolvedSettingsSchema = z.strictObject({
 
 export const careerCohortReportSchema = z.strictObject({
   schema: z.literal("foh-career-cohort-lab"),
-  version: z.literal(4),
+  version: z.literal(5),
   options: careerCohortOptionsSchema,
   completed: z.number().int().nonnegative(),
   cancelled: z.boolean(),
@@ -1271,11 +1288,35 @@ export const careerCohortReportSchema = z.strictObject({
 
 export const careerIndividualReportSchema = z.strictObject({
   schema: z.literal("foh-career-individual-lab"),
-  version: z.literal(4),
+  version: z.literal(5),
   options: careerIndividualOptionsSchema,
   timeline: careerTimelineSchema,
   resolvedSettings: careerResolvedSettingsSchema,
   failedFixtures: z.array(failedCareerFixtureSchema),
+})
+
+export const careerMatchedCohortReportSchema = z.strictObject({
+  schema: z.literal("foh-career-matched-cohort-lab"),
+  version: z.literal(1),
+  options: careerCohortOptionsSchema,
+  baseline: careerCohortReportSchema,
+  variant: careerCohortReportSchema,
+  settingsDiff: z
+    .array(
+      z.strictObject({
+        path: z.string().min(1),
+        baseline: z.union([z.number(), z.string()]),
+        variant: z.union([z.number(), z.string()]),
+      })
+    )
+    .length(1),
+  playerPairs: z.array(
+    z.strictObject({
+      seed: z.string().min(1),
+      baselinePlayerId: z.string().min(1),
+      variantPlayerId: z.string().min(1),
+    })
+  ),
 })
 
 const leagueDocumentShape = z.strictObject({

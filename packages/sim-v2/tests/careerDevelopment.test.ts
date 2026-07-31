@@ -261,6 +261,9 @@ describe("advancePlayerCareerYear", () => {
     expect(
       stalled.events.some((event) => event.type === "development-stall")
     ).toBe(true)
+    expect(
+      stalled.events.find((event) => event.type === "development-stall")
+    ).toMatchObject({ delta: -1, reason: "calibration" })
   })
 
   it("does not develop retired players", () => {

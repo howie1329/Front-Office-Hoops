@@ -1,6 +1,10 @@
-import type { CareerCohortReport } from "@workspace/domain-v2"
+import type {
+  CareerCohortReport,
+  CareerMatchedCohortReport,
+} from "@workspace/domain-v2"
 import type {
   CareerCohortRunOptions,
+  CareerMatchedCohortRunOptions,
   CareerProgress,
 } from "@workspace/calibration"
 
@@ -9,6 +13,11 @@ export type CareerWorkerProgress = CareerProgress
 type CareerWorkerMessage =
   | { type: "progress"; requestId: string; progress: CareerWorkerProgress }
   | { type: "cohort-completed"; requestId: string; report: CareerCohortReport }
+  | {
+      type: "matched-completed"
+      requestId: string
+      report: CareerMatchedCohortReport
+    }
   | { type: "failed"; requestId: string; message: string }
 
 function createRequestId(): string {
@@ -17,6 +26,7 @@ function createRequestId(): string {
 
 function runInWorker<T>(
   request: Record<string, unknown>,
+  expectedType: "cohort-completed" | "matched-completed",
   options: {
     signal?: AbortSignal
     onProgress?: (progress: CareerWorkerProgress) => void
@@ -50,6 +60,7 @@ function runInWorker<T>(
         reject(new Error(event.data.message))
         return
       }
+      if (event.data.type !== expectedType) return
       cleanup()
       resolve(event.data.report as T)
     }
@@ -75,6 +86,21 @@ export function runCareerCohortInWorker(
   void shouldCancel
   return runInWorker(
     { type: "cohort", options: runOptions },
+    "cohort-completed",
+    { signal, onProgress }
+  )
+}
+
+export function runMatchedCareerCohortInWorker(
+  options: CareerMatchedCohortRunOptions & {
+    signal?: AbortSignal
+  }
+): Promise<CareerMatchedCohortReport> {
+  const { signal, onProgress, shouldCancel, ...runOptions } = options
+  void shouldCancel
+  return runInWorker(
+    { type: "matched", options: runOptions },
+    "matched-completed",
     { signal, onProgress }
   )
 }

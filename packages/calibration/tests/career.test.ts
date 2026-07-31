@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   careerCohortReportSchema,
+  careerMatchedCohortReportSchema,
   deserializeCareerCohortReport,
   serializeCareerCohortReport as serializeValidatedCareerCohortReport,
 } from "@workspace/league-schema"
@@ -9,6 +10,7 @@ import {
 import {
   NBA_LIKE_CAREER_BENCHMARK_PROFILE,
   runCareerCohort,
+  runMatchedCareerCohort,
   runIndividualCareer,
   runCareerTrace,
   serializeCareerCohortReport,
@@ -131,7 +133,7 @@ describe("career calibration runner", () => {
     expect(deserializeCareerCohortReport(serialized)).toEqual(report)
     expect(JSON.parse(serializeCareerCohortReport(report))).toMatchObject({
       schema: "foh-career-cohort-lab",
-      version: 4,
+      version: 5,
       completed: 3,
     })
   })
@@ -184,5 +186,30 @@ describe("career calibration runner", () => {
       growthRateScale: 1.25,
       timingPreset: "late",
     })
+  })
+
+  it("runs a one-variable matched cohort against identical fixtures", () => {
+    const report = runMatchedCareerCohort({
+      ...options,
+      sampleSize: 8,
+      runYears: 4,
+      settings: { growthRateScale: 1 },
+      variantSettings: { growthRateScale: 1.5 },
+      retainTimelines: true,
+    })
+
+    expect(report.settingsDiff).toEqual([
+      { path: "growthRateScale", baseline: 1, variant: 1.5 },
+    ])
+    expect(report.playerPairs).toHaveLength(8)
+    expect(report.baseline.playerIndex[0]?.seed).toBe(
+      report.variant.playerIndex[0]?.seed
+    )
+    expect(
+      report.baseline.timelines?.[0]?.snapshots[0]?.playerAtSeasonStart
+    ).toEqual(report.variant.timelines?.[0]?.snapshots[0]?.playerAtSeasonStart)
+    expect(report.baseline.summary.potentialForecastError).toBeDefined()
+    expect(report.baseline.summary.growthEvents).toBeDefined()
+    expect(careerMatchedCohortReportSchema.safeParse(report).success).toBe(true)
   })
 })

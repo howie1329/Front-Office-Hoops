@@ -14,6 +14,7 @@ export {
   careerAvailabilitySummarySchema,
   careerCohortOptionsSchema,
   careerCohortReportSchema,
+  careerMatchedCohortReportSchema,
   careerCohortSummarySchema,
   careerDevelopmentSettingsSchema,
   careerDevelopmentEventSchema,

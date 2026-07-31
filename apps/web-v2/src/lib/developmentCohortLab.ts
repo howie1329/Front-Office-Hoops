@@ -1,5 +1,6 @@
 import type {
   CareerCohortOptions,
+  CareerCurveRules,
   CareerDevelopmentSettings,
   CareerDevelopmentPreset,
   CareerPopulationContext,
@@ -8,6 +9,7 @@ import type {
 } from "@workspace/domain-v2"
 import {
   STANDARD_CAREER_CURVE_RULES,
+  resolveCareerDevelopmentSettings,
   validateCareerDevelopmentSettings,
 } from "@workspace/sim-v2"
 
@@ -60,8 +62,118 @@ export type DevelopmentCohortMode = "cohort" | "individual" | "comparison"
 export type DevelopmentCohortOptions = CareerCohortOptions & {
   mode: DevelopmentCohortMode
   presetId: DevelopmentCohortPresetId
-  comparisonPresetId: DevelopmentCohortPresetId
+  comparisonSetting: CareerMatchedSettingPath
+  comparisonValue: number
 }
+
+export type CareerMatchedSettingPath =
+  | "growthRateScale"
+  | "growthNoiseScale"
+  | "stallChance"
+  | "stallMagnitude"
+  | "surgeChance"
+  | "surgeMagnitude"
+  | "growthTransitionChance"
+  | "declineTransitionChance"
+  | `growthMultipliers.${CareerGrowthCurve}`
+  | `declineMultipliers.${CareerDeclineCurve}`
+
+export type CareerMatchedSettingDescriptor = {
+  path: CareerMatchedSettingPath
+  label: string
+  min: number
+  max: number
+  step: number
+  defaultValue: number
+}
+
+export const CAREER_MATCHED_SETTING_OPTIONS: Array<CareerMatchedSettingDescriptor> =
+  [
+    {
+      path: "growthRateScale",
+      label: "Growth rate scale",
+      min: 0.25,
+      max: 3,
+      step: 0.05,
+      defaultValue: 1.25,
+    },
+    {
+      path: "growthNoiseScale",
+      label: "Growth noise scale",
+      min: 0,
+      max: 3,
+      step: 0.05,
+      defaultValue: 1.25,
+    },
+    {
+      path: "stallChance",
+      label: "Development stall chance",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      defaultValue: 0.1,
+    },
+    {
+      path: "stallMagnitude",
+      label: "Development stall magnitude",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      defaultValue: 0.15,
+    },
+    {
+      path: "surgeChance",
+      label: "Development surge chance",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      defaultValue: 0.1,
+    },
+    {
+      path: "surgeMagnitude",
+      label: "Development surge magnitude",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      defaultValue: 0.15,
+    },
+    {
+      path: "growthTransitionChance",
+      label: "Growth curve transition chance",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      defaultValue: 0.01,
+    },
+    {
+      path: "declineTransitionChance",
+      label: "Decline curve transition chance",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      defaultValue: 0.01,
+    },
+    ...(["slow", "standard", "fast", "elite"] as const).map(
+      (curve): CareerMatchedSettingDescriptor => ({
+        path: `growthMultipliers.${curve}`,
+        label: `Growth ${curve} multiplier`,
+        min: 0.1,
+        max: 3,
+        step: 0.05,
+        defaultValue: STANDARD_CAREER_CURVE_RULES.growthMultipliers[curve],
+      })
+    ),
+    ...(["durable", "standard", "early", "steep"] as const).map(
+      (curve): CareerMatchedSettingDescriptor => ({
+        path: `declineMultipliers.${curve}`,
+        label: `Decline ${curve} multiplier`,
+        min: 0.1,
+        max: 3,
+        step: 0.05,
+        defaultValue: STANDARD_CAREER_CURVE_RULES.declineMultipliers[curve],
+      })
+    ),
+  ]
 
 const DEFAULT_CAREER_DEVELOPMENT_SETTINGS: CareerDevelopmentSettings =
   structuredClone(STANDARD_CAREER_CURVE_RULES)
@@ -69,7 +181,8 @@ const DEFAULT_CAREER_DEVELOPMENT_SETTINGS: CareerDevelopmentSettings =
 export const DEFAULT_DEVELOPMENT_COHORT_OPTIONS: DevelopmentCohortOptions = {
   mode: "cohort",
   presetId: "balanced-rookies",
-  comparisonPresetId: "high-volatility",
+  comparisonSetting: "growthRateScale",
+  comparisonValue: 1.25,
   seed: "career-cohort-01",
   sampleSize: 1000,
   runYears: 10,
@@ -87,6 +200,76 @@ export const DEFAULT_DEVELOPMENT_COHORT_OPTIONS: DevelopmentCohortOptions = {
 
 export const CAREER_RUN_HORIZONS = [1, 5, 10, 20, 30] as const
 
+export function getMatchedSettingDescriptor(
+  path: CareerMatchedSettingPath
+): CareerMatchedSettingDescriptor {
+  return (
+    CAREER_MATCHED_SETTING_OPTIONS.find((setting) => setting.path === path) ??
+    CAREER_MATCHED_SETTING_OPTIONS[0]
+  )
+}
+
+export function createMatchedVariantSettings(
+  options: DevelopmentCohortOptions
+): CareerDevelopmentSettings {
+  const path = options.comparisonSetting
+  const variant: CareerDevelopmentSettings = { ...options.settings }
+  if (path.startsWith("growthMultipliers.")) {
+    const curve = path.slice("growthMultipliers.".length) as CareerGrowthCurve
+    return {
+      ...variant,
+      growthMultipliers: {
+        ...variant.growthMultipliers,
+        [curve]: options.comparisonValue,
+      },
+    }
+  }
+  if (path.startsWith("declineMultipliers.")) {
+    const curve = path.slice("declineMultipliers.".length) as CareerDeclineCurve
+    return {
+      ...variant,
+      declineMultipliers: {
+        ...variant.declineMultipliers,
+        [curve]: options.comparisonValue,
+      },
+    }
+  }
+  return { ...variant, [path]: options.comparisonValue }
+}
+
+function getResolvedMatchedSetting(
+  rules: CareerCurveRules,
+  path: CareerMatchedSettingPath
+): number {
+  if (path.startsWith("growthMultipliers.")) {
+    const curve = path.slice("growthMultipliers.".length) as CareerGrowthCurve
+    return rules.growthMultipliers[curve]
+  }
+  if (path.startsWith("declineMultipliers.")) {
+    const curve = path.slice("declineMultipliers.".length) as CareerDeclineCurve
+    return rules.declineMultipliers[curve]
+  }
+  switch (path) {
+    case "growthRateScale":
+      return rules.growthRateScale
+    case "growthNoiseScale":
+      return rules.growthNoiseScale
+    case "stallChance":
+      return rules.stallChance
+    case "stallMagnitude":
+      return rules.stallMagnitude
+    case "surgeChance":
+      return rules.surgeChance
+    case "surgeMagnitude":
+      return rules.surgeMagnitude
+    case "growthTransitionChance":
+      return rules.growthTransitionChance
+    case "declineTransitionChance":
+      return rules.declineTransitionChance
+  }
+  return rules.growthRateScale
+}
+
 export function validateDevelopmentCohortOptions(
   options: DevelopmentCohortOptions
 ): Array<string> {
@@ -98,15 +281,26 @@ export function validateDevelopmentCohortOptions(
   if (options.startingAge < 18 || options.startingAge > 40) {
     errors.push("Starting age must be between 18 and 40.")
   }
-  if (!(CAREER_RUN_HORIZONS as ReadonlyArray<number>).includes(options.runYears)) {
+  if (
+    !(CAREER_RUN_HORIZONS as ReadonlyArray<number>).includes(options.runYears)
+  ) {
     errors.push("Run horizon must be 1, 5, 10, 20, or 30 years.")
   }
-  if (
-    options.mode === "comparison" &&
-    options.presetId === options.comparisonPresetId
-  ) {
-    errors.push("Choose two different cohorts to compare.")
+  const settingsErrors = validateCareerDevelopmentSettings(options.settings)
+  errors.push(...settingsErrors)
+  if (options.mode === "comparison" && settingsErrors.length === 0) {
+    const rules = resolveCareerDevelopmentSettings(options.settings)
+    if (
+      getResolvedMatchedSetting(rules, options.comparisonSetting) ===
+      options.comparisonValue
+    ) {
+      errors.push("Choose a different comparison value.")
+    }
+    errors.push(
+      ...validateCareerDevelopmentSettings(
+        createMatchedVariantSettings(options)
+      )
+    )
   }
-  errors.push(...validateCareerDevelopmentSettings(options.settings))
   return errors
 }

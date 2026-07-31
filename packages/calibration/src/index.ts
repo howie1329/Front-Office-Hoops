@@ -34,8 +34,10 @@ export { runSeasonBatch, serializeSeasonBatchReport } from "./season"
 export {
   NBA_LIKE_CAREER_BENCHMARK_PROFILE,
   runCareerCohort,
+  runMatchedCareerCohort,
   runCareerTrace,
   runIndividualCareer,
+  serializeCareerMatchedCohortReport,
   serializeCareerCohortReport,
   serializeCareerIndividualReport,
 } from "./career"
@@ -54,6 +56,7 @@ export type {
 } from "./careerBenchmarks"
 export type {
   CareerCohortRunOptions,
+  CareerMatchedCohortRunOptions,
   CareerIndividualRunOptions,
   CareerProgress,
   CareerTraceInput,

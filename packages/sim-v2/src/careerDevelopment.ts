@@ -30,10 +30,10 @@ export const CAREER_DEVELOPMENT_SETTINGS_VERSION = 1
 
 export const STANDARD_CAREER_CURVE_RULES: CareerCurveRules = {
   growthMultipliers: {
-    slow: 0.7,
+    slow: 0.6,
     standard: 1,
-    fast: 1.3,
-    elite: 1.6,
+    fast: 1.4,
+    elite: 1.8,
   },
   declineMultipliers: {
     durable: 0.7,
@@ -43,12 +43,12 @@ export const STANDARD_CAREER_CURVE_RULES: CareerCurveRules = {
   },
   growthTransitionChance: 0.01,
   declineTransitionChance: 0.01,
-  growthRateScale: 1,
+  growthRateScale: 1.6,
   growthNoiseScale: 1,
-  stallChance: 0,
-  stallMagnitude: 0,
-  surgeChance: 0,
-  surgeMagnitude: 0,
+  stallChance: 0.04,
+  stallMagnitude: 0.15,
+  surgeChance: 0.04,
+  surgeMagnitude: 0.15,
   timingPreset: "standard",
 }
 
@@ -478,7 +478,8 @@ export function advancePlayerCareerYear(
         playerId: player.id,
         phase,
         skill: null,
-        delta: 0,
+        delta: -rules.stallMagnitude,
+        reason: "calibration",
         summary: `Development stalled for this season at ${Math.round(rules.stallMagnitude * 100)}% reduced growth.`,
       })
     }
@@ -491,7 +492,8 @@ export function advancePlayerCareerYear(
         playerId: player.id,
         phase,
         skill: null,
-        delta: 0,
+        delta: rules.surgeMagnitude,
+        reason: "calibration",
         summary: `Development surged for this season at ${Math.round(rules.surgeMagnitude * 100)}% increased growth.`,
       })
     }

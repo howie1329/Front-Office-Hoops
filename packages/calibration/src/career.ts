@@ -7,6 +7,10 @@ import type {
   CareerResolvedSettings,
   CareerIndividualOptions,
   CareerIndividualReport,
+  CareerMatchedCohortOptions,
+  CareerMatchedCohortReport,
+  CareerMatchedPlayerPair,
+  CareerSettingDifference,
   CareerRetirementContext,
   CareerSeasonResult,
   CareerSkillTrajectory,
@@ -34,6 +38,7 @@ import {
   createCareerGenerationConfig,
   createCareerPlayer,
 } from "./careerFixtures"
+import type { CareerFixture } from "./careerFixtures"
 import {
   evaluateCareerBenchmark,
   NBA_LIKE_CAREER_BENCHMARK_PROFILE,
@@ -53,6 +58,7 @@ export type CareerIndividualRunOptions = CareerIndividualOptions & {
 
 export type CareerCohortRunOptions = CareerCohortOptions & {
   benchmarkProfile?: CareerBenchmarkProfile
+  fixedFixtures?: CareerFixture[]
   retainTimelines?: boolean
   onProgress?: (progress: CareerProgress) => void
   shouldCancel?: () => boolean
@@ -484,6 +490,54 @@ function createSummary(
     : 0
   const averageForecast = average(forecasts)
   const averageRealizedPeak = average(realizedPeaks)
+  const potentialErrors = forecasts.map(
+    (forecast, index) => forecast - (realizedPeaks[index] ?? forecast)
+  )
+  const withinForecastErrorRate = (limit: number) =>
+    timelines.length
+      ? potentialErrors.filter((error) => Math.abs(error) <= limit).length /
+        timelines.length
+      : 0
+  const surgeTimelines = timelines.filter((timeline) =>
+    timeline.snapshots.some((snapshot) =>
+      snapshot.seasonResult.development?.events.some(
+        (event) => event.type === "development-surge"
+      )
+    )
+  )
+  const stallTimelines = timelines.filter((timeline) =>
+    timeline.snapshots.some((snapshot) =>
+      snapshot.seasonResult.development?.events.some(
+        (event) => event.type === "development-stall"
+      )
+    )
+  )
+  const surgeCount = timelines.reduce(
+    (count, timeline) =>
+      count +
+      timeline.snapshots.reduce(
+        (seasonCount, snapshot) =>
+          seasonCount +
+          (snapshot.seasonResult.development?.events.filter(
+            (event) => event.type === "development-surge"
+          ).length ?? 0),
+        0
+      ),
+    0
+  )
+  const stallCount = timelines.reduce(
+    (count, timeline) =>
+      count +
+      timeline.snapshots.reduce(
+        (seasonCount, snapshot) =>
+          seasonCount +
+          (snapshot.seasonResult.development?.events.filter(
+            (event) => event.type === "development-stall"
+          ).length ?? 0),
+        0
+      ),
+    0
+  )
   const outlierTimelines = [...timelines]
     .sort(
       (left, right) =>
@@ -526,6 +580,33 @@ function createSummary(
       averageRealizedPeak: round(averageRealizedPeak),
       correlation: correlation(forecasts, realizedPeaks),
     },
+    potentialForecastError: {
+      mean: round(average(potentialErrors)),
+      median: round(percentile(potentialErrors, 0.5)),
+      p10: round(percentile(potentialErrors, 0.1)),
+      p90: round(percentile(potentialErrors, 0.9)),
+      within1Rate: round(withinForecastErrorRate(1)),
+      within3Rate: round(withinForecastErrorRate(3)),
+      within5Rate: round(withinForecastErrorRate(5)),
+      within10Rate: round(withinForecastErrorRate(10)),
+      exceededForecastRate: timelines.length
+        ? round(
+            realizedPeaks.filter(
+              (realizedPeak, index) => realizedPeak > (forecasts[index] ?? 0)
+            ).length / timelines.length
+          )
+        : 0,
+    },
+    growthEvents: {
+      surgeCount,
+      stallCount,
+      surgeRate: timelines.length
+        ? round(surgeTimelines.length / timelines.length)
+        : 0,
+      stallRate: timelines.length
+        ? round(stallTimelines.length / timelines.length)
+        : 0,
+    },
     failedSeeds,
     outlierTimelines,
   }
@@ -559,7 +640,7 @@ export function runIndividualCareer(
   })
   return {
     schema: "foh-career-individual-lab",
-    version: 4,
+    version: 5,
     options: reportOptions,
     timeline,
     resolvedSettings: createResolvedSettings(options, fixture.config, rules),
@@ -578,6 +659,14 @@ export function runCareerCohort(
   ) {
     throw new RangeError("Career cohort sample size must be from 1 to 100,000.")
   }
+  if (
+    options.fixedFixtures &&
+    options.fixedFixtures.length !== options.sampleSize
+  ) {
+    throw new RangeError(
+      "Fixed career fixtures must match the requested cohort sample size."
+    )
+  }
 
   const rules = resolveCareerDevelopmentSettings(options.settings)
 
@@ -591,15 +680,17 @@ export function runCareerCohort(
     }
     const seed = `${options.seed}:player:${index + 1}`
     try {
-      const fixture = createCareerPlayer(
-        seed,
-        options.startingAge,
-        options.developmentContext,
-        undefined,
-        options,
-        options.populationContext,
-        rules.timingPreset
-      )
+      const fixture =
+        options.fixedFixtures?.[index] ??
+        createCareerPlayer(
+          seed,
+          options.startingAge,
+          options.developmentContext,
+          undefined,
+          options,
+          options.populationContext,
+          rules.timingPreset
+        )
       timelines.push(
         createTimeline({
           player: fixture.player,
@@ -640,7 +731,7 @@ export function runCareerCohort(
   )
   return {
     schema: "foh-career-cohort-lab",
-    version: 4,
+    version: 5,
     options: {
       seed: options.seed,
       startingAge: options.startingAge,
@@ -667,8 +758,130 @@ export function runCareerCohort(
   }
 }
 
+function flattenCareerRules(
+  rules: CareerCurveRules
+): Record<string, number | string> {
+  return {
+    growthRateScale: rules.growthRateScale,
+    growthNoiseScale: rules.growthNoiseScale,
+    stallChance: rules.stallChance,
+    stallMagnitude: rules.stallMagnitude,
+    surgeChance: rules.surgeChance,
+    surgeMagnitude: rules.surgeMagnitude,
+    growthTransitionChance: rules.growthTransitionChance,
+    declineTransitionChance: rules.declineTransitionChance,
+    timingPreset: rules.timingPreset,
+    "growthMultipliers.slow": rules.growthMultipliers.slow,
+    "growthMultipliers.standard": rules.growthMultipliers.standard,
+    "growthMultipliers.fast": rules.growthMultipliers.fast,
+    "growthMultipliers.elite": rules.growthMultipliers.elite,
+    "declineMultipliers.durable": rules.declineMultipliers.durable,
+    "declineMultipliers.standard": rules.declineMultipliers.standard,
+    "declineMultipliers.early": rules.declineMultipliers.early,
+    "declineMultipliers.steep": rules.declineMultipliers.steep,
+  }
+}
+
+function diffCareerRules(
+  baseline: CareerCurveRules,
+  variant: CareerCurveRules
+): CareerSettingDifference[] {
+  const baselineValues = flattenCareerRules(baseline)
+  const variantValues = flattenCareerRules(variant)
+  return Object.keys(baselineValues)
+    .filter((path) => baselineValues[path] !== variantValues[path])
+    .map((path) => ({
+      path,
+      baseline: baselineValues[path]!,
+      variant: variantValues[path]!,
+    }))
+}
+
+export type CareerMatchedCohortRunOptions = CareerMatchedCohortOptions & {
+  benchmarkProfile?: CareerBenchmarkProfile
+  retainTimelines?: boolean
+  onProgress?: (progress: CareerProgress) => void
+  shouldCancel?: () => boolean
+}
+
+export function runMatchedCareerCohort(
+  options: CareerMatchedCohortRunOptions
+): CareerMatchedCohortReport {
+  const baselineRules = resolveCareerDevelopmentSettings(options.settings)
+  const variantRules = resolveCareerDevelopmentSettings(options.variantSettings)
+  const settingsDiff = diffCareerRules(baselineRules, variantRules)
+
+  if (settingsDiff.length !== 1) {
+    throw new RangeError(
+      "Matched career runs must differ by exactly one development setting."
+    )
+  }
+  if (settingsDiff[0]?.path === "timingPreset") {
+    throw new RangeError(
+      "Timing presets cannot be matched without changing generated player profiles."
+    )
+  }
+
+  const fixtures: CareerFixture[] = Array.from(
+    { length: options.sampleSize },
+    (_, index) => {
+      const seed = `${options.seed}:player:${index + 1}`
+      return createCareerPlayer(
+        seed,
+        options.startingAge,
+        options.developmentContext,
+        undefined,
+        options,
+        options.populationContext,
+        baselineRules.timingPreset
+      )
+    }
+  )
+  const progress = (label: string) => (next: CareerProgress) =>
+    options.onProgress?.({ ...next, label: `${label}: ${next.label}` })
+
+  const baseline = runCareerCohort({
+    ...options,
+    settings: options.settings,
+    fixedFixtures: fixtures,
+    onProgress: progress("Baseline"),
+  })
+  const variant = runCareerCohort({
+    ...options,
+    settings: options.variantSettings,
+    fixedFixtures: fixtures,
+    onProgress: progress("Variant"),
+  })
+  const playerPairs: CareerMatchedPlayerPair[] = baseline.playerIndex.map(
+    (player, index) => {
+      const variantPlayer = variant.playerIndex[index]
+      return {
+        seed: player.seed,
+        baselinePlayerId: player.playerId,
+        variantPlayerId: variantPlayer?.playerId ?? player.playerId,
+      }
+    }
+  )
+
+  return {
+    schema: "foh-career-matched-cohort-lab",
+    version: 1,
+    options: baseline.options,
+    baseline,
+    variant,
+    settingsDiff,
+    playerPairs,
+  }
+}
+
 export function serializeCareerCohortReport(
   report: CareerCohortReport
+): string {
+  return JSON.stringify(report, null, 2)
+}
+
+export function serializeCareerMatchedCohortReport(
+  report: CareerMatchedCohortReport
 ): string {
   return JSON.stringify(report, null, 2)
 }

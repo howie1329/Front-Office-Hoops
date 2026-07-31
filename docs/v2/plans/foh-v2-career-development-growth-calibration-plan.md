@@ -30,7 +30,7 @@ unstarted implementation work.
   with settings version `1`.
 - Resolved rules flow through cohort and individual calibration runs, including
   the worker-backed harness path.
-- Career reports are version `4` and persist `resolvedSettings`, including
+- Career reports are version `5` and persist `resolvedSettings`, including
   baseline scale, noise, curve multipliers, stall/surge controls, transition
   chances, timing preset, context, and seed metadata.
 - The league schema validates input settings and resolved report settings.
@@ -59,11 +59,11 @@ typical minutes, and standard development settings. It showed:
 The current tiers are directionally ordered but compressed:
 
 | Growth curve | Mean growth to peak |
-| --- | ---: |
-| Slow | +2.7 |
-| Standard | +3.6 |
-| Fast | +4.6 |
-| Elite | +5.7 |
+| ------------ | ------------------: |
+| Slow         |                +2.7 |
+| Standard     |                +3.6 |
+| Fast         |                +4.6 |
+| Elite        |                +5.7 |
 
 This points to two separate calibration problems:
 
@@ -158,14 +158,16 @@ Keep standard growth and decline anchored at 1.0, with independent values for:
 - slow, standard, fast, and elite growth.
 - durable, standard, early, and steep decline.
 
-The existing values are the baseline comparison, not final balance:
+The previous growth values were the baseline comparison:
 
     growth:  slow 0.70, standard 1.00, fast 1.30, elite 1.60
     decline: durable 0.70, standard 1.00, early 1.25, steep 1.60
 
+The calibrated provisional growth defaults are `0.60 / 1.00 / 1.40 / 1.80`.
+
 The harness now exposes these independently while universe creation remains
-limited to named presets. The current neutral values are the baseline
-comparison, not final balance.
+limited to named presets. The growth values are provisional calibrated
+defaults; decline values remain unchanged until growth acceptance is complete.
 
 #### Growth outcome variance
 
@@ -197,17 +199,17 @@ developer lab; raw distribution parameters are not normal universe settings.
 ### Resolution requirements
 
 1. [x] Define one `CareerDevelopmentSettings` input and resolved rules object
-   at the domain/calibration boundary.
+       at the domain/calibration boundary.
 2. [x] Resolve explicit harness overrides before the worker starts.
 3. [x] Validate bounds, tier ordering, and incompatible curve combinations.
 4. [x] Pass the resolved rules into the pure annual transition function.
 5. [x] Record the resolved object, settings version, selected presets, and seed
-   in cohort and individual reports.
-6. [ ] Add a matched comparison runner that freezes generated players, context,
-   seed, and all settings except the selected variable.
+       in cohort and individual reports.
+6. [x] Add a matched comparison runner that freezes generated players, context,
+       seed, and all settings except the selected variable.
 
-The remaining item is calibration infrastructure, not another settings or UI
-contract.
+The remaining work is distributional calibration and acceptance, not another
+settings or UI contract.
 
 ## Workstream 2 — Raise the standard growth baseline
 
@@ -215,10 +217,11 @@ Apply growthRateScale to the existing growth mean only. Preserve the
 potential-gap modifier, minutes opportunity and diminishing returns, coaching,
 injury, skill response, bounds, rounding, plateau, and decline behavior.
 
-This is now a calibration experiment against the implemented neutral setting
-(`growthRateScale: 1.0`), not an engine implementation task. Each arm must
-record the resolved settings in the report so the baseline can be reproduced
-from an export.
+The first deterministic sweep supported a provisional baseline of
+`growthRateScale: 1.6`: approximately six points of growth to peak for a
+normal-availability, typical-minutes young cohort, versus approximately four
+points at the previous neutral scale of `1.0`. Each arm records the resolved
+settings in the report so the baseline can be reproduced from an export.
 
 The first sweep varies only growthRateScale under matched players and fixed
 context.
@@ -256,7 +259,9 @@ rather than moving every tier upward. A candidate experiment arm is:
 
     growth: slow 0.60, standard 1.00, fast 1.40, elite 1.80
 
-This is an experiment arm, not a final setting.
+This is now the provisional default growth spacing. It preserves overlap while
+making tier differences visible in matched runs; it remains subject to the
+distributional acceptance checks below.
 
 Accept using distributions, not one player: mean/median growth, p10/p90,
 potential-gap closure, peak ages, bust/breakout rates, and the share gaining
@@ -283,8 +288,11 @@ The implemented events must:
 - preserve skill clamps and non-binding potential;
 - include season, phase, player, magnitude, and reason metadata.
 
-Start with low probabilities and calibrate event frequency separately from
-magnitude. Do not make a surge a permanent curve-tier change.
+The provisional defaults are balanced low-frequency events: `0.04` chance and
+`0.15` magnitude for both surge and stall. In the 1,000-player, 30-year sweep,
+each event appeared in roughly 24% of player timelines, with nearly equal
+counts and no material change to mean growth. Do not make a surge a permanent
+curve-tier change.
 
 Compare static curves with events disabled and enabled, then cross those arms
 with volatility, potential headroom, and opportunity. Success means a wider but
@@ -327,10 +335,9 @@ These directly affect development and belong in an advanced Career Rules group:
 - minutes, coaching, and injury context;
 - seed, base season, sample size, horizon, and run mode.
 
-The harness provides a standard-rules reset and persists the resolved settings
-with every report. A dedicated matched-run action that freezes every setting
-except the selected variable remains to be implemented in the calibration
-workflow.
+The harness provides a calibrated-rules reset and persists the resolved
+settings with every report. The matched-run action freezes every setting except
+the selected variable and records the player pairing in the report.
 
 ### Expose to future universe creation as bounded presets
 
@@ -357,12 +364,17 @@ talent, or true potential in normal gameplay.
 These may appear in debug reports but should not become ordinary universe
 settings until the model is accepted.
 
-## Workstream 7 — Report, export, and UI changes (implemented foundation)
+## Workstream 7 — Report, export, matched runner, and UI changes
 
 The resolved-settings report object now includes settings version, growth
 baseline scale, curve multipliers, variance/event settings, transition settings,
 timing preset, population/development context, seed, and horizon. Cohort and
-individual reports use version `4`; the settings contract uses version `1`.
+individual reports use version `5`; the settings contract uses version `1`.
+
+The matched report uses `foh-career-matched-cohort-lab` version `1` and records
+the exact one-setting diff plus baseline/variant player pairs. Its runner
+generates fixtures once and reuses them for both arms, rejecting comparisons
+that change more than one resolved setting or change timing presets.
 
 Surge/stall events are part of the career event schema. Strict schema
 validation remains enabled for both partial input settings and resolved report
@@ -377,9 +389,10 @@ The grouped harness controls are now present:
 5. Variance and transition rules.
 6. Diagnostics and export.
 
-The harness displays a resolved-settings diagnostic snapshot and includes the
-same report data in JSON export. The UI only edits bounded inputs and displays
-report data; it does not calculate career formulas or own engine defaults.
+The harness displays a resolved-settings diagnostic snapshot, exposes a
+matched variable/value control, and includes the matched diff and player pairs
+in JSON export. The UI only edits bounded inputs and displays report data; it
+does not calculate career formulas or own engine defaults.
 
 ## Testing and verification
 
@@ -439,12 +452,12 @@ Verification gates:
 3. [x] Add curve multipliers, timing presets, and transition controls.
 4. [x] Add controlled variance and surge/stall events.
 5. [x] Persist resolved settings in versioned reports and JSON exports.
-6. [ ] Add the matched calibration runner and one-variable comparison UI.
+6. [x] Add the matched calibration runner and one-variable comparison UI.
 7. [ ] Recalibrate baseline, curve spacing, variance, and potential against
-   realized peaks.
+       realized peaks.
 8. [ ] Promote only accepted named presets into future universe creation; do
-   not promote values into authoritative gameplay until distributional
-   acceptance criteria pass.
+       not promote values into authoritative gameplay until distributional
+       acceptance criteria pass.
 
 ## Explicit non-goals
 

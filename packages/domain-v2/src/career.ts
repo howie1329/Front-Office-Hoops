@@ -249,8 +249,37 @@ export type CareerCohortSummary = {
     averageRealizedPeak: number
     correlation: number
   }
+  potentialForecastError: {
+    mean: number
+    median: number
+    p10: number
+    p90: number
+    within1Rate: number
+    within3Rate: number
+    within5Rate: number
+    within10Rate: number
+    exceededForecastRate: number
+  }
+  growthEvents: {
+    surgeCount: number
+    stallCount: number
+    surgeRate: number
+    stallRate: number
+  }
   failedSeeds: string[]
   outlierTimelines: CareerTimeline[]
+}
+
+export type CareerSettingDifference = {
+  path: string
+  baseline: number | string
+  variant: number | string
+}
+
+export type CareerMatchedPlayerPair = {
+  seed: string
+  baselinePlayerId: string
+  variantPlayerId: string
 }
 
 export type CareerPlayerSummary = {
@@ -293,7 +322,7 @@ export type FailedCareerFixture = {
 
 export type CareerCohortReport = {
   schema: "foh-career-cohort-lab"
-  version: 4
+  version: 5
   options: CareerCohortOptions
   completed: number
   cancelled: boolean
@@ -305,9 +334,23 @@ export type CareerCohortReport = {
   failedFixtures: FailedCareerFixture[]
 }
 
+export type CareerMatchedCohortOptions = CareerCohortOptions & {
+  variantSettings: CareerDevelopmentSettings
+}
+
+export type CareerMatchedCohortReport = {
+  schema: "foh-career-matched-cohort-lab"
+  version: 1
+  options: CareerCohortOptions
+  baseline: CareerCohortReport
+  variant: CareerCohortReport
+  settingsDiff: CareerSettingDifference[]
+  playerPairs: CareerMatchedPlayerPair[]
+}
+
 export type CareerIndividualReport = {
   schema: "foh-career-individual-lab"
-  version: 4
+  version: 5
   options: CareerIndividualOptions
   timeline: CareerTimeline
   resolvedSettings: CareerResolvedSettings
