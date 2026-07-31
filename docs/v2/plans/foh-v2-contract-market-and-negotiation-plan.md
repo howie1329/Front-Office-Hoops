@@ -95,9 +95,9 @@ The following decisions fit the current architecture:
 
 ## 4. Recommended pushback and changes
 
-### 4.1 Do not add contract preferences directly to `PlayerEntity` yet
+### 4.1 Add a small hidden preference profile to `PlayerEntity`
 
-`PlayerEntity` currently represents basketball identity and career state. Adding a large personality model now would couple generation, career, and market calibration. Use a separate `PlayerMarketProfile` in market fixtures initially. A later league adapter can persist a small generated profile once the preferences are calibrated.
+The market needs player-specific behavior to persist across seasons, so the agreed direction is to add a small typed `PlayerMarketProfile` to `PlayerEntity`. Generate it with its own deterministic random scope so changing preference calibration does not reroll basketball skills. This is a market behavior profile, not a general personality system.
 
 The first profile should contain only salary priority, security priority, winning priority, role priority, loyalty, patience, and negotiation baseline. These are market behavior inputs, not narrative personality traits.
 
@@ -115,15 +115,17 @@ Counteroffers add another decision state without proving that the market is cali
 
 Keep three visible rounds for pacing and user comprehension. Add one automatic late-market cleanup pass for minimum/depth players after Round 3. It is not a fourth user-facing negotiation round. Without it, the market will either leave too many legal-roster problems unresolved or force implausible Round 3 behavior.
 
-### 4.5 A soft cap needs one explicit above-cap rule
+### 4.5 Use a real simplified Bird-rights model
 
-A soft cap with no exceptions is functionally a hard cap. A full exception system is out of scope, so the first model should use three simple signing permissions:
+A soft cap with no exceptions is functionally a hard cap. The first market will use the Bird-rights family plus room and minimum mechanisms:
 
 1. Cap-room signing: external signing using unused soft-cap room.
-2. Retention signing: re-signing or extension of the team's own player, still subject to the hard cap and salary maximum.
-3. One bounded team exception plus minimum signings for external players above the soft cap.
+2. Full Bird, Early Bird, and Non-Bird rights for the team's own free agents.
+3. Minimum-salary signings for roster completion.
 
-The team exception is a simple configurable allowance, not a simulation of every NBA exception. Every transaction still fails if post-transaction payroll exceeds the hard cap.
+Room teams may use cap space. Teams above the soft cap may use Bird rights for eligible own players or minimum mechanisms. MLE/BAE-style exceptions, trade exceptions, and other external above-cap mechanisms are deferred until the first market passes calibration.
+
+The league retains a hard-cap state for future triggers, but no first-slice action needs to trigger it. Every accepted transaction must still pass the active hard-cap invariant when that state is present.
 
 ### 4.6 Do not make random annual cap growth the standard gameplay model
 
@@ -169,7 +171,6 @@ type EconomyConfig = {
   maximumSalaryGrowthRate: number
   rookieScaleGrowthRate: number
   growthPreset: EconomyGrowthPreset
-  teamExceptionAmount: Money
   taxRate: number
   roster: { minimum: number; maximum: number }
 }
@@ -182,7 +183,6 @@ type EconomySnapshot = {
   minimumSalary: Money
   maximumSalary: Money
   minimumTeamPayroll: Money
-  teamExceptionAmount: Money
   taxRate: number
   rookieScaleVersion: number
 }
@@ -212,7 +212,24 @@ type ContractEntity = {
 
 The first version requires `annualSalaries.length === endSeason - startSeason + 1` and fully guaranteed salaries. `guaranteedSalaries` is retained as an explicit field so later partial guarantees do not require changing the contract shape.
 
-### 5.4 Offer and negotiation state
+### 5.4 Free-agency rights
+
+```ts
+type BirdRightsLevel = "none" | "non-bird" | "early-bird" | "bird"
+
+type FreeAgencyRights = {
+  playerId: string
+  teamId: string
+  level: BirdRightsLevel
+  consecutiveSeasons: number
+  eligibleSeason: number
+  renounced: boolean
+}
+```
+
+Rights are a team-player relationship derived from contract history and transactions, but the resolved relationship should be explicit in market fixtures and later in the league snapshot. The first market must test the three rights levels independently. Rights limits and term requirements belong in the legality result, not in player demand.
+
+### 5.5 Offer and negotiation state
 
 ```ts
 type ContractMarketPhase = "re-signing" | "extension" | "free-agency"
@@ -255,7 +272,7 @@ type NegotiationState = {
 
 Use a willingness score plus a small derived state machine. Do not store a separate opaque "mood" and willingness value that can disagree.
 
-### 5.5 Player and team market context
+### 5.6 Player and team market context
 
 ```ts
 type PlayerMarketProfile = {
@@ -263,6 +280,8 @@ type PlayerMarketProfile = {
   securityPriority: number
   winningPriority: number
   rolePriority: number
+  playingTimePriority: number
+  marketSizePriority: number
   loyalty: number
   patience: number
   negotiationBaseline: number
@@ -275,7 +294,6 @@ type TeamMarketContext = {
   capRoom: Money
   hardCapRoom: Money
   taxRoom: Money
-  teamExceptionRemaining: Money
   rosterSlots: number
   needByPosition: Record<string, number>
   strategy: "rebuilding" | "neutral" | "contending"
@@ -283,7 +301,9 @@ type TeamMarketContext = {
 }
 ```
 
-These are fixture-level contexts for the lab. The later league adapter can derive them from authoritative teams, contracts, standings, owners, and settings.
+`PlayerMarketProfile` is persisted as hidden player state. Team quality, payroll, cap position, roster needs, tax tolerance, role opportunity, and strategy remain team/market context rather than player fields. The later league adapter derives `TeamMarketContext` from authoritative teams, contracts, standings, owners, and settings.
+
+The player's `loyalty` field represents how much the player values familiarity and continuity. Actual loyalty to a specific team is calculated from the player profile plus team relationship facts such as tenure and prior contract history.
 
 ## 6. Contract schema
 
@@ -450,7 +470,7 @@ Team interest is not a second UPV. It adds team need, fit, replacement cost, fin
 type ContractLegalityResult = {
   valid: boolean
   affordability: "affordable" | "over-budget" | "over-hard-cap"
-  mechanism: "cap-room" | "retention" | "team-exception" | "minimum" | "rookie-scale"
+  mechanism: "cap-room" | "bird" | "early-bird" | "non-bird" | "minimum" | "rookie-scale"
   payrollBefore: Money
   payrollAfter: Money
   hardCapRoomAfter: Money
@@ -491,6 +511,8 @@ type ContractOfferDecision = {
 
 The exact internal score is a developer diagnostic. The normal product UI should show a market range, interest label, and reason summary rather than raw coefficients.
 
+For the initial resolver, the highest qualifying offer utility wins for that player. An offer must first clear the player's acceptance threshold; if no offer qualifies, the player waits or declines according to patience, market round, and willingness. Do not randomly override the best qualifying offer. Seeded variance may break a genuinely close tie or model uncertainty, but the result must remain explainable and reproducible.
+
 ## 10. Negotiation-willingness model
 
 Use a `0..100` score per player/team/phase/season. The score is deterministic and saved while the phase is active.
@@ -526,7 +548,7 @@ Re-signing is a team-local negotiation window before open free agency:
 
 The player can see that the projected market is strong or weak, but other teams do not submit formal offers during re-signing. This preserves the distinct purpose of the phase and avoids simulating the same market twice.
 
-Re-signing should allow the current team to exceed the soft cap through the retention mechanism, subject to the hard cap and maximum salary.
+Re-signing should allow the current team to exceed the soft cap when the player has Full Bird, Early Bird, or Non-Bird rights, subject to the applicable rights limit, salary maximum, and any active hard-cap state. The re-signing phase gives the current team first negotiation access, not an automatic acceptance advantage.
 
 ## 12. Extension workflow
 
@@ -618,22 +640,22 @@ When alternatives sign, remaining supply falls and the category pressure can ris
 ### Included in the first model
 
 - Soft cap as the planning/reference line.
-- Hard cap as the absolute payroll ceiling.
+- Hard-cap state as an absolute payroll ceiling when a future trigger activates it.
 - Tax line and simple progressive or linear tax rate.
 - Minimum salary and minimum team payroll.
 - One maximum salary amount with no detailed NBA eligibility tiers.
 - Fully guaranteed standard and rookie-scale contracts.
 - Contract terms of one to four years, with bounded raises.
-- Cap-room, retention, team-exception, minimum, and rookie-scale mechanisms.
+- Cap-room, Full Bird, Early Bird, Non-Bird, minimum, and rookie-scale mechanisms.
 - Payroll, cap-room, hard-cap-room, and tax projections.
 - Exact legality diagnostics.
 
 ### Transaction rules
 
 - A cap-room signing cannot consume more soft-cap room than exists.
-- A retention signing can exceed the soft cap for a team's own player.
-- An external above-cap signing uses the remaining team exception or minimum mechanism.
-- Every signing and extension must remain below the hard cap.
+- A rights-qualified signing can exceed the soft cap for a team's own player.
+- An external above-cap signing uses only the minimum mechanism in the first slice.
+- Every signing and extension must respect any active hard-cap state.
 - All salaries must respect minimum and maximum amounts.
 - Tax is a financial consequence, not a legality failure.
 - Pending AI offers reserve projected capacity but do not count as payroll until accepted.
@@ -814,7 +836,7 @@ Run a compact deterministic market with several teams and players. Show rounds, 
 
 ### Mode D: Headless/batch reports
 
-Run 100-market and multi-season economy batches in a worker. The UI summarizes distributions, benchmark checks, failed seeds, and downloadable reports. It should not render every offer in a large batch.
+Run 100-market and multi-season economy batches in a worker. The UI summarizes distributions, benchmark checks, failed seeds, and downloadable reports. It should not render every offer in a large batch. One-, four-, and five-year runs can begin as a market-only economy harness; ten-year runs should be labeled as economy harnesses until draft, retirement, development, and roster turnover are integrated with the league loop.
 
 Use existing V2 UI conventions: `DecisionHeader`, `ExplanationPanel`, `ScenarioToggle`, `WorkerProgress`, responsive tables, keyboard-accessible offer controls, and explicit empty/loading/error states.
 
@@ -1021,17 +1043,14 @@ Trades may consume contract salary and surplus outputs later, but trade evaluati
 ### Decisions to resolve during calibration
 
 1. What UPV bands map to depth, rotation, starter, and star salary ranges?
-2. How much above-cap external spending should the single team exception allow?
-3. Should the hard cap be a fixed headroom above the soft cap or a separate growth line?
-4. What salary movement is plausible for a healthy player, aging player, injured player, and rookie-contract player?
-5. How many simultaneous AI offers create useful competition without blocking the market?
-6. What minimum legal roster size should cleanup guarantee?
-7. How much should a near-market offer affect willingness?
-8. Should low-tier players accept minimum offers automatically during cleanup or still evaluate team context?
-9. Which player market-profile fields are generated from the player and which are scenario fixture inputs?
-10. When the three-season UPV horizon becomes available, how much should contract demand weight it against current form?
+2. Should the future hard-cap line be a fixed headroom above the soft cap or a separate growth line?
+3. What salary movement is plausible for a healthy player, aging player, injured player, and rookie-contract player?
+4. How many simultaneous AI offers create useful competition without blocking the market?
+5. What minimum legal roster size should cleanup guarantee?
+6. How much should a near-market offer affect willingness?
+7. Should low-tier players accept minimum offers automatically during cleanup or still evaluate team context?
+8. When the three-season UPV horizon becomes available, how much should contract demand weight it against current form?
 
 ## Documentation updates
 
 This design should become the contract-market implementation authority after review. The roadmap already calls for one Market & Rules Lab and a soft-cap-plus-tax economy, so it does not need a wholesale rewrite. The simulation architecture should receive only a link to this plan and the final command/event names once the first slice is approved. The existing V1 contract modules remain unchanged.
-
