@@ -358,6 +358,14 @@ Keep the existing route:
 
 `apps/web-v2/src/routes/developer-labs.development-cohorts.tsx`
 
+The current fixture-backed page is only a functional preview. A full UI
+redesign is explicitly in scope if the existing layout does not support the
+individual-career and cohort-analysis workflows well. The redesign may change
+the information architecture, control placement, comparison model, timeline
+visualization, and report presentation while preserving the typed report
+boundary and the lab-only distinction between hidden truth and gameplay-facing
+information.
+
 Add individual-career and cohort-comparison modes with controls for:
 
 - starting age;
