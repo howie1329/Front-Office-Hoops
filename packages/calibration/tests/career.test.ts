@@ -41,7 +41,7 @@ describe("career calibration runner", () => {
 
     expect(first).toEqual(second)
     expect(first.completed).toBe(options.sampleSize)
-    expect(first.summary.skillTrajectories).toHaveLength(6)
+    expect(first.summary.skillTrajectories).toHaveLength(options.runYears)
     expect(first.summary.failedSeeds).toEqual([])
     expect(first.benchmark?.checks.averagePeakAge).toBeDefined()
     expect(careerCohortReportSchema.safeParse(first).success).toBe(true)
@@ -69,9 +69,20 @@ describe("career calibration runner", () => {
     expect(timeline.snapshots[0]?.potentialForecast).toBe(
       fixture.player.profile.development.potential
     )
-    expect(report.timeline.snapshots[0]?.events).toEqual([])
+    expect(timeline.snapshots[0]?.ageAtSeasonStart).toBe(24)
+    expect(timeline.snapshots).toHaveLength(individualOptions.runYears)
+    expect(timeline.seasonsSimulated).toBe(individualOptions.runYears)
+    expect(timeline.terminationReason).toBe("horizon-complete")
+    expect(
+      timeline.snapshots[0]?.seasonResult.development?.events.every(
+        (event) => event.season === timeline.snapshots[0]?.season
+      )
+    ).toBe(true)
+    expect(
+      report.timeline.snapshots[0]?.seasonResult.development?.events.length
+    ).toBeGreaterThan(0)
     expect(report.timeline.finalPlayer.profile.physical).toEqual(
-      report.timeline.snapshots[0]?.player.profile.physical
+      report.timeline.snapshots[0]?.playerAtSeasonStart.profile.physical
     )
   })
 
@@ -97,7 +108,7 @@ describe("career calibration runner", () => {
         runYears: 10,
       })
       expect(report.summary.startingAge).toBe(startingAge)
-      expect(report.summary.skillTrajectories).toHaveLength(11)
+      expect(report.summary.skillTrajectories).toHaveLength(10)
       expect(careerCohortReportSchema.safeParse(report).success).toBe(true)
     }
   })
@@ -108,7 +119,7 @@ describe("career calibration runner", () => {
     expect(deserializeCareerCohortReport(serialized)).toEqual(report)
     expect(JSON.parse(serializeCareerCohortReport(report))).toMatchObject({
       schema: "foh-career-cohort-lab",
-      version: 1,
+      version: 2,
       completed: 3,
     })
   })

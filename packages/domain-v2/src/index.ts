@@ -18,6 +18,8 @@ export type {
   CareerPhase,
   CareerRetirementAgeDistribution,
   CareerRetirementContext,
+  CareerSeasonDevelopment,
+  CareerSeasonResult,
   CareerSkillTrajectory,
   CareerSnapshot,
   CareerTimeline,

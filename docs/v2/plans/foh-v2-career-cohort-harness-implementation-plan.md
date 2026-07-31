@@ -182,6 +182,19 @@ career → player → season → retirement
 This keeps runs reproducible and prevents unrelated changes from rerolling
 other players.
 
+### Timeline semantics
+
+Career timelines use a beginning-of-season contract. Each snapshot is the
+player state entering that season. The season result records availability,
+the post-playoffs retirement decision, and offseason development. If the
+player remains active, that development produces the player state entering
+the next season.
+
+`runYears` is the number of simulated seasons. Development events stay on the
+season result that produced them; they are never carried forward as pending
+events on the next snapshot. The terminal player state is stored separately
+from the seasonal snapshots.
+
 ### Skill behavior
 
 Keep the eight skills independent. Use generic skill-specific response curves,
@@ -350,16 +363,16 @@ Create:
 Support individual runs, cohort batches, progress, cancellation, completed
 reports, and structured failures.
 
-Replace fixture calculations in
-`apps/web-v2/src/lib/developmentCohortLab.ts` with calls to the typed
-calibration runner.
+Use the typed calibration runner through the worker-backed career report
+boundary. Remove legacy fixture-report adapters once the route no longer
+depends on them.
 
 Keep the existing route:
 
 `apps/web-v2/src/routes/developer-labs.development-cohorts.tsx`
 
-The current fixture-backed page is only a functional preview. A full UI
-redesign is explicitly in scope if the existing layout does not support the
+The current page is a worker-backed calibration surface. A full UI redesign
+is explicitly in scope if the existing layout does not support the
 individual-career and cohort-analysis workflows well. The redesign may change
 the information architecture, control placement, comparison model, timeline
 visualization, and report presentation while preserving the typed report
@@ -400,7 +413,8 @@ Test deterministic individual and cohort replay, growth/plateau/decline,
 potential-as-forecast behavior, zero-minute development, diminishing minutes
 effects, bounded coaching effects, current-season injury penalties, physical
 stability, retirement hazards, report consistency, failed-seed retention,
-schema round trips, and worker cancellation.
+schema round trips, worker cancellation, exact seasonal run counts, beginning-
+of-season snapshots, and same-season development event placement.
 
 ## Implementation order
 
@@ -411,7 +425,7 @@ schema round trips, and worker cancellation.
 5. Add calibration runner and metrics.
 6. Add strict schemas and report serialization.
 7. Add worker execution.
-8. Replace the fixture-backed UI.
+8. Complete the cohort explorer UI and remove transitional helpers.
 9. Run calibration batches and establish accepted ranges.
 10. Integrate the same transition functions into the future League Loop.
 

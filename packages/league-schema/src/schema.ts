@@ -982,18 +982,37 @@ export const careerIndividualOptionsSchema = careerCohortOptionsSchema.omit({
   sampleSize: true,
 })
 
+export const careerSeasonDevelopmentSchema = z.strictObject({
+  phase: careerPhaseSchema,
+  skillDeltas: z.strictObject({
+    shooting: z.number(),
+    finishing: z.number(),
+    passing: z.number(),
+    handling: z.number(),
+    rebounding: z.number(),
+    defense: z.number(),
+    basketballIQ: z.number(),
+    stamina: z.number(),
+  }),
+  events: z.array(careerDevelopmentEventSchema),
+})
+
+export const careerSeasonResultSchema = z.strictObject({
+  availability: careerAvailabilitySummarySchema,
+  retirement: retirementEvaluationSchema,
+  development: careerSeasonDevelopmentSchema.nullable(),
+})
+
 export const careerSnapshotSchema = z.strictObject({
   season: z.number().int().nonnegative(),
-  age: z.number().int().min(18).max(80),
-  player: playerEntitySchema,
+  ageAtSeasonStart: z.number().int().min(18).max(80),
+  playerAtSeasonStart: playerEntitySchema,
   currentAbility: ratingSchema,
   potentialForecast: ratingSchema,
   peakAge: z.number().int().min(18).max(50),
   declineStartAge: z.number().int().min(19).max(50),
   phase: careerPhaseSchema,
-  events: z.array(careerDevelopmentEventSchema),
-  availability: careerAvailabilitySummarySchema,
-  retirement: retirementEvaluationSchema,
+  seasonResult: careerSeasonResultSchema,
 })
 
 export const careerTimelineSchema = z.strictObject({
@@ -1004,6 +1023,9 @@ export const careerTimelineSchema = z.strictObject({
   finalPlayer: playerEntitySchema,
   retired: z.boolean(),
   retirementAge: z.number().int().min(18).max(80).nullable(),
+  retirementSeason: z.number().int().nonnegative().nullable(),
+  seasonsSimulated: z.number().int().nonnegative(),
+  terminationReason: z.enum(["retired", "horizon-complete"]),
   peakAbility: ratingSchema,
   realizedPeakAge: z.number().int().min(18).max(50),
   plateauLength: z.number().int().nonnegative(),
@@ -1091,7 +1113,7 @@ export const failedCareerFixtureSchema = z.strictObject({
 
 export const careerCohortReportSchema = z.strictObject({
   schema: z.literal("foh-career-cohort-lab"),
-  version: z.literal(1),
+  version: z.literal(2),
   options: careerCohortOptionsSchema,
   completed: z.number().int().nonnegative(),
   cancelled: z.boolean(),
@@ -1103,7 +1125,7 @@ export const careerCohortReportSchema = z.strictObject({
 
 export const careerIndividualReportSchema = z.strictObject({
   schema: z.literal("foh-career-individual-lab"),
-  version: z.literal(1),
+  version: z.literal(2),
   options: careerIndividualOptionsSchema,
   timeline: careerTimelineSchema,
   failedFixtures: z.array(failedCareerFixtureSchema),

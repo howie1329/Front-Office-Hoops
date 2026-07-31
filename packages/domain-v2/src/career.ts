@@ -46,6 +46,18 @@ export type CareerTransitionResult = {
   availability: CareerAvailabilitySummary
 }
 
+export type CareerSeasonDevelopment = {
+  phase: CareerPhase
+  skillDeltas: Record<PlayerSkillKey, number>
+  events: CareerDevelopmentEvent[]
+}
+
+export type CareerSeasonResult = {
+  availability: CareerAvailabilitySummary
+  retirement: RetirementEvaluation
+  development: CareerSeasonDevelopment | null
+}
+
 export type RetirementFactor = {
   key:
     | "age"
@@ -100,16 +112,14 @@ export type CareerIndividualOptions = Omit<CareerCohortOptions, "sampleSize">
 
 export type CareerSnapshot = {
   season: number
-  age: number
-  player: PlayerEntity
+  ageAtSeasonStart: number
+  playerAtSeasonStart: PlayerEntity
   currentAbility: number
   potentialForecast: number
   peakAge: number
   declineStartAge: number
   phase: CareerPhase
-  events: CareerDevelopmentEvent[]
-  availability: CareerAvailabilitySummary
-  retirement: RetirementEvaluation
+  seasonResult: CareerSeasonResult
 }
 
 export type CareerTimeline = {
@@ -120,6 +130,9 @@ export type CareerTimeline = {
   finalPlayer: PlayerEntity
   retired: boolean
   retirementAge: number | null
+  retirementSeason: number | null
+  seasonsSimulated: number
+  terminationReason: "retired" | "horizon-complete"
   peakAbility: number
   realizedPeakAge: number
   plateauLength: number
@@ -195,7 +208,7 @@ export type FailedCareerFixture = {
 
 export type CareerCohortReport = {
   schema: "foh-career-cohort-lab"
-  version: 1
+  version: 2
   options: CareerCohortOptions
   completed: number
   cancelled: boolean
@@ -207,7 +220,7 @@ export type CareerCohortReport = {
 
 export type CareerIndividualReport = {
   schema: "foh-career-individual-lab"
-  version: 1
+  version: 2
   options: CareerIndividualOptions
   timeline: CareerTimeline
   failedFixtures: FailedCareerFixture[]

@@ -20,6 +20,8 @@ export {
   careerIndividualReportSchema,
   careerIndividualOptionsSchema,
   careerRetirementContextSchema,
+  careerSeasonDevelopmentSchema,
+  careerSeasonResultSchema,
   careerSnapshotSchema,
   careerTimelineSchema,
   careerBenchmarkResultSchema,

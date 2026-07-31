@@ -6,6 +6,7 @@ import type {
   CareerIndividualOptions,
   CareerIndividualReport,
   CareerRetirementContext,
+  CareerSeasonResult,
   CareerSkillTrajectory,
   CareerTimeline,
   CareerSnapshot,
@@ -121,14 +122,12 @@ function availabilityFromContext(
 function createCareerSnapshot(
   player: PlayerEntity,
   season: number,
-  context: ReturnType<typeof createCareerAnnualContext>,
-  retirement: CareerSnapshot["retirement"],
-  events: CareerSnapshot["events"]
+  seasonResult: CareerSeasonResult
 ): CareerSnapshot {
   return {
     season,
-    age: player.age,
-    player: structuredClone(player),
+    ageAtSeasonStart: player.age,
+    playerAtSeasonStart: structuredClone(player),
     currentAbility: getPlayerCurrentAbility(player),
     potentialForecast: player.profile.development.potential,
     peakAge: player.profile.development.peakAge,
@@ -138,9 +137,7 @@ function createCareerSnapshot(
       player.profile.development.peakAge,
       player.profile.development.declineStartAge
     ),
-    events,
-    availability: availabilityFromContext(context),
-    retirement,
+    seasonResult,
   }
 }
 
@@ -153,10 +150,13 @@ function createTimeline(input: CareerTraceInput): CareerTimeline {
   const random = createDeterministicRandom(input.seed)
   const snapshots: CareerSnapshot[] = []
   let injuryHistory = 0
-  let pendingEvents: CareerSnapshot["events"] = []
+  let finalPlayer = structuredClone(player)
+  let retirementAge: number | null = null
+  let retirementSeason: number | null = null
 
-  for (let offset = 0; offset <= input.options.runYears; offset += 1) {
+  for (let offset = 0; offset < input.options.runYears; offset += 1) {
     const season = baseSeason + offset
+    const seasonPlayer = structuredClone(player)
     const context = createCareerAnnualContext(input.options, season)
     injuryHistory = Math.min(
       1,
@@ -175,39 +175,49 @@ function createTimeline(input: CareerTraceInput): CareerTimeline {
       context: retirementContext,
       random,
     })
-    const snapshotPlayer = retirement.retired
-      ? { ...player, leagueStatus: { kind: "retired" as const } }
-      : player
-    snapshots.push(
-      createCareerSnapshot(
-        snapshotPlayer,
-        season,
+
+    let development: CareerSeasonResult["development"] = null
+    if (retirement.retired) {
+      retirementAge = player.age
+      retirementSeason = season
+      finalPlayer = { ...player, leagueStatus: { kind: "retired" as const } }
+    } else {
+      const transition = advancePlayerCareerYear({
+        player,
         context,
+        random,
+        config: input.config,
+      })
+      development = {
+        phase: transition.phase,
+        skillDeltas: transition.skillDeltas,
+        events: transition.events,
+      }
+      player = transition.player
+      finalPlayer = player
+    }
+
+    snapshots.push(
+      createCareerSnapshot(seasonPlayer, season, {
+        availability: availabilityFromContext(context),
         retirement,
-        pendingEvents
-      )
+        development,
+      })
     )
 
-    if (retirement.retired || offset === input.options.runYears) break
-
-    const transition = advancePlayerCareerYear({
-      player,
-      context,
-      random,
-      config: input.config,
-    })
-    player = transition.player
-    pendingEvents = transition.events
+    if (retirement.retired) break
   }
 
-  const finalSnapshot = snapshots.at(-1)!
-  const retired = finalSnapshot.retirement.retired
-  const finalPlayer = retired
-    ? { ...player, leagueStatus: { kind: "retired" as const } }
-    : player
+  const retired = retirementAge !== null
   const peakSnapshot = snapshots.reduce((best, current) =>
     current.currentAbility > best.currentAbility ? current : best
   )
+  const finalAbility = getPlayerCurrentAbility(finalPlayer)
+  const peakAbility = Math.max(peakSnapshot.currentAbility, finalAbility)
+  const realizedPeakAge =
+    finalAbility > peakSnapshot.currentAbility
+      ? finalPlayer.age
+      : peakSnapshot.ageAtSeasonStart
   const plateauLength = snapshots.filter(
     (snapshot) => snapshot.phase === "plateau"
   ).length
@@ -219,9 +229,12 @@ function createTimeline(input: CareerTraceInput): CareerTimeline {
     snapshots,
     finalPlayer,
     retired,
-    retirementAge: retired ? finalSnapshot.age : null,
-    peakAbility: peakSnapshot.currentAbility,
-    realizedPeakAge: peakSnapshot.age,
+    retirementAge,
+    retirementSeason,
+    seasonsSimulated: snapshots.length,
+    terminationReason: retired ? "retired" : "horizon-complete",
+    peakAbility,
+    realizedPeakAge,
     plateauLength,
   }
 }
@@ -254,7 +267,9 @@ function createTrajectory(
     skillKeys.map((skill) => [
       skill,
       skillStats(
-        snapshots.map((snapshot) => snapshot.player.profile.skills[skill])
+        snapshots.map(
+          (snapshot) => snapshot.playerAtSeasonStart.profile.skills[skill]
+        )
       ),
     ])
   ) as Record<
@@ -267,9 +282,8 @@ function createTrajectory(
 
   return {
     season: baseSeason + offset,
-    age: first?.age ?? startingAge + offset,
-    activePlayers: snapshots.filter((snapshot) => !snapshot.retirement.retired)
-      .length,
+    age: first?.ageAtSeasonStart ?? startingAge + offset,
+    activePlayers: snapshots.length,
     average: Object.fromEntries(
       skillKeys.map((skill) => [skill, skills[skill]?.average ?? 0])
     ) as PlayerSkills,
@@ -314,7 +328,7 @@ function createSummary(
 ): CareerCohortSummary {
   const baseSeason = options.season ?? 1
   const trajectories = Array.from(
-    { length: options.runYears + 1 },
+    { length: options.runYears },
     (_, offset) =>
       createTrajectory(timelines, offset, baseSeason, options.startingAge)
   )
@@ -322,7 +336,7 @@ function createSummary(
     (timeline) => timeline.snapshots[0]?.currentAbility ?? 0
   )
   const finalAbilities = timelines.map(
-    (timeline) => timeline.snapshots.at(-1)?.currentAbility ?? 0
+    (timeline) => getPlayerCurrentAbility(timeline.finalPlayer)
   )
   const peakAges = timelines.map(
     (timeline) => timeline.snapshots[0]?.peakAge ?? 0
@@ -336,13 +350,15 @@ function createSummary(
   )
   const retired = timelines.filter((timeline) => timeline.retired)
   const availabilityValues = timelines.flatMap((timeline) =>
-    timeline.snapshots.map((snapshot) => snapshot.availability.availabilityRate)
+    timeline.snapshots.map(
+      (snapshot) => snapshot.seasonResult.availability.availabilityRate
+    )
   )
   const injuryAffectedSeasons = timelines.reduce(
     (sum, timeline) =>
       sum +
       timeline.snapshots.filter(
-        (snapshot) => snapshot.availability.injuryAffected
+        (snapshot) => snapshot.seasonResult.availability.injuryAffected
       ).length,
     0
   )
@@ -362,7 +378,7 @@ function createSummary(
   const declineRate = average(
     timelines.map((timeline, index) => {
       const finalAge =
-        timeline.snapshots.at(-1)?.age ?? timeline.realizedPeakAge
+        timeline.finalPlayer.age
       const seasons = Math.max(1, finalAge - timeline.realizedPeakAge)
       return (
         Math.max(0, timeline.peakAbility - (finalAbilities[index] ?? 0)) /
@@ -460,7 +476,7 @@ export function runIndividualCareer(
   })
   return {
     schema: "foh-career-individual-lab",
-    version: 1,
+    version: 2,
     options: reportOptions,
     timeline,
     failedFixtures: [],
@@ -529,7 +545,7 @@ export function runCareerCohort(
     : null
   return {
     schema: "foh-career-cohort-lab",
-    version: 1,
+    version: 2,
     options: {
       seed: options.seed,
       startingAge: options.startingAge,

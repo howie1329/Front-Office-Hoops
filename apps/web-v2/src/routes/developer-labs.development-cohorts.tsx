@@ -15,6 +15,7 @@ import type {
 import {
   serializeCareerCohortReport,
 } from "@workspace/calibration"
+import { getPlayerCurrentAbility } from "@workspace/sim-v2"
 
 import { runCareerCohortInWorker, runIndividualCareerInWorker } from "@/lib/careerCohortWorker"
 import {
@@ -255,7 +256,7 @@ function DevelopmentCohortsPage() {
     if (!bundle) return
     const payload = {
       schema: "foh-career-cohort-harness-bundle",
-      version: 1,
+      version: 2,
       runId: createRunId(options.seed),
       primary: JSON.parse(serializeCareerCohortReport(bundle.primary)),
       comparison: JSON.parse(serializeCareerCohortReport(bundle.comparison)),
@@ -685,7 +686,7 @@ function TracePanel({
 }) {
   const timeline = trace?.timeline ?? null
   const firstSnapshot = timeline?.snapshots[0]
-  const player = firstSnapshot?.player
+  const player = firstSnapshot?.playerAtSeasonStart
   const name = player
     ? formatPlayerName(player, timeline?.seed)
     : "Selected player"
@@ -743,8 +744,8 @@ function TracePanel({
               />
               <TraceMetric
                 label="Endpoint"
-                value={formatNumber(timeline.snapshots.at(-1)?.currentAbility ?? 0)}
-                detail={`Age ${timeline.snapshots.at(-1)?.age ?? "—"}`}
+                value={formatNumber(getPlayerCurrentAbility(timeline.finalPlayer))}
+                detail={`Age ${timeline.finalPlayer.age}`}
               />
             </div>
           </>
@@ -919,7 +920,10 @@ function ComparisonPanel({
 function EventLogPanel({ timeline }: { timeline: CareerTimeline | null }) {
   const events = timeline
     ? timeline.snapshots.flatMap((snapshot) =>
-        snapshot.events.map((event) => ({ ...event, age: snapshot.age }))
+        (snapshot.seasonResult.development?.events ?? []).map((event) => ({
+          ...event,
+          age: snapshot.ageAtSeasonStart,
+        }))
       )
     : []
 
@@ -991,7 +995,7 @@ function InspectorPanel({
   const focusedSnapshot = timeline?.snapshots.find(
     (snapshot) => snapshot.season === selectedSeason
   )
-  const player = timeline?.snapshots[0]?.player
+  const player = timeline?.snapshots[0]?.playerAtSeasonStart
   const phases = timeline
     ? timeline.snapshots.reduce<Record<string, number>>((counts, snapshot) => {
         counts[snapshot.phase] = (counts[snapshot.phase] ?? 0) + 1
@@ -1052,7 +1056,7 @@ function InspectorPanel({
                           {snapshot.season}
                         </button>
                       </TableCell>
-                      <TableCell className="px-2 py-2 text-xs tabular-nums">{snapshot.age}</TableCell>
+                      <TableCell className="px-2 py-2 text-xs tabular-nums">{snapshot.ageAtSeasonStart}</TableCell>
                       <TableCell className="px-2 py-2 text-xs font-medium tabular-nums">{formatNumber(snapshot.currentAbility)}</TableCell>
                       <TableCell className="px-2 py-2 text-[0.625rem] capitalize">{snapshot.phase}</TableCell>
                     </TableRow>
@@ -1086,10 +1090,10 @@ function InspectorPanel({
           ))}
           {focusedSnapshot ? (
             <div className="mt-1 grid gap-2 border-t border-border pt-3 text-xs">
-              <DiagnosticRow label="Games played" value={`${focusedSnapshot.availability.gamesPlayed}/${focusedSnapshot.availability.gamesScheduled}`} />
-              <DiagnosticRow label="Availability" value={formatPercent(focusedSnapshot.availability.availabilityRate)} />
+              <DiagnosticRow label="Games played" value={`${focusedSnapshot.seasonResult.availability.gamesPlayed}/${focusedSnapshot.seasonResult.availability.gamesScheduled}`} />
+              <DiagnosticRow label="Availability" value={formatPercent(focusedSnapshot.seasonResult.availability.availabilityRate)} />
               <DiagnosticRow label="Potential forecast" value={formatNumber(focusedSnapshot.potentialForecast)} />
-              <DiagnosticRow label="Retirement probability" value={formatPercent(focusedSnapshot.retirement.probability)} />
+              <DiagnosticRow label="Retirement probability" value={formatPercent(focusedSnapshot.seasonResult.retirement.probability)} />
             </div>
           ) : null}
         </div>
@@ -1423,7 +1427,7 @@ function formatPercent(value: number) {
 }
 
 function formatPlayerName(
-  player: CareerTimeline["snapshots"][number]["player"],
+  player: CareerTimeline["snapshots"][number]["playerAtSeasonStart"],
   seed?: string
 ) {
   const name = [player.identity.firstName, player.identity.lastName]
