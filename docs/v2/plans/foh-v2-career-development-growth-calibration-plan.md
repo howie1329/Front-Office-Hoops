@@ -1,9 +1,10 @@
 # V2 Career Development Growth Calibration and Harness Settings — Implementation Plan
 
-**Status:** Proposed  
-**Date:** 2026-07-31  
-**Roadmap position:** Phase 2 calibration  
-**Extends:** [Career Cohort Curves and Explorer Plan](./foh-v2-career-cohort-curves-and-explorer-plan.md)  
+**Status:** Ready for calibration<br>
+**Date:** 2026-07-31<br>
+**Roadmap position:** Phase 2 calibration<br>
+**Extends:** [Career Cohort Curves and Explorer Plan](./foh-v2-career-cohort-curves-and-explorer-plan.md)<br>
+**Settings pipeline:** [Career Development Settings Pipeline Plan](./foh-v2-career-development-settings-pipeline-plan.md)<br>
 **Companion:** [Career Cohort Explorer UI Brief](../specs/foh-v2-career-cohort-explorer-ui-brief.md)
 
 ## Objective
@@ -16,6 +17,29 @@ Expose the settings required to calibrate those behaviors in the Career Cohort
 Harness. This is not only a UI pass: each control needs a typed engine input,
 deterministic resolution, report persistence, schema coverage, and matched-run
 tests before it is added to the page.
+
+The settings pipeline described here is now implemented. This document governs
+calibration and acceptance of the exposed controls; it no longer treats the
+settings contract, resolver, report seam, or basic harness controls as
+unstarted implementation work.
+
+### Implemented settings-pipeline foundation
+
+- `CareerDevelopmentSettings` is the partial harness input contract.
+- `resolveCareerDevelopmentSettings` produces bounded, ordered engine rules
+  with settings version `1`.
+- Resolved rules flow through cohort and individual calibration runs, including
+  the worker-backed harness path.
+- Career reports are version `4` and persist `resolvedSettings`, including
+  baseline scale, noise, curve multipliers, stall/surge controls, transition
+  chances, timing preset, context, and seed metadata.
+- The league schema validates input settings and resolved report settings.
+- The harness exposes the stable development controls and displays the resolved
+  engine snapshot alongside the evidence.
+
+The remaining work is to calibrate these controls, add a true one-variable
+matched-run workflow, and decide which calibrated values become future
+universe-creation presets.
 
 ## Evidence motivating this work
 
@@ -70,9 +94,10 @@ Use three explicit layers:
   curve distributions, not raw multipliers, random scopes, latent talent, or
   true potential.
 
-Therefore the missing curve modifiers are not merely a UI-polish issue. The
-engine/config contract and report seam must be implemented first; the UI pass
-then exposes the already-typed controls.
+Therefore the curve modifiers are engine/config concerns with a completed
+report seam. The UI exposes the typed controls, while this plan focuses on
+using them in reproducible calibration experiments rather than adding another
+settings path.
 
 Preserve these decisions:
 
@@ -99,7 +124,7 @@ Tune in this order:
 Do not solve the forecast gap by clamping players to potential. Do not solve
 the lack of breakouts by making elite developers guaranteed stars.
 
-## Workstream 1 — Typed career development settings
+## Workstream 1 — Typed career development settings (implemented)
 
 ### Files in scope
 
@@ -112,16 +137,19 @@ the lack of breakouts by making elite developers guaranteed stars.
 
 ### Settings contract
 
-Extend the typed career rules/resolved-settings boundary with these categories.
+The typed contract, resolver, engine input, worker pass-through, report
+metadata, and schema are implemented. Calibration should use this single path;
+do not add route-local defaults or a second settings object.
 
 #### Growth baseline
 
-- growthRateScale: bounded multiplier for the existing growth baseline.
-- growthPotentialGapInfluence: bounded influence of potential headroom.
-- growthOpportunityScale: optional bounded scale for minutes opportunity.
+- `growthRateScale`: bounded multiplier for the existing growth baseline.
+- `growthNoiseScale`: bounded scale for ordinary annual growth noise.
 
-The first implementation should expose growthRateScale and keep the other two at
-standard values unless matched calibration requires them.
+The potential-gap influence and opportunity-response coefficients remain engine
+internals at their standard values. Add them only if matched calibration proves
+that the existing response curves cannot be tuned with the exposed baseline,
+curve, context, and variance settings.
 
 #### Curve multipliers
 
@@ -135,17 +163,19 @@ The existing values are the baseline comparison, not final balance:
     growth:  slow 0.70, standard 1.00, fast 1.30, elite 1.60
     decline: durable 0.70, standard 1.00, early 1.25, steep 1.60
 
-The harness must sweep these independently while universe creation uses named
-presets.
+The harness now exposes these independently while universe creation remains
+limited to named presets. The current neutral values are the baseline
+comparison, not final balance.
 
 #### Growth outcome variance
 
-Add a bounded developer-facing variance configuration:
+Calibrate the bounded developer-facing variance configuration:
 
-- growthNoiseScale: scale for small annual growth noise.
-- growthStallChance: rare chance of an underwhelming growth year.
-- growthBreakoutChance: rare chance of a development-surge year.
-- growthBreakoutMagnitude: bounded surge magnitude preset.
+- `growthNoiseScale`: scale for small annual growth noise.
+- `stallChance`: rare chance of an underwhelming growth year.
+- `stallMagnitude`: bounded reduction in eligible growth.
+- `surgeChance`: rare chance of a development-surge year.
+- `surgeMagnitude`: bounded increase in eligible growth.
 
 Both event probabilities may start at zero while the baseline and tiers are
 calibrated. When enabled, events must be deterministic, independent of skill
@@ -160,27 +190,35 @@ magnitude, but production must not trigger the event.
 Keep growth and decline transition probabilities explicit. A transition and a
 breakout/stall event are separate concepts.
 
-Expose named presets for peak-age and decline-onset distributions. Keep exact
-ages visible only in the developer lab; do not add raw distribution parameters
-to normal universe creation in this pass.
+The implemented `timingPreset` supports standard, earlier, and later peak and
+decline timing for lab runs. Exact generated ages remain visible only in the
+developer lab; raw distribution parameters are not normal universe settings.
 
 ### Resolution requirements
 
-1. Define one CareerDevelopmentSettings or equivalent resolved object at the
-   domain/calibration boundary.
-2. Resolve named presets and explicit harness overrides before the worker starts.
-3. Validate bounds and incompatible combinations before running a cohort.
-4. Pass the resolved object into the pure annual transition function.
-5. Record the resolved object, settings version, selected presets, and seed in
-   every cohort and individual report.
-6. Allow matched comparisons to override exactly one variable while preserving
-   generated player profiles, context, and all other rules.
+1. [x] Define one `CareerDevelopmentSettings` input and resolved rules object
+   at the domain/calibration boundary.
+2. [x] Resolve explicit harness overrides before the worker starts.
+3. [x] Validate bounds, tier ordering, and incompatible curve combinations.
+4. [x] Pass the resolved rules into the pure annual transition function.
+5. [x] Record the resolved object, settings version, selected presets, and seed
+   in cohort and individual reports.
+6. [ ] Add a matched comparison runner that freezes generated players, context,
+   seed, and all settings except the selected variable.
+
+The remaining item is calibration infrastructure, not another settings or UI
+contract.
 
 ## Workstream 2 — Raise the standard growth baseline
 
 Apply growthRateScale to the existing growth mean only. Preserve the
 potential-gap modifier, minutes opportunity and diminishing returns, coaching,
 injury, skill response, bounds, rounding, plateau, and decline behavior.
+
+This is now a calibration experiment against the implemented neutral setting
+(`growthRateScale: 1.0`), not an engine implementation task. Each arm must
+record the resolved settings in the report so the baseline can be reproduced
+from an export.
 
 The first sweep varies only growthRateScale under matched players and fixed
 context.
@@ -225,17 +263,18 @@ potential-gap closure, peak ages, bust/breakout rates, and the share gaining
 5, 10, and 15 points. Elite developers must still fail and slow developers
 must sometimes overperform.
 
-## Workstream 4 — Add controlled growth variance and breakouts
+## Workstream 4 — Calibrate controlled growth variance and breakouts
 
-The current engine mostly produces small annual deltas. Add a bounded event path
-after phase/context calculation and before final skill deltas are applied.
+The engine now has a bounded event path after phase/context calculation and
+before final skill deltas are applied. Calibrate the event settings without
+changing the event contract or adding production-driven triggers.
 
 Candidate events:
 
 - development-surge: rare positive multi-skill growth.
 - development-stall: rare negative or near-zero growth.
 
-Both events must:
+The implemented events must:
 
 - apply only during growth in the first version;
 - use a dedicated deterministic random scope;
@@ -270,9 +309,9 @@ forecast remains systematically optimistic.
 Track correlation, mean/median and p10/p50/p90 forecast error, the share within
 1/3/5/10 points, the share exceeding forecast, and bust/breakout rates by tier.
 
-## Workstream 6 — Expose the right harness settings
+## Workstream 6 — Expose the right harness settings (implemented)
 
-### Expose in the developer harness now
+### Exposed in the developer harness
 
 These directly affect development and belong in an advanced Career Rules group:
 
@@ -280,16 +319,18 @@ These directly affect development and belong in an advanced Career Rules group:
 - per-tier growth multipliers;
 - per-tier decline multipliers;
 - growth noise scale;
-- breakout and stall presets;
+- surge and stall chance/magnitude controls;
 - growth and decline transition probabilities;
-- peak-age and decline-onset presets;
+- standard, early, and late timing presets;
 - potential/development profile;
 - starting age and population source;
 - minutes, coaching, and injury context;
 - seed, base season, sample size, horizon, and run mode.
 
-Provide a standard-rules reset and a matched-run action that freezes every
-setting except the selected variable.
+The harness provides a standard-rules reset and persists the resolved settings
+with every report. A dedicated matched-run action that freezes every setting
+except the selected variable remains to be implemented in the calibration
+workflow.
 
 ### Expose to future universe creation as bounded presets
 
@@ -316,16 +357,18 @@ talent, or true potential in normal gameplay.
 These may appear in debug reports but should not become ordinary universe
 settings until the model is accepted.
 
-## Workstream 7 — Report, export, and UI changes
+## Workstream 7 — Report, export, and UI changes (implemented foundation)
 
-Extend the resolved-settings report object with settings version, growth
+The resolved-settings report object now includes settings version, growth
 baseline scale, curve multipliers, variance/event settings, transition settings,
-timing preset IDs, population/development context, seed, and horizon.
+timing preset, population/development context, seed, and horizon. Cohort and
+individual reports use version `4`; the settings contract uses version `1`.
 
-Add surge/stall events to the career event schema. Keep report versioning
-explicit and strict schema validation enabled.
+Surge/stall events are part of the career event schema. Strict schema
+validation remains enabled for both partial input settings and resolved report
+settings.
 
-Only after the engine/settings seam exists, add grouped harness controls:
+The grouped harness controls are now present:
 
 1. Run identity.
 2. Cohort definition.
@@ -334,36 +377,43 @@ Only after the engine/settings seam exists, add grouped harness controls:
 5. Variance and transition rules.
 6. Diagnostics and export.
 
-Show resolved values in the run header and export metadata. The UI must only
-resolve controls and display report data; it must not calculate career formulas
-or own rule defaults.
+The harness displays a resolved-settings diagnostic snapshot and includes the
+same report data in JSON export. The UI only edits bounded inputs and displays
+report data; it does not calculate career formulas or own engine defaults.
 
 ## Testing and verification
 
-Add or extend focused tests in:
+The settings-pipeline foundation already has focused coverage in:
 
-- packages/domain-v2/tests/career.test.ts
-- packages/domain-v2/tests/playerGeneration.test.ts
 - packages/sim-v2/tests/careerDevelopment.test.ts
-- packages/sim-v2/tests/playerGeneration.test.ts
 - packages/calibration/tests/career.test.ts
 - packages/league-schema/tests/careerSchema.test.ts
 - apps/web-v2/src/lib/developmentCohortLab.test.ts
 
+Continue extending these tests as calibration behavior is accepted. Add
+domain/player-generation tests only when a calibration change touches those
+contracts.
+
 Required tests:
 
+Already covered by the implemented pipeline:
+
 - Identical seeds and settings reproduce identical reports.
-- Changing only baseline scale changes growth, not physical profiles or identity.
-- Changing only curve multipliers preserves inputs and changes outcomes correctly.
-- Curve tiers remain ordered under matched seeds.
-- Breakout/stall events are deterministic, bounded, and loop-order independent.
-- Potential remains non-binding and can be exceeded.
+- Changing only baseline scale changes growth while preserving physical profiles.
+- Changing only curve multipliers changes outcomes through the engine.
+- Settings survive report serialization and schema round-trip.
+- Harness validation rejects invalid ranges and incompatible curve ordering.
+
+Remaining calibration and matched-run tests:
+
+- Curve tiers remain ordered under frozen matched players and fixed contexts.
+- Surge/stall events are deterministic, bounded, and loop-order independent.
+- Potential remains non-binding and can be exceeded across calibrated cohorts.
 - Plateau noise remains centered near zero.
 - Decline severity worsens with age past decline onset.
 - No development occurs after retirement.
-- Settings survive report serialization and schema round-trip.
-- Harness validation rejects invalid ranges and incompatible runs.
-- Matched resolution changes exactly one selected variable.
+- Matched resolution changes exactly one selected variable while preserving
+  generated profiles, contexts, and seeds.
 
 Verification gates:
 
@@ -384,14 +434,16 @@ Verification gates:
 
 ## Implementation order
 
-1. Add typed resolved settings and schema/version support.
-2. Add growth baseline scale and matched calibration runner.
-3. Recalibrate and widen curve multipliers.
-4. Add controlled variance and breakout/stall events.
-5. Recalibrate potential against realized peaks.
-6. Add advanced harness controls and matched-run UI behavior.
-7. Update exports, diagnostics, tests, and calibration reports.
-8. Do not promote values into authoritative gameplay until distributional
+1. [x] Add typed resolved settings and schema/version support.
+2. [x] Add growth baseline scale and expose it in the harness.
+3. [x] Add curve multipliers, timing presets, and transition controls.
+4. [x] Add controlled variance and surge/stall events.
+5. [x] Persist resolved settings in versioned reports and JSON exports.
+6. [ ] Add the matched calibration runner and one-variable comparison UI.
+7. [ ] Recalibrate baseline, curve spacing, variance, and potential against
+   realized peaks.
+8. [ ] Promote only accepted named presets into future universe creation; do
+   not promote values into authoritative gameplay until distributional
    acceptance criteria pass.
 
 ## Explicit non-goals
@@ -416,9 +468,10 @@ This plan is complete when:
 - A small, observable share of players can experience meaningful growth surges
   or stalls.
 - Potential remains a useful ranking/forecast signal and can still be exceeded.
-- Curve modifiers and other development-affecting settings are exposed in the
-  developer harness, resolved through typed engine settings, and preserved in
-  JSON reports.
+- Curve modifiers and other currently supported development-affecting settings
+  are exposed in the developer harness, resolved through typed engine settings,
+  and preserved in JSON reports.
+- A matched-run workflow can change exactly one setting while freezing the
+  generated cohort and all other inputs.
 - Future universe creation can use bounded presets without raw lab coefficients.
 - All focused tests, typechecks, build, schema checks, and diff checks pass.
-
