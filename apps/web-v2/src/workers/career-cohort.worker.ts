@@ -1,20 +1,11 @@
-import { runCareerCohort, runIndividualCareer } from "@workspace/calibration"
-import type {
-  CareerCohortReport,
-  CareerIndividualReport,
-} from "@workspace/domain-v2"
+import { runCareerCohort } from "@workspace/calibration"
+import type { CareerCohortReport } from "@workspace/domain-v2"
 import type {
   CareerCohortRunOptions,
-  CareerIndividualRunOptions,
   CareerProgress,
 } from "@workspace/calibration"
 
 type CareerWorkerRequest =
-  | {
-      type: "individual"
-      requestId: string
-      options: CareerIndividualRunOptions
-    }
   | {
       type: "cohort"
       requestId: string
@@ -24,11 +15,6 @@ type CareerWorkerRequest =
 
 type CareerWorkerMessage =
   | { type: "progress"; requestId: string; progress: CareerProgress }
-  | {
-      type: "individual-completed"
-      requestId: string
-      report: CareerIndividualReport
-    }
   | { type: "cohort-completed"; requestId: string; report: CareerCohortReport }
   | { type: "failed"; requestId: string; message: string }
 
@@ -46,15 +32,6 @@ workerScope.onmessage = (event) => {
 
   const { requestId } = event.data
   try {
-    if (event.data.type === "individual") {
-      workerScope.postMessage({
-        type: "individual-completed",
-        requestId,
-        report: runIndividualCareer(event.data.options),
-      })
-      return
-    }
-
     const report = runCareerCohort({
       ...event.data.options,
       onProgress: (progress) =>

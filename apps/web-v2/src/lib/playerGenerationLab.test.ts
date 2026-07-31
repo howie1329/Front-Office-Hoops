@@ -151,7 +151,7 @@ describe("player generation lab helpers", () => {
     expect(report).toMatchObject({
       presetId: "draft-class",
       basePresetId: "draft-class",
-      populationPresetVersion: 1,
+      populationPresetVersion: 2,
     })
     expect(report.context).toEqual({
       kind: "lab",

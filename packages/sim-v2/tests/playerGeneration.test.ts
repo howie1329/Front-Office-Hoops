@@ -78,9 +78,9 @@ describe("generatePlayer", () => {
     expect(result.player.profile.development.peakAge).toBeGreaterThanOrEqual(
       input.age
     )
-    expect(
-      result.player.profile.development.declineStartAge
-    ).toBeGreaterThan(result.player.profile.development.peakAge)
+    expect(result.player.profile.development.declineStartAge).toBeGreaterThan(
+      result.player.profile.development.peakAge
+    )
     expect(result.diagnostics.careerTiming).toEqual({
       peakAge: result.player.profile.development.peakAge,
       declineStartAge: result.player.profile.development.declineStartAge,
@@ -89,6 +89,37 @@ describe("generatePlayer", () => {
       result.player.profile.development.potential -
         result.diagnostics.currentAbility
     )
+  })
+
+  it("draws persisted career curve traits from configured weights", () => {
+    const config = createStandardPlayerGenerationConfig()
+    config.development.growthCurveWeights = {
+      slow: 0,
+      standard: 0,
+      fast: 0,
+      elite: 1,
+    }
+    config.development.declineCurveWeights = {
+      durable: 0,
+      standard: 0,
+      early: 0,
+      steep: 1,
+    }
+
+    const result = generatePlayerWithDiagnostics(
+      createDeterministicRandom("career-curve-weights"),
+      input,
+      config
+    )
+
+    expect(result.player.profile.development).toMatchObject({
+      growthCurve: "elite",
+      declineCurve: "steep",
+    })
+    expect(result.diagnostics.careerCurves).toEqual({
+      growthCurve: "elite",
+      declineCurve: "steep",
+    })
   })
 
   it("keeps identity changes outside basketball generation", () => {

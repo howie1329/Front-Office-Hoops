@@ -1,10 +1,6 @@
-import type {
-  CareerCohortReport,
-  CareerIndividualReport,
-} from "@workspace/domain-v2"
+import type { CareerCohortReport } from "@workspace/domain-v2"
 import type {
   CareerCohortRunOptions,
-  CareerIndividualRunOptions,
   CareerProgress,
 } from "@workspace/calibration"
 
@@ -12,11 +8,6 @@ export type CareerWorkerProgress = CareerProgress
 
 type CareerWorkerMessage =
   | { type: "progress"; requestId: string; progress: CareerWorkerProgress }
-  | {
-      type: "individual-completed"
-      requestId: string
-      report: CareerIndividualReport
-    }
   | { type: "cohort-completed"; requestId: string; report: CareerCohortReport }
   | { type: "failed"; requestId: string; message: string }
 
@@ -26,7 +17,7 @@ function createRequestId(): string {
 
 function runInWorker<T>(
   request: Record<string, unknown>,
-  expectedType: "individual-completed" | "cohort-completed",
+  expectedType: "cohort-completed",
   options: {
     signal?: AbortSignal
     onProgress?: (progress: CareerWorkerProgress) => void
@@ -75,20 +66,6 @@ function runInWorker<T>(
     signal?.addEventListener("abort", onAbort, { once: true })
     worker.postMessage({ ...request, requestId })
   })
-}
-
-export function runIndividualCareerInWorker(
-  options: CareerIndividualRunOptions & {
-    signal?: AbortSignal
-    onProgress?: (progress: CareerWorkerProgress) => void
-  }
-): Promise<CareerIndividualReport> {
-  const { signal, onProgress, ...runOptions } = options
-  return runInWorker(
-    { type: "individual", options: runOptions },
-    "individual-completed",
-    { signal, onProgress }
-  )
 }
 
 export function runCareerCohortInWorker(

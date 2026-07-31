@@ -1,6 +1,18 @@
-import type { PlayerEntity, PlayerSkillKey, PlayerSkills } from "./types"
+import type {
+  CareerDeclineCurve,
+  CareerDeclineCurveWeights,
+  CareerGrowthCurve,
+  CareerGrowthCurveWeights,
+  PlayerEntity,
+  PlayerSkillKey,
+  PlayerSkills,
+} from "./types"
 
-export type { CareerDevelopmentProfile } from "./types"
+export type {
+  CareerDeclineCurve,
+  CareerDevelopmentProfile,
+  CareerGrowthCurve,
+} from "./types"
 
 export type CareerPhase = "growth" | "plateau" | "decline"
 
@@ -30,12 +42,17 @@ export type CareerDevelopmentEvent = {
     | "plateau-noise"
     | "injury-effect"
     | "availability"
+    | "trajectory-change"
   season: number
   playerId: string
   phase: CareerPhase
   skill: PlayerSkillKey | null
   delta: number
   summary: string
+  curveDimension?: "growth" | "decline"
+  fromCurve?: CareerGrowthCurve | CareerDeclineCurve
+  toCurve?: CareerGrowthCurve | CareerDeclineCurve
+  reason?: "age-transition" | "calibration"
 }
 
 export type CareerTransitionResult = {
@@ -48,6 +65,10 @@ export type CareerTransitionResult = {
 
 export type CareerSeasonDevelopment = {
   phase: CareerPhase
+  growthCurve: CareerGrowthCurve
+  declineCurve: CareerDeclineCurve
+  appliedGrowthMultiplier: number
+  appliedDeclineMultiplier: number
   skillDeltas: Record<PlayerSkillKey, number>
   events: CareerDevelopmentEvent[]
 }
@@ -93,8 +114,25 @@ export type RetirementEvaluation = {
 export type CareerContextPreset = "healthy" | "normal" | "injured"
 export type CareerMinutesPreset = "zero" | "low" | "typical" | "high"
 export type CareerCoachingPreset = "weak" | "standard" | "strong"
+export type CareerPopulationContext =
+  "draft-class" | "roster" | "free-agent" | "veteran"
 export type CareerDevelopmentPreset =
   "standard" | "high-potential" | "low-potential" | "high-volatility"
+
+export type CareerCurveRules = {
+  growthMultipliers: Record<CareerGrowthCurve, number>
+  declineMultipliers: Record<CareerDeclineCurve, number>
+  growthTransitionChance: number
+  declineTransitionChance: number
+}
+
+export type CareerResolvedSettings = CareerCurveRules & {
+  populationContext: CareerPopulationContext
+  growthCurve: CareerGrowthCurve | "distribution"
+  declineCurve: CareerDeclineCurve | "distribution"
+  growthCurveWeights: CareerGrowthCurveWeights
+  declineCurveWeights: CareerDeclineCurveWeights
+}
 
 export type CareerCohortOptions = {
   seed: string
@@ -105,6 +143,9 @@ export type CareerCohortOptions = {
   coachingContext: CareerCoachingPreset
   injuryContext: CareerContextPreset
   developmentContext: CareerDevelopmentPreset
+  populationContext: CareerPopulationContext
+  growthCurve: CareerGrowthCurve | "distribution"
+  declineCurve: CareerDeclineCurve | "distribution"
   season?: number
 }
 
@@ -186,6 +227,24 @@ export type CareerCohortSummary = {
   outlierTimelines: CareerTimeline[]
 }
 
+export type CareerPlayerSummary = {
+  playerId: string
+  seed: string
+  startingAge: number
+  finalAge: number
+  finalAbility: number
+  peakAbility: number
+  realizedPeakAge: number
+  peakAge: number
+  declineStartAge: number
+  growthCurve: CareerGrowthCurve
+  declineCurve: CareerDeclineCurve
+  retired: boolean
+  retirementAge: number | null
+  seasonsSimulated: number
+  terminationReason: CareerTimeline["terminationReason"]
+}
+
 export type CareerBenchmarkCheck = {
   metric: string
   actual: number
@@ -208,11 +267,13 @@ export type FailedCareerFixture = {
 
 export type CareerCohortReport = {
   schema: "foh-career-cohort-lab"
-  version: 2
+  version: 3
   options: CareerCohortOptions
   completed: number
   cancelled: boolean
   summary: CareerCohortSummary
+  resolvedSettings: CareerResolvedSettings
+  playerIndex: CareerPlayerSummary[]
   timelines?: CareerTimeline[]
   benchmark: CareerBenchmarkResult | null
   failedFixtures: FailedCareerFixture[]
@@ -220,7 +281,7 @@ export type CareerCohortReport = {
 
 export type CareerIndividualReport = {
   schema: "foh-career-individual-lab"
-  version: 2
+  version: 3
   options: CareerIndividualOptions
   timeline: CareerTimeline
   failedFixtures: FailedCareerFixture[]

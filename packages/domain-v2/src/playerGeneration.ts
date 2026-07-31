@@ -4,10 +4,10 @@ import type {
   PlayerPopulationPresetId,
 } from "./types"
 
-export const PLAYER_POPULATION_PRESET_VERSION = 1
+export const PLAYER_POPULATION_PRESET_VERSION = 2
 
 export const STANDARD_PLAYER_GENERATION_CONFIG: PlayerGenerationConfig = {
-  version: 4,
+  version: 5,
   age: { min: 19, max: 34 },
   ratingBounds: {
     min: 25,
@@ -47,6 +47,18 @@ export const STANDARD_PLAYER_GENERATION_CONFIG: PlayerGenerationConfig = {
       center: 35,
       spread: 20,
       shape: "long-tailed",
+    },
+    growthCurveWeights: {
+      slow: 0.2,
+      standard: 0.5,
+      fast: 0.25,
+      elite: 0.05,
+    },
+    declineCurveWeights: {
+      durable: 0.2,
+      standard: 0.5,
+      early: 0.2,
+      steep: 0.1,
     },
   },
   classification: {
@@ -107,6 +119,18 @@ const INITIAL_FREE_AGENT_CONFIG: PlayerGenerationConfig = {
       spread: 18,
       shape: "long-tailed",
     },
+    growthCurveWeights: {
+      slow: 0.3,
+      standard: 0.5,
+      fast: 0.15,
+      elite: 0.05,
+    },
+    declineCurveWeights: {
+      durable: 0.15,
+      standard: 0.5,
+      early: 0.25,
+      steep: 0.1,
+    },
   },
 }
 
@@ -140,6 +164,18 @@ const DRAFT_CLASS_CONFIG: PlayerGenerationConfig = {
       center: 50,
       spread: 22,
       shape: "long-tailed",
+    },
+    growthCurveWeights: {
+      slow: 0.15,
+      standard: 0.45,
+      fast: 0.3,
+      elite: 0.1,
+    },
+    declineCurveWeights: {
+      durable: 0.2,
+      standard: 0.5,
+      early: 0.2,
+      steep: 0.1,
     },
   },
 }

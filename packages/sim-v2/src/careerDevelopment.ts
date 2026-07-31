@@ -1,9 +1,12 @@
 import type {
   CareerAnnualContext,
   CareerAvailabilitySummary,
+  CareerCurveRules,
+  CareerDeclineCurve,
   CareerDevelopmentEvent,
   CareerPhase,
   CareerTransitionResult,
+  CareerGrowthCurve,
   PlayerEntity,
   PlayerGenerationConfig,
   PlayerSkillKey,
@@ -19,6 +22,24 @@ export type CareerDevelopmentInput = {
   context: CareerAnnualContext
   random: RandomSource
   config?: PlayerGenerationConfig
+  rules?: CareerCurveRules
+}
+
+export const STANDARD_CAREER_CURVE_RULES: CareerCurveRules = {
+  growthMultipliers: {
+    slow: 0.7,
+    standard: 1,
+    fast: 1.3,
+    elite: 1.6,
+  },
+  declineMultipliers: {
+    durable: 0.7,
+    standard: 1,
+    early: 1.25,
+    steep: 1.6,
+  },
+  growthTransitionChance: 0.01,
+  declineTransitionChance: 0.01,
 }
 
 const skillKeys: PlayerSkillKey[] = [
@@ -106,7 +127,11 @@ function opportunityModifier(context: CareerAnnualContext): number {
   return 0.72 + 0.48 * (1 - Math.exp(-boundedMinutes / 18))
 }
 
-function phaseMean(player: PlayerEntity, phase: CareerPhase): number {
+function phaseMean(
+  player: PlayerEntity,
+  phase: CareerPhase,
+  rules: CareerCurveRules
+): number {
   const { potential, rating } = player.profile.development
   const currentAbility =
     Object.values(player.profile.skills).reduce(
@@ -117,7 +142,11 @@ function phaseMean(player: PlayerEntity, phase: CareerPhase): number {
   if (phase === "growth") {
     const forecastSignal = clamp(0.35 + potentialGap / 100, 0.15, 0.85)
     const developmentSignal = clamp(0.65 + (rating - 50) / 160, 0.35, 1.15)
-    return (0.32 + forecastSignal * 0.58) * developmentSignal
+    return (
+      (0.32 + forecastSignal * 0.58) *
+      developmentSignal *
+      rules.growthMultipliers[player.profile.development.growthCurve]
+    )
   }
 
   if (phase === "decline") {
@@ -125,10 +154,117 @@ function phaseMean(player: PlayerEntity, phase: CareerPhase): number {
       0,
       player.age - player.profile.development.declineStartAge
     )
-    return -(0.24 + agePastDecline * 0.075)
+    return -(
+      (0.24 + agePastDecline * 0.075) *
+      rules.declineMultipliers[player.profile.development.declineCurve]
+    )
   }
 
   return 0
+}
+
+function adjacentCurve<T extends string>(
+  curve: T,
+  curves: readonly T[],
+  direction: number
+): T {
+  const index = curves.indexOf(curve)
+  const nextIndex = clamp(index + direction, 0, curves.length - 1)
+  return curves[nextIndex]!
+}
+
+function applyTrajectoryChange(
+  player: PlayerEntity,
+  phase: CareerPhase,
+  random: RandomSource,
+  context: CareerAnnualContext,
+  rules: CareerCurveRules,
+  events: CareerDevelopmentEvent[]
+): PlayerEntity {
+  const transitionRandom = random.fork("trajectory-change")
+  const growthCurves: CareerGrowthCurve[] = [
+    "slow",
+    "standard",
+    "fast",
+    "elite",
+  ]
+  const declineCurves: CareerDeclineCurve[] = [
+    "durable",
+    "standard",
+    "early",
+    "steep",
+  ]
+  let nextDevelopment = player.profile.development
+
+  if (
+    phase === "growth" &&
+    transitionRandom.fork("growth").next() < rules.growthTransitionChance
+  ) {
+    const direction =
+      transitionRandom.fork("growth-direction").next() < 0.5 ? -1 : 1
+    const nextCurve = adjacentCurve(
+      nextDevelopment.growthCurve,
+      growthCurves,
+      direction
+    )
+    if (nextCurve !== nextDevelopment.growthCurve) {
+      events.push({
+        id: `career:${player.id}:${context.season}:growth-curve`,
+        type: "trajectory-change",
+        season: context.season,
+        playerId: player.id,
+        phase,
+        skill: null,
+        delta: 0,
+        summary: `Growth curve changed from ${nextDevelopment.growthCurve} to ${nextCurve}.`,
+        curveDimension: "growth",
+        fromCurve: nextDevelopment.growthCurve,
+        toCurve: nextCurve,
+        reason: "calibration",
+      })
+      nextDevelopment = { ...nextDevelopment, growthCurve: nextCurve }
+    }
+  }
+
+  if (
+    phase === "decline" &&
+    transitionRandom.fork("decline").next() < rules.declineTransitionChance
+  ) {
+    const direction =
+      transitionRandom.fork("decline-direction").next() < 0.5 ? -1 : 1
+    const nextCurve = adjacentCurve(
+      nextDevelopment.declineCurve,
+      declineCurves,
+      direction
+    )
+    if (nextCurve !== nextDevelopment.declineCurve) {
+      events.push({
+        id: `career:${player.id}:${context.season}:decline-curve`,
+        type: "trajectory-change",
+        season: context.season,
+        playerId: player.id,
+        phase,
+        skill: null,
+        delta: 0,
+        summary: `Decline curve changed from ${nextDevelopment.declineCurve} to ${nextCurve}.`,
+        curveDimension: "decline",
+        fromCurve: nextDevelopment.declineCurve,
+        toCurve: nextCurve,
+        reason: "calibration",
+      })
+      nextDevelopment = { ...nextDevelopment, declineCurve: nextCurve }
+    }
+  }
+
+  if (nextDevelopment === player.profile.development) return player
+
+  return {
+    ...player,
+    profile: {
+      ...player.profile,
+      development: nextDevelopment,
+    },
+  }
 }
 
 function createAvailability(
@@ -170,6 +306,7 @@ export function advancePlayerCareerYear(
   input: CareerDevelopmentInput
 ): CareerTransitionResult {
   const config = input.config ?? STANDARD_PLAYER_GENERATION_CONFIG
+  const rules = input.rules ?? STANDARD_CAREER_CURVE_RULES
   const { player, context, random } = input
 
   validateContext(context)
@@ -203,10 +340,18 @@ export function advancePlayerCareerYear(
     .fork("career")
     .fork(player.id)
     .fork(String(context.season))
+  const activePlayer = applyTrajectoryChange(
+    player,
+    phase,
+    seasonRandom,
+    context,
+    rules,
+    events
+  )
 
   for (const skill of skillKeys) {
     const skillRandom = seasonRandom.fork(skill)
-    const baseline = phaseMean(player, phase)
+    const baseline = phaseMean(activePlayer, phase, rules)
     const currentAbility =
       Object.values(player.profile.skills).reduce(
         (sum, value) => sum + value,
@@ -216,7 +361,7 @@ export function advancePlayerCareerYear(
       phase === "growth"
         ? 1 +
           clamp(
-            (player.profile.development.potential - currentAbility) / 400,
+            (activePlayer.profile.development.potential - currentAbility) / 400,
             -0.05,
             0.2
           )
@@ -228,12 +373,12 @@ export function advancePlayerCareerYear(
             .fork(skill)
             .normal(
               0,
-              0.18 + (player.profile.development.volatility / 100) * 0.68
+              0.18 + (activePlayer.profile.development.volatility / 100) * 0.68
             )
         : 0
     const randomNoise = skillRandom.normal(
       0,
-      (player.profile.development.volatility / 100) * 0.2
+      (activePlayer.profile.development.volatility / 100) * 0.2
     )
     const delta = round(
       (baseline * opportunity * coaching * injury * developmentModifier +
@@ -241,8 +386,10 @@ export function advancePlayerCareerYear(
         randomNoise) *
         skillResponse[skill]
     )
-    const nextValue = round(clamp(player.profile.skills[skill] + delta, 0, 100))
-    skillDeltas[skill] = round(nextValue - player.profile.skills[skill])
+    const nextValue = round(
+      clamp(activePlayer.profile.skills[skill] + delta, 0, 100)
+    )
+    skillDeltas[skill] = round(nextValue - activePlayer.profile.skills[skill])
     nextSkills[skill] = nextValue
 
     if (skillDeltas[skill] !== 0) {
@@ -293,15 +440,15 @@ export function advancePlayerCareerYear(
     config
   )
   const nextPlayer: PlayerEntity = {
-    ...player,
+    ...activePlayer,
     age: player.age + 1,
     profile: {
       ...player.profile,
-      physical: { ...player.profile.physical },
+      physical: { ...activePlayer.profile.physical },
       skills: nextSkills,
       role: role.role,
-      development: { ...player.profile.development },
-      traits: [...player.profile.traits],
+      development: { ...activePlayer.profile.development },
+      traits: [...activePlayer.profile.traits],
     },
   }
 

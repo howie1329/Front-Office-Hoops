@@ -9,6 +9,7 @@ import {
   advancePlayerCareerYear,
   createDeterministicRandom,
   getCareerPhase,
+  STANDARD_CAREER_CURVE_RULES,
 } from "../src"
 
 function createPlayer(
@@ -149,6 +150,59 @@ describe("advancePlayerCareerYear", () => {
     expect(Math.max(...Object.values(high.player.profile.skills))).toBeLessThan(
       100
     )
+  })
+
+  it("applies curve tiers without changing the potential contract", () => {
+    const player = createPlayer({ age: 22 })
+    const slow = advancePlayerCareerYear({
+      player: {
+        ...player,
+        profile: {
+          ...player.profile,
+          development: { ...player.profile.development, growthCurve: "slow" },
+        },
+      },
+      context,
+      random: createDeterministicRandom("curve-tier"),
+      rules: STANDARD_CAREER_CURVE_RULES,
+    })
+    const elite = advancePlayerCareerYear({
+      player: {
+        ...player,
+        profile: {
+          ...player.profile,
+          development: { ...player.profile.development, growthCurve: "elite" },
+        },
+      },
+      context,
+      random: createDeterministicRandom("curve-tier"),
+      rules: STANDARD_CAREER_CURVE_RULES,
+    })
+    const total = (values: Record<string, number>) =>
+      Object.values(values).reduce((sum, value) => sum + value, 0)
+
+    expect(total(elite.skillDeltas)).toBeGreaterThan(total(slow.skillDeltas))
+    expect(elite.player.profile.development.potential).toBe(
+      player.profile.development.potential
+    )
+  })
+
+  it("records deterministic trajectory-change events when enabled", () => {
+    const player = createPlayer({ age: 22 })
+    const result = advancePlayerCareerYear({
+      player,
+      context,
+      random: createDeterministicRandom("forced-curve-transition"),
+      rules: {
+        ...STANDARD_CAREER_CURVE_RULES,
+        growthTransitionChance: 1,
+      },
+    })
+
+    expect(
+      result.events.some((event) => event.type === "trajectory-change")
+    ).toBe(true)
+    expect(result.player.profile.development.growthCurve).not.toBe("standard")
   })
 
   it("does not develop retired players", () => {

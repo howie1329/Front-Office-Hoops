@@ -320,6 +320,14 @@ export type PotentialHeadroomConfig = DistributionConfig & {
   maxHeadroom: number
 }
 
+export type CareerGrowthCurve = "slow" | "standard" | "fast" | "elite"
+
+export type CareerDeclineCurve = "durable" | "standard" | "early" | "steep"
+
+export type CareerGrowthCurveWeights = Record<CareerGrowthCurve, number>
+
+export type CareerDeclineCurveWeights = Record<CareerDeclineCurve, number>
+
 export type SkillCorrelation = {
   first: PlayerSkillKey
   second: PlayerSkillKey
@@ -348,6 +356,8 @@ export type PlayerGenerationConfig = {
     potential: PotentialHeadroomConfig
     rating: DistributionConfig
     volatility: DistributionConfig
+    growthCurveWeights: CareerGrowthCurveWeights
+    declineCurveWeights: CareerDeclineCurveWeights
   }
   classification: {
     minPositionFit: number
@@ -368,7 +378,7 @@ export type PlayerPopulationPresetId =
   "initial-roster" | "initial-free-agents" | "draft-class"
 
 export type PlayerPopulationPreset = {
-  version: 1
+  version: 2
   id: PlayerPopulationPresetId
   label: string
   defaultCount: number
@@ -382,6 +392,8 @@ export type CareerDevelopmentProfile = {
   volatility: number
   peakAge: number
   declineStartAge: number
+  growthCurve: CareerGrowthCurve
+  declineCurve: CareerDeclineCurve
 }
 
 export type DevelopmentProfile = CareerDevelopmentProfile

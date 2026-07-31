@@ -1,8 +1,10 @@
 import type {
   CareerAvailabilitySummary,
+  CareerCurveRules,
   CareerCohortOptions,
   CareerCohortReport,
   CareerCohortSummary,
+  CareerResolvedSettings,
   CareerIndividualOptions,
   CareerIndividualReport,
   CareerRetirementContext,
@@ -22,9 +24,14 @@ import {
   createDeterministicRandom,
   evaluatePlayerRetirement,
   getCareerPhase,
+  STANDARD_CAREER_CURVE_RULES,
 } from "@workspace/sim-v2"
 
-import { createCareerAnnualContext, createCareerPlayer } from "./careerFixtures"
+import {
+  createCareerAnnualContext,
+  createCareerGenerationConfig,
+  createCareerPlayer,
+} from "./careerFixtures"
 import {
   evaluateCareerBenchmark,
   NBA_LIKE_CAREER_BENCHMARK_PROFILE,
@@ -54,6 +61,7 @@ export type CareerTraceInput = {
   seed: string
   options: CareerIndividualOptions
   config?: PlayerGenerationConfig
+  rules?: CareerCurveRules
 }
 
 const skillKeys: PlayerSkillKey[] = [
@@ -148,6 +156,7 @@ function createTimeline(input: CareerTraceInput): CareerTimeline {
   const baseSeason = input.options.season ?? 1
   let player = structuredClone(input.player)
   const random = createDeterministicRandom(input.seed)
+  const rules = input.rules ?? STANDARD_CAREER_CURVE_RULES
   const snapshots: CareerSnapshot[] = []
   let injuryHistory = 0
   let finalPlayer = structuredClone(player)
@@ -187,9 +196,20 @@ function createTimeline(input: CareerTraceInput): CareerTimeline {
         context,
         random,
         config: input.config,
+        rules,
       })
       development = {
         phase: transition.phase,
+        growthCurve: transition.player.profile.development.growthCurve,
+        declineCurve: transition.player.profile.development.declineCurve,
+        appliedGrowthMultiplier:
+          rules.growthMultipliers[
+            transition.player.profile.development.growthCurve
+          ],
+        appliedDeclineMultiplier:
+          rules.declineMultipliers[
+            transition.player.profile.development.declineCurve
+          ],
         skillDeltas: transition.skillDeltas,
         events: transition.events,
       }
@@ -237,6 +257,57 @@ function createTimeline(input: CareerTraceInput): CareerTimeline {
     realizedPeakAge,
     plateauLength,
   }
+}
+
+function createResolvedSettings(
+  options: CareerCohortOptions,
+  config: PlayerGenerationConfig,
+  rules: CareerCurveRules
+): CareerResolvedSettings {
+  return {
+    populationContext: options.populationContext,
+    growthCurve: options.growthCurve,
+    declineCurve: options.declineCurve,
+    growthCurveWeights: structuredClone(config.development.growthCurveWeights),
+    declineCurveWeights: structuredClone(
+      config.development.declineCurveWeights
+    ),
+    growthMultipliers: structuredClone(rules.growthMultipliers),
+    declineMultipliers: structuredClone(rules.declineMultipliers),
+    growthTransitionChance: rules.growthTransitionChance,
+    declineTransitionChance: rules.declineTransitionChance,
+  }
+}
+
+function createPlayerIndex(
+  timelines: CareerTimeline[]
+): CareerCohortReport["playerIndex"] {
+  return timelines.map((timeline) => {
+    const firstSnapshot = timeline.snapshots[0]
+    const finalDevelopment = timeline.finalPlayer.profile.development
+    return {
+      playerId: timeline.playerId,
+      seed: timeline.seed,
+      startingAge: timeline.startingAge,
+      finalAge: timeline.finalPlayer.age,
+      finalAbility: getPlayerCurrentAbility(timeline.finalPlayer),
+      peakAbility: timeline.peakAbility,
+      realizedPeakAge: timeline.realizedPeakAge,
+      peakAge: firstSnapshot?.peakAge ?? finalDevelopment.peakAge,
+      declineStartAge:
+        firstSnapshot?.declineStartAge ?? finalDevelopment.declineStartAge,
+      growthCurve:
+        firstSnapshot?.playerAtSeasonStart.profile.development.growthCurve ??
+        finalDevelopment.growthCurve,
+      declineCurve:
+        firstSnapshot?.playerAtSeasonStart.profile.development.declineCurve ??
+        finalDevelopment.declineCurve,
+      retired: timeline.retired,
+      retirementAge: timeline.retirementAge,
+      seasonsSimulated: timeline.seasonsSimulated,
+      terminationReason: timeline.terminationReason,
+    }
+  })
 }
 
 function skillStats(values: number[]): {
@@ -327,16 +398,14 @@ function createSummary(
   failedSeeds: string[]
 ): CareerCohortSummary {
   const baseSeason = options.season ?? 1
-  const trajectories = Array.from(
-    { length: options.runYears },
-    (_, offset) =>
-      createTrajectory(timelines, offset, baseSeason, options.startingAge)
+  const trajectories = Array.from({ length: options.runYears }, (_, offset) =>
+    createTrajectory(timelines, offset, baseSeason, options.startingAge)
   )
   const initialAbilities = timelines.map(
     (timeline) => timeline.snapshots[0]?.currentAbility ?? 0
   )
-  const finalAbilities = timelines.map(
-    (timeline) => getPlayerCurrentAbility(timeline.finalPlayer)
+  const finalAbilities = timelines.map((timeline) =>
+    getPlayerCurrentAbility(timeline.finalPlayer)
   )
   const peakAges = timelines.map(
     (timeline) => timeline.snapshots[0]?.peakAge ?? 0
@@ -377,8 +446,7 @@ function createSummary(
   )
   const declineRate = average(
     timelines.map((timeline, index) => {
-      const finalAge =
-        timeline.finalPlayer.age
+      const finalAge = timeline.finalPlayer.age
       const seasons = Math.max(1, finalAge - timeline.realizedPeakAge)
       return (
         Math.max(0, timeline.peakAbility - (finalAbilities[index] ?? 0)) /
@@ -466,17 +534,20 @@ export function runIndividualCareer(
     options.seed,
     options.startingAge,
     options.developmentContext,
-    config
+    config,
+    options,
+    options.populationContext
   )
   const timeline = createTimeline({
     player: fixture.player,
     seed: options.seed,
     options,
     config: fixture.config,
+    rules: STANDARD_CAREER_CURVE_RULES,
   })
   return {
     schema: "foh-career-individual-lab",
-    version: 2,
+    version: 3,
     options: reportOptions,
     timeline,
     failedFixtures: [],
@@ -508,7 +579,10 @@ export function runCareerCohort(
       const fixture = createCareerPlayer(
         seed,
         options.startingAge,
-        options.developmentContext
+        options.developmentContext,
+        undefined,
+        options,
+        options.populationContext
       )
       timelines.push(
         createTimeline({
@@ -516,6 +590,7 @@ export function runCareerCohort(
           seed,
           options,
           config: fixture.config,
+          rules: STANDARD_CAREER_CURVE_RULES,
         })
       )
     } catch (error) {
@@ -543,9 +618,13 @@ export function runCareerCohort(
   const benchmark = options.benchmarkProfile
     ? evaluateCareerBenchmark(summary, options.benchmarkProfile)
     : null
+  const resolvedConfig = createCareerGenerationConfig(
+    options.developmentContext,
+    options.populationContext
+  )
   return {
     schema: "foh-career-cohort-lab",
-    version: 2,
+    version: 3,
     options: {
       seed: options.seed,
       startingAge: options.startingAge,
@@ -555,11 +634,20 @@ export function runCareerCohort(
       coachingContext: options.coachingContext,
       injuryContext: options.injuryContext,
       developmentContext: options.developmentContext,
+      populationContext: options.populationContext,
+      growthCurve: options.growthCurve,
+      declineCurve: options.declineCurve,
       ...(options.season === undefined ? {} : { season: options.season }),
     },
     completed: timelines.length + failedFixtures.length,
     cancelled,
     summary,
+    resolvedSettings: createResolvedSettings(
+      options,
+      resolvedConfig,
+      STANDARD_CAREER_CURVE_RULES
+    ),
+    playerIndex: createPlayerIndex(timelines),
     timelines: options.retainTimelines ? timelines : undefined,
     benchmark,
     failedFixtures,

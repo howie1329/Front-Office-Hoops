@@ -1,6 +1,8 @@
 import type {
   NumericRange,
   PlayerEntity,
+  CareerDeclineCurve,
+  CareerGrowthCurve,
   PlayerGenerationConfig,
   PlayerIdentity,
   PlayerLeagueStatus,
@@ -33,6 +35,10 @@ export type PlayerGenerationDiagnostics = {
   careerTiming: {
     peakAge: number
     declineStartAge: number
+  }
+  careerCurves: {
+    growthCurve: CareerGrowthCurve
+    declineCurve: CareerDeclineCurve
   }
   rawSkills: PlayerSkills
   role: PlayerRoleDiagnostics
@@ -203,6 +209,49 @@ function drawCareerTiming(
   }
 }
 
+function drawWeightedCurve<T extends string>(
+  random: RandomSource,
+  weights: Record<T, number>,
+  label: string
+): T {
+  const entries = Object.entries(weights) as Array<[T, number]>
+  const totalWeight = entries.reduce((sum, [, weight]) => sum + weight, 0)
+
+  if (totalWeight <= 0) {
+    throw new Error(`Career ${label} curve weights must total more than zero.`)
+  }
+
+  let remaining = random.next() * totalWeight
+  for (const [curve, weight] of entries) {
+    remaining -= weight
+    if (remaining < 0) {
+      return curve
+    }
+  }
+
+  return entries[entries.length - 1]![0]
+}
+
+function drawCareerCurves(
+  random: RandomSource,
+  config: PlayerGenerationConfig
+): { growthCurve: CareerGrowthCurve; declineCurve: CareerDeclineCurve } {
+  const curvesRandom = random.fork("career-curves")
+
+  return {
+    growthCurve: drawWeightedCurve(
+      curvesRandom.fork("growth"),
+      config.development.growthCurveWeights,
+      "growth"
+    ),
+    declineCurve: drawWeightedCurve(
+      curvesRandom.fork("decline"),
+      config.development.declineCurveWeights,
+      "decline"
+    ),
+  }
+}
+
 export function getPlayerCurrentAbility(
   player: Pick<PlayerEntity, "profile">
 ): number {
@@ -349,6 +398,7 @@ export function generatePlayerWithDiagnostics(
     development.rating,
     development.volatility
   )
+  const careerCurves = drawCareerCurves(developmentRandom, config)
   const roleResult = derivePlayerRole({ physical, skills }, config)
 
   const player: PlayerEntity = {
@@ -372,6 +422,7 @@ export function generatePlayerWithDiagnostics(
       development: {
         ...development,
         ...careerTiming,
+        ...careerCurves,
       },
       traits: drawTraits(traitRandom, config),
     },
@@ -387,6 +438,7 @@ export function generatePlayerWithDiagnostics(
       potentialUpside,
       potentialHeadroom: potential - currentAbility,
       careerTiming,
+      careerCurves,
       rawSkills,
       role: roleResult.diagnostics,
     },

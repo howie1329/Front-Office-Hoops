@@ -10,6 +10,7 @@ describe("career cohort lab options", () => {
     expect(
       validateDevelopmentCohortOptions({
         ...DEFAULT_DEVELOPMENT_COHORT_OPTIONS,
+        mode: "comparison",
         seed: "",
         sampleSize: 20,
         comparisonPresetId: DEFAULT_DEVELOPMENT_COHORT_OPTIONS.presetId,

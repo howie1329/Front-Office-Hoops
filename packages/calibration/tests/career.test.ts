@@ -24,6 +24,9 @@ const options = {
   coachingContext: "standard" as const,
   injuryContext: "normal" as const,
   developmentContext: "standard" as const,
+  populationContext: "draft-class" as const,
+  growthCurve: "distribution" as const,
+  declineCurve: "distribution" as const,
 }
 
 describe("career calibration runner", () => {
@@ -43,6 +46,12 @@ describe("career calibration runner", () => {
     expect(first.completed).toBe(options.sampleSize)
     expect(first.summary.skillTrajectories).toHaveLength(options.runYears)
     expect(first.summary.failedSeeds).toEqual([])
+    expect(first.playerIndex).toHaveLength(options.sampleSize)
+    expect(first.resolvedSettings).toMatchObject({
+      populationContext: "draft-class",
+      growthCurve: "distribution",
+      declineCurve: "distribution",
+    })
     expect(first.benchmark?.checks.averagePeakAge).toBeDefined()
     expect(careerCohortReportSchema.safeParse(first).success).toBe(true)
   })
@@ -57,6 +66,9 @@ describe("career calibration runner", () => {
       coachingContext: options.coachingContext,
       injuryContext: options.injuryContext,
       developmentContext: options.developmentContext,
+      populationContext: options.populationContext,
+      growthCurve: options.growthCurve,
+      declineCurve: options.declineCurve,
     }
     const timeline = runCareerTrace({
       player: fixture.player,
@@ -119,7 +131,7 @@ describe("career calibration runner", () => {
     expect(deserializeCareerCohortReport(serialized)).toEqual(report)
     expect(JSON.parse(serializeCareerCohortReport(report))).toMatchObject({
       schema: "foh-career-cohort-lab",
-      version: 2,
+      version: 3,
       completed: 3,
     })
   })

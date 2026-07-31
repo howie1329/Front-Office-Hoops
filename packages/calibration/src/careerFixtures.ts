@@ -1,12 +1,16 @@
 import type {
   CareerAnnualContext,
   CareerCohortOptions,
+  CareerPopulationContext,
   CareerDevelopmentPreset,
   CareerMinutesPreset,
   PlayerEntity,
   PlayerGenerationConfig,
 } from "@workspace/domain-v2"
-import { createStandardPlayerGenerationConfig } from "@workspace/domain-v2"
+import {
+  createPlayerPopulationPreset,
+  createStandardPlayerGenerationConfig,
+} from "@workspace/domain-v2"
 import {
   createDeterministicRandom,
   generatePlayerWithDiagnostics,
@@ -23,9 +27,20 @@ function cloneConfig(config: PlayerGenerationConfig): PlayerGenerationConfig {
 }
 
 export function createCareerGenerationConfig(
-  preset: CareerDevelopmentPreset
+  preset: CareerDevelopmentPreset,
+  populationContext: CareerPopulationContext = "roster"
 ): PlayerGenerationConfig {
-  const config = cloneConfig(createStandardPlayerGenerationConfig())
+  const populationPresetId =
+    populationContext === "draft-class"
+      ? "draft-class"
+      : populationContext === "free-agent"
+        ? "initial-free-agents"
+        : "initial-roster"
+  const config = cloneConfig(
+    populationContext === "roster"
+      ? createStandardPlayerGenerationConfig()
+      : createPlayerPopulationPreset(populationPresetId).config
+  )
   if (preset === "high-potential") {
     config.development.potential = {
       ...config.development.potential,
@@ -54,7 +69,9 @@ export function createCareerPlayer(
   seed: string,
   startingAge: number,
   preset: CareerDevelopmentPreset = "standard",
-  config = createCareerGenerationConfig(preset)
+  config?: PlayerGenerationConfig,
+  curveOverrides?: Pick<CareerCohortOptions, "growthCurve" | "declineCurve">,
+  populationContext: CareerPopulationContext = "roster"
 ): CareerFixture {
   if (!seed.trim()) throw new Error("A career fixture seed is required.")
   if (!Number.isInteger(startingAge) || startingAge < 18 || startingAge > 40) {
@@ -63,6 +80,8 @@ export function createCareerPlayer(
     )
   }
 
+  const effectiveConfig =
+    config ?? createCareerGenerationConfig(preset, populationContext)
   const result = generatePlayerWithDiagnostics(
     createDeterministicRandom(seed),
     {
@@ -70,9 +89,30 @@ export function createCareerPlayer(
       age: startingAge,
       identity: { firstName: null, lastName: null },
     },
-    config
+    effectiveConfig
   )
-  return { seed, player: result.player, config }
+  const player = {
+    ...result.player,
+    profile: {
+      ...result.player.profile,
+      development: {
+        ...result.player.profile.development,
+        ...(curveOverrides?.growthCurve &&
+        curveOverrides.growthCurve !== "distribution"
+          ? { growthCurve: curveOverrides.growthCurve }
+          : {}),
+        ...(curveOverrides?.declineCurve &&
+        curveOverrides.declineCurve !== "distribution"
+          ? { declineCurve: curveOverrides.declineCurve }
+          : {}),
+      },
+    },
+  }
+  return {
+    seed,
+    player,
+    config: effectiveConfig,
+  }
 }
 
 export function resolveCareerGames(

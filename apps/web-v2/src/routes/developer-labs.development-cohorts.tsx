@@ -3,21 +3,17 @@ import * as React from "react"
 
 import type {
   CareerCohortReport,
-  CareerIndividualReport,
   CareerSkillTrajectory,
   CareerTimeline,
 } from "@workspace/domain-v2"
 import type {
   CareerCohortRunOptions,
-  CareerIndividualRunOptions,
   CareerProgress,
 } from "@workspace/calibration"
-import {
-  serializeCareerCohortReport,
-} from "@workspace/calibration"
+import { serializeCareerCohortReport } from "@workspace/calibration"
 import { getPlayerCurrentAbility } from "@workspace/sim-v2"
 
-import { runCareerCohortInWorker, runIndividualCareerInWorker } from "@/lib/careerCohortWorker"
+import { runCareerCohortInWorker } from "@/lib/careerCohortWorker"
 import {
   DEFAULT_DEVELOPMENT_COHORT_OPTIONS,
   DEVELOPMENT_COHORT_PRESETS,
@@ -55,65 +51,35 @@ type RunState = "idle" | "running" | "success" | "error"
 
 type RunBundle = {
   primary: CareerCohortReport
-  comparison: CareerCohortReport
-}
-
-const PRESET_CONTEXT: Record<
-  DevelopmentCohortPresetId,
-  {
-    age: number
-    developmentContext: CareerCohortRunOptions["developmentContext"]
-    injuryContext: CareerCohortRunOptions["injuryContext"]
-  }
-> = {
-  "balanced-rookies": {
-    age: 20,
-    developmentContext: "standard",
-    injuryContext: "normal",
-  },
-  "high-volatility": {
-    age: 20,
-    developmentContext: "high-volatility",
-    injuryContext: "injured",
-  },
-  "durable-veterans": {
-    age: 28,
-    developmentContext: "standard",
-    injuryContext: "healthy",
-  },
+  comparison: CareerCohortReport | null
 }
 
 function createCohortRunOptions(
   options: DevelopmentCohortOptions,
-  presetId: DevelopmentCohortPresetId
+  presetId: DevelopmentCohortPresetId,
+  useCurrentSettings: boolean
 ): CareerCohortRunOptions {
-  const preset = PRESET_CONTEXT[presetId]
+  const preset = DEVELOPMENT_COHORT_PRESETS.find((item) => item.id === presetId)
+  const settings = useCurrentSettings
+    ? options
+    : {
+        ...options,
+        ...preset?.defaults,
+      }
   return {
     seed: `${options.seed}:${presetId}`,
-    startingAge: preset.age,
-    sampleSize: options.sampleSize,
-    runYears: options.careerYears,
+    startingAge: settings.startingAge,
+    sampleSize: options.mode === "individual" ? 1 : options.sampleSize,
+    runYears: options.runYears,
+    season: options.season,
     minutesContext: options.minutesContext,
     coachingContext: options.coachingContext,
-    injuryContext: preset.injuryContext,
-    developmentContext: preset.developmentContext,
+    injuryContext: settings.injuryContext,
+    developmentContext: settings.developmentContext,
+    populationContext: settings.populationContext,
+    growthCurve: settings.growthCurve,
+    declineCurve: settings.declineCurve,
     retainTimelines: true,
-  }
-}
-
-function createIndividualRunOptions(
-  options: DevelopmentCohortOptions,
-  presetId: DevelopmentCohortPresetId
-): CareerIndividualRunOptions {
-  const preset = PRESET_CONTEXT[presetId]
-  return {
-    seed: `${options.seed}:${presetId}:player:1`,
-    startingAge: preset.age,
-    runYears: options.careerYears,
-    minutesContext: options.minutesContext,
-    coachingContext: options.coachingContext,
-    injuryContext: preset.injuryContext,
-    developmentContext: preset.developmentContext,
   }
 }
 
@@ -122,7 +88,9 @@ function DevelopmentCohortsPage() {
     DEFAULT_DEVELOPMENT_COHORT_OPTIONS
   )
   const [bundle, setBundle] = React.useState<RunBundle | null>(null)
-  const [trace, setTrace] = React.useState<CareerIndividualReport | null>(null)
+  const [selectedPlayerId, setSelectedPlayerId] = React.useState<string | null>(
+    null
+  )
   const [runState, setRunState] = React.useState<RunState>("idle")
   const [runError, setRunError] = React.useState<string | null>(null)
   const [lastRunAt, setLastRunAt] = React.useState<Date | null>(null)
@@ -131,7 +99,7 @@ function DevelopmentCohortsPage() {
   )
   const [progress, setProgress] = React.useState<CareerProgress>({
     completed: 0,
-    total: DEFAULT_DEVELOPMENT_COHORT_OPTIONS.sampleSize * 2,
+    total: DEFAULT_DEVELOPMENT_COHORT_OPTIONS.sampleSize,
     label: "Preparing career cohort",
     seed: DEFAULT_DEVELOPMENT_COHORT_OPTIONS.seed,
   })
@@ -150,7 +118,10 @@ function DevelopmentCohortsPage() {
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
-      const total = nextOptions.sampleSize * 2
+      const comparisonEnabled = nextOptions.mode === "comparison"
+      const runSize =
+        nextOptions.mode === "individual" ? 1 : nextOptions.sampleSize
+      const total = runSize * (comparisonEnabled ? 2 : 1)
       const progressByCohort = { primary: 0, comparison: 0 }
 
       setRunState("running")
@@ -176,45 +147,40 @@ function DevelopmentCohortsPage() {
         setProgress({
           completed: progressByCohort.primary + progressByCohort.comparison,
           total,
-          label:
-            cohort === "primary" ? "Running cohort A" : "Running cohort B",
+          label: cohort === "primary" ? "Running cohort A" : "Running cohort B",
           seed: nextProgress.seed,
         })
       }
 
       const primaryOptions = createCohortRunOptions(
         nextOptions,
-        nextOptions.presetId
-      )
-      const comparisonOptions = createCohortRunOptions(
-        nextOptions,
-        nextOptions.comparisonPresetId
+        nextOptions.presetId,
+        true
       )
 
       try {
-        const [primary, comparison, individual] = await Promise.all([
-          runCareerCohortInWorker({
-            ...primaryOptions,
-            signal: controller.signal,
-            onProgress: (nextProgress) =>
-              updateProgress("primary", nextProgress),
-          }),
-          runCareerCohortInWorker({
-            ...comparisonOptions,
-            signal: controller.signal,
-            onProgress: (nextProgress) =>
-              updateProgress("comparison", nextProgress),
-          }),
-          runIndividualCareerInWorker({
-            ...createIndividualRunOptions(nextOptions, nextOptions.presetId),
-            signal: controller.signal,
-          }),
-        ])
+        const primary = await runCareerCohortInWorker({
+          ...primaryOptions,
+          signal: controller.signal,
+          onProgress: (nextProgress) => updateProgress("primary", nextProgress),
+        })
+        const comparison = comparisonEnabled
+          ? await runCareerCohortInWorker({
+              ...createCohortRunOptions(
+                nextOptions,
+                nextOptions.comparisonPresetId,
+                false
+              ),
+              signal: controller.signal,
+              onProgress: (nextProgress) =>
+                updateProgress("comparison", nextProgress),
+            })
+          : null
 
         if (controller.signal.aborted) return
         setBundle({ primary, comparison })
-        setTrace(individual)
-        setSelectedSeason(individual.timeline.snapshots[0]?.season ?? null)
+        setSelectedPlayerId(primary.playerIndex[0]?.playerId ?? null)
+        setSelectedSeason(primary.timelines?.[0]?.snapshots[0]?.season ?? null)
         setProgress({
           completed: total,
           total,
@@ -256,11 +222,18 @@ function DevelopmentCohortsPage() {
     if (!bundle) return
     const payload = {
       schema: "foh-career-cohort-harness-bundle",
-      version: 2,
+      version: 3,
       runId: createRunId(options.seed),
+      harnessOptions: options,
       primary: JSON.parse(serializeCareerCohortReport(bundle.primary)),
-      comparison: JSON.parse(serializeCareerCohortReport(bundle.comparison)),
-      individual: trace,
+      comparison: bundle.comparison
+        ? JSON.parse(serializeCareerCohortReport(bundle.comparison))
+        : null,
+      selectedPlayerId,
+      selectedTimeline:
+        bundle.primary.timelines?.find(
+          (timeline) => timeline.playerId === selectedPlayerId
+        ) ?? null,
     }
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
@@ -279,6 +252,10 @@ function DevelopmentCohortsPage() {
   const progressPercent = Math.round(
     (progress.completed / Math.max(1, progress.total)) * 100
   )
+  const selectedTimeline =
+    bundle?.primary.timelines?.find(
+      (timeline) => timeline.playerId === selectedPlayerId
+    ) ?? null
 
   return (
     <main className="min-h-svh bg-background px-3 py-4 text-foreground sm:px-5 lg:px-7 lg:py-6">
@@ -341,10 +318,7 @@ function DevelopmentCohortsPage() {
           <div className="grid grid-cols-2 gap-x-5 gap-y-1 text-xs sm:grid-cols-4">
             <MetaItem label="Run ID" value={runId} />
             <MetaItem label="Seed" value={options.seed || "—"} />
-            <MetaItem
-              label="Preset"
-              value={getPresetLabel(options.presetId)}
-            />
+            <MetaItem label="Preset" value={getPresetLabel(options.presetId)} />
             <MetaItem
               label="Generated"
               value={lastRunAt ? formatTime(lastRunAt) : "—"}
@@ -401,8 +375,21 @@ function DevelopmentCohortsPage() {
             className="order-1 grid min-w-0 gap-4 xl:order-2"
             aria-label="Career trace evidence"
           >
+            {bundle ? (
+              <PlayerIndexPanel
+                report={bundle.primary}
+                selectedPlayerId={selectedPlayerId}
+                onSelectPlayer={(playerId) => {
+                  setSelectedPlayerId(playerId)
+                  const timeline = bundle.primary.timelines?.find(
+                    (candidate) => candidate.playerId === playerId
+                  )
+                  setSelectedSeason(timeline?.snapshots[0]?.season ?? null)
+                }}
+              />
+            ) : null}
             <TracePanel
-              trace={trace}
+              timeline={selectedTimeline}
               selectedSeason={selectedSeason}
             />
             {bundle ? (
@@ -411,11 +398,13 @@ function DevelopmentCohortsPage() {
                   primary={bundle.primary}
                   comparison={bundle.comparison}
                 />
-                <ComparisonPanel
-                  primary={bundle.primary}
-                  comparison={bundle.comparison}
-                />
-                <EventLogPanel timeline={trace?.timeline ?? null} />
+                {bundle.comparison ? (
+                  <ComparisonPanel
+                    primary={bundle.primary}
+                    comparison={bundle.comparison}
+                  />
+                ) : null}
+                <EventLogPanel timeline={selectedTimeline} />
               </>
             ) : (
               <EmptyEvidenceState running={runState === "running"} />
@@ -423,7 +412,7 @@ function DevelopmentCohortsPage() {
           </section>
 
           <InspectorPanel
-            timeline={trace?.timeline ?? null}
+            timeline={selectedTimeline}
             selectedSeason={selectedSeason}
             onSelectSeason={setSelectedSeason}
           />
@@ -449,7 +438,7 @@ function ConfigurationRail({
   onReset: () => void
 }) {
   return (
-    <aside className="order-2 rounded-lg border border-border bg-card xl:order-1 xl:sticky xl:top-4">
+    <aside className="order-2 rounded-lg border border-border bg-card xl:sticky xl:top-4 xl:order-1">
       <div className="border-b border-border px-3 py-3">
         <p className="text-xs font-semibold tracking-[0.04em] text-foreground uppercase">
           Controls
@@ -461,15 +450,34 @@ function ConfigurationRail({
       <div className="grid gap-4 p-3">
         <fieldset className="grid gap-3">
           <legend className="text-xs font-semibold text-foreground">
-            Cohort pair
+            Run shape
           </legend>
+          <ContextSelect
+            id="cohort-mode"
+            label="Explorer mode"
+            value={options.mode}
+            options={[
+              ["cohort", "One cohort"],
+              ["individual", "Individual trace"],
+              ["comparison", "Compare cohorts"],
+            ]}
+            onChange={(value) =>
+              onUpdate({ mode: value as DevelopmentCohortOptions["mode"] })
+            }
+          />
           <div className="grid gap-1.5">
-            <Label htmlFor="cohort-primary">Cohort A</Label>
+            <Label htmlFor="cohort-primary">Primary scenario</Label>
             <Select
               value={options.presetId}
-              onValueChange={(value) =>
-                onUpdate({ presetId: value as DevelopmentCohortPresetId })
-              }
+              onValueChange={(value) => {
+                const preset = DEVELOPMENT_COHORT_PRESETS.find(
+                  (item) => item.id === value
+                )
+                onUpdate({
+                  presetId: value as DevelopmentCohortPresetId,
+                  ...preset?.defaults,
+                })
+              }}
             >
               <SelectTrigger id="cohort-primary" className="w-full">
                 <SelectValue />
@@ -483,28 +491,30 @@ function ConfigurationRail({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="cohort-comparison">Cohort B</Label>
-            <Select
-              value={options.comparisonPresetId}
-              onValueChange={(value) =>
-                onUpdate({
-                  comparisonPresetId: value as DevelopmentCohortPresetId,
-                })
-              }
-            >
-              <SelectTrigger id="cohort-comparison" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DEVELOPMENT_COHORT_PRESETS.map((preset) => (
-                  <SelectItem key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {options.mode === "comparison" ? (
+            <div className="grid gap-1.5">
+              <Label htmlFor="cohort-comparison">Comparison scenario</Label>
+              <Select
+                value={options.comparisonPresetId}
+                onValueChange={(value) =>
+                  onUpdate({
+                    comparisonPresetId: value as DevelopmentCohortPresetId,
+                  })
+                }
+              >
+                <SelectTrigger id="cohort-comparison" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DEVELOPMENT_COHORT_PRESETS.map((preset) => (
+                    <SelectItem key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
         </fieldset>
 
         <div className="grid gap-3 border-y border-border py-4">
@@ -532,22 +542,49 @@ function ConfigurationRail({
               />
             </div>
             <div className="grid gap-1.5">
-              <Label htmlFor="cohort-years">Years</Label>
-              <Select
-                value={String(options.careerYears)}
-                onValueChange={(value) =>
-                  onUpdate({ careerYears: Number(value) as 3 | 5 | 10 })
+              <Label htmlFor="cohort-starting-age">Starting age</Label>
+              <Input
+                id="cohort-starting-age"
+                type="number"
+                min={18}
+                max={40}
+                value={options.startingAge}
+                onChange={(event) =>
+                  onUpdate({ startingAge: Number(event.target.value) })
                 }
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="cohort-years">Run horizon</Label>
+              <Select
+                value={String(options.runYears)}
+                onValueChange={(value) => onUpdate({ runYears: Number(value) })}
               >
                 <SelectTrigger id="cohort-years" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="1">1</SelectItem>
                   <SelectItem value="5">5</SelectItem>
                   <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="20">20</SelectItem>
+                  <SelectItem value="30">30</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="cohort-season">Base season</Label>
+              <Input
+                id="cohort-season"
+                type="number"
+                min={0}
+                value={options.season ?? 1}
+                onChange={(event) =>
+                  onUpdate({ season: Number(event.target.value) })
+                }
+              />
             </div>
           </div>
         </div>
@@ -562,6 +599,7 @@ function ConfigurationRail({
             value={options.minutesContext}
             options={[
               ["low", "Low"],
+              ["zero", "Zero minutes"],
               ["typical", "Typical"],
               ["high", "High"],
             ]}
@@ -588,6 +626,90 @@ function ConfigurationRail({
               })
             }
           />
+          <ContextSelect
+            id="cohort-injury"
+            label="Injury context"
+            value={options.injuryContext}
+            options={[
+              ["healthy", "Healthy"],
+              ["normal", "Normal"],
+              ["injured", "Injured"],
+            ]}
+            onChange={(value) =>
+              onUpdate({
+                injuryContext:
+                  value as DevelopmentCohortOptions["injuryContext"],
+              })
+            }
+          />
+          <ContextSelect
+            id="cohort-development"
+            label="Development profile"
+            value={options.developmentContext}
+            options={[
+              ["standard", "Standard"],
+              ["high-potential", "High potential"],
+              ["low-potential", "Low potential"],
+              ["high-volatility", "High volatility"],
+            ]}
+            onChange={(value) =>
+              onUpdate({
+                developmentContext:
+                  value as DevelopmentCohortOptions["developmentContext"],
+              })
+            }
+          />
+          <ContextSelect
+            id="cohort-population"
+            label="Population source"
+            value={options.populationContext}
+            options={[
+              ["draft-class", "Draft class"],
+              ["roster", "Roster"],
+              ["free-agent", "Free-agent pool"],
+              ["veteran", "Veteran pool"],
+            ]}
+            onChange={(value) =>
+              onUpdate({
+                populationContext:
+                  value as DevelopmentCohortOptions["populationContext"],
+              })
+            }
+          />
+          <ContextSelect
+            id="cohort-growth-curve"
+            label="Growth curve"
+            value={options.growthCurve}
+            options={[
+              ["distribution", "Generated distribution"],
+              ["slow", "Slow"],
+              ["standard", "Standard"],
+              ["fast", "Fast"],
+              ["elite", "Elite"],
+            ]}
+            onChange={(value) =>
+              onUpdate({
+                growthCurve: value as DevelopmentCohortOptions["growthCurve"],
+              })
+            }
+          />
+          <ContextSelect
+            id="cohort-decline-curve"
+            label="Decline curve"
+            value={options.declineCurve}
+            options={[
+              ["distribution", "Generated distribution"],
+              ["durable", "Durable"],
+              ["standard", "Standard"],
+              ["early", "Early"],
+              ["steep", "Steep"],
+            ]}
+            onChange={(value) =>
+              onUpdate({
+                declineCurve: value as DevelopmentCohortOptions["declineCurve"],
+              })
+            }
+          />
         </fieldset>
 
         <details className="group rounded-md border border-border bg-muted/20 px-2.5 py-2">
@@ -598,8 +720,15 @@ function ConfigurationRail({
             Advanced context
           </summary>
           <div className="mt-2 grid gap-1.5 border-t border-border pt-2 text-[0.6875rem] leading-5 text-muted-foreground">
-            <span>Injury mode follows the selected cohort preset.</span>
-            <span>Development profile remains a deterministic fixture.</span>
+            <span>
+              Growth and decline tiers are persisted on each generated player.
+            </span>
+            <span>
+              Potential remains a forecast signal, not a guaranteed ceiling.
+            </span>
+            <span>
+              Curve multipliers are recorded in the exported resolved settings.
+            </span>
           </div>
         </details>
 
@@ -637,8 +766,8 @@ function ConfigurationRail({
           </Button>
         </div>
         <p className="text-[0.6875rem] leading-5 text-muted-foreground">
-          Cohort A and B run in dedicated workers. The selected trace uses the
-          first deterministic player from Cohort A.
+          The cohort index is paginated for large runs. Select any player to
+          inspect the detailed timeline and event log.
         </p>
       </div>
     </aside>
@@ -677,14 +806,173 @@ function ContextSelect({
   )
 }
 
+function PlayerIndexPanel({
+  report,
+  selectedPlayerId,
+  onSelectPlayer,
+}: {
+  report: CareerCohortReport
+  selectedPlayerId: string | null
+  onSelectPlayer: (playerId: string) => void
+}) {
+  const [query, setQuery] = React.useState("")
+  const [page, setPage] = React.useState(0)
+  const pageSize = 25
+  const filteredPlayers = report.playerIndex.filter((player) => {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) return true
+    return `${player.playerId} ${player.seed} ${player.growthCurve} ${player.declineCurve}`
+      .toLowerCase()
+      .includes(normalizedQuery)
+  })
+  const pageCount = Math.max(1, Math.ceil(filteredPlayers.length / pageSize))
+  const currentPage = Math.min(page, pageCount - 1)
+  const visiblePlayers = filteredPlayers.slice(
+    currentPage * pageSize,
+    (currentPage + 1) * pageSize
+  )
+
+  React.useEffect(() => {
+    setPage(0)
+  }, [query])
+
+  return (
+    <section
+      className="overflow-hidden rounded-lg border border-border bg-card"
+      aria-labelledby="player-index-heading"
+    >
+      <div className="flex flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
+            Cohort player index
+          </p>
+          <h2 id="player-index-heading" className="mt-1 text-sm font-semibold">
+            Select a player to inspect the full run
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {filteredPlayers.length.toLocaleString()} of{" "}
+            {report.playerIndex.length.toLocaleString()} players · click a row
+            to follow one career.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Input
+            aria-label="Filter cohort players"
+            className="h-8 w-48 text-xs"
+            placeholder="Filter player or curve"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <span className="text-xs whitespace-nowrap text-muted-foreground tabular-nums">
+            {currentPage + 1}/{pageCount}
+          </span>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead>Player</TableHead>
+              <TableHead>Start</TableHead>
+              <TableHead>Peak</TableHead>
+              <TableHead>End</TableHead>
+              <TableHead>Curves</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visiblePlayers.map((player) => (
+              <TableRow
+                key={player.playerId}
+                data-state={
+                  player.playerId === selectedPlayerId ? "selected" : undefined
+                }
+              >
+                <TableCell className="p-0">
+                  <button
+                    type="button"
+                    className="flex w-full items-center px-2 py-2 text-left text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                    onClick={() => onSelectPlayer(player.playerId)}
+                    aria-pressed={player.playerId === selectedPlayerId}
+                  >
+                    {formatIndexPlayerId(player.playerId)}
+                  </button>
+                </TableCell>
+                <TableCell className="text-xs tabular-nums">
+                  {player.startingAge}
+                </TableCell>
+                <TableCell className="text-xs tabular-nums">
+                  {formatNumber(player.peakAbility)}{" "}
+                  <span className="text-muted-foreground">
+                    @ {player.realizedPeakAge}
+                  </span>
+                </TableCell>
+                <TableCell className="text-xs tabular-nums">
+                  {formatNumber(player.finalAbility)}
+                </TableCell>
+                <TableCell className="text-[0.6875rem] capitalize">
+                  {player.growthCurve} / {player.declineCurve}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={player.retired ? "secondary" : "outline"}>
+                    {player.retired
+                      ? `Retired ${player.retirementAge}`
+                      : "Active"}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+            {visiblePlayers.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="h-20 text-center text-xs text-muted-foreground"
+                >
+                  No players match this filter.
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="flex items-center justify-between border-t border-border px-3 py-2">
+        <span className="text-[0.6875rem] text-muted-foreground">
+          Paginated index keeps large cohorts inspectable.
+        </span>
+        <div className="flex gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={currentPage === 0}
+            onClick={() => setPage((value) => Math.max(0, value - 1))}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={currentPage >= pageCount - 1}
+            onClick={() =>
+              setPage((value) => Math.min(pageCount - 1, value + 1))
+            }
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function TracePanel({
-  trace,
+  timeline,
   selectedSeason,
 }: {
-  trace: CareerIndividualReport | null
+  timeline: CareerTimeline | null
   selectedSeason: number | null
 }) {
-  const timeline = trace?.timeline ?? null
   const firstSnapshot = timeline?.snapshots[0]
   const player = firstSnapshot?.playerAtSeasonStart
   const name = player
@@ -692,19 +980,26 @@ function TracePanel({
     : "Selected player"
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="trace-heading">
+    <section
+      className="overflow-hidden rounded-lg border border-border bg-card"
+      aria-labelledby="trace-heading"
+    >
       <div className="flex flex-col gap-3 border-b border-border px-3 py-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
             Selected player trace
           </p>
           <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <h2 id="trace-heading" className="text-base font-semibold tracking-tight">
+            <h2
+              id="trace-heading"
+              className="text-base font-semibold tracking-tight"
+            >
               {name}
             </h2>
             {player ? (
               <span className="text-xs text-muted-foreground">
-                {formatTracePlayerId(timeline)} · {player.profile.role.primaryPosition} ·{" "}
+                {formatTracePlayerId(timeline)} ·{" "}
+                {player.profile.role.primaryPosition} ·{" "}
                 {formatArchetype(player.profile.role.primaryArchetype)}
               </span>
             ) : null}
@@ -715,7 +1010,9 @@ function TracePanel({
             {timeline?.retired ? "Retired in trace" : "Active at endpoint"}
           </Badge>
           <span className="text-muted-foreground">
-            {timeline ? `${timeline.snapshots.length} observed seasons` : "Waiting for run"}
+            {timeline
+              ? `${timeline.snapshots.length} observed seasons`
+              : "Waiting for run"}
           </span>
         </div>
       </div>
@@ -734,7 +1031,9 @@ function TracePanel({
               />
               <TraceMetric
                 label="Potential forecast"
-                value={formatNumber(timeline.snapshots[0]?.potentialForecast ?? 0)}
+                value={formatNumber(
+                  timeline.snapshots[0]?.potentialForecast ?? 0
+                )}
                 detail="At draft"
               />
               <TraceMetric
@@ -744,7 +1043,9 @@ function TracePanel({
               />
               <TraceMetric
                 label="Endpoint"
-                value={formatNumber(getPlayerCurrentAbility(timeline.finalPlayer))}
+                value={formatNumber(
+                  getPlayerCurrentAbility(timeline.finalPlayer)
+                )}
                 detail={`Age ${timeline.finalPlayer.age}`}
               />
             </div>
@@ -762,31 +1063,41 @@ function CohortBenchmarkPanel({
   comparison,
 }: {
   primary: CareerCohortReport
-  comparison: CareerCohortReport
+  comparison: CareerCohortReport | null
 }) {
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="benchmark-heading">
+    <section
+      className="overflow-hidden rounded-lg border border-border bg-card"
+      aria-labelledby="benchmark-heading"
+    >
       <div className="flex flex-col gap-2 border-b border-border px-3 py-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
-            Cohort benchmark
+            {comparison ? "Cohort benchmark" : "Cohort trajectory"}
           </p>
           <h2 id="benchmark-heading" className="mt-1 text-sm font-semibold">
             Average overall ability
           </h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            The selected trace is easier to interpret against both cohort means.
+            {comparison
+              ? "The selected player is shown against both cohort means."
+              : "The selected player is shown against the cohort distribution."}
           </p>
         </div>
         <div className="flex flex-wrap gap-3 text-[0.6875rem] text-muted-foreground">
           <LegendDot label={getPresetLabelFromReport(primary)} tone="primary" />
-          <LegendDot label={getPresetLabelFromReport(comparison)} tone="muted" />
+          {comparison ? (
+            <LegendDot
+              label={getPresetLabelFromReport(comparison)}
+              tone="muted"
+            />
+          ) : null}
         </div>
       </div>
       <div className="p-3 sm:p-4">
         <CohortBenchmarkChart
           primary={primary.summary.skillTrajectories}
-          comparison={comparison.summary.skillTrajectories}
+          comparison={comparison?.summary.skillTrajectories ?? []}
         />
         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3 sm:grid-cols-4">
           <TraceMetric
@@ -794,21 +1105,25 @@ function CohortBenchmarkPanel({
             value={formatNumber(primary.summary.averagePeakAge)}
             detail={`${formatPercent(primary.summary.breakoutRate)} breakout`}
           />
-          <TraceMetric
-            label="B peak age"
-            value={formatNumber(comparison.summary.averagePeakAge)}
-            detail={`${formatPercent(comparison.summary.breakoutRate)} breakout`}
-          />
+          {comparison ? (
+            <TraceMetric
+              label="B peak age"
+              value={formatNumber(comparison.summary.averagePeakAge)}
+              detail={`${formatPercent(comparison.summary.breakoutRate)} breakout`}
+            />
+          ) : null}
           <TraceMetric
             label="A availability"
             value={formatPercent(primary.summary.availabilityRate)}
             detail={`${formatPercent(primary.summary.retirementRate)} retired`}
           />
-          <TraceMetric
-            label="B availability"
-            value={formatPercent(comparison.summary.availabilityRate)}
-            detail={`${formatPercent(comparison.summary.retirementRate)} retired`}
-          />
+          {comparison ? (
+            <TraceMetric
+              label="B availability"
+              value={formatPercent(comparison.summary.availabilityRate)}
+              detail={`${formatPercent(comparison.summary.retirementRate)} retired`}
+            />
+          ) : null}
         </div>
       </div>
     </section>
@@ -880,7 +1195,10 @@ function ComparisonPanel({
   ]
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="comparison-heading">
+    <section
+      className="overflow-hidden rounded-lg border border-border bg-card"
+      aria-labelledby="comparison-heading"
+    >
       <div className="border-b border-border px-3 py-3">
         <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
           Cohort comparison
@@ -904,8 +1222,12 @@ function ComparisonPanel({
               <TableCell className="font-medium text-muted-foreground">
                 {row.label}
               </TableCell>
-              <TableCell className="tabular-nums">{row.format(row.primary)}</TableCell>
-              <TableCell className="tabular-nums">{row.format(row.comparison)}</TableCell>
+              <TableCell className="tabular-nums">
+                {row.format(row.primary)}
+              </TableCell>
+              <TableCell className="tabular-nums">
+                {row.format(row.comparison)}
+              </TableCell>
               <TableCell className="tabular-nums">
                 {row.format(row.comparison - row.primary)}
               </TableCell>
@@ -928,7 +1250,10 @@ function EventLogPanel({ timeline }: { timeline: CareerTimeline | null }) {
     : []
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="event-log-heading">
+    <section
+      className="overflow-hidden rounded-lg border border-border bg-card"
+      aria-labelledby="event-log-heading"
+    >
       <div className="flex items-baseline justify-between gap-2 border-b border-border px-3 py-3">
         <div>
           <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
@@ -938,7 +1263,9 @@ function EventLogPanel({ timeline }: { timeline: CareerTimeline | null }) {
             Development transitions
           </h2>
         </div>
-        <span className="text-xs text-muted-foreground">{events.length} events</span>
+        <span className="text-xs text-muted-foreground">
+          {events.length} events
+        </span>
       </div>
       <div className="overflow-x-auto">
         <Table>
@@ -965,13 +1292,17 @@ function EventLogPanel({ timeline }: { timeline: CareerTimeline | null }) {
                     </div>
                   </TableCell>
                   <TableCell className="tabular-nums">
-                    {event.delta > 0 ? "+" : ""}{formatNumber(event.delta)}
+                    {event.delta > 0 ? "+" : ""}
+                    {formatNumber(event.delta)}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={4}
+                  className="h-20 text-center text-muted-foreground"
+                >
                   No development events recorded for this trace.
                 </TableCell>
               </TableRow>
@@ -1005,7 +1336,10 @@ function InspectorPanel({
 
   return (
     <aside className="order-3 grid content-start gap-4 xl:sticky xl:top-4">
-      <section className="overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="inspector-heading">
+      <section
+        className="overflow-hidden rounded-lg border border-border bg-card"
+        aria-labelledby="inspector-heading"
+      >
         <div className="border-b border-border px-3 py-3">
           <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
             Player inspector
@@ -1019,15 +1353,21 @@ function InspectorPanel({
             <div className="grid gap-2 border-b border-border px-3 py-3 text-xs">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Player ID</span>
-                <span className="font-medium tabular-nums">{formatTracePlayerId(timeline)}</span>
+                <span className="font-medium tabular-nums">
+                  {formatTracePlayerId(timeline)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Position</span>
-                <span className="font-medium">{player?.profile.role.primaryPosition ?? "—"}</span>
+                <span className="font-medium">
+                  {player?.profile.role.primaryPosition ?? "—"}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-muted-foreground">Focused season</span>
-                <span className="font-medium tabular-nums">{focusedSnapshot?.season ?? "—"}</span>
+                <span className="font-medium tabular-nums">
+                  {focusedSnapshot?.season ?? "—"}
+                </span>
               </div>
             </div>
             <div className="max-h-[22rem] overflow-auto">
@@ -1037,28 +1377,40 @@ function InspectorPanel({
                     <TableHead className="px-2 text-[0.625rem]">S</TableHead>
                     <TableHead className="px-2 text-[0.625rem]">Age</TableHead>
                     <TableHead className="px-2 text-[0.625rem]">OVR</TableHead>
-                    <TableHead className="px-2 text-[0.625rem]">Phase</TableHead>
+                    <TableHead className="px-2 text-[0.625rem]">
+                      Phase
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {timeline.snapshots.map((snapshot) => (
                     <TableRow
                       key={snapshot.season}
-                      data-state={snapshot.season === selectedSeason ? "selected" : undefined}
+                      data-state={
+                        snapshot.season === selectedSeason
+                          ? "selected"
+                          : undefined
+                      }
                     >
                       <TableCell className="p-0">
                         <button
                           type="button"
-                          className="flex w-full items-center px-2 py-2 text-left text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                          className="flex w-full items-center px-2 py-2 text-left text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                           onClick={() => onSelectSeason(snapshot.season)}
                           aria-pressed={snapshot.season === selectedSeason}
                         >
                           {snapshot.season}
                         </button>
                       </TableCell>
-                      <TableCell className="px-2 py-2 text-xs tabular-nums">{snapshot.ageAtSeasonStart}</TableCell>
-                      <TableCell className="px-2 py-2 text-xs font-medium tabular-nums">{formatNumber(snapshot.currentAbility)}</TableCell>
-                      <TableCell className="px-2 py-2 text-[0.625rem] capitalize">{snapshot.phase}</TableCell>
+                      <TableCell className="px-2 py-2 text-xs tabular-nums">
+                        {snapshot.ageAtSeasonStart}
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-xs font-medium tabular-nums">
+                        {formatNumber(snapshot.currentAbility)}
+                      </TableCell>
+                      <TableCell className="px-2 py-2 text-[0.625rem] capitalize">
+                        {snapshot.phase}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -1072,7 +1424,10 @@ function InspectorPanel({
         )}
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="phase-heading">
+      <section
+        className="overflow-hidden rounded-lg border border-border bg-card"
+        aria-labelledby="phase-heading"
+      >
         <div className="border-b border-border px-3 py-3">
           <p className="text-[0.6875rem] font-semibold tracking-[0.05em] text-muted-foreground uppercase">
             Development phases
@@ -1083,17 +1438,66 @@ function InspectorPanel({
         </div>
         <div className="grid gap-2 p-3">
           {(["growth", "plateau", "decline"] as const).map((phase) => (
-            <div key={phase} className="flex items-center justify-between gap-3 text-xs">
-              <span className="capitalize text-muted-foreground">{phase}</span>
-              <span className="font-medium tabular-nums">{phases[phase] ?? 0} seasons</span>
+            <div
+              key={phase}
+              className="flex items-center justify-between gap-3 text-xs"
+            >
+              <span className="text-muted-foreground capitalize">{phase}</span>
+              <span className="font-medium tabular-nums">
+                {phases[phase] ?? 0} seasons
+              </span>
             </div>
           ))}
           {focusedSnapshot ? (
             <div className="mt-1 grid gap-2 border-t border-border pt-3 text-xs">
-              <DiagnosticRow label="Games played" value={`${focusedSnapshot.seasonResult.availability.gamesPlayed}/${focusedSnapshot.seasonResult.availability.gamesScheduled}`} />
-              <DiagnosticRow label="Availability" value={formatPercent(focusedSnapshot.seasonResult.availability.availabilityRate)} />
-              <DiagnosticRow label="Potential forecast" value={formatNumber(focusedSnapshot.potentialForecast)} />
-              <DiagnosticRow label="Retirement probability" value={formatPercent(focusedSnapshot.seasonResult.retirement.probability)} />
+              <DiagnosticRow
+                label="Games played"
+                value={`${focusedSnapshot.seasonResult.availability.gamesPlayed}/${focusedSnapshot.seasonResult.availability.gamesScheduled}`}
+              />
+              <DiagnosticRow
+                label="Availability"
+                value={formatPercent(
+                  focusedSnapshot.seasonResult.availability.availabilityRate
+                )}
+              />
+              <DiagnosticRow
+                label="Potential forecast"
+                value={formatNumber(focusedSnapshot.potentialForecast)}
+              />
+              <DiagnosticRow
+                label="Growth curve"
+                value={
+                  focusedSnapshot.seasonResult.development?.growthCurve ?? "—"
+                }
+              />
+              <DiagnosticRow
+                label="Decline curve"
+                value={
+                  focusedSnapshot.seasonResult.development?.declineCurve ?? "—"
+                }
+              />
+              <DiagnosticRow
+                label="Applied growth"
+                value={
+                  focusedSnapshot.seasonResult.development
+                    ? `${focusedSnapshot.seasonResult.development.appliedGrowthMultiplier.toFixed(2)}×`
+                    : "—"
+                }
+              />
+              <DiagnosticRow
+                label="Applied decline"
+                value={
+                  focusedSnapshot.seasonResult.development
+                    ? `${focusedSnapshot.seasonResult.development.appliedDeclineMultiplier.toFixed(2)}×`
+                    : "—"
+                }
+              />
+              <DiagnosticRow
+                label="Retirement probability"
+                value={formatPercent(
+                  focusedSnapshot.seasonResult.retirement.probability
+                )}
+              />
             </div>
           ) : null}
         </div>
@@ -1123,8 +1527,7 @@ function CareerTraceChart({
   const maximum = Math.ceil(rawMaximum + Math.max(3, range * 0.12))
   const maxIndex = Math.max(timeline.snapshots.length - 1, 1)
   const x = (index: number) =>
-    padding.left +
-    (index / maxIndex) * (width - padding.left - padding.right)
+    padding.left + (index / maxIndex) * (width - padding.left - padding.right)
   const y = (value: number) =>
     padding.top +
     ((maximum - value) / (maximum - minimum)) *
@@ -1155,12 +1558,20 @@ function CareerTraceChart({
           {timeline.snapshots.map((snapshot, index) => (
             <rect
               key={`${snapshot.season}-phase`}
-              x={x(index) - (width - padding.left - padding.right) / maxIndex / 2}
+              x={
+                x(index) - (width - padding.left - padding.right) / maxIndex / 2
+              }
               y={padding.top}
               width={(width - padding.left - padding.right) / maxIndex}
               height={height - padding.top - padding.bottom}
               fill="var(--muted)"
-              opacity={snapshot.phase === "plateau" ? 0.18 : snapshot.phase === "decline" ? 0.08 : 0.04}
+              opacity={
+                snapshot.phase === "plateau"
+                  ? 0.18
+                  : snapshot.phase === "decline"
+                    ? 0.08
+                    : 0.04
+              }
             />
           ))}
           {[0, 1, 2, 3, 4].map((step) => {
@@ -1175,7 +1586,12 @@ function CareerTraceChart({
                   stroke="var(--border)"
                   strokeDasharray="2 5"
                 />
-                <text x={padding.left - 9} y={y(value) + 3} textAnchor="end" fill="var(--muted-foreground)">
+                <text
+                  x={padding.left - 9}
+                  y={y(value) + 3}
+                  textAnchor="end"
+                  fill="var(--muted-foreground)"
+                >
                   {Math.round(value)}
                 </text>
               </g>
@@ -1218,7 +1634,12 @@ function CareerTraceChart({
                 stroke="var(--primary)"
                 strokeWidth={snapshot.season === selectedSeason ? 2 : 1.5}
               />
-              <text x={x(index)} y={height - 17} textAnchor="middle" fill="var(--muted-foreground)">
+              <text
+                x={x(index)}
+                y={height - 17}
+                textAnchor="middle"
+                fill="var(--muted-foreground)"
+              >
                 S{snapshot.season}
               </text>
             </g>
@@ -1249,15 +1670,17 @@ function CohortBenchmarkChart({
   const maximum = Math.ceil(rawMaximum + Math.max(3, range * 0.12))
   const maxIndex = Math.max(primary.length - 1, 1)
   const x = (index: number) =>
-    padding.left +
-    (index / maxIndex) * (width - padding.left - padding.right)
+    padding.left + (index / maxIndex) * (width - padding.left - padding.right)
   const y = (value: number) =>
     padding.top +
     ((maximum - value) / (maximum - minimum)) *
       (height - padding.top - padding.bottom)
   const points = (data: Array<CareerSkillTrajectory>) =>
     data
-      .map((trajectory, index) => `${x(index)},${y(trajectory.currentAbility.average)}`)
+      .map(
+        (trajectory, index) =>
+          `${x(index)},${y(trajectory.currentAbility.average)}`
+      )
       .join(" ")
 
   return (
@@ -1272,17 +1695,47 @@ function CohortBenchmarkChart({
           const value = minimum + ((maximum - minimum) / 3) * step
           return (
             <g key={step}>
-              <line x1={padding.left} x2={width - padding.right} y1={y(value)} y2={y(value)} stroke="var(--border)" strokeDasharray="2 5" />
-              <text x={padding.left - 9} y={y(value) + 3} textAnchor="end" fill="var(--muted-foreground)">
+              <line
+                x1={padding.left}
+                x2={width - padding.right}
+                y1={y(value)}
+                y2={y(value)}
+                stroke="var(--border)"
+                strokeDasharray="2 5"
+              />
+              <text
+                x={padding.left - 9}
+                y={y(value) + 3}
+                textAnchor="end"
+                fill="var(--muted-foreground)"
+              >
                 {Math.round(value)}
               </text>
             </g>
           )
         })}
-        <polyline points={points(primary)} fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" />
-        <polyline points={points(comparison)} fill="none" stroke="var(--muted-foreground)" strokeWidth="2" strokeLinecap="round" />
+        <polyline
+          points={points(primary)}
+          fill="none"
+          stroke="var(--primary)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+        <polyline
+          points={points(comparison)}
+          fill="none"
+          stroke="var(--muted-foreground)"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
         {primary.map((trajectory, index) => (
-          <text key={trajectory.season} x={x(index)} y={height - 10} textAnchor="middle" fill="var(--muted-foreground)">
+          <text
+            key={trajectory.season}
+            x={x(index)}
+            y={height - 10}
+            textAnchor="middle"
+            fill="var(--muted-foreground)"
+          >
             S{trajectory.season}
           </text>
         ))}
@@ -1294,7 +1747,9 @@ function CohortBenchmarkChart({
 function EmptyEvidenceState({ running }: { running: boolean }) {
   return (
     <section className="rounded-lg border border-dashed border-border bg-muted/10 p-8 text-center">
-      <p className="text-sm font-medium">{running ? "Workers are running" : "No report loaded"}</p>
+      <p className="text-sm font-medium">
+        {running ? "Workers are running" : "No report loaded"}
+      </p>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
         {running
           ? "The trace and cohort evidence will populate as the deterministic run completes."
@@ -1329,8 +1784,12 @@ function TraceMetric({
 function MetaItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <span className="block text-[0.625rem] text-muted-foreground">{label}</span>
-      <span className="block truncate font-medium text-foreground">{value}</span>
+      <span className="block text-[0.625rem] text-muted-foreground">
+        {label}
+      </span>
+      <span className="block truncate font-medium text-foreground">
+        {value}
+      </span>
     </div>
   )
 }
@@ -1350,10 +1809,19 @@ function DiagnosticRow({
   )
 }
 
-function LegendDot({ label, tone }: { label: string; tone: "primary" | "muted" }) {
+function LegendDot({
+  label,
+  tone,
+}: {
+  label: string
+  tone: "primary" | "muted"
+}) {
   return (
     <span className="flex items-center gap-1.5">
-      <span className={`size-2 rounded-full ${tone === "primary" ? "bg-primary" : "bg-muted-foreground/60"}`} aria-hidden="true" />
+      <span
+        className={`size-2 rounded-full ${tone === "primary" ? "bg-primary" : "bg-muted-foreground/60"}`}
+        aria-hidden="true"
+      />
       {label}
     </span>
   )
@@ -1388,17 +1856,26 @@ function RunStateBadge({ state }: { state: RunState }) {
         : state === "success"
           ? "Complete"
           : "Ready"
-  const variant = state === "error" ? "destructive" : state === "success" ? "secondary" : "outline"
+  const variant =
+    state === "error"
+      ? "destructive"
+      : state === "success"
+        ? "secondary"
+        : "outline"
   return <Badge variant={variant}>{content}</Badge>
 }
 
 function getPresetLabel(id: DevelopmentCohortPresetId) {
-  return DEVELOPMENT_COHORT_PRESETS.find((preset) => preset.id === id)?.label ?? id
+  return (
+    DEVELOPMENT_COHORT_PRESETS.find((preset) => preset.id === id)?.label ?? id
+  )
 }
 
 function getPresetLabelFromReport(report: CareerCohortReport) {
   const source = report.options.seed.split(":").at(-1)
-  return getPresetLabel((source ?? "balanced-rookies") as DevelopmentCohortPresetId)
+  return getPresetLabel(
+    (source ?? "balanced-rookies") as DevelopmentCohortPresetId
+  )
 }
 
 function createRunId(seed: string) {
@@ -1439,6 +1916,11 @@ function formatPlayerName(
 function formatTracePlayerId(timeline: { seed?: string } | null) {
   const index = Number(timeline?.seed?.split(":").at(-1))
   return `P-${Number.isFinite(index) ? String(index).padStart(4, "0") : "0001"}`
+}
+
+function formatIndexPlayerId(playerId: string) {
+  const index = Number(playerId.split(":").at(-1))
+  return `P-${Number.isFinite(index) ? String(index).padStart(4, "0") : "????"}`
 }
 
 function formatArchetype(value: string) {

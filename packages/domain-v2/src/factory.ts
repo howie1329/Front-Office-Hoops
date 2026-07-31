@@ -45,6 +45,8 @@ export function createPlayerContractFixture(
         volatility: 25,
         peakAge: 27,
         declineStartAge: 32,
+        growthCurve: "standard",
+        declineCurve: "standard",
       },
       traits: ["hard-worker"],
     },
