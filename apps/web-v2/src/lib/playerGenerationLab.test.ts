@@ -98,6 +98,16 @@ describe("player generation lab helpers", () => {
       { label: "1–2", count: 1 },
       { label: "2–3", count: 2 },
     ])
+    expect(createHistogram([38])).toEqual([
+      { label: "38–39", count: 1 },
+      { label: "39–40", count: 0 },
+      { label: "40–41", count: 0 },
+      { label: "41–42", count: 0 },
+      { label: "42–43", count: 0 },
+      { label: "43–44", count: 0 },
+      { label: "44–45", count: 0 },
+      { label: "45–46", count: 0 },
+    ])
 
     const config = createStandardPlayerGenerationConfig()
     config.starTailFrequency.above70 = 0.1

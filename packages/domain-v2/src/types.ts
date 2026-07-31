@@ -9,6 +9,225 @@ export type SimulationConfig = {
   version: number
 }
 
+export type GameSimulationPresetId = "standard" | "custom"
+
+export type GameInjuryFrequency = "off" | "rare" | "normal" | "frequent"
+
+export type GameInjurySeverity = "minor" | "mixed"
+
+export type GameSimulationConfig = {
+  version: number
+  presetId: GameSimulationPresetId
+  environment: {
+    pace: number
+    scoringEnvironment: number
+    gameVariance: number
+    talentSeparation: number
+    homeCourtAdvantage: number
+  }
+  offense: {
+    threePointRate: number
+    rimRate: number
+    midrangeRate: number
+    shotSelectionDiscipline: number
+    starUsage: number
+    ballMovement: number
+    isolationRate: number
+    transitionRate: number
+    offensiveRebounding: number
+  }
+  defense: {
+    pressure: number
+    helpDefense: number
+    switching: number
+    doubleTeamRate: number
+    turnoverPressure: number
+    foulDiscipline: number
+  }
+  rotation: {
+    adherence: number
+    benchUsage: number
+    starterWorkload: number
+    fatigueImpact: number
+  }
+  coaching: {
+    influence: number
+    paceInfluence: number
+    shotSelectionInfluence: number
+    defensiveInfluence: number
+  }
+  injuries: {
+    frequency: GameInjuryFrequency
+    severity: GameInjurySeverity
+    maxGamesOut: number
+    inGameInjuries: boolean
+  }
+  overtime: {
+    enabled: boolean
+    segmentMinutes: number
+    maxSegments: number
+  }
+}
+
+export type GameTeamRef = {
+  id: string
+  name: string
+}
+
+export type GameRotationInput = {
+  starters: string[]
+  depthOrder: string[]
+  targetMinutes: Record<string, number>
+}
+
+export type PlayerAvailability = {
+  available: boolean
+  gamesRemaining: number
+  restriction?: "none" | "minutes-limited"
+  minutesLimit?: number
+}
+
+export type GameCoachingProfile = {
+  pace: number
+  offensiveStyle: number
+  defensivePressure: number
+  shotSelection: number
+  rotationDepth: number
+}
+
+export type GameMatchupFixture = {
+  version: number
+  source: {
+    kind: "initial-player-universe" | "league-document" | "manual"
+    id: string
+    version: number
+  }
+  seed: string
+  homeTeamId: string
+  awayTeamId: string
+  teams: Record<string, GameTeamRef>
+  players: Record<string, PlayerEntity>
+  rotations: Record<string, GameRotationInput>
+  availability: Record<string, PlayerAvailability>
+  coaching: Record<string, GameCoachingProfile>
+  config: GameSimulationConfig
+}
+
+export type GamePeriodKind = "regulation" | "overtime"
+
+export type GamePeriodResult = {
+  number: number
+  kind: GamePeriodKind
+  minutes: number
+  teamPoints: Record<string, number>
+  teamPossessions: Record<string, number>
+}
+
+export type GamePlayerBoxScore = {
+  playerId: string
+  teamId: string
+  starter: boolean
+  minutes: number
+  opportunities: number
+  usageRate: number
+  points: number
+  fieldGoalsMade: number
+  fieldGoalsAttempted: number
+  threePointersMade: number
+  threePointersAttempted: number
+  freeThrowsMade: number
+  freeThrowsAttempted: number
+  offensiveRebounds: number
+  defensiveRebounds: number
+  rebounds: number
+  assists: number
+  turnovers: number
+  steals: number
+  blocks: number
+  fouls: number
+  shotProfile: {
+    rimAttempts: number
+    midrangeAttempts: number
+    threePointAttempts: number
+  }
+  role: {
+    label: string
+    creationShare: number
+    scoringShare: number
+  }
+  availability: PlayerAvailability
+}
+
+export type GameTeamBoxScore = {
+  teamId: string
+  points: number
+  possessions: number
+  fieldGoalsMade: number
+  fieldGoalsAttempted: number
+  threePointersMade: number
+  threePointersAttempted: number
+  freeThrowsMade: number
+  freeThrowsAttempted: number
+  offensiveRebounds: number
+  defensiveRebounds: number
+  rebounds: number
+  assists: number
+  turnovers: number
+  steals: number
+  blocks: number
+  fouls: number
+  pace: number
+  offensiveEfficiency: number
+  shotProfile: {
+    rimAttempts: number
+    midrangeAttempts: number
+    threePointAttempts: number
+  }
+}
+
+export type GameEvent = {
+  id: string
+  type: "injury"
+  teamId: string
+  playerId: string
+  period: number
+  description: string
+  gamesRemaining: number
+}
+
+export type GameReconciliationCheck = {
+  code: string
+  label: string
+  passed: boolean
+  actual: number
+  expected: number
+  difference: number
+}
+
+export type GameReconciliationReport = {
+  passed: boolean
+  checks: GameReconciliationCheck[]
+}
+
+export type GameDiagnostic = DiagnosticEntry & {
+  scope: "fixture" | "rotation" | "possession" | "box-score" | "injury"
+}
+
+export type GameResult = {
+  version: number
+  seed: string
+  status: "completed" | "rejected" | "failed"
+  homeTeamId: string
+  awayTeamId: string
+  winnerTeamId: string | null
+  periods: GamePeriodResult[]
+  teams: Record<string, GameTeamBoxScore>
+  players: Record<string, GamePlayerBoxScore>
+  events: GameEvent[]
+  diagnostics: GameDiagnostic[]
+  reconciliation: GameReconciliationReport
+}
+
 export type PhaseTaskState = {
   id: string
   label: string

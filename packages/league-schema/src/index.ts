@@ -2,7 +2,11 @@ export { createFoundationLeague } from "@workspace/domain-v2"
 export { CURRENT_SCHEMA_VERSION, LeagueMigrationError, migrateLeagueDocument } from "./migrations"
 export {
   getLeagueDocumentJsonSchema,
+  gameMatchupFixtureSchema,
+  gameResultSchema,
+  gameResultEnvelopeSchema,
   leagueDocumentSchema,
+  matchupBatchReportSchema,
   playerGenerationConfigSchema,
   playerEntitySchema,
 } from "./schema"

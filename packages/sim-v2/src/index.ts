@@ -1,5 +1,16 @@
 export { executeLeagueCommand } from "./executeCommand"
 export {
+  simulateGameMatchup,
+  validateGameMatchupFixture,
+} from "./gameSimulation"
+export {
+  createStandardGameSimulationConfig,
+  GAME_SETTING_DESCRIPTORS,
+  GAME_SIMULATION_VERSION,
+  resolveGameSimulationConfig,
+  STANDARD_GAME_SIMULATION_CONFIG,
+} from "./gameConfig"
+export {
   generatePlayer,
   generatePlayerWithDiagnostics,
   getPlayerCurrentAbility,
@@ -27,6 +38,8 @@ export {
   createRuntimeRandom,
 } from "./randomness"
 export type { RandomSource, RandomSourceOptions } from "./randomness"
+export type { GameSettingDescriptor } from "./gameConfig"
+export type { GameMatchupFixture, GameResult } from "@workspace/domain-v2"
 export type { PlayerPopulationContextKind } from "@workspace/domain-v2"
 export type { WorkerRequest, WorkerResult } from "./protocol"
 export type {

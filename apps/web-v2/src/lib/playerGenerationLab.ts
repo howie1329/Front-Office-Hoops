@@ -330,7 +330,8 @@ export function createHistogram(values: Array<number>, bucketCount = 8) {
 
   return Array.from({ length: bucketCount }, (_, index) => {
     const start = minimum + index * width
-    const end = index === bucketCount - 1 ? maximum : start + width
+    const end =
+      maximum !== minimum && index === bucketCount - 1 ? maximum : start + width
     const count = values.filter((value) =>
       index === bucketCount - 1
         ? value >= start && value <= end
