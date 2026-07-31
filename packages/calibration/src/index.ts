@@ -9,6 +9,7 @@ import {
   matchupBatchReportSchema,
 } from "@workspace/league-schema"
 import {
+  GAME_SIMULATION_VERSION,
   resolveGameSimulationConfig,
   simulateGameMatchup,
 } from "@workspace/sim-v2"
@@ -374,7 +375,7 @@ function resolveFixtureConfig(
 
 function rejectedResult(fixture: GameMatchupFixture, seed: string): GameResult {
   return {
-    version: 1,
+    version: GAME_SIMULATION_VERSION,
     seed,
     status: "rejected",
     homeTeamId: fixture.homeTeamId,

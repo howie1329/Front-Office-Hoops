@@ -51,7 +51,7 @@ export type GameSettingDescriptor = {
   step: number
 }
 
-export const GAME_SIMULATION_VERSION = 1
+export const GAME_SIMULATION_VERSION = 2
 
 export const STANDARD_GAME_SIMULATION_CONFIG: GameSimulationConfig = {
   version: GAME_SIMULATION_VERSION,

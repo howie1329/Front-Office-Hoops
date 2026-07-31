@@ -12,3 +12,4 @@ Plans here are advisory. They do not change production source until a separate i
 | [002-slider-sensitivity-and-wiring.md](002-slider-sensitivity-and-wiring.md) | Deterministic slider sweeps and high-confidence wiring fixes            | Done   |
 | [003-semantic-policy-resolver.md](003-semantic-policy-resolver.md)           | Semantic policy resolver preserving the public slider schema            | TODO   |
 | [004-five-player-lineup-possession.md](004-five-player-lineup-possession.md) | Possession resolution using actual five-player lineups                  | TODO   |
+| [005-core-distribution-and-reconciliation.md](005-core-distribution-and-reconciliation.md) | Calibrate event distributions and harden independent reconciliation | TODO   |

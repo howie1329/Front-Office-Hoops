@@ -38,6 +38,7 @@ import * as React from "react"
 import {
   createDefaultGameMatchupLabFixture,
   getGameMatchupLabPlayerName,
+  migrateGameMatchupLabReport,
   runGameMatchupLab,
   serializeGameMatchupLabReport,
 } from "@/lib/gameMatchupLab"
@@ -670,9 +671,17 @@ function GameMatchupLabPage() {
     event.target.value = ""
     if (!file) return
     try {
-      const payload = JSON.parse(await file.text()) as { fixture?: unknown }
+      const payload = JSON.parse(await file.text()) as {
+        fixture?: unknown
+        result?: unknown
+        schema?: unknown
+      }
+      const importedReport =
+        payload.schema === "foh-game-matchup-lab" && payload.result
+          ? migrateGameMatchupLabReport(payload)
+          : null
       const parsed = gameMatchupFixtureSchema.safeParse(
-        payload.fixture ?? payload
+        importedReport?.fixture ?? payload.fixture ?? payload
       )
       if (!parsed.success) {
         throw new Error(
@@ -682,10 +691,10 @@ function GameMatchupLabPage() {
       setFixture(parsed.data)
       setConfig(parsed.data.config)
       setSeed(parsed.data.seed)
-      setResult(null)
+      setResult(importedReport?.result ?? null)
       setBatchReport(null)
       setError(null)
-      setIsDirty(true)
+      setIsDirty(!importedReport)
     } catch (caught) {
       setError(
         caught instanceof Error ? caught.message : "Fixture import failed."
