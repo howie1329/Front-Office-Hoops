@@ -12,6 +12,7 @@ import {
   createStandardSeasonProductionConfig,
   GAME_SETTING_DESCRIPTORS,
   getGameNumericSetting,
+  getPlayerCurrentAbility,
   getValueSetting,
   SEASON_RUN_PRESETS,
   updateGameNumericSetting,
@@ -69,7 +70,13 @@ type PopulationTab = "rostered" | "free-agent" | "draft-prospect"
 type NumberSection =
   "environment" | "offense" | "defense" | "rotation" | "coaching" | "injuries"
 type PlayerSortKey =
-  "player" | "team" | "value" | "delta" | "production" | "confidence"
+  | "player"
+  | "team"
+  | "overall"
+  | "value"
+  | "delta"
+  | "production"
+  | "confidence"
 type PlayerSortState = {
   key: PlayerSortKey
   direction: "asc" | "desc"
@@ -539,26 +546,31 @@ function ProductionValueLabPage() {
             ? getPlayerName(fixture, left)
             : playerSort.key === "team"
               ? getSeasonTeamName(fixture, leftTeam)
-              : playerSort.key === "value"
-                ? (leftValue?.rawValue ?? 0)
-                : playerSort.key === "delta"
-                  ? (leftValue?.rawValue ?? 0) - (leftPreseason?.rawValue ?? 0)
-                  : playerSort.key === "production"
-                    ? (leftProduction?.pointsPerGame ?? 0)
-                    : confidenceRank[leftValue?.confidence ?? "provisional"]
+              : playerSort.key === "overall"
+                ? getPlayerCurrentAbility(leftPlayer)
+                : playerSort.key === "value"
+                  ? (leftValue?.rawValue ?? 0)
+                  : playerSort.key === "delta"
+                    ? (leftValue?.rawValue ?? 0) -
+                      (leftPreseason?.rawValue ?? 0)
+                    : playerSort.key === "production"
+                      ? (leftProduction?.pointsPerGame ?? 0)
+                      : confidenceRank[leftValue?.confidence ?? "provisional"]
         const rightSortValue: string | number =
           playerSort.key === "player"
             ? getPlayerName(fixture, right)
             : playerSort.key === "team"
               ? getSeasonTeamName(fixture, rightTeam)
-              : playerSort.key === "value"
-                ? (rightValue?.rawValue ?? 0)
-                : playerSort.key === "delta"
-                  ? (rightValue?.rawValue ?? 0) -
-                    (rightPreseason?.rawValue ?? 0)
-                  : playerSort.key === "production"
-                    ? (rightProduction?.pointsPerGame ?? 0)
-                    : confidenceRank[rightValue?.confidence ?? "provisional"]
+              : playerSort.key === "overall"
+                ? getPlayerCurrentAbility(rightPlayer)
+                : playerSort.key === "value"
+                  ? (rightValue?.rawValue ?? 0)
+                  : playerSort.key === "delta"
+                    ? (rightValue?.rawValue ?? 0) -
+                      (rightPreseason?.rawValue ?? 0)
+                    : playerSort.key === "production"
+                      ? (rightProduction?.pointsPerGame ?? 0)
+                      : confidenceRank[rightValue?.confidence ?? "provisional"]
         const comparison =
           typeof leftSortValue === "string" &&
           typeof rightSortValue === "string"
@@ -600,6 +612,14 @@ function ProductionValueLabPage() {
     fixture && selectedPlayerId && result
       ? getProductionState(result, activeCheckpointGames, selectedPlayerId)
       : null
+  const selectedPopulationLabel =
+    selectedPlayerId && fixture
+      ? getPopulationLabel(fixture, selectedPlayerId) === "Current player"
+        ? "current players"
+        : getPopulationLabel(fixture, selectedPlayerId) === "Free agent"
+          ? "free agents"
+          : "draft prospects"
+      : "population"
 
   function updateConfig(next: typeof config) {
     setConfig(next)
@@ -1316,6 +1336,13 @@ function ProductionValueLabPage() {
                             onSort={handlePlayerSort}
                           />
                           <SortableHeader
+                            label="Overall"
+                            column="overall"
+                            sort={playerSort}
+                            onSort={handlePlayerSort}
+                            align="right"
+                          />
+                          <SortableHeader
                             label="Value"
                             column="value"
                             sort={playerSort}
@@ -1389,6 +1416,9 @@ function ProductionValueLabPage() {
                                     )
                                   : getPopulationLabel(fixture!, playerId)}
                               </TableCell>
+                              <TableCell className="text-right font-medium tabular-nums">
+                                {player ? getPlayerCurrentAbility(player) : "—"}
+                              </TableCell>
                               <TableCell className="text-right font-semibold">
                                 {value ? formatValue(value.rawValue) : "—"}
                               </TableCell>
@@ -1415,7 +1445,7 @@ function ProductionValueLabPage() {
                         {!visiblePlayerIds.length ? (
                           <TableRow>
                             <TableCell
-                              colSpan={6}
+                              colSpan={7}
                               className="py-10 text-center text-sm text-muted-foreground"
                             >
                               No players match this population and filter.
@@ -1454,12 +1484,22 @@ function ProductionValueLabPage() {
                             </p>
                             <p className="mt-1 text-xs text-muted-foreground">
                               Universal Player Value · rank{" "}
-                              {selectedValue.diagnostics.rank}
+                              {selectedValue.diagnostics.rank} in{" "}
+                              {selectedPopulationLabel}
                             </p>
                           </div>
                           <ConfidenceBadge value={selectedValue.confidence} />
                         </div>
                         <dl className="grid grid-cols-2 gap-3 text-sm">
+                          <Metric
+                            label="Overall"
+                            value={formatNumber(
+                              getPlayerCurrentAbility(
+                                fixture!.players[selectedPlayerId!]
+                              ),
+                              0
+                            )}
+                          />
                           <Metric
                             label="Current form"
                             value={formatValue(selectedValue.currentFormSignal)}

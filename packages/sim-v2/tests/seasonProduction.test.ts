@@ -125,6 +125,19 @@ describe("season production runner", () => {
     expect(final.playerProduction[prospectId]?.gamesPlayed).toBe(0)
     expect(final.values[freeAgentId]?.confidence).toBe("provisional")
     expect(final.values[prospectId]?.confidence).toBe("provisional")
+
+    for (const playerIds of [
+      fixture.populations.rostered,
+      fixture.populations.freeAgents,
+      fixture.populations.draftProspects,
+    ]) {
+      const ranks = playerIds.map(
+        (playerId) => final.values[playerId]!.diagnostics.rank
+      )
+      expect(Math.min(...ranks)).toBe(1)
+      expect(Math.max(...ranks)).toBe(playerIds.length)
+      expect(new Set(ranks).size).toBe(playerIds.length)
+    }
   })
 
   it("preserves the last completed checkpoint when cancelled", () => {
@@ -166,5 +179,29 @@ describe("season production runner", () => {
     expect(
       result.checkpoints.at(-1)?.leagueSummary.reconciliationPassRate
     ).toBe(100)
+    const final = result.checkpoints.at(-1)!
+    const rosteredProduction = fixture.populations.rostered.map(
+      (playerId) => final.playerProduction[playerId]!
+    )
+    const limitedOpportunity = rosteredProduction.reduce((lowest, current) =>
+      current.minutes / Math.max(1, current.gamesPlayed) <
+      lowest.minutes / Math.max(1, lowest.gamesPlayed)
+        ? current
+        : lowest
+    )
+    const highestOpportunity = rosteredProduction.reduce((highest, current) =>
+      current.minutes / Math.max(1, current.gamesPlayed) >
+      highest.minutes / Math.max(1, highest.gamesPlayed)
+        ? current
+        : highest
+    )
+    expect(
+      final.values[limitedOpportunity.playerId]!.breakdown.opportunity
+    ).toBeLessThan(
+      final.values[highestOpportunity.playerId]!.breakdown.opportunity
+    )
+    expect(
+      final.values[limitedOpportunity.playerId]!.diagnostics.outlierFlags
+    ).toContain("limited-opportunity")
   }, 120_000)
 })

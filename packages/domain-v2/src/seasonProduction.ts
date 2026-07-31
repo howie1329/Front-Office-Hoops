@@ -195,6 +195,7 @@ export type UniversalPlayerValue = {
     ageTrajectory: number
     upside: number
     durability: number
+    opportunity: number
     roleContext: number
     defensiveContribution: number
   }

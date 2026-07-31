@@ -656,6 +656,7 @@ const universalPlayerValueSchema = z.strictObject({
     ageTrajectory: z.number(),
     upside: z.number(),
     durability: z.number(),
+    opportunity: z.number().default(0),
     roleContext: z.number(),
     defensiveContribution: z.number(),
   }),

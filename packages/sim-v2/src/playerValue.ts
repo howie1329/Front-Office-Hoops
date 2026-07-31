@@ -2,6 +2,7 @@ import type {
   PlayerEntity,
   PlayerSeasonProduction,
   SeasonFixture,
+  SeasonPopulationKind,
   UniversalPlayerValue,
   UniversalPlayerValueConfig,
 } from "@workspace/domain-v2"
@@ -80,13 +81,19 @@ function teamContextSignal(
 }
 
 function roleSignal(production: PlayerSeasonProduction): number {
-  const minutesPerGame = production.gamesPlayed
-    ? production.minutes / production.gamesPlayed
-    : 0
+  if (production.gamesPlayed === 0) return 0
+  const minutesPerGame = production.minutes / production.gamesPlayed
+  const startRate =
+    (production.starts / Math.max(1, production.gamesPlayed)) * 100
+  const opportunitiesPerGame =
+    production.opportunities / Math.max(1, production.gamesPlayed)
   return clamp(
-    (minutesPerGame - 16) * 0.35 + (production.usageRate - 15) * 0.12,
-    -8,
-    10
+    (minutesPerGame - 16) * 1.1 +
+      (production.usageRate - 15) * 0.4 +
+      (startRate - 50) * 0.1 +
+      (opportunitiesPerGame - 8) * 0.5,
+    -30,
+    30
   )
 }
 
@@ -136,6 +143,10 @@ function buildValue(
   const upside = upsideSignal(player)
   const durability = durabilitySignal(player, production)
   const roleContext = roleSignal(production)
+  const opportunityImpact =
+    production.gamesPlayed === 0
+      ? 0
+      : weighted(roleContext, config.productionEmphasis)
   const defensiveContribution = defensiveSignal(production, config)
   const baseProjection =
     weighted(ability * 10, config.currentAbilityEmphasis) +
@@ -147,7 +158,6 @@ function buildValue(
       ? 0
       : weighted(productionSignal(production), config.productionEmphasis) +
         weighted(defensiveContribution, config.defenseEmphasis) +
-        weighted(roleContext, config.productionEmphasis) +
         teamContextSignal(production, aggregation, config)
   const sampleProgress = clamp(production.gamesPlayed / 25, 0, 1)
   const evidenceWeight =
@@ -157,7 +167,12 @@ function buildValue(
   const horizonMultiplier = config.horizonSeasons / 3
   const projectionSignal = baseProjection * horizonMultiplier
   const rawValue =
-    projectionSignal * projectionWeight + currentForm * evidenceWeight
+    projectionSignal * projectionWeight +
+    currentForm * evidenceWeight +
+    opportunityImpact
+  const minutesPerGame = production.gamesPlayed
+    ? production.minutes / production.gamesPlayed
+    : 0
 
   return {
     playerId: player.id,
@@ -181,6 +196,7 @@ function buildValue(
       ageTrajectory: round(weighted(ageTrajectory, config.trajectoryEmphasis)),
       upside: round(weighted(upside, config.upsideEmphasis)),
       durability: round(weighted(durability, config.durabilityImpact)),
+      opportunity: round(opportunityImpact),
       roleContext: round(roleContext),
       defensiveContribution: round(defensiveContribution),
     },
@@ -191,6 +207,9 @@ function buildValue(
         ...(production.gamesPlayed === 0 ? ["no-production-sample"] : []),
         ...(production.availabilityRate < 60 && production.gamesScheduled > 0
           ? ["limited-availability"]
+          : []),
+        ...(production.gamesPlayed > 0 && minutesPerGame < 12
+          ? ["limited-opportunity"]
           : []),
       ],
     },
@@ -223,13 +242,35 @@ export function calculateUniversalPlayerValues(
       ]
     })
   ) as Record<string, UniversalPlayerValue>
-  const ordered = Object.values(values).sort(
-    (left, right) => right.rawValue - left.rawValue
-  )
-  const total = Math.max(1, ordered.length)
-  ordered.forEach((value, index) => {
-    value.diagnostics.rank = index + 1
-    value.diagnostics.percentile = round(((total - index) / total) * 100)
-  })
+  const populationByPlayerId = new Map<string, SeasonPopulationKind>()
+  const populationGroups: Record<SeasonPopulationKind, UniversalPlayerValue[]> =
+    {
+      rostered: [],
+      "free-agent": [],
+      "draft-prospect": [],
+    }
+  const populations: Array<[SeasonPopulationKind, string[]]> = [
+    ["rostered", fixture.populations.rostered],
+    ["free-agent", fixture.populations.freeAgents],
+    ["draft-prospect", fixture.populations.draftProspects],
+  ]
+  for (const [population, playerIds] of populations) {
+    for (const playerId of playerIds) {
+      populationByPlayerId.set(playerId, population)
+    }
+  }
+  for (const value of Object.values(values)) {
+    populationGroups[
+      populationByPlayerId.get(value.playerId) ?? "rostered"
+    ].push(value)
+  }
+  for (const ordered of Object.values(populationGroups)) {
+    ordered.sort((left, right) => right.rawValue - left.rawValue)
+    const total = Math.max(1, ordered.length)
+    ordered.forEach((value, index) => {
+      value.diagnostics.rank = index + 1
+      value.diagnostics.percentile = round(((total - index) / total) * 100)
+    })
+  }
   return values
 }
