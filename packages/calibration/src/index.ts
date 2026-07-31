@@ -28,10 +28,7 @@ export {
   runSliderSensitivity,
   serializeSliderSensitivityReport,
 } from "./sensitivity"
-export {
-  runSeasonBatch,
-  serializeSeasonBatchReport,
-} from "./season"
+export { runSeasonBatch, serializeSeasonBatchReport } from "./season"
 export type {
   SeasonBatchMetric,
   SeasonBatchOptions,
@@ -386,6 +383,7 @@ function rejectedResult(fixture: GameMatchupFixture, seed: string): GameResult {
     periods: [],
     teams: {},
     players: {},
+    lineupSegments: [],
     events: [],
     diagnostics: [
       {

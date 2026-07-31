@@ -18,12 +18,26 @@ function createFixture(seed: string): GameMatchupFixture {
     ["home", "away"].flatMap((teamId) =>
       Array.from({ length: 8 }, (_, index) => {
         const id = teamId + "-" + (index + 1)
+        const positions = ["PG", "SG", "SF", "PF", "C"] as const
+        const positionIndex = index % positions.length
+        const player = createPlayerContractFixture({
+          id,
+          leagueStatus: { kind: "rostered", teamId },
+        })
         return [
           id,
-          createPlayerContractFixture({
-            id,
-            leagueStatus: { kind: "rostered", teamId },
-          }),
+          {
+            ...player,
+            profile: {
+              ...player.profile,
+              role: {
+                ...player.profile.role,
+                primaryPosition: positions[positionIndex],
+                secondaryPosition:
+                  positions[(positionIndex + 1) % positions.length],
+              },
+            },
+          },
         ]
       })
     )

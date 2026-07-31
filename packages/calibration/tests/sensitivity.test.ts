@@ -54,7 +54,6 @@ describe("runSliderSensitivity", () => {
         },
       ],
     })
-
     expect(
       report.results.find((result) => result.path === "defense.switching")
     ).toMatchObject({
@@ -138,7 +137,6 @@ describe("runSliderSensitivity", () => {
         },
       ],
     })
-
     expect(
       report.results.find((result) => result.path === "rotation.adherence")
         ?.classification

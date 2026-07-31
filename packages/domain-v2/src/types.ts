@@ -195,6 +195,16 @@ export type GameEvent = {
   gamesRemaining: number
 }
 
+export type GameLineupSegment = {
+  id: string
+  teamId: string
+  period: number
+  startMinute: number
+  endMinute: number
+  playerIds: string[]
+  reason: "period-start" | "checkpoint" | "foul-trouble" | "injury" | "overtime"
+}
+
 export type GameReconciliationCheck = {
   code: string
   label: string
@@ -223,6 +233,7 @@ export type GameResult = {
   periods: GamePeriodResult[]
   teams: Record<string, GameTeamBoxScore>
   players: Record<string, GamePlayerBoxScore>
+  lineupSegments: GameLineupSegment[]
   events: GameEvent[]
   diagnostics: GameDiagnostic[]
   reconciliation: GameReconciliationReport

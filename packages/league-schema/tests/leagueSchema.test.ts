@@ -139,6 +139,7 @@ function createSchemaBatchReport() {
       away: createSchemaTeam("away"),
     },
     players: {},
+    lineupSegments: [],
     events: [],
     diagnostics: [],
     reconciliation: { passed: true, checks: [] },

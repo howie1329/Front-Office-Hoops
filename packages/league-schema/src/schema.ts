@@ -393,6 +393,22 @@ const gameEventSchema = z.strictObject({
   gamesRemaining: z.number().int().positive(),
 })
 
+const gameLineupSegmentSchema = z.strictObject({
+  id: z.string().min(1),
+  teamId: z.string().min(1),
+  period: z.number().int().positive(),
+  startMinute: z.number().nonnegative(),
+  endMinute: z.number().nonnegative(),
+  playerIds: z.array(z.string().min(1)).length(5),
+  reason: z.enum([
+    "period-start",
+    "checkpoint",
+    "foul-trouble",
+    "injury",
+    "overtime",
+  ]),
+})
+
 const gameDiagnosticSchema = z.strictObject({
   code: z.string().min(1),
   message: z.string().min(1),
@@ -420,6 +436,7 @@ export const gameResultSchema = z.strictObject({
   periods: z.array(gamePeriodSchema),
   teams: z.record(z.string().min(1), gameTeamBoxScoreSchema),
   players: z.record(z.string().min(1), gamePlayerBoxScoreSchema),
+  lineupSegments: z.array(gameLineupSegmentSchema),
   events: z.array(gameEventSchema),
   diagnostics: z.array(gameDiagnosticSchema),
   reconciliation: z.strictObject({

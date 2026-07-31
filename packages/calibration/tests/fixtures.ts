@@ -25,10 +25,17 @@ function createPlayer(
     leagueStatus: { kind: "rostered", teamId },
   })
   const value = Math.max(20, Math.min(100, ability))
+  const positions = ["PG", "SG", "SF", "PF", "C"] as const
+  const positionIndex = Math.max(0, Number(id.split("-").at(-1) ?? 1) - 1)
   return {
     ...player,
     profile: {
       ...player.profile,
+      role: {
+        ...player.profile.role,
+        primaryPosition: positions[positionIndex % positions.length],
+        secondaryPosition: positions[(positionIndex + 1) % positions.length],
+      },
       skills: {
         shooting: value,
         finishing: value,

@@ -33,6 +33,7 @@ export type {
   GameEvent,
   GameInjuryFrequency,
   GameInjurySeverity,
+  GameLineupSegment,
   GameMatchupFixture,
   GamePeriodKind,
   GamePeriodResult,

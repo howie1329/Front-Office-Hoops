@@ -25,10 +25,19 @@ function createPlayer(
     leagueStatus: { kind: "rostered", teamId },
   })
   const value = Math.max(20, Math.min(100, ability))
+  const positions = ["PG", "SG", "SF", "PF", "C"] as const
+  const positionIndex = Math.max(0, Number(id.split("-").at(-1) ?? 1) - 1)
+  const primaryPosition = positions[positionIndex % positions.length]
+  const secondaryPosition = positions[(positionIndex + 1) % positions.length]
   return {
     ...player,
     profile: {
       ...player.profile,
+      role: {
+        ...player.profile.role,
+        primaryPosition,
+        secondaryPosition,
+      },
       skills: {
         shooting: value,
         finishing: value,
@@ -142,7 +151,6 @@ describe("simulateGameMatchup", () => {
 
   it("produces periods, box scores, and reconciled totals", () => {
     const result = simulateGameMatchup(createFixture())
-
     expect(result.status).toBe("completed")
     expect(result.periods.length).toBeGreaterThanOrEqual(4)
     expect(result.reconciliation.passed).toBe(true)
@@ -152,6 +160,29 @@ describe("simulateGameMatchup", () => {
         .reduce((sum, player) => sum + player.points, 0)
     )
     expect(result.teams.away?.points).toBeGreaterThan(0)
+  })
+
+  it("records valid five-player lineups across the game clock", () => {
+    const result = simulateGameMatchup(createFixture())
+
+    expect(result.lineupSegments.length).toBeGreaterThan(8)
+    expect(
+      new Set(
+        result.lineupSegments
+          .filter((segment) => segment.teamId === "home")
+          .map((segment) => segment.playerIds.join("|"))
+      ).size
+    ).toBeGreaterThan(1)
+    for (const segment of result.lineupSegments) {
+      expect(segment.playerIds).toHaveLength(5)
+      expect(new Set(segment.playerIds).size).toBe(5)
+      expect(segment.endMinute).toBeGreaterThanOrEqual(segment.startMinute)
+      expect(
+        segment.playerIds.every(
+          (playerId) => result.players[playerId]?.teamId === segment.teamId
+        )
+      ).toBe(true)
+    }
   })
 
   it("lets high-creation stars earn more opportunities without a position cap", () => {
@@ -318,6 +349,53 @@ describe("simulateGameMatchup", () => {
     )
   })
 
+  it("uses defender fit and stamina to change possession efficiency", () => {
+    const lowDefenseConfig = createStandardGameSimulationConfig()
+    const highDefenseConfig = createStandardGameSimulationConfig()
+    const lowDefense = runSeries(lowDefenseConfig, (fixture) => {
+      for (const playerId of Object.keys(fixture.players).filter((id) =>
+        id.startsWith("away-")
+      )) {
+        fixture.players[playerId]!.profile.skills = {
+          ...fixture.players[playerId]!.profile.skills,
+          defense: 20,
+          basketballIQ: 20,
+        }
+        fixture.players[playerId]!.profile.physical = {
+          ...fixture.players[playerId]!.profile.physical,
+          speed: 25,
+          vertical: 25,
+        }
+      }
+    })
+    const highDefense = runSeries(highDefenseConfig, (fixture) => {
+      for (const playerId of Object.keys(fixture.players).filter((id) =>
+        id.startsWith("away-")
+      )) {
+        fixture.players[playerId]!.profile.skills = {
+          ...fixture.players[playerId]!.profile.skills,
+          defense: 95,
+          basketballIQ: 95,
+        }
+        fixture.players[playerId]!.profile.physical = {
+          ...fixture.players[playerId]!.profile.physical,
+          speed: 95,
+          vertical: 95,
+        }
+      }
+    })
+
+    expect(
+      average(
+        highDefense.map((result) => result.teams.home?.offensiveEfficiency ?? 0)
+      )
+    ).toBeLessThan(
+      average(
+        lowDefense.map((result) => result.teams.home?.offensiveEfficiency ?? 0)
+      )
+    )
+  })
+
   it("amplifies non-neutral coaching profiles through coaching influence", () => {
     const lowConfig = createStandardGameSimulationConfig()
     lowConfig.coaching.influence = 0
@@ -409,41 +487,41 @@ describe("simulateGameMatchup", () => {
       status: "completed",
       periods: 4,
       home: {
-        points: 68,
+        points: 95,
         possessions: 109,
-        fieldGoalsMade: 28,
-        fieldGoalsAttempted: 92,
+        fieldGoalsMade: 36,
+        fieldGoalsAttempted: 83,
         threePointersMade: 7,
-        threePointersAttempted: 30,
-        freeThrowsMade: 5,
-        freeThrowsAttempted: 6,
-        rebounds: 67,
-        assists: 10,
-        turnovers: 14,
-        steals: 9,
+        threePointersAttempted: 29,
+        freeThrowsMade: 16,
+        freeThrowsAttempted: 19,
+        rebounds: 49,
+        assists: 16,
+        turnovers: 17,
+        steals: 8,
         blocks: 3,
-        fouls: 4,
+        fouls: 5,
       },
       away: {
-        points: 66,
+        points: 85,
         possessions: 103,
-        fieldGoalsMade: 26,
-        fieldGoalsAttempted: 87,
-        threePointersMade: 6,
-        threePointersAttempted: 31,
+        fieldGoalsMade: 35,
+        fieldGoalsAttempted: 85,
+        threePointersMade: 7,
+        threePointersAttempted: 28,
         freeThrowsMade: 8,
-        freeThrowsAttempted: 9,
-        rebounds: 58,
-        assists: 3,
-        turnovers: 12,
-        steals: 9,
-        blocks: 3,
-        fouls: 3,
+        freeThrowsAttempted: 10,
+        rebounds: 48,
+        assists: 12,
+        turnovers: 13,
+        steals: 8,
+        blocks: 1,
+        fouls: 9,
       },
       topPlayer: {
         playerId: "home-1",
-        points: 16,
-        opportunities: 31,
+        points: 36,
+        opportunities: 32,
       },
       reconciliation: true,
     })
