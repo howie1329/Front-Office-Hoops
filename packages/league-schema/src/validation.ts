@@ -1,7 +1,16 @@
-import type { LeagueDocument, ValidationIssue } from "@workspace/domain-v2"
+import type {
+  CareerCohortReport,
+  CareerIndividualReport,
+  LeagueDocument,
+  ValidationIssue,
+} from "@workspace/domain-v2"
 import { ZodError } from "zod"
 
-import { leagueDocumentSchema } from "./schema"
+import {
+  careerCohortReportSchema,
+  careerIndividualReportSchema,
+  leagueDocumentSchema,
+} from "./schema"
 import { CURRENT_SCHEMA_VERSION } from "./version"
 
 export type LeagueValidationResult =
@@ -35,15 +44,101 @@ export class LeagueDocumentValidationError extends Error {
   }
 }
 
+export class CareerReportValidationError extends Error {
+  readonly issues: ValidationIssue[]
+
+  constructor(issues: ValidationIssue[]) {
+    super("Career report validation failed")
+    this.name = "CareerReportValidationError"
+    this.issues = issues
+  }
+}
+
 function formatIssues(error: ZodError): ValidationIssue[] {
   return error.issues.map((issue) => ({
     code: issue.code,
     message: issue.message,
     path: issue.path.filter(
       (segment): segment is string | number =>
-        typeof segment === "string" || typeof segment === "number",
+        typeof segment === "string" || typeof segment === "number"
     ),
   }))
+}
+
+export function validateCareerCohortReport(
+  input: unknown
+):
+  | { valid: true; data: CareerCohortReport }
+  | { valid: false; issues: ValidationIssue[] } {
+  const result = careerCohortReportSchema.safeParse(input)
+  return result.success
+    ? { valid: true, data: result.data as CareerCohortReport }
+    : { valid: false, issues: formatIssues(result.error) }
+}
+
+export function validateCareerIndividualReport(
+  input: unknown
+):
+  | { valid: true; data: CareerIndividualReport }
+  | { valid: false; issues: ValidationIssue[] } {
+  const result = careerIndividualReportSchema.safeParse(input)
+  return result.success
+    ? { valid: true, data: result.data as CareerIndividualReport }
+    : { valid: false, issues: formatIssues(result.error) }
+}
+
+export function parseCareerCohortReport(input: unknown): CareerCohortReport {
+  const result = validateCareerCohortReport(input)
+  if (!result.valid) throw new CareerReportValidationError(result.issues)
+  return result.data
+}
+
+export function parseCareerIndividualReport(
+  input: unknown
+): CareerIndividualReport {
+  const result = validateCareerIndividualReport(input)
+  if (!result.valid) throw new CareerReportValidationError(result.issues)
+  return result.data
+}
+
+export function serializeCareerCohortReport(
+  report: CareerCohortReport
+): string {
+  parseCareerCohortReport(report)
+  return JSON.stringify(report, null, 2)
+}
+
+export function deserializeCareerCohortReport(
+  serialized: string
+): CareerCohortReport {
+  try {
+    return parseCareerCohortReport(JSON.parse(serialized) as unknown)
+  } catch (error) {
+    if (error instanceof CareerReportValidationError) throw error
+    throw new CareerReportValidationError([
+      { code: "invalid_json", message: "The report is not valid JSON." },
+    ])
+  }
+}
+
+export function serializeCareerIndividualReport(
+  report: CareerIndividualReport
+): string {
+  parseCareerIndividualReport(report)
+  return JSON.stringify(report, null, 2)
+}
+
+export function deserializeCareerIndividualReport(
+  serialized: string
+): CareerIndividualReport {
+  try {
+    return parseCareerIndividualReport(JSON.parse(serialized) as unknown)
+  } catch (error) {
+    if (error instanceof CareerReportValidationError) throw error
+    throw new CareerReportValidationError([
+      { code: "invalid_json", message: "The report is not valid JSON." },
+    ])
+  }
 }
 
 export function validateLeagueDocument(input: unknown): LeagueValidationResult {

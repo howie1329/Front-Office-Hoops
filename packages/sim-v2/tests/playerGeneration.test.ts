@@ -67,6 +67,30 @@ describe("generatePlayer", () => {
     expect(result.player).not.toHaveProperty("latentTalent")
   })
 
+  it("generates valid hidden career timing diagnostics for every player", () => {
+    const config = createStandardPlayerGenerationConfig()
+    const result = generatePlayerWithDiagnostics(
+      createDeterministicRandom("career-timing-seed"),
+      input,
+      config
+    )
+
+    expect(result.player.profile.development.peakAge).toBeGreaterThanOrEqual(
+      input.age
+    )
+    expect(
+      result.player.profile.development.declineStartAge
+    ).toBeGreaterThan(result.player.profile.development.peakAge)
+    expect(result.diagnostics.careerTiming).toEqual({
+      peakAge: result.player.profile.development.peakAge,
+      declineStartAge: result.player.profile.development.declineStartAge,
+    })
+    expect(result.diagnostics.potentialHeadroom).toBe(
+      result.player.profile.development.potential -
+        result.diagnostics.currentAbility
+    )
+  })
+
   it("keeps identity changes outside basketball generation", () => {
     const first = generatePlayerWithDiagnostics(
       createDeterministicRandom("identity-isolation-seed"),

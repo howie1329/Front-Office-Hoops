@@ -1,3 +1,6 @@
+import { runCareerCohort } from "@workspace/calibration"
+import type { CareerCohortReport } from "@workspace/domain-v2"
+
 export const DEVELOPMENT_COHORT_REPORT_VERSION = 1
 
 export const DEVELOPMENT_COHORT_PRESETS = [
@@ -84,178 +87,133 @@ export const DEFAULT_DEVELOPMENT_COHORT_OPTIONS: DevelopmentCohortOptions = {
   coachingContext: "standard",
 }
 
-const PRESET_ADJUSTMENTS: Record<
+const PRESET_CONTEXT: Record<
   DevelopmentCohortPresetId,
   {
-    label: string
-    description: string
     age: number
-    growth: number
-    volatility: number
-    availability: number
-    peakAge: number
+    developmentContext: "standard" | "high-volatility"
+    injuryContext: "healthy" | "normal" | "injured"
   }
 > = {
   "balanced-rookies": {
-    label: "Balanced rookies",
-    description: "A broad baseline for first-year development outcomes.",
     age: 20,
-    growth: 5.2,
-    volatility: 1.4,
-    availability: 0.91,
-    peakAge: 27,
+    developmentContext: "standard",
+    injuryContext: "normal",
   },
   "high-volatility": {
-    label: "High volatility",
-    description:
-      "Wider outcomes with more pronounced late breakouts and busts.",
     age: 20,
-    growth: 5.6,
-    volatility: 3.1,
-    availability: 0.86,
-    peakAge: 26,
+    developmentContext: "high-volatility",
+    injuryContext: "injured",
   },
   "durable-veterans": {
-    label: "Durable veterans",
-    description:
-      "Established players with later skill growth and strong availability.",
     age: 28,
-    growth: 1.3,
-    volatility: 0.9,
-    availability: 0.96,
-    peakAge: 29,
+    developmentContext: "standard",
+    injuryContext: "healthy",
   },
 }
 
-function seedOffset(seed: string): number {
-  return (
-    [...seed].reduce((total, character) => total + character.charCodeAt(0), 0) %
-    11
-  )
-}
-
-function clamp(value: number, minimum: number, maximum: number): number {
-  return Math.min(maximum, Math.max(minimum, value))
+function average(values: number[]): number {
+  return values.length
+    ? values.reduce((sum, value) => sum + value, 0) / values.length
+    : 0
 }
 
 function createCohort(
   presetId: DevelopmentCohortPresetId,
-  options: DevelopmentCohortOptions,
-  index: number
-): DevelopmentCohort {
-  const preset = PRESET_ADJUSTMENTS[presetId]
-  const offset = seedOffset(options.seed) + index * 2
-  const minutesAdjustment = { low: -0.8, typical: 0, high: 0.9 }[
-    options.minutesContext
-  ]
-  const coachingAdjustment = { weak: -0.9, standard: 0, strong: 1.1 }[
-    options.coachingContext
-  ]
-  const growth =
-    preset.growth + minutesAdjustment + coachingAdjustment + (offset - 5) / 10
-  const years = Array.from({ length: options.careerYears + 1 }, (_, year) => {
-    const agingEffect =
-      preset.age > 25 ? -year * 0.9 : year < 4 ? year * 0.7 : -(year - 3) * 0.6
-    const development = year === 0 ? 0 : growth * (year < 3 ? 1 : 0.65)
-    const overall = clamp(
-      61 + development + agingEffect + (index ? 1.7 : 0),
-      35,
-      86
-    )
+  options: DevelopmentCohortOptions
+): { cohort: DevelopmentCohort; report: CareerCohortReport } {
+  const preset = PRESET_CONTEXT[presetId]
+  const report = runCareerCohort({
+    seed: `${options.seed}:${presetId}`,
+    startingAge: preset.age,
+    sampleSize: options.sampleSize,
+    runYears: options.careerYears,
+    minutesContext: options.minutesContext,
+    coachingContext: options.coachingContext,
+    injuryContext: preset.injuryContext,
+    developmentContext: preset.developmentContext,
+    retainTimelines: true,
+  })
+  const trajectory = report.summary.skillTrajectories
+  const years = trajectory.map((year, index) => {
+    const snapshots = report.timelines
+      ?.map((timeline) => timeline.snapshots[index])
+      .filter((snapshot): snapshot is NonNullable<typeof snapshot> =>
+        Boolean(snapshot)
+      )
     return {
-      year,
-      age: preset.age + year,
-      overall: Math.round(overall * 10) / 10,
-      shooting:
-        Math.round(
-          clamp(
-            58 + year * (growth * 0.55) + agingEffect * 0.35 + index * 2,
-            30,
-            90
-          ) * 10
-        ) / 10,
-      creation:
-        Math.round(
-          clamp(
-            60 + year * (growth * 0.7) + agingEffect * 0.55 + index * 1.5,
-            30,
-            90
-          ) * 10
-        ) / 10,
-      defense:
-        Math.round(
-          clamp(
-            62 + year * (growth * 0.35) + agingEffect * 0.7 + index * 1.2,
-            30,
-            90
-          ) * 10
-        ) / 10,
-      athleticism:
-        Math.round(
-          clamp(
-            65 + year * (growth * 0.18) + agingEffect * 1.2 + index * 0.8,
-            30,
-            90
-          ) * 10
-        ) / 10,
+      year: index,
+      age: year.age,
+      overall: year.currentAbility.average,
+      shooting: year.average.shooting,
+      creation: average([year.average.passing, year.average.handling]),
+      defense: year.average.defense,
+      athleticism: year.average.stamina,
       availability:
         Math.round(
-          clamp(
-            preset.availability -
-              year * (preset.age > 25 ? 0.006 : 0.003) -
-              index * 0.008,
-            0.65,
-            0.99
+          average(
+            snapshots?.map(
+              (snapshot) => snapshot.availability.availabilityRate
+            ) ?? []
           ) * 1000
         ) / 10,
       developmentEvents:
-        year === 0
-          ? 0
-          : Math.max(
-              1,
-              Math.round(3 + growth / 2 + (index ? 1 : 0) - year * 0.15)
-            ),
+        snapshots?.reduce((sum, snapshot) => sum + snapshot.events.length, 0) ??
+        0,
     }
   })
-
+  const first = years[0]
+  const last = years.at(-1)
   return {
-    id: `${presetId}-${index}`,
-    label: preset.label,
-    description: preset.description,
-    players: options.sampleSize,
-    startingAge: preset.age,
-    peakAge: preset.peakAge,
-    averageNetChange:
-      Math.round((years[years.length - 1].overall - years[0].overall) * 10) /
-      10,
-    availability: years[years.length - 1].availability,
-    retirementRate:
-      Math.round(
-        (preset.age > 25
-          ? 0.025 + options.careerYears * 0.006
-          : 0.004 + options.careerYears * 0.002 + index * 0.002) * 1000
-      ) / 10,
-    years,
+    report,
+    cohort: {
+      id: `${presetId}-authoritative`,
+      label: DEVELOPMENT_COHORT_PRESETS.find(
+        (candidate) => candidate.id === presetId
+      )!.label,
+      description: DEVELOPMENT_COHORT_PRESETS.find(
+        (candidate) => candidate.id === presetId
+      )!.description,
+      players: report.summary.playerCount,
+      startingAge: preset.age,
+      peakAge: report.summary.averagePeakAge,
+      averageNetChange:
+        Math.round(((last?.overall ?? 0) - (first?.overall ?? 0)) * 10) / 10,
+      availability: last?.availability ?? 0,
+      retirementRate: report.summary.retirementRate * 100,
+      years,
+    },
   }
 }
 
 export function createDevelopmentCohortReport(
   options: DevelopmentCohortOptions
 ): DevelopmentCohortReport {
+  const primary = createCohort(options.presetId, options)
+  const comparison = createCohort(options.comparisonPresetId, options)
   return {
     version: DEVELOPMENT_COHORT_REPORT_VERSION,
-    generatedAt: "fixture",
+    generatedAt: "deterministic-lab",
     options: { ...options },
-    cohorts: [
-      createCohort(options.presetId, options, 0),
-      createCohort(options.comparisonPresetId, options, 1),
-    ],
+    cohorts: [primary.cohort, comparison.cohort],
     diagnostics: {
-      failedSeeds: options.sampleSize < 500 ? 2 : 0,
-      forecastAccuracy: 72 + (seedOffset(options.seed) % 8),
-      injuryRecoveryRate: 78 + (seedOffset(options.seed) % 6),
+      failedSeeds:
+        primary.report.failedFixtures.length +
+        comparison.report.failedFixtures.length,
+      forecastAccuracy: Math.round(
+        average([
+          primary.report.summary.potentialForecastVsRealizedPeak.correlation,
+          comparison.report.summary.potentialForecastVsRealizedPeak.correlation,
+        ]) * 100
+      ),
+      injuryRecoveryRate: Math.round(
+        average([
+          primary.report.summary.availabilityRate,
+          comparison.report.summary.availabilityRate,
+        ]) * 100
+      ),
       notes: [
-        "Fixture preview only: no authoritative development transition has run.",
+        "Report generated by the authoritative V2 career transition engine.",
         "Availability is shown as a percentage of the cohort active at each year.",
         "True trajectory, forecast, and realized production remain separate contracts.",
       ],

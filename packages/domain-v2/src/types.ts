@@ -263,6 +263,7 @@ export type PlayerLeagueStatus =
   | { kind: "re-signing"; teamId: string }
   | { kind: "free-agent" }
   | { kind: "draft-prospect"; draftClassId: string }
+  | { kind: "retired" }
 
 export type PlayerPosition = "PG" | "SG" | "SF" | "PF" | "C"
 
@@ -375,11 +376,15 @@ export type PlayerPopulationPreset = {
   config: PlayerGenerationConfig
 }
 
-export type DevelopmentProfile = {
+export type CareerDevelopmentProfile = {
   potential: number
   rating: number
   volatility: number
+  peakAge: number
+  declineStartAge: number
 }
+
+export type DevelopmentProfile = CareerDevelopmentProfile
 
 export type PlayerRoleProfile = {
   primaryPosition: PlayerPosition

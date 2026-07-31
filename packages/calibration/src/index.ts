@@ -31,6 +31,33 @@ export {
   serializeSliderSensitivityReport,
 } from "./sensitivity"
 export { runSeasonBatch, serializeSeasonBatchReport } from "./season"
+export {
+  NBA_LIKE_CAREER_BENCHMARK_PROFILE,
+  runCareerCohort,
+  runCareerTrace,
+  runIndividualCareer,
+  serializeCareerCohortReport,
+  serializeCareerIndividualReport,
+} from "./career"
+export {
+  createCareerAnnualContext,
+  createCareerGenerationConfig,
+  createCareerPlayer,
+  resolveCareerCoachingEmphasis,
+  resolveCareerGames,
+  resolveCareerMinutes,
+} from "./careerFixtures"
+export { evaluateCareerBenchmark } from "./careerBenchmarks"
+export type {
+  CareerBenchmarkProfile,
+  CareerBenchmarkTarget,
+} from "./careerBenchmarks"
+export type {
+  CareerCohortRunOptions,
+  CareerIndividualRunOptions,
+  CareerProgress,
+  CareerTraceInput,
+} from "./career"
 export type {
   SeasonBatchMetric,
   SeasonBatchOptions,

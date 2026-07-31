@@ -43,6 +43,8 @@ export function createPlayerContractFixture(
         potential: 82,
         rating: 62,
         volatility: 25,
+        peakAge: 27,
+        declineStartAge: 32,
       },
       traits: ["hard-worker"],
     },

@@ -57,6 +57,10 @@ export {
 export { aggregateSeasonProduction } from "./production"
 export { calculateUniversalPlayerValues } from "./playerValue"
 export { runSeason } from "./seasonRunner"
+export { advancePlayerCareerYear, getCareerPhase } from "./careerDevelopment"
+export type { CareerDevelopmentInput } from "./careerDevelopment"
+export { evaluatePlayerRetirement } from "./careerRetirement"
+export type { CareerRetirementInput } from "./careerRetirement"
 export {
   createDeterministicRandom,
   createRandomSource,

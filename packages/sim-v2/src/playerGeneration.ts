@@ -29,6 +29,11 @@ export type PlayerGenerationDiagnostics = {
   currentAbility: number
   potentialBase: number
   potentialUpside: number
+  potentialHeadroom: number
+  careerTiming: {
+    peakAge: number
+    declineStartAge: number
+  }
   rawSkills: PlayerSkills
   role: PlayerRoleDiagnostics
 }
@@ -166,6 +171,36 @@ function getSkillsCurrentAbility(skills: PlayerSkills): number {
   const total = playerSkillKeys.reduce((sum, key) => sum + skills[key], 0)
 
   return Math.round(total / playerSkillKeys.length)
+}
+
+function drawCareerTiming(
+  random: RandomSource,
+  age: number,
+  developmentRating: number,
+  volatility: number
+): { peakAge: number; declineStartAge: number } {
+  const timingRandom = random.fork("career-timing")
+  const peakAge = Math.max(
+    age,
+    Math.min(
+      45,
+      Math.max(
+        22,
+        Math.round(
+          timingRandom.normal(26 + (developmentRating - 50) * 0.015, 2.8)
+        )
+      )
+    )
+  )
+  const declineGap = Math.max(
+    2,
+    Math.round(timingRandom.normal(6 - volatility * 0.012, 1.8))
+  )
+
+  return {
+    peakAge,
+    declineStartAge: Math.max(peakAge + 1, Math.min(50, peakAge + declineGap)),
+  }
 }
 
 export function getPlayerCurrentAbility(
@@ -308,6 +343,12 @@ export function generatePlayerWithDiagnostics(
       config.development.volatility.spread
     ),
   }
+  const careerTiming = drawCareerTiming(
+    developmentRandom,
+    age,
+    development.rating,
+    development.volatility
+  )
   const roleResult = derivePlayerRole({ physical, skills }, config)
 
   const player: PlayerEntity = {
@@ -328,7 +369,10 @@ export function generatePlayerWithDiagnostics(
         60,
         14
       ),
-      development,
+      development: {
+        ...development,
+        ...careerTiming,
+      },
       traits: drawTraits(traitRandom, config),
     },
   }
@@ -341,6 +385,8 @@ export function generatePlayerWithDiagnostics(
       currentAbility,
       potentialBase,
       potentialUpside,
+      potentialHeadroom: potential - currentAbility,
+      careerTiming,
       rawSkills,
       role: roleResult.diagnostics,
     },
