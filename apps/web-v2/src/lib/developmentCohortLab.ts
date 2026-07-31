@@ -112,7 +112,7 @@ const PRESET_CONTEXT: Record<
   },
 }
 
-function average(values: number[]): number {
+function average(values: Array<number>): number {
   return values.length
     ? values.reduce((sum, value) => sum + value, 0) / values.length
     : 0
@@ -162,8 +162,8 @@ function createCohort(
         0,
     }
   })
-  const first = years[0]
-  const last = years.at(-1)
+  const first = years[0] ?? { overall: 0, availability: 0 }
+  const last = years.at(-1) ?? first
   return {
     report,
     cohort: {
@@ -178,8 +178,8 @@ function createCohort(
       startingAge: preset.age,
       peakAge: report.summary.averagePeakAge,
       averageNetChange:
-        Math.round(((last?.overall ?? 0) - (first?.overall ?? 0)) * 10) / 10,
-      availability: last?.availability ?? 0,
+        Math.round((last.overall - first.overall) * 10) / 10,
+      availability: last.availability,
       retirementRate: report.summary.retirementRate * 100,
       years,
     },
