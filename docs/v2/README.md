@@ -27,6 +27,7 @@ V1 remains runnable during this work. See the [V2 roadmap](./plans/foh-v2-roadma
 - [Migration Plan](./plans/foh-v2-migration-plan.md)
 - [Experiment Backlog](./plans/foh-v2-experiment-backlog.md)
 - [Production & Value Lab Implementation Plan](./plans/foh-v2-production-value-lab-implementation-plan.md)
+- [Contract Market & Negotiation Plan](./plans/foh-v2-contract-market-and-negotiation-plan.md)
 - [Game & Matchup Lab Implementation Plan](./plans/foh-v2-game-matchup-lab-implementation-plan.md)
 - [Current-State Audit](./audits/foh-current-state-audit.md)
 - [Basketball Simulation Reference Study](./research/basketball-sim-reference-study.md)
