@@ -68,6 +68,12 @@ export const Route = createFileRoute("/developer-labs/production-value")({
 type PopulationTab = "rostered" | "free-agent" | "draft-prospect"
 type NumberSection =
   "environment" | "offense" | "defense" | "rotation" | "coaching" | "injuries"
+type PlayerSortKey =
+  "player" | "team" | "value" | "delta" | "production" | "confidence"
+type PlayerSortState = {
+  key: PlayerSortKey
+  direction: "asc" | "desc"
+}
 
 const POPULATION_TABS: Array<{ id: PopulationTab; label: string }> = [
   { id: "rostered", label: "Current players" },
@@ -82,6 +88,11 @@ function formatNumber(value: number, decimals = 1): string {
 
 function formatValue(value: number): string {
   return formatNumber(value, 1)
+}
+
+function formatPercentage(numerator: number, denominator: number): string {
+  if (denominator <= 0) return "—"
+  return `${formatNumber((numerator / denominator) * 100)}%`
 }
 
 function getPlayerName(fixture: SeasonFixture, playerId: string): string {
@@ -120,6 +131,54 @@ function getValueState(
   return (
     result?.checkpoints.find((item) => item.gamesPerTeam === checkpoint)
       ?.values[playerId] ?? null
+  )
+}
+
+function SortableHeader({
+  label,
+  column,
+  sort,
+  onSort,
+  align = "left",
+}: {
+  label: string
+  column: PlayerSortKey
+  sort: PlayerSortState
+  onSort: (column: PlayerSortKey) => void
+  align?: "left" | "right"
+}) {
+  const active = sort.key === column
+  const direction = active ? sort.direction : null
+  return (
+    <TableHead
+      className={align === "right" ? "text-right" : undefined}
+      aria-sort={
+        active ? (direction === "asc" ? "ascending" : "descending") : "none"
+      }
+    >
+      <button
+        type="button"
+        className={`inline-flex items-center gap-1 font-semibold hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${align === "right" ? "ml-auto" : ""}`}
+        onClick={() => onSort(column)}
+      >
+        {label}
+        <span
+          className={`text-[10px] ${active ? "text-foreground" : "text-muted-foreground/60"}`}
+          aria-hidden="true"
+        >
+          {direction === "asc" ? "↑" : direction === "desc" ? "↓" : "↕"}
+        </span>
+      </button>
+    </TableHead>
+  )
+}
+
+function StatLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-border/60 pb-2 last:border-0 last:pb-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="font-medium tabular-nums">{value}</dd>
+    </div>
   )
 }
 
@@ -412,6 +471,10 @@ function ProductionValueLabPage() {
     React.useState<SeasonBatchReport | null>(null)
   const [population, setPopulation] = React.useState<PopulationTab>("rostered")
   const [teamFilter, setTeamFilter] = React.useState("all")
+  const [playerSort, setPlayerSort] = React.useState<PlayerSortState>({
+    key: "value",
+    direction: "desc",
+  })
   const [selectedCheckpoint, setSelectedCheckpoint] = React.useState(0)
   const [selectedPlayerId, setSelectedPlayerId] = React.useState<string | null>(
     null
@@ -428,6 +491,9 @@ function ProductionValueLabPage() {
       (checkpoint) => checkpoint.gamesPerTeam === selectedCheckpoint
     ) ?? checkpoints.at(-1)
   const activeCheckpointGames = activeCheckpoint?.gamesPerTeam ?? 0
+  const preseasonCheckpoint = result?.checkpoints.find(
+    (checkpoint) => checkpoint.gamesPerTeam === 0
+  )
 
   const visiblePlayerIds = React.useMemo(() => {
     if (!fixture) return []
@@ -441,11 +507,84 @@ function ProductionValueLabPage() {
         )
       })
       .sort((left, right) => {
-        const leftValue = activeCheckpoint?.values[left]?.rawValue ?? 0
-        const rightValue = activeCheckpoint?.values[right]?.rawValue ?? 0
-        return rightValue - leftValue
+        const leftPlayer = fixture.players[left]
+        const rightPlayer = fixture.players[right]
+        const leftValue = activeCheckpoint?.values[left]
+        const rightValue = activeCheckpoint?.values[right]
+        const leftProduction = activeCheckpoint?.playerProduction[left]
+        const rightProduction = activeCheckpoint?.playerProduction[right]
+        const leftPreseason = preseasonCheckpoint?.values[left]
+        const rightPreseason = preseasonCheckpoint?.values[right]
+        const leftTeam =
+          leftProduction?.teamId ??
+          (leftPlayer.leagueStatus.kind === "rostered"
+            ? leftPlayer.leagueStatus.teamId
+            : null)
+        const rightTeam =
+          rightProduction?.teamId ??
+          (rightPlayer.leagueStatus.kind === "rostered"
+            ? rightPlayer.leagueStatus.teamId
+            : null)
+        const confidenceRank: Record<
+          UniversalPlayerValue["confidence"],
+          number
+        > = {
+          provisional: 0,
+          early: 1,
+          established: 2,
+          full: 3,
+        }
+        const leftSortValue: string | number =
+          playerSort.key === "player"
+            ? getPlayerName(fixture, left)
+            : playerSort.key === "team"
+              ? getSeasonTeamName(fixture, leftTeam)
+              : playerSort.key === "value"
+                ? (leftValue?.rawValue ?? 0)
+                : playerSort.key === "delta"
+                  ? (leftValue?.rawValue ?? 0) - (leftPreseason?.rawValue ?? 0)
+                  : playerSort.key === "production"
+                    ? (leftProduction?.pointsPerGame ?? 0)
+                    : confidenceRank[leftValue?.confidence ?? "provisional"]
+        const rightSortValue: string | number =
+          playerSort.key === "player"
+            ? getPlayerName(fixture, right)
+            : playerSort.key === "team"
+              ? getSeasonTeamName(fixture, rightTeam)
+              : playerSort.key === "value"
+                ? (rightValue?.rawValue ?? 0)
+                : playerSort.key === "delta"
+                  ? (rightValue?.rawValue ?? 0) -
+                    (rightPreseason?.rawValue ?? 0)
+                  : playerSort.key === "production"
+                    ? (rightProduction?.pointsPerGame ?? 0)
+                    : confidenceRank[rightValue?.confidence ?? "provisional"]
+        const comparison =
+          typeof leftSortValue === "string" &&
+          typeof rightSortValue === "string"
+            ? leftSortValue.localeCompare(rightSortValue)
+            : Number(leftSortValue) - Number(rightSortValue)
+        return playerSort.direction === "asc" ? comparison : -comparison
       })
-  }, [activeCheckpoint, fixture, population, teamFilter])
+  }, [
+    activeCheckpoint,
+    fixture,
+    playerSort,
+    population,
+    preseasonCheckpoint,
+    teamFilter,
+  ])
+
+  function handlePlayerSort(column: PlayerSortKey) {
+    setPlayerSort((current) =>
+      current.key === column
+        ? {
+            key: column,
+            direction: current.direction === "asc" ? "desc" : "asc",
+          }
+        : { key: column, direction: column === "player" ? "asc" : "desc" }
+    )
+  }
 
   React.useEffect(() => {
     if (!selectedPlayerId || !visiblePlayerIds.includes(selectedPlayerId)) {
@@ -689,6 +828,8 @@ function ProductionValueLabPage() {
               <CardTitle>Run configuration</CardTitle>
               <CardDescription>
                 Semantic controls travel with every season fixture and report.
+                The default source is a generated Initial Player Universe;
+                universe import is not wired into this first slice.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-5">
@@ -1162,14 +1303,45 @@ function ProductionValueLabPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Player</TableHead>
-                          <TableHead>Team / status</TableHead>
-                          <TableHead className="text-right">Value</TableHead>
-                          <TableHead className="text-right">Delta</TableHead>
-                          <TableHead className="text-right">
-                            Production
-                          </TableHead>
-                          <TableHead>Confidence</TableHead>
+                          <SortableHeader
+                            label="Player"
+                            column="player"
+                            sort={playerSort}
+                            onSort={handlePlayerSort}
+                          />
+                          <SortableHeader
+                            label="Team / status"
+                            column="team"
+                            sort={playerSort}
+                            onSort={handlePlayerSort}
+                          />
+                          <SortableHeader
+                            label="Value"
+                            column="value"
+                            sort={playerSort}
+                            onSort={handlePlayerSort}
+                            align="right"
+                          />
+                          <SortableHeader
+                            label="Delta"
+                            column="delta"
+                            sort={playerSort}
+                            onSort={handlePlayerSort}
+                            align="right"
+                          />
+                          <SortableHeader
+                            label="Production"
+                            column="production"
+                            sort={playerSort}
+                            onSort={handlePlayerSort}
+                            align="right"
+                          />
+                          <SortableHeader
+                            label="Confidence"
+                            column="confidence"
+                            sort={playerSort}
+                            onSort={handlePlayerSort}
+                          />
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1178,9 +1350,8 @@ function ProductionValueLabPage() {
                           const value = activeCheckpoint?.values[playerId]
                           const production =
                             activeCheckpoint?.playerProduction[playerId]
-                          const preseason = result?.checkpoints.find(
-                            (checkpoint) => checkpoint.gamesPerTeam === 0
-                          )?.values[playerId]
+                          const preseason =
+                            preseasonCheckpoint?.values[playerId]
                           return (
                             <TableRow
                               key={playerId}
@@ -1256,8 +1427,8 @@ function ProductionValueLabPage() {
                   </div>
                   {visiblePlayerIds.length > 120 ? (
                     <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
-                      Showing the first 120 by current value. Narrow the team
-                      filter to inspect a complete roster.
+                      Showing the first 120 by the selected sort. Narrow the
+                      team filter to inspect a complete roster.
                     </p>
                   ) : null}
                 </CardContent>
@@ -1314,6 +1485,86 @@ function ProductionValueLabPage() {
                             value={`${formatNumber(selectedProduction.availabilityRate)}%`}
                           />
                         </dl>
+                        <div className="grid gap-3 border-t border-border pt-4">
+                          <div>
+                            <p className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                              Production stats
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Checkpoint totals and rates from the simulated
+                              game logs.
+                            </p>
+                          </div>
+                          <dl className="grid gap-x-5 gap-y-2 sm:grid-cols-2">
+                            <StatLine
+                              label="Points"
+                              value={`${formatNumber(selectedProduction.points)} · ${formatNumber(selectedProduction.pointsPerGame)} PPG`}
+                            />
+                            <StatLine
+                              label="Starts"
+                              value={formatNumber(selectedProduction.starts, 0)}
+                            />
+                            <StatLine
+                              label="Minutes"
+                              value={`${formatNumber(selectedProduction.minutes)} · ${formatNumber(selectedProduction.minutes / Math.max(1, selectedProduction.gamesPlayed))} MPG`}
+                            />
+                            <StatLine
+                              label="Role"
+                              value={selectedProduction.role}
+                            />
+                            <StatLine
+                              label="Field goals"
+                              value={`${selectedProduction.fieldGoalsMade}/${selectedProduction.fieldGoalsAttempted} · ${formatPercentage(selectedProduction.fieldGoalsMade, selectedProduction.fieldGoalsAttempted)}`}
+                            />
+                            <StatLine
+                              label="Three-pointers"
+                              value={`${selectedProduction.threePointersMade}/${selectedProduction.threePointersAttempted} · ${formatPercentage(selectedProduction.threePointersMade, selectedProduction.threePointersAttempted)}`}
+                            />
+                            <StatLine
+                              label="Free throws"
+                              value={`${selectedProduction.freeThrowsMade}/${selectedProduction.freeThrowsAttempted} · ${formatPercentage(selectedProduction.freeThrowsMade, selectedProduction.freeThrowsAttempted)}`}
+                            />
+                            <StatLine
+                              label="True shooting"
+                              value={`${formatNumber(selectedProduction.trueShootingPercentage)}%`}
+                            />
+                            <StatLine
+                              label="Assists"
+                              value={`${formatNumber(selectedProduction.assists)} · ${formatNumber(selectedProduction.assistsPerGame)} APG`}
+                            />
+                            <StatLine
+                              label="Turnovers"
+                              value={`${formatNumber(selectedProduction.turnovers)} · ${formatNumber(selectedProduction.turnoversPerGame)} TOV`}
+                            />
+                            <StatLine
+                              label="Rebounds"
+                              value={`${formatNumber(selectedProduction.rebounds)} · ${formatNumber(selectedProduction.reboundsPerGame)} RPG`}
+                            />
+                            <StatLine
+                              label="ORB / DRB"
+                              value={`${formatNumber(selectedProduction.offensiveRebounds)} / ${formatNumber(selectedProduction.defensiveRebounds)}`}
+                            />
+                            <StatLine
+                              label="Steals"
+                              value={formatNumber(selectedProduction.steals, 0)}
+                            />
+                            <StatLine
+                              label="Blocks"
+                              value={formatNumber(selectedProduction.blocks, 0)}
+                            />
+                            <StatLine
+                              label="Fouls"
+                              value={formatNumber(selectedProduction.fouls, 0)}
+                            />
+                            <StatLine
+                              label="Opportunities"
+                              value={formatNumber(
+                                selectedProduction.opportunities,
+                                0
+                              )}
+                            />
+                          </dl>
+                        </div>
                         <div className="grid gap-2 border-t border-border pt-4">
                           <p className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
                             Value breakdown
