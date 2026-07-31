@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as DeveloperLabsRouteImport } from './routes/developer-labs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeveloperLabsTeamAssemblyRouteImport } from './routes/developer-labs.team-assembly'
+import { Route as DeveloperLabsProductionValueRouteImport } from './routes/developer-labs.production-value'
 import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
 import { Route as DeveloperLabsGameMatchupRouteImport } from './routes/developer-labs.game-matchup'
 import { Route as DeveloperLabsDevelopmentCohortsRouteImport } from './routes/developer-labs.development-cohorts'
@@ -30,6 +31,12 @@ const DeveloperLabsTeamAssemblyRoute =
   DeveloperLabsTeamAssemblyRouteImport.update({
     id: '/team-assembly',
     path: '/team-assembly',
+    getParentRoute: () => DeveloperLabsRoute,
+  } as any)
+const DeveloperLabsProductionValueRoute =
+  DeveloperLabsProductionValueRouteImport.update({
+    id: '/production-value',
+    path: '/production-value',
     getParentRoute: () => DeveloperLabsRoute,
   } as any)
 const DeveloperLabsPlayerGenerationRoute =
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
+  '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRoutesByTo {
@@ -65,6 +73,7 @@ export interface FileRoutesByTo {
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
+  '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRoutesById {
@@ -74,6 +83,7 @@ export interface FileRoutesById {
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
+  '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRouteTypes {
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
     | '/developer-labs/development-cohorts'
     | '/developer-labs/game-matchup'
     | '/developer-labs/player-generation'
+    | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
     | '/developer-labs/development-cohorts'
     | '/developer-labs/game-matchup'
     | '/developer-labs/player-generation'
+    | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
   id:
     | '__root__'
@@ -100,6 +112,7 @@ export interface FileRouteTypes {
     | '/developer-labs/development-cohorts'
     | '/developer-labs/game-matchup'
     | '/developer-labs/player-generation'
+    | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +144,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeveloperLabsTeamAssemblyRouteImport
       parentRoute: typeof DeveloperLabsRoute
     }
+    '/developer-labs/production-value': {
+      id: '/developer-labs/production-value'
+      path: '/production-value'
+      fullPath: '/developer-labs/production-value'
+      preLoaderRoute: typeof DeveloperLabsProductionValueRouteImport
+      parentRoute: typeof DeveloperLabsRoute
+    }
     '/developer-labs/player-generation': {
       id: '/developer-labs/player-generation'
       path: '/player-generation'
@@ -159,6 +179,7 @@ interface DeveloperLabsRouteChildren {
   DeveloperLabsDevelopmentCohortsRoute: typeof DeveloperLabsDevelopmentCohortsRoute
   DeveloperLabsGameMatchupRoute: typeof DeveloperLabsGameMatchupRoute
   DeveloperLabsPlayerGenerationRoute: typeof DeveloperLabsPlayerGenerationRoute
+  DeveloperLabsProductionValueRoute: typeof DeveloperLabsProductionValueRoute
   DeveloperLabsTeamAssemblyRoute: typeof DeveloperLabsTeamAssemblyRoute
 }
 
@@ -166,6 +187,7 @@ const DeveloperLabsRouteChildren: DeveloperLabsRouteChildren = {
   DeveloperLabsDevelopmentCohortsRoute: DeveloperLabsDevelopmentCohortsRoute,
   DeveloperLabsGameMatchupRoute: DeveloperLabsGameMatchupRoute,
   DeveloperLabsPlayerGenerationRoute: DeveloperLabsPlayerGenerationRoute,
+  DeveloperLabsProductionValueRoute: DeveloperLabsProductionValueRoute,
   DeveloperLabsTeamAssemblyRoute: DeveloperLabsTeamAssemblyRoute,
 }
 

@@ -75,7 +75,12 @@ const canonicalLabs = [
     statusDetail: "Major lab",
     statusTone: "next",
     icon: ChartLineIcon,
-    links: undefined,
+    links: [
+      {
+        label: "Open workbench",
+        to: "/developer-labs/production-value" as const,
+      },
+    ],
   },
   {
     order: "04",

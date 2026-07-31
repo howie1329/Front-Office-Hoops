@@ -1320,8 +1320,12 @@ function reconcile(state: SimulationState): GameReconciliationReport {
       1
     )
     for (const player of players) {
+      const injuredDuringGame = state.events.some(
+        (event) => event.playerId === player.playerId
+      )
       if (
         !state.availability[player.playerId]?.available &&
+        !injuredDuringGame &&
         player.minutes > 0
       ) {
         checks.push({

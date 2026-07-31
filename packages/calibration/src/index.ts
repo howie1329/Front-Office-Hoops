@@ -28,6 +28,15 @@ export {
   runSliderSensitivity,
   serializeSliderSensitivityReport,
 } from "./sensitivity"
+export {
+  runSeasonBatch,
+  serializeSeasonBatchReport,
+} from "./season"
+export type {
+  SeasonBatchMetric,
+  SeasonBatchOptions,
+  SeasonBatchReport,
+} from "./season"
 export type {
   SensitivityClassification,
   SensitivityDirection,

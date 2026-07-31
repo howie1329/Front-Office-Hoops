@@ -486,6 +486,237 @@ export const matchupBatchReportSchema = z.strictObject({
   ),
 })
 
+const universalPlayerValueConfigSchema = z.strictObject({
+  version: z.literal(1),
+  horizonSeasons: z.number().int().min(1).max(5),
+  currentFormResponsiveness: z.number().min(0).max(100),
+  sampleConfidence: z.number().min(0).max(100),
+  currentAbilityEmphasis: z.number().min(0).max(100),
+  productionEmphasis: z.number().min(0).max(100),
+  trajectoryEmphasis: z.number().min(0).max(100),
+  upsideEmphasis: z.number().min(0).max(100),
+  durabilityImpact: z.number().min(0).max(100),
+  defenseEmphasis: z.number().min(0).max(100),
+  teamContextNormalization: z.number().min(0).max(100),
+})
+
+export const seasonProductionConfigSchema = z.strictObject({
+  version: z.literal(1),
+  presetId: z.enum(["standard", "custom"]),
+  runPreset: z.enum(["smoke", "early", "half", "full", "batch"]),
+  gamesPerTeam: z.number().int().min(1).max(82),
+  schedule: z.strictObject({
+    teamCount: z.number().int().min(2).max(30),
+    homeAwayBalanced: z.boolean(),
+    scheduleSeed: z.string().min(1),
+  }),
+  injuries: z.strictObject({ mode: z.enum(["standard", "off"]) }),
+  development: z.strictObject({ enabled: z.literal(false) }),
+  playoffs: z.strictObject({ enabled: z.literal(false) }),
+  value: universalPlayerValueConfigSchema,
+})
+
+export const seasonScheduleEntrySchema = z.strictObject({
+  id: z.string().min(1),
+  round: z.number().int().positive(),
+  leagueDay: z.number().int().positive(),
+  homeTeamId: z.string().min(1),
+  awayTeamId: z.string().min(1),
+})
+
+export const seasonFixtureSchema = z.strictObject({
+  version: z.literal(1),
+  source: z.strictObject({
+    kind: z.enum(["initial-player-universe", "league-document", "manual"]),
+    id: z.string().min(1),
+    version: z.number().int().positive(),
+  }),
+  seed: z.string().min(1),
+  season: z.number().int().positive(),
+  teams: z.record(
+    z.string().min(1),
+    z.strictObject({ id: z.string().min(1), name: z.string().min(1) })
+  ),
+  players: z.record(z.string().min(1), playerEntitySchema),
+  rosters: z.record(z.string().min(1), z.array(z.string().min(1))),
+  populations: z.strictObject({
+    rostered: z.array(z.string().min(1)),
+    freeAgents: z.array(z.string().min(1)),
+    draftProspects: z.array(z.string().min(1)),
+  }),
+  schedule: z.array(seasonScheduleEntrySchema),
+  rotations: z.record(z.string().min(1), gameRotationSchema),
+  coaching: z.record(z.string().min(1), gameCoachingProfileSchema),
+  availability: z.record(z.string().min(1), gameAvailabilitySchema),
+  gameConfig: gameSimulationConfigSchema,
+  config: seasonProductionConfigSchema,
+})
+
+const playerSeasonProductionSchema = z.strictObject({
+  playerId: z.string().min(1),
+  teamId: z.string().min(1).nullable(),
+  population: z.enum(["rostered", "free-agent", "draft-prospect"]),
+  gamesScheduled: z.number().int().nonnegative(),
+  gamesPlayed: z.number().int().nonnegative(),
+  starts: z.number().int().nonnegative(),
+  minutes: z.number().nonnegative(),
+  opportunities: z.number().int().nonnegative(),
+  usageRate: z.number().nonnegative(),
+  points: z.number().int().nonnegative(),
+  pointsPerGame: z.number().nonnegative(),
+  fieldGoalsMade: z.number().int().nonnegative(),
+  fieldGoalsAttempted: z.number().int().nonnegative(),
+  threePointersMade: z.number().int().nonnegative(),
+  threePointersAttempted: z.number().int().nonnegative(),
+  freeThrowsMade: z.number().int().nonnegative(),
+  freeThrowsAttempted: z.number().int().nonnegative(),
+  trueShootingPercentage: z.number().nonnegative(),
+  offensiveRebounds: z.number().int().nonnegative(),
+  defensiveRebounds: z.number().int().nonnegative(),
+  rebounds: z.number().int().nonnegative(),
+  reboundsPerGame: z.number().nonnegative(),
+  assists: z.number().int().nonnegative(),
+  assistsPerGame: z.number().nonnegative(),
+  turnovers: z.number().int().nonnegative(),
+  turnoversPerGame: z.number().nonnegative(),
+  steals: z.number().int().nonnegative(),
+  blocks: z.number().int().nonnegative(),
+  fouls: z.number().int().nonnegative(),
+  availabilityRate: z.number().nonnegative(),
+  shotProfile: z.strictObject({
+    rimAttempts: z.number().int().nonnegative(),
+    midrangeAttempts: z.number().int().nonnegative(),
+    threePointAttempts: z.number().int().nonnegative(),
+  }),
+  role: z.string().min(1),
+  sampleState: z.enum(["provisional", "early", "established", "full"]),
+})
+
+const teamSeasonProductionSchema = z.strictObject({
+  teamId: z.string().min(1),
+  gamesPlayed: z.number().int().nonnegative(),
+  wins: z.number().int().nonnegative(),
+  losses: z.number().int().nonnegative(),
+  points: z.number().int().nonnegative(),
+  opponentPoints: z.number().int().nonnegative(),
+  possessions: z.number().int().nonnegative(),
+  opponentPossessions: z.number().int().nonnegative(),
+  pace: z.number().nonnegative(),
+  offensiveEfficiency: z.number().nonnegative(),
+  defensiveEfficiency: z.number().nonnegative(),
+  fieldGoalsMade: z.number().int().nonnegative(),
+  fieldGoalsAttempted: z.number().int().nonnegative(),
+  threePointersMade: z.number().int().nonnegative(),
+  threePointersAttempted: z.number().int().nonnegative(),
+  freeThrowsMade: z.number().int().nonnegative(),
+  freeThrowsAttempted: z.number().int().nonnegative(),
+  rebounds: z.number().int().nonnegative(),
+  assists: z.number().int().nonnegative(),
+  turnovers: z.number().int().nonnegative(),
+  steals: z.number().int().nonnegative(),
+  blocks: z.number().int().nonnegative(),
+  fouls: z.number().int().nonnegative(),
+})
+
+const leagueProductionSummarySchema = z.strictObject({
+  gamesCompleted: z.number().int().nonnegative(),
+  gamesPerTeam: z.number().int().nonnegative(),
+  teamCount: z.number().int().positive(),
+  pointsPerGame: z.number().nonnegative(),
+  possessionsPerTeam: z.number().nonnegative(),
+  offensiveEfficiency: z.number().nonnegative(),
+  fieldGoalPercentage: z.number().nonnegative(),
+  threePointPercentage: z.number().nonnegative(),
+  freeThrowPercentage: z.number().nonnegative(),
+  threePointAttemptRate: z.number().nonnegative(),
+  assistsPerTeam: z.number().nonnegative(),
+  turnoversPerTeam: z.number().nonnegative(),
+  reboundsPerTeam: z.number().nonnegative(),
+  injuries: z.number().int().nonnegative(),
+  reconciliationPassRate: z.number().nonnegative(),
+})
+
+const universalPlayerValueSchema = z.strictObject({
+  playerId: z.string().min(1),
+  evaluationPoint: z.enum(["preseason", "checkpoint", "final"]),
+  checkpointGamesPerTeam: z.number().int().nonnegative(),
+  rawValue: z.number(),
+  currentFormSignal: z.number(),
+  projectionSignal: z.number(),
+  confidence: z.enum(["provisional", "early", "established", "full"]),
+  sample: z.strictObject({
+    games: z.number().int().nonnegative(),
+    minutes: z.number().nonnegative(),
+    seasons: z.number().int().nonnegative(),
+  }),
+  breakdown: z.strictObject({
+    currentAbility: z.number(),
+    recentProduction: z.number(),
+    projectedContribution: z.number(),
+    ageTrajectory: z.number(),
+    upside: z.number(),
+    durability: z.number(),
+    roleContext: z.number(),
+    defensiveContribution: z.number(),
+  }),
+  diagnostics: z.strictObject({
+    percentile: z.number().nonnegative(),
+    rank: z.number().int().nonnegative(),
+    outlierFlags: z.array(z.string()),
+  }),
+})
+
+export const seasonCheckpointReportSchema = z.strictObject({
+  gamesPerTeam: z.number().int().nonnegative(),
+  gamesCompleted: z.number().int().nonnegative(),
+  playerProduction: z.record(z.string().min(1), playerSeasonProductionSchema),
+  teamProduction: z.record(z.string().min(1), teamSeasonProductionSchema),
+  leagueSummary: leagueProductionSummarySchema,
+  values: z.record(z.string().min(1), universalPlayerValueSchema),
+})
+
+const seasonRunFailureSchema = z.strictObject({
+  scheduleEntry: seasonScheduleEntrySchema,
+  fixture: gameMatchupFixtureSchema,
+  result: gameResultSchema,
+})
+
+export const seasonRunResultSchema = z.strictObject({
+  status: z.enum(["completed", "cancelled", "failed"]),
+  fixture: seasonFixtureSchema,
+  games: z.array(gameResultSchema),
+  checkpoints: z.array(seasonCheckpointReportSchema),
+  finalAvailability: z.record(z.string().min(1), gameAvailabilitySchema),
+  failures: z.array(seasonRunFailureSchema),
+})
+
+const seasonBatchMetricSchema = z.strictObject({
+  count: z.number().int().nonnegative(),
+  mean: z.number(),
+  minimum: z.number(),
+  maximum: z.number(),
+})
+
+export const seasonBatchReportSchema = z.strictObject({
+  schema: z.literal("foh-season-production-calibration"),
+  version: z.literal(1),
+  baseSeed: z.string().min(1),
+  count: z.number().int().positive(),
+  completed: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  cancelled: z.boolean(),
+  reports: z.array(seasonRunResultSchema),
+  metrics: z.record(z.string().min(1), seasonBatchMetricSchema),
+})
+
+export const productionValueLabReportSchema = z.strictObject({
+  schema: z.literal("foh-production-value-lab"),
+  version: z.literal(1),
+  baseSeed: z.string().min(1),
+  fixture: seasonFixtureSchema,
+  result: seasonRunResultSchema,
+})
+
 const gameNumericSettingPathSchema = z.enum([
   "environment.pace",
   "environment.scoringEnvironment",

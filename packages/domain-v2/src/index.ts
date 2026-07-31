@@ -1,5 +1,25 @@
 export { createFoundationLeague, createPlayerContractFixture } from "./factory"
 export { formatPlayerIdentity } from "./playerIdentity"
+export type {
+  LeagueProductionSummary,
+  PlayerSeasonProduction,
+  PlayerValueConfidence,
+  ProductionSampleState,
+  SeasonCheckpointReport,
+  SeasonFixture,
+  SeasonInjuryMode,
+  SeasonPopulationKind,
+  SeasonProductionConfig,
+  SeasonRunFailure,
+  SeasonRunPresetId,
+  SeasonRunProgress,
+  SeasonRunResult,
+  SeasonRunStatus,
+  SeasonScheduleEntry,
+  TeamSeasonProduction,
+  UniversalPlayerValue,
+  UniversalPlayerValueConfig,
+} from "./seasonProduction"
 export {
   createPlayerPopulationPreset,
   createStandardPlayerGenerationConfig,

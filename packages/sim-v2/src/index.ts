@@ -35,6 +35,28 @@ export {
 } from "./rosterAssembly"
 export { derivePlayerRole } from "./playerRole"
 export {
+  createBalancedSeasonSchedule,
+  createDefaultRotation,
+  createDefaultSeasonFixture,
+  createSeasonFixtureFromUniverse,
+  createSeasonGameFixture,
+} from "./seasonFixture"
+export {
+  createStandardSeasonProductionConfig,
+  createStandardUniversalPlayerValueConfig,
+  getValueSetting,
+  resolveSeasonProductionConfig,
+  SEASON_RUN_PRESETS,
+  SEASON_PRODUCTION_VERSION,
+  STANDARD_SEASON_PRODUCTION_CONFIG,
+  STANDARD_UNIVERSAL_PLAYER_VALUE_CONFIG,
+  updateValueSetting,
+  VALUE_SETTING_DESCRIPTORS,
+} from "./seasonConfig"
+export { aggregateSeasonProduction } from "./production"
+export { calculateUniversalPlayerValues } from "./playerValue"
+export { runSeason } from "./seasonRunner"
+export {
   createDeterministicRandom,
   createRandomSource,
   createRuntimeRandom,
@@ -67,6 +89,12 @@ export type {
   InitialPlayerUniverseMetadata,
   PlayerUniverseValidationIssue,
 } from "./playerUniverse"
+export type { ProductionAggregation } from "./production"
+export type { SeasonRunnerOptions } from "./seasonRunner"
+export type {
+  ValueSettingDescriptor,
+  ValueSettingPath,
+} from "./seasonConfig"
 export type {
   RosterAssemblyConfig,
   RosterAssemblyDiagnostics,

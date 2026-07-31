@@ -1,6 +1,6 @@
 # V2 Production & Value Lab — Implementation Plan
 
-**Status:** Ready for implementation planning
+**Status:** First implementation slice complete; calibration and promotion gates remain
 **Date:** 2026-07-31
 **Roadmap position:** Phase 2 calibration, Slice 2
 **Depends on:** Initial Player Universe and the Game & Matchup production contract
@@ -175,7 +175,7 @@ The current V2 implementation already provides:
 - A small `packages/calibration` package with seeded batch reports and benchmark profiles.
 - A foundation `LeagueDocument` and validated local repository boundary.
 
-The current V2 implementation does not yet provide:
+Before this implementation slice, the V2 implementation did not provide:
 
 - A complete 30-team season schedule.
 - A season runner that invokes the game engine across a league.
@@ -185,6 +185,14 @@ The current V2 implementation does not yet provide:
 - A Production & Value Lab route or worker.
 - Season checkpoints, standings output, or league-environment reports.
 - A working lifecycle `AdvanceDay`; it remains intentionally rejected at the foundation boundary.
+
+The first implementation slice now provides the season fixture, deterministic
+schedule, worker-backed season runner, production aggregation, checkpointed
+Universal Player Value, strict season/report schemas, batch execution, and a
+developer route with current-player, free-agent, and draft-class views. The
+remaining promotion work is calibration depth, true pause/resume semantics,
+broader season benchmark reporting, and acceptance review before these outputs
+are consumed by contracts, trades, or the authoritative league shell.
 
 ## Target architecture
 
@@ -804,4 +812,3 @@ The Production & Value Lab is accepted when:
 12. Focused tests, typechecks, lint, and build pass for the changed V2 surfaces.
 
 Only after these criteria pass should the outputs be promoted into the first in-season league slice and later consumed by Market & Rules, Trade Evaluation, Draft & Decision, awards, and AI policy modules.
-
