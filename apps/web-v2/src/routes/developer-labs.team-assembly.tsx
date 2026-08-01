@@ -45,6 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table"
+import { cn } from "@workspace/ui/lib/utils"
 
 export const Route = createFileRoute("/developer-labs/team-assembly")({
   component: TeamAssemblyLabPage,
@@ -128,6 +129,7 @@ function TeamAssemblyLabPage() {
     { id: "topTen", desc: true },
   ])
   const [error, setError] = React.useState<string | null>(null)
+  const [assemblyStatus, setAssemblyStatus] = React.useState("")
   const [isDirty, setIsDirty] = React.useState(true)
 
   const teams = universe
@@ -177,10 +179,14 @@ function TeamAssemblyLabPage() {
       setSelectedTeamId(nextUniverse.assemblyDiagnostics.teamOrder[0] ?? null)
       setError(null)
       setIsDirty(false)
+      setAssemblyStatus(
+        `${nextUniverse.assemblyDiagnostics.teamOrder.length} teams assembled.`
+      )
     } catch (caught) {
       setUniverse(null)
       setRunOptions(null)
       setSelectedTeamId(null)
+      setAssemblyStatus("")
       setError(
         caught instanceof Error
           ? caught.message
@@ -292,7 +298,7 @@ function TeamAssemblyLabPage() {
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <Link
                   to="/developer-labs"
-                  className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                  className="transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none motion-reduce:transition-none"
                 >
                   Developer Labs
                 </Link>
@@ -472,11 +478,10 @@ function TeamAssemblyLabPage() {
             </CardContent>
           </Card>
 
-          <section
-            className="grid min-w-0 gap-5"
-            aria-live="polite"
-            aria-label="Assembly evidence"
-          >
+          <section className="grid min-w-0 gap-5">
+            <p className="sr-only" aria-live="polite">
+              {assemblyStatus}
+            </p>
             {error ? (
               <div
                 role="alert"
@@ -604,7 +609,7 @@ function TeamAssemblyLabPage() {
                       ) : null}
                     </div>
                   </CardHeader>
-                  <CardContent className="overflow-x-auto p-0">
+                  <CardContent className="p-0">
                     <Table
                       className="min-w-[900px]"
                       aria-label="Team comparison"
@@ -670,11 +675,11 @@ function TeamAssemblyLabPage() {
                                 ? "selected"
                                 : undefined
                             }
-                            className={
-                              selectedTeamId === row.original.teamId
-                                ? "group cursor-pointer bg-muted hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
-                                : "group cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
-                            }
+                            className={cn(
+                              "group cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+                              selectedTeamId === row.original.teamId &&
+                                "bg-muted"
+                            )}
                             onClick={() =>
                               setSelectedTeamId(row.original.teamId)
                             }
@@ -688,13 +693,12 @@ function TeamAssemblyLabPage() {
                             {row.getVisibleCells().map((cell) => (
                               <TableCell
                                 key={cell.id}
-                                className={
-                                  cell.column.id === "team"
-                                    ? selectedTeamId === row.original.teamId
-                                      ? "sticky left-0 z-[1] border-r border-border bg-muted"
-                                      : "sticky left-0 z-[1] border-r border-border bg-background group-hover:bg-muted"
-                                    : undefined
-                                }
+                                className={cn(
+                                  "sticky left-0 z-[1] border-r border-border bg-background group-hover:bg-muted",
+                                  cell.column.id === "team" &&
+                                    selectedTeamId === row.original.teamId &&
+                                    "bg-muted"
+                                )}
                               >
                                 {flexRender(
                                   cell.column.columnDef.cell,

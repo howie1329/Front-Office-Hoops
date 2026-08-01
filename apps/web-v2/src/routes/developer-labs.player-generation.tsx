@@ -67,6 +67,7 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table"
+import { cn } from "@workspace/ui/lib/utils"
 
 export const Route = createFileRoute("/developer-labs/player-generation")({
   component: PlayerGenerationLabPage,
@@ -269,6 +270,7 @@ function PlayerGenerationLabPage() {
     React.useState<PlayerPopulationResult | null>(null)
   const [selectedResult, setSelectedResult] =
     React.useState<PlayerGenerationResult | null>(null)
+  const [generationStatus, setGenerationStatus] = React.useState("")
   const [metricKey, setMetricKey] = React.useState<LabMetricKey>("latentTalent")
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [isDirty, setIsDirty] = React.useState(true)
@@ -279,6 +281,10 @@ function PlayerGenerationLabPage() {
   const histogram = React.useMemo(
     () => createHistogram(results.map((result) => metric.getValue(result))),
     [metric, results]
+  )
+  const histogramMax = React.useMemo(
+    () => Math.max(...histogram.map((item) => item.count), 1),
+    [histogram]
   )
 
   function updateConfig(next: PlayerGenerationConfig) {
@@ -310,6 +316,9 @@ function PlayerGenerationLabPage() {
     setResults(nextPopulation.results)
     setSelectedResult(nextPopulation.results[0] ?? null)
     setIsDirty(false)
+    setGenerationStatus(
+      `${nextPopulation.results.length} result${nextPopulation.results.length === 1 ? "" : "s"} generated from seed “${seed}”.`
+    )
   }
 
   function handleReset() {
@@ -512,17 +521,17 @@ function PlayerGenerationLabPage() {
                   Team assembly lab
                 </Link>
               </Button>
-              <Button
-                variant="outline"
-                className="h-10 px-3 text-sm"
-                onClick={handleReset}
-              >
-                Reset defaults
-              </Button>
               <Button variant="outline" asChild className="h-10 px-3 text-sm">
                 <Link to="/developer-labs">All labs</Link>
               </Button>
             </nav>
+            <Button
+              variant="outline"
+              className="h-10 px-3 text-sm"
+              onClick={handleReset}
+            >
+              Reset defaults
+            </Button>
           </div>
 
           <div className="mt-7 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
@@ -1200,7 +1209,7 @@ function PlayerGenerationLabPage() {
                 </div>
               ) : null}
             </CardContent>
-            <CardFooter className="sticky bottom-0 z-10 flex-col items-stretch gap-2 border-t border-border bg-muted/40 px-5 py-4 xl:static">
+            <CardFooter className="z-10 flex-col items-stretch gap-2 border-t border-border bg-muted/40 px-5 py-4 max-xl:sticky max-xl:bottom-0 xl:static">
               <Button
                 className="h-11 text-sm"
                 disabled={errors.length > 0 || !seed.trim()}
@@ -1214,7 +1223,10 @@ function PlayerGenerationLabPage() {
             </CardFooter>
           </Card>
 
-          <section className="grid min-w-0 gap-5" aria-live="polite">
+          <section className="grid min-w-0 gap-5">
+            <p className="sr-only" aria-live="polite">
+              {generationStatus}
+            </p>
             <Card className="gap-0 py-0 ring-border">
               <CardHeader className="border-b border-border px-5 py-4 sm:px-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1385,26 +1397,20 @@ function PlayerGenerationLabPage() {
                             </select>
                           </div>
                           <div className="flex h-32 items-end gap-1 border-b border-l border-border px-2 pt-4 pb-2">
-                            {histogram.map((bucket) => {
-                              const max = Math.max(
-                                ...histogram.map((item) => item.count),
-                                1
-                              )
-                              return (
+                            {histogram.map((bucket) => (
+                              <div
+                                key={bucket.label}
+                                className="group relative flex h-full flex-1 items-end"
+                                title={`${bucket.label}: ${bucket.count}`}
+                              >
                                 <div
-                                  key={bucket.label}
-                                  className="group relative flex h-full flex-1 items-end"
-                                  title={`${bucket.label}: ${bucket.count}`}
-                                >
-                                  <div
-                                    className="w-full rounded-t-sm bg-foreground transition-[height] duration-200 ease-out motion-reduce:transition-none"
-                                    style={{
-                                      height: `${Math.max(4, (bucket.count / max) * 100)}%`,
-                                    }}
-                                  />
-                                </div>
-                              )
-                            })}
+                                  className="w-full rounded-t-sm bg-foreground transition-[height] duration-200 ease-out motion-reduce:transition-none"
+                                  style={{
+                                    height: `${Math.max(4, (bucket.count / histogramMax) * 100)}%`,
+                                  }}
+                                />
+                              </div>
+                            ))}
                           </div>
                           <div className="grid grid-cols-4 text-[0.625rem] text-muted-foreground">
                             <span>{histogram[0]?.label}</span>
@@ -1530,7 +1536,7 @@ function PlayerGenerationLabPage() {
                     ) : null}
                   </div>
                 </CardHeader>
-                <CardContent className="overflow-x-auto p-0">
+                <CardContent className="p-0">
                   <Table className="min-w-[1050px]">
                     <TableHeader>
                       {table.getHeaderGroups().map((headerGroup) => (
@@ -1582,11 +1588,10 @@ function PlayerGenerationLabPage() {
                           key={row.id}
                           tabIndex={0}
                           aria-selected={selectedResult === row.original}
-                          className={
-                            selectedResult === row.original
-                              ? "group cursor-pointer bg-muted hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
-                              : "group cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset"
-                          }
+                          className={cn(
+                            "group cursor-pointer hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+                            selectedResult === row.original && "bg-muted"
+                          )}
                           onClick={() => setSelectedResult(row.original)}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
@@ -1598,13 +1603,12 @@ function PlayerGenerationLabPage() {
                           {row.getVisibleCells().map((cell) => (
                             <TableCell
                               key={cell.id}
-                              className={
-                                cell.column.id === "player"
-                                  ? selectedResult === row.original
-                                    ? "sticky left-0 z-[1] border-r border-border bg-muted"
-                                    : "sticky left-0 z-[1] border-r border-border bg-background group-hover:bg-muted"
-                                  : undefined
-                              }
+                              className={cn(
+                                "sticky left-0 z-[1] border-r border-border bg-background group-hover:bg-muted",
+                                cell.column.id === "player" &&
+                                  selectedResult === row.original &&
+                                  "bg-muted"
+                              )}
                             >
                               {flexRender(
                                 cell.column.columnDef.cell,
