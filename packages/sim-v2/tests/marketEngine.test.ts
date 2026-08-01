@@ -53,9 +53,15 @@ describe("contract market engine", () => {
     const playerId = fixture.actualFreeAgentIds[0]!
     const demand = calculateContractDemand(fixture, playerId)
 
-    expect(demand.lowAnnualValue).toBeLessThanOrEqual(demand.projectedAnnualValue)
-    expect(demand.projectedAnnualValue).toBeLessThanOrEqual(demand.highAnnualValue)
-    expect(demand.highAnnualValue).toBeLessThanOrEqual(fixture.economy.maximumSalary)
+    expect(demand.lowAnnualValue).toBeLessThanOrEqual(
+      demand.projectedAnnualValue
+    )
+    expect(demand.projectedAnnualValue).toBeLessThanOrEqual(
+      demand.highAnnualValue
+    )
+    expect(demand.highAnnualValue).toBeLessThanOrEqual(
+      fixture.economy.maximumSalary
+    )
     expect(demand.breakdown.length).toBeGreaterThanOrEqual(4)
   })
 
@@ -121,10 +127,21 @@ describe("contract market engine", () => {
 
   it("runs a deterministic three-round market and leaves a truthful unsigned pool", () => {
     const fixture = createDefaultContractMarketFixture("market-run-seed")
-    const first = runFreeAgencySimulation(fixture)
+    const progress: string[] = []
+    const first = runFreeAgencySimulation(fixture, {
+      onProgress: (event) => progress.push(event.phase),
+    })
     const second = runFreeAgencySimulation(fixture)
 
     expect(second).toEqual(first)
+    expect(progress).toEqual(
+      expect.arrayContaining([
+        "preparing",
+        "offering",
+        "resolving",
+        "finalizing",
+      ])
+    )
     expect(first.rounds.length).toBeLessThanOrEqual(3)
     expect(first.signedContracts.length + first.unsignedPlayerIds.length).toBe(
       fixture.actualFreeAgentIds.length

@@ -1446,12 +1446,7 @@ export function getLeagueDocumentJsonSchema(): Record<string, unknown> {
 
 const moneySchema = z.number().int().nonnegative()
 
-const birdRightsLevelSchema = z.enum([
-  "none",
-  "non-bird",
-  "early-bird",
-  "bird",
-])
+const birdRightsLevelSchema = z.enum(["none", "non-bird", "early-bird", "bird"])
 
 const freeAgencyRightsSchema = z.strictObject({
   level: birdRightsLevelSchema,
@@ -1605,10 +1600,30 @@ const projectedFreeAgencyViewSchema = z.strictObject({
     z.enum(["PG", "SG", "SF", "PF", "C"]),
     z.number().int().nonnegative()
   ),
-  supplyByArchetype: z.record(z.string().min(1), z.number().int().nonnegative()),
+  supplyByArchetype: z.record(
+    z.string().min(1),
+    z.number().int().nonnegative()
+  ),
 })
 
-const contractOfferSchema = z
+export const contractLegalityResultSchema = z.strictObject({
+  valid: z.boolean(),
+  mechanism: z.enum([
+    "cap-room",
+    "bird",
+    "early-bird",
+    "non-bird",
+    "minimum",
+    "rookie-scale",
+    "none",
+  ]),
+  reasons: z.array(z.string().min(1)),
+  projectedPayroll: moneySchema,
+  capRoomAfterOffer: z.number().int(),
+  hardCapRoomAfterOffer: z.number().int(),
+})
+
+export const contractOfferSchema = z
   .strictObject({
     id: z.string().min(1),
     playerId: z.string().min(1),
@@ -1631,6 +1646,50 @@ const contractOfferSchema = z
     }
   })
 
+export const contractDemandResultSchema = z.strictObject({
+  playerId: z.string().min(1),
+  phase: z.enum(["re-signing", "extension", "free-agency"]),
+  baselineAnnualValue: moneySchema,
+  lowAnnualValue: moneySchema,
+  highAnnualValue: moneySchema,
+  preferredYears: z.number().int().min(1).max(4),
+  projectedAnnualValue: moneySchema,
+  scarcityMultiplier: z.number().nonnegative(),
+  comparableTier: z.enum(["star", "starter", "rotation", "depth"]),
+  breakdown: z.array(
+    z.strictObject({
+      label: z.string().min(1),
+      amount: z.number().int(),
+      direction: z.enum(["positive", "negative", "neutral"]),
+      reason: z.string().min(1),
+    })
+  ),
+})
+
+export const offerUtilityBreakdownSchema = z.strictObject({
+  salary: z.number(),
+  security: z.number(),
+  winning: z.number(),
+  role: z.number(),
+  playingTime: z.number(),
+  marketSize: z.number(),
+  loyalty: z.number(),
+  total: z.number(),
+})
+
+export const contractOfferDecisionSchema = z.strictObject({
+  offerId: z.string().min(1),
+  playerId: z.string().min(1),
+  teamId: z.string().min(1),
+  decision: z.enum(["accept", "wait", "decline", "refuse-further-negotiation"]),
+  legal: contractLegalityResultSchema,
+  utility: offerUtilityBreakdownSchema,
+  willingnessBefore: z.number().min(0).max(100),
+  willingnessAfter: z.number().min(0).max(100),
+  reasonCodes: z.array(z.string().min(1)),
+  summary: z.string().min(1),
+})
+
 const teamMarketContextSchema = z.strictObject({
   team: z.strictObject({ id: z.string().min(1), name: z.string().min(1) }),
   payroll: moneySchema,
@@ -1651,10 +1710,7 @@ const teamMarketContextSchema = z.strictObject({
     "contender",
     "financially-constrained",
   ]),
-  positionalNeeds: z.record(
-    z.enum(["PG", "SG", "SF", "PF", "C"]),
-    z.number().min(0).max(100)
-  ),
+  positionalNeeds: z.record(z.string().min(1), z.number().min(0).max(100)),
 })
 
 const negotiationStateSchema = z.strictObject({
@@ -1687,3 +1743,87 @@ export const contractMarketFixtureSchema = z.strictObject({
   actualFreeAgentIds: z.array(z.string().min(1)),
   negotiationStates: z.record(z.string().min(1), negotiationStateSchema),
 })
+
+export const marketRoundResultSchema = z.strictObject({
+  round: z.number().int().positive(),
+  offers: z.array(contractOfferSchema),
+  decisions: z.array(contractOfferDecisionSchema),
+  acceptedPlayerIds: z.array(z.string().min(1)),
+})
+
+export const freeAgencySimulationResultSchema = z.strictObject({
+  version: z.literal(1),
+  seed: z.string().min(1),
+  userTeamId: z.string().min(1).nullable(),
+  rounds: z.array(marketRoundResultSchema),
+  signedContracts: z.array(contractEntitySchema),
+  unsignedPlayerIds: z.array(z.string().min(1)),
+  finalFixture: contractMarketFixtureSchema,
+})
+
+export const economySimulationResultSchema = z.strictObject({
+  version: z.literal(1),
+  seed: z.string().min(1),
+  seasons: z.array(
+    z.strictObject({
+      season: z.number().int().positive(),
+      softCap: moneySchema,
+      taxLine: moneySchema,
+      maximumSalary: moneySchema,
+      minimumSalary: moneySchema,
+      rookieScaleTop: moneySchema,
+    })
+  ),
+  harnessNote: z.string().min(1),
+})
+
+export const contractMarketScenarioResultSchema = z.strictObject({
+  version: z.literal(1),
+  fixtureSeed: z.string().min(1),
+  playerId: z.string().min(1),
+  demand: contractDemandResultSchema,
+  offer: contractOfferSchema,
+  decision: contractOfferDecisionSchema,
+  playerMarketProfile: playerMarketProfileSchema,
+})
+
+export const marketRulesViewContextSchema = z.strictObject({
+  mode: z.enum(["offer", "re-signing", "extension", "free-agency", "economy"]),
+  selectedPlayerId: z.string().min(1).nullable(),
+  selectedTeamId: z.string().min(1).nullable(),
+  salaryMillions: z.number().nonnegative(),
+  years: z.number().int().min(1).max(4),
+})
+
+export const contractMarketScenarioExportSchema = z.strictObject({
+  schema: z.literal("foh-contract-market-offer-scenario"),
+  version: z.literal(1),
+  fixture: contractMarketFixtureSchema,
+  view: marketRulesViewContextSchema,
+  scenario: contractMarketScenarioResultSchema,
+})
+
+export const freeAgencyRunExportSchema = z.strictObject({
+  schema: z.literal("foh-contract-market-free-agency-report"),
+  version: z.literal(1),
+  fixture: contractMarketFixtureSchema,
+  view: marketRulesViewContextSchema,
+  result: freeAgencySimulationResultSchema,
+})
+
+export const economyRunExportSchema = z.strictObject({
+  schema: z.literal("foh-contract-market-economy-report"),
+  version: z.literal(1),
+  config: economyConfigSchema,
+  view: marketRulesViewContextSchema,
+  result: economySimulationResultSchema,
+})
+
+export type MarketRulesViewContext = z.infer<
+  typeof marketRulesViewContextSchema
+>
+export type ContractMarketScenarioExport = z.infer<
+  typeof contractMarketScenarioExportSchema
+>
+export type FreeAgencyRunExport = z.infer<typeof freeAgencyRunExportSchema>
+export type EconomyRunExport = z.infer<typeof economyRunExportSchema>

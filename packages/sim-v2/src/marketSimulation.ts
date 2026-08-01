@@ -8,7 +8,12 @@ import type {
   FreeAgencyRights,
 } from "@workspace/domain-v2"
 
-import { applyContractOfferDecision, calculateContractDemand, evaluateCompetitiveOffers, validateContractOffer } from "./marketEngine"
+import {
+  applyContractOfferDecision,
+  calculateContractDemand,
+  evaluateCompetitiveOffers,
+  validateContractOffer,
+} from "./marketEngine"
 import { createEconomySnapshot } from "./economy"
 import { STANDARD_ECONOMY_CONFIG } from "./marketConfig"
 
@@ -17,6 +22,21 @@ export type MarketRoundResult = {
   offers: ContractOffer[]
   decisions: ContractOfferDecision[]
   acceptedPlayerIds: string[]
+}
+
+export type FreeAgencySimulationProgress = {
+  phase: "preparing" | "offering" | "resolving" | "finalizing"
+  round: number | null
+  totalRounds: number
+  availablePlayers: number
+  offerCount: number
+  label: string
+}
+
+export type FreeAgencySimulationOptions = {
+  userTeamId?: string | null
+  maxTeamsPerPlayer?: number
+  onProgress?: (progress: FreeAgencySimulationProgress) => void
 }
 
 export type FreeAgencySimulationResult = {
@@ -76,7 +96,10 @@ function createAiOffer(
   )
   const years = Math.min(
     4,
-    Math.max(1, round === 3 ? Math.min(2, demand.preferredYears) : demand.preferredYears)
+    Math.max(
+      1,
+      round === 3 ? Math.min(2, demand.preferredYears) : demand.preferredYears
+    )
   )
   const offer: ContractOffer = {
     id: `${fixture.seed}:round-${round}:${teamId}:${playerId}`,
@@ -103,7 +126,9 @@ function createAiOffer(
     years: 1,
     annualSalary: [fixture.economy.minimumSalary],
   }
-  return validateContractOffer(fixture, minimumOffer).valid ? minimumOffer : null
+  return validateContractOffer(fixture, minimumOffer).valid
+    ? minimumOffer
+    : null
 }
 
 function updateTeamPayroll(
@@ -123,9 +148,10 @@ function removeFromProjectedFreeAgency(
   fixture: ContractMarketFixture,
   playerId: string
 ) {
-  fixture.projectedFreeAgency.entries = fixture.projectedFreeAgency.entries.filter(
-    (entry) => entry.playerId !== playerId
-  )
+  fixture.projectedFreeAgency.entries =
+    fixture.projectedFreeAgency.entries.filter(
+      (entry) => entry.playerId !== playerId
+    )
   fixture.projectedFreeAgency.supplyByPosition = Object.fromEntries(
     ["PG", "SG", "SF", "PF", "C"].map((position) => [
       position,
@@ -135,14 +161,14 @@ function removeFromProjectedFreeAgency(
     ])
   ) as typeof fixture.projectedFreeAgency.supplyByPosition
   fixture.projectedFreeAgency.supplyByArchetype = Object.fromEntries(
-    fixture.projectedFreeAgency.entries.map((entry) => entry.archetype).map(
-      (archetype) => [
+    fixture.projectedFreeAgency.entries
+      .map((entry) => entry.archetype)
+      .map((archetype) => [
         archetype,
         fixture.projectedFreeAgency.entries.filter(
           (entry) => entry.archetype === archetype
         ).length,
-      ]
-    )
+      ])
   )
 }
 
@@ -188,15 +214,33 @@ function targetTeams(
 
 export function runFreeAgencySimulation(
   fixture: ContractMarketFixture,
-  options: { userTeamId?: string | null; maxTeamsPerPlayer?: number } = {}
+  options: FreeAgencySimulationOptions = {}
 ): FreeAgencySimulationResult {
   const working = structuredClone(fixture)
   const rounds: MarketRoundResult[] = []
   const available = new Set(working.actualFreeAgentIds)
   const signedContracts: ContractEntity[] = []
+  const totalRounds = working.config.freeAgencyRounds
 
-  for (let round = 1; round <= working.config.freeAgencyRounds; round += 1) {
+  options.onProgress?.({
+    phase: "preparing",
+    round: null,
+    totalRounds,
+    availablePlayers: available.size,
+    offerCount: 0,
+    label: "Preparing free agency",
+  })
+
+  for (let round = 1; round <= totalRounds; round += 1) {
     const offers: ContractOffer[] = []
+    options.onProgress?.({
+      phase: "offering",
+      round,
+      totalRounds,
+      availablePlayers: available.size,
+      offerCount: 0,
+      label: `Generating round ${round} offers`,
+    })
     for (const playerId of available) {
       for (const teamId of targetTeams(
         working,
@@ -208,11 +252,25 @@ export function runFreeAgencySimulation(
       }
     }
 
+    options.onProgress?.({
+      phase: "resolving",
+      round,
+      totalRounds,
+      availablePlayers: available.size,
+      offerCount: offers.length,
+      label: `Resolving round ${round}`,
+    })
     const decisions = evaluateCompetitiveOffers(working, offers)
     const acceptedPlayerIds: string[] = []
     for (const decision of decisions) {
-      if (decision.decision !== "accept" || acceptedPlayerIds.includes(decision.playerId)) continue
-      const offer = offers.find((candidate) => candidate.id === decision.offerId)
+      if (
+        decision.decision !== "accept" ||
+        acceptedPlayerIds.includes(decision.playerId)
+      )
+        continue
+      const offer = offers.find(
+        (candidate) => candidate.id === decision.offerId
+      )
       if (!offer) continue
       const before = working.contracts[offer.playerId]
       const nextRights: FreeAgencyRights = {
@@ -245,8 +303,25 @@ export function runFreeAgencySimulation(
     }
 
     rounds.push({ round, offers, decisions, acceptedPlayerIds })
+    options.onProgress?.({
+      phase: "resolving",
+      round,
+      totalRounds,
+      availablePlayers: available.size,
+      offerCount: offers.length,
+      label: `Round ${round} complete`,
+    })
     if (available.size === 0) break
   }
+
+  options.onProgress?.({
+    phase: "finalizing",
+    round: rounds.at(-1)?.round ?? null,
+    totalRounds,
+    availablePlayers: available.size,
+    offerCount: rounds.reduce((sum, round) => sum + round.offers.length, 0),
+    label: "Finalizing market report",
+  })
 
   return {
     version: 1,
@@ -265,7 +340,9 @@ export function runEconomySimulation(
   config: EconomyConfig = STANDARD_ECONOMY_CONFIG
 ): EconomySimulationResult {
   if (!Number.isInteger(seasons) || seasons < 1 || seasons > 100) {
-    throw new RangeError("Economy simulations must run from one to 100 seasons.")
+    throw new RangeError(
+      "Economy simulations must run from one to 100 seasons."
+    )
   }
   const snapshots = Array.from({ length: seasons }, (_, index) =>
     createEconomySnapshot(index + 1, config)

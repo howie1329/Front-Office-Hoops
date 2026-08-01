@@ -1,14 +1,13 @@
-import type {
-  ContractMarketFixture,
-  EconomyConfig,
-} from "@workspace/domain-v2"
+import type { ContractMarketFixture, EconomyConfig } from "@workspace/domain-v2"
 import type {
   EconomySimulationResult,
+  FreeAgencySimulationProgress,
   FreeAgencySimulationResult,
 } from "@workspace/sim-v2"
 
 type WorkerMessage =
   | { type: "free-agency-completed"; result: FreeAgencySimulationResult }
+  | { type: "free-agency-progress"; progress: FreeAgencySimulationProgress }
   | { type: "economy-completed"; result: EconomySimulationResult }
   | { type: "error"; message: string }
 
@@ -25,7 +24,8 @@ function runWorker<T>(
         seasons: number
         config: EconomyConfig
       },
-  expectedType: WorkerMessage["type"]
+  expectedType: WorkerMessage["type"],
+  onProgress?: (progress: FreeAgencySimulationProgress) => void
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(
@@ -33,11 +33,16 @@ function runWorker<T>(
       { type: "module" }
     )
     worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-      worker.terminate()
       if (event.data.type === "error") {
+        worker.terminate()
         reject(new Error(event.data.message))
         return
       }
+      if (event.data.type === "free-agency-progress") {
+        onProgress?.(event.data.progress)
+        return
+      }
+      worker.terminate()
       if (event.data.type !== expectedType) {
         reject(new Error("The market worker returned an unexpected result."))
         return
@@ -54,11 +59,13 @@ function runWorker<T>(
 
 export function runFreeAgencyInWorker(
   fixture: ContractMarketFixture,
-  userTeamId: string | null
+  userTeamId: string | null,
+  onProgress?: (progress: FreeAgencySimulationProgress) => void
 ): Promise<FreeAgencySimulationResult> {
   return runWorker<FreeAgencySimulationResult>(
     { type: "free-agency", fixture, userTeamId },
-    "free-agency-completed"
+    "free-agency-completed",
+    onProgress
   )
 }
 

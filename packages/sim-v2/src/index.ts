@@ -150,6 +150,8 @@ export type { ContractMarketFixtureOptions } from "./marketFixture"
 export type {
   EconomySimulationResult,
   EconomySimulationSeason,
+  FreeAgencySimulationOptions,
+  FreeAgencySimulationProgress,
   FreeAgencySimulationResult,
   MarketRoundResult,
 } from "./marketSimulation"

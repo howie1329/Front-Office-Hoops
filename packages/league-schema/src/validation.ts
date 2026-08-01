@@ -5,12 +5,20 @@ import type {
   LeagueDocument,
   ValidationIssue,
 } from "@workspace/domain-v2"
+import type {
+  ContractMarketScenarioExport,
+  EconomyRunExport,
+  FreeAgencyRunExport,
+} from "./schema"
 import { ZodError } from "zod"
 
 import {
   careerCohortReportSchema,
   careerIndividualReportSchema,
+  contractMarketScenarioExportSchema,
   contractMarketFixtureSchema,
+  economyRunExportSchema,
+  freeAgencyRunExportSchema,
   leagueDocumentSchema,
 } from "./schema"
 import { CURRENT_SCHEMA_VERSION } from "./version"
@@ -62,6 +70,16 @@ export class ContractMarketValidationError extends Error {
   constructor(issues: ValidationIssue[]) {
     super("Contract market fixture validation failed")
     this.name = "ContractMarketValidationError"
+    this.issues = issues
+  }
+}
+
+export class ContractMarketReportValidationError extends Error {
+  readonly issues: ValidationIssue[]
+
+  constructor(issues: ValidationIssue[]) {
+    super("Contract market report validation failed")
+    this.name = "ContractMarketReportValidationError"
     this.issues = issues
   }
 }
@@ -213,6 +231,125 @@ export function deserializeContractMarketFixture(
     if (error instanceof ContractMarketValidationError) throw error
     throw new ContractMarketValidationError([
       { code: "invalid_json", message: "The fixture is not valid JSON." },
+    ])
+  }
+}
+
+export function validateContractMarketScenarioExport(
+  input: unknown
+):
+  | { valid: true; data: ContractMarketScenarioExport }
+  | { valid: false; issues: ValidationIssue[] } {
+  const result = contractMarketScenarioExportSchema.safeParse(input)
+  return result.success
+    ? { valid: true, data: result.data }
+    : { valid: false, issues: formatIssues(result.error) }
+}
+
+export function serializeContractMarketScenarioExport(
+  report: ContractMarketScenarioExport
+): string {
+  const result = validateContractMarketScenarioExport(report)
+  if (!result.valid)
+    throw new ContractMarketReportValidationError(result.issues)
+  return JSON.stringify(result.data, null, 2)
+}
+
+export function deserializeContractMarketScenarioExport(
+  serialized: string
+): ContractMarketScenarioExport {
+  try {
+    const result = validateContractMarketScenarioExport(
+      JSON.parse(serialized) as unknown
+    )
+    if (!result.valid)
+      throw new ContractMarketReportValidationError(result.issues)
+    return result.data
+  } catch (error) {
+    if (error instanceof ContractMarketReportValidationError) throw error
+    throw new ContractMarketReportValidationError([
+      {
+        code: "invalid_json",
+        message: "The market scenario is not valid JSON.",
+      },
+    ])
+  }
+}
+
+export function validateFreeAgencyRunExport(
+  input: unknown
+):
+  | { valid: true; data: FreeAgencyRunExport }
+  | { valid: false; issues: ValidationIssue[] } {
+  const result = freeAgencyRunExportSchema.safeParse(input)
+  return result.success
+    ? { valid: true, data: result.data }
+    : { valid: false, issues: formatIssues(result.error) }
+}
+
+export function serializeFreeAgencyRunExport(
+  report: FreeAgencyRunExport
+): string {
+  const result = validateFreeAgencyRunExport(report)
+  if (!result.valid)
+    throw new ContractMarketReportValidationError(result.issues)
+  return JSON.stringify(result.data, null, 2)
+}
+
+export function deserializeFreeAgencyRunExport(
+  serialized: string
+): FreeAgencyRunExport {
+  try {
+    const result = validateFreeAgencyRunExport(
+      JSON.parse(serialized) as unknown
+    )
+    if (!result.valid)
+      throw new ContractMarketReportValidationError(result.issues)
+    return result.data
+  } catch (error) {
+    if (error instanceof ContractMarketReportValidationError) throw error
+    throw new ContractMarketReportValidationError([
+      {
+        code: "invalid_json",
+        message: "The free-agency report is not valid JSON.",
+      },
+    ])
+  }
+}
+
+export function validateEconomyRunExport(
+  input: unknown
+):
+  | { valid: true; data: EconomyRunExport }
+  | { valid: false; issues: ValidationIssue[] } {
+  const result = economyRunExportSchema.safeParse(input)
+  return result.success
+    ? { valid: true, data: result.data }
+    : { valid: false, issues: formatIssues(result.error) }
+}
+
+export function serializeEconomyRunExport(report: EconomyRunExport): string {
+  const result = validateEconomyRunExport(report)
+  if (!result.valid)
+    throw new ContractMarketReportValidationError(result.issues)
+  return JSON.stringify(result.data, null, 2)
+}
+
+export function deserializeEconomyRunExport(
+  serialized: string
+): EconomyRunExport {
+  try {
+    const result = validateEconomyRunExport(JSON.parse(serialized) as unknown)
+    if (!result.valid)
+      throw new ContractMarketReportValidationError(result.issues)
+    return result.data
+  } catch (error) {
+    if (error instanceof ContractMarketReportValidationError) throw error
+    throw new ContractMarketReportValidationError([
+      {
+        code: "invalid_json",
+        message: "The economy report is not valid JSON.",
+      },
     ])
   }
 }

@@ -2,10 +2,7 @@ import {
   runEconomySimulation,
   runFreeAgencySimulation,
 } from "@workspace/sim-v2"
-import type {
-  ContractMarketFixture,
-  EconomyConfig,
-} from "@workspace/domain-v2"
+import type { ContractMarketFixture, EconomyConfig } from "@workspace/domain-v2"
 
 type MarketWorkerRequest =
   | {
@@ -32,6 +29,11 @@ workerScope.onmessage = (event) => {
         type: "free-agency-completed",
         result: runFreeAgencySimulation(event.data.fixture, {
           userTeamId: event.data.userTeamId,
+          onProgress: (progress) =>
+            workerScope.postMessage({
+              type: "free-agency-progress",
+              progress,
+            }),
         }),
       })
       return
