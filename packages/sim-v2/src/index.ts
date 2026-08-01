@@ -153,6 +153,8 @@ export type {
   FreeAgencySimulationOptions,
   FreeAgencySimulationProgress,
   FreeAgencySimulationResult,
+  MarketCleanupResult,
+  MarketPlayerCoverage,
   MarketRoundResult,
   MarketTeamRoundResult,
 } from "./marketSimulation"

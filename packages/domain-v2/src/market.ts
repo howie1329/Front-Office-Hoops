@@ -92,6 +92,7 @@ export type ContractMarketConfig = {
   presetId: string
   freeAgencyRounds: number
   targetBoardSize: number
+  marketRosterSlots: number
   lateMarketCleanup: boolean
   minimumAcceptableUtility: number
   waitUtilityMargin: number
@@ -128,6 +129,9 @@ export type TeamMarketContext = {
   team: TeamEntity
   payroll: Money
   reservedSalary: Money
+  rosteredPlayerCount: number
+  marketRosterSlots: number
+  reservedRosterSlots: number
   capRoom: Money
   taxRoom: Money
   hardCapRoom: Money

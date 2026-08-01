@@ -197,9 +197,17 @@ function FreeAgencyReportPanel({
   const rounds = marketRun.rounds
   const totalOffers = rounds.reduce(
     (sum, round) => sum + round.offers.length,
-    0
+    marketRun.cleanup.offers.length
   )
-  const allDecisions = rounds.flatMap((round) => round.decisions)
+  const allDecisions = [
+    ...rounds.flatMap((round) => round.decisions),
+    ...marketRun.cleanup.decisions,
+  ]
+  const coverage = marketRun.playerCoverage
+  const coveredPlayers = coverage.filter(
+    (player) => player.targetedRounds.length > 0
+  ).length
+  const cleanupSigned = marketRun.cleanup.acceptedPlayerIds.length
   const invalidOffers = allDecisions.filter(
     (decision) => !decision.legal.valid
   ).length
@@ -211,11 +219,14 @@ function FreeAgencyReportPanel({
     {} as Record<string, number>
   )
   const participatingTeams = new Set(
-    rounds.flatMap((round) =>
-      round.teamActivity
-        .filter((activity) => activity.activeOfferCount > 0)
-        .map((activity) => activity.teamId)
-    )
+    [
+      ...rounds.flatMap((round) =>
+        round.teamActivity
+          .filter((activity) => activity.activeOfferCount > 0)
+          .map((activity) => activity.teamId)
+      ),
+      ...marketRun.cleanup.offers.map((offer) => offer.teamId),
+    ]
   )
   const initialTeam = selectedTeamId
     ? fixture.teamContexts[selectedTeamId]
@@ -236,7 +247,16 @@ function FreeAgencyReportPanel({
         candidate.playerId === contract.playerId &&
         candidate.decision === "accept"
     )
-    return { contract, round: round?.round ?? "—", decision }
+    const cleanupDecision = marketRun.cleanup.decisions.find(
+      (candidate) =>
+        candidate.playerId === contract.playerId &&
+        candidate.decision === "accept"
+    )
+    return {
+      contract,
+      round: round?.round ?? (cleanupDecision ? "cleanup" : "—"),
+      decision: decision ?? cleanupDecision,
+    }
   })
 
   return (
@@ -261,12 +281,18 @@ function FreeAgencyReportPanel({
           </p>
           <p className="mt-1">
             {participatingTeams.size} teams submitted offers ·{" "}
-            {fixture.config.targetBoardSize}-player target boards
+            {fixture.config.targetBoardSize}-player target boards · {coveredPlayers}{" "}
+            of {coverage.length} players targeted
+          </p>
+          <p className="mt-1">
+            Late cleanup: {marketRun.cleanup.enabled ? "on" : "off"} ·{" "}
+            {marketRun.cleanup.consideredPlayerIds.length} considered ·{" "}
+            {cleanupSigned} signed
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
         <Metric
           label="Signed"
           value={String(marketRun.signedContracts.length)}
@@ -278,6 +304,8 @@ function FreeAgencyReportPanel({
         <Metric label="Offers" value={String(totalOffers)} />
         <Metric label="Accepted" value={String(decisionCounts.accept || 0)} />
         <Metric label="Illegal" value={String(invalidOffers)} />
+        <Metric label="Covered" value={`${coveredPlayers}/${coverage.length}`} />
+        <Metric label="Cleanup signed" value={String(cleanupSigned)} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
@@ -396,6 +424,14 @@ function FreeAgencyReportPanel({
                   label="Reserved salary"
                   value={formatMoney(finalTeam.reservedSalary)}
                 />
+                <Metric
+                  label="Market slots left"
+                  value={String(finalTeam.marketRosterSlots)}
+                />
+                <Metric
+                  label="Rostered count"
+                  value={String(finalTeam.rosteredPlayerCount)}
+                />
               </div>
               <div className="mt-4 border-t border-border pt-3 text-xs leading-5 text-muted-foreground">
                 {selectedTeamSignings.length
@@ -416,8 +452,8 @@ function FreeAgencyReportPanel({
         <div className="border-b border-border px-3 py-3">
           <p className="text-xs font-semibold">Team market activity</p>
           <p className="mt-1 text-[0.6875rem] text-muted-foreground">
-            The exported run keeps each team&apos;s top-eight board, active
-            offers, and payroll movement visible by round.
+            The exported run keeps each team&apos;s board, active offers, payroll
+            movement, and remaining market capacity visible by round.
           </p>
         </div>
         <div className="max-h-[22rem] overflow-auto">
@@ -429,6 +465,7 @@ function FreeAgencyReportPanel({
                 <TableHead>Targets</TableHead>
                 <TableHead>Offers</TableHead>
                 <TableHead>Rejected</TableHead>
+                <TableHead>Capacity after</TableHead>
                 <TableHead>Payroll movement</TableHead>
               </TableRow>
             </TableHeader>
@@ -452,12 +489,83 @@ function FreeAgencyReportPanel({
                       {activity.rejectedOfferCount}
                     </TableCell>
                     <TableCell className="whitespace-nowrap tabular-nums">
+                      {activity.marketRosterSlotsAfter} slots ·{" "}
+                      {activity.rosteredPlayerCountAfter} rostered
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">
                       {formatMoney(activity.payrollBefore)} →{" "}
                       {formatMoney(activity.payrollAfter)}
                     </TableCell>
                   </TableRow>
                 ))
               )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-md border border-border">
+        <div className="border-b border-border px-3 py-3">
+          <p className="text-xs font-semibold">Player market coverage</p>
+          <p className="mt-1 text-[0.6875rem] text-muted-foreground">
+            Every actual free agent is classified by board exposure, offers,
+            negotiation outcome, and final market status.
+          </p>
+        </div>
+        <div className="max-h-[28rem] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
+                <TableHead>Player</TableHead>
+                <TableHead>OVR</TableHead>
+                <TableHead>Pos</TableHead>
+                <TableHead>Targeted rounds</TableHead>
+                <TableHead>Offers</TableHead>
+                <TableHead>Teams</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Reason</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {coverage.map((playerCoverage) => {
+                const player = marketRun.finalFixture.players[playerCoverage.playerId]
+                return (
+                  <TableRow key={playerCoverage.playerId}>
+                    <TableCell className="font-medium">
+                      {formatName(marketRun.finalFixture, playerCoverage.playerId)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatOverall(getPlayerCurrentAbility(player))}
+                    </TableCell>
+                    <TableCell>{player.profile.role.primaryPosition}</TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">
+                      {playerCoverage.targetedRounds.length
+                        ? playerCoverage.targetedRounds.join(", ")
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {playerCoverage.offerCount}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {playerCoverage.teamCount}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          playerCoverage.finalStatus === "signed"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {playerCoverage.finalStatus}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {playerCoverage.finalReason.replaceAll("-", " ")}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </div>
@@ -518,7 +626,7 @@ function FreeAgencyReportPanel({
           <div className="border-b border-border px-3 py-3">
             <p className="text-xs font-semibold">Unsigned pool</p>
             <p className="mt-1 text-[0.6875rem] text-muted-foreground">
-              Players remaining after the final automated round.
+              Players remaining after the final automated round and cleanup.
             </p>
           </div>
           <div className="max-h-[24rem] overflow-auto">
@@ -1458,7 +1566,7 @@ function MarketRulesLabPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {MARKET_SETTING_DESCRIPTORS.slice(0, 7).map((descriptor) => {
+                {MARKET_SETTING_DESCRIPTORS.map((descriptor) => {
                   const raw = getMarketNumericSetting(
                     draftEconomy,
                     draftMarket,

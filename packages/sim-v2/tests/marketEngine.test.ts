@@ -149,7 +149,7 @@ describe("contract market engine", () => {
     expect(first.finalFixture.offers).not.toEqual({})
   })
 
-  it("uses eight-player team boards and reconciles payroll after each signing", () => {
+  it("uses eight-player team boards, rotates exposure, and reconciles capacity", () => {
     const fixture = createDefaultContractMarketFixture("capacity-run-seed")
     const result = runFreeAgencySimulation(fixture)
 
@@ -163,6 +163,13 @@ describe("contract market engine", () => {
         )
       )
     ).toBe(true)
+    expect(
+      new Set(
+        result.rounds.flatMap((round) =>
+          round.teamActivity.flatMap((activity) => activity.targetPlayerIds)
+        )
+      ).size
+    ).toBeGreaterThan(fixture.config.targetBoardSize)
 
     for (const [teamId, initialTeam] of Object.entries(
       fixture.teamContexts
@@ -174,7 +181,38 @@ describe("contract market engine", () => {
 
       expect(finalTeam.payroll).toBe(initialTeam.payroll + signedSalary)
       expect(finalTeam.reservedSalary).toBe(0)
+      expect(finalTeam.reservedRosterSlots).toBe(0)
+      expect(finalTeam.rosteredPlayerCount).toBe(
+        initialTeam.rosteredPlayerCount +
+          result.signedContracts.filter((contract) => contract.teamId === teamId)
+            .length
+      )
+      expect(finalTeam.marketRosterSlots).toBe(
+        initialTeam.marketRosterSlots -
+          result.signedContracts.filter((contract) => contract.teamId === teamId)
+            .length
+      )
+      expect(
+        result.signedContracts.filter((contract) => contract.teamId === teamId)
+          .length
+      ).toBeLessThanOrEqual(fixture.config.marketRosterSlots)
     }
+
+    expect(result.cleanup.enabled).toBe(true)
+    expect(result.playerCoverage).toHaveLength(fixture.actualFreeAgentIds.length)
+    expect(new Set(result.playerCoverage.map((player) => player.playerId))).toEqual(
+      new Set(fixture.actualFreeAgentIds)
+    )
+    expect(
+      result.playerCoverage.reduce((sum, player) => sum + player.offerCount, 0)
+    ).toBe(
+      result.rounds.reduce((sum, round) => sum + round.offers.length, 0) +
+        result.cleanup.offers.length
+    )
+    expect(
+      result.playerCoverage.filter((player) => player.finalStatus === "signed")
+        .length
+    ).toBe(result.signedContracts.length)
   })
 
   it("keeps hard-capped teams within the active hard-cap line", () => {

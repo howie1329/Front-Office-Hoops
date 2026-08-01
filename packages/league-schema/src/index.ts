@@ -51,6 +51,8 @@ export {
   freeAgencyRunExportSchema,
   freeAgencySimulationResultSchema,
   marketRulesViewContextSchema,
+  marketCleanupResultSchema,
+  marketPlayerCoverageSchema,
   marketRoundResultSchema,
   offerUtilityBreakdownSchema,
   productionValueLabReportSchema,

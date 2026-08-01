@@ -1543,6 +1543,7 @@ export const contractMarketConfigSchema = z.strictObject({
   presetId: z.string().min(1),
   freeAgencyRounds: z.number().int().min(1).max(10),
   targetBoardSize: z.number().int().min(1).max(20).default(8),
+  marketRosterSlots: z.number().int().min(0).max(15).default(3),
   lateMarketCleanup: z.boolean(),
   minimumAcceptableUtility: z.number().min(0).max(120),
   waitUtilityMargin: z.number().min(0).max(50),
@@ -1695,6 +1696,9 @@ const teamMarketContextSchema = z.strictObject({
   team: z.strictObject({ id: z.string().min(1), name: z.string().min(1) }),
   payroll: moneySchema,
   reservedSalary: moneySchema,
+  rosteredPlayerCount: z.number().int().nonnegative().default(0),
+  marketRosterSlots: z.number().int().nonnegative().default(0),
+  reservedRosterSlots: z.number().int().nonnegative().default(0),
   capRoom: z.number().int(),
   taxRoom: z.number().int(),
   hardCapRoom: z.number().int(),
@@ -1759,8 +1763,35 @@ export const marketRoundResultSchema = z.strictObject({
       payrollBefore: moneySchema,
       payrollAfter: moneySchema,
       reservedSalary: moneySchema,
+      rosteredPlayerCountBefore: z.number().int().nonnegative().default(0),
+      rosteredPlayerCountAfter: z.number().int().nonnegative().default(0),
+      marketRosterSlotsBefore: z.number().int().nonnegative().default(0),
+      marketRosterSlotsAfter: z.number().int().nonnegative().default(0),
+      reservedRosterSlots: z.number().int().nonnegative().default(0),
     })
   ).default([]),
+})
+
+export const marketCleanupResultSchema = z.strictObject({
+  enabled: z.boolean(),
+  consideredPlayerIds: z.array(z.string().min(1)),
+  offers: z.array(contractOfferSchema),
+  decisions: z.array(contractOfferDecisionSchema),
+  acceptedPlayerIds: z.array(z.string().min(1)),
+})
+
+export const marketPlayerCoverageSchema = z.strictObject({
+  playerId: z.string().min(1),
+  targetedRounds: z.array(z.number().int().positive()),
+  offerCount: z.number().int().nonnegative(),
+  teamCount: z.number().int().nonnegative(),
+  acceptCount: z.number().int().nonnegative(),
+  waitCount: z.number().int().nonnegative(),
+  declineCount: z.number().int().nonnegative(),
+  lockoutCount: z.number().int().nonnegative(),
+  cleanupConsidered: z.boolean(),
+  finalStatus: z.enum(["signed", "unsigned"]),
+  finalReason: z.string().min(1),
 })
 
 export const freeAgencySimulationResultSchema = z.strictObject({
@@ -1768,6 +1799,14 @@ export const freeAgencySimulationResultSchema = z.strictObject({
   seed: z.string().min(1),
   userTeamId: z.string().min(1).nullable(),
   rounds: z.array(marketRoundResultSchema),
+  cleanup: marketCleanupResultSchema.default({
+    enabled: false,
+    consideredPlayerIds: [],
+    offers: [],
+    decisions: [],
+    acceptedPlayerIds: [],
+  }),
+  playerCoverage: z.array(marketPlayerCoverageSchema).default([]),
   signedContracts: z.array(contractEntitySchema),
   unsignedPlayerIds: z.array(z.string().min(1)),
   finalFixture: contractMarketFixtureSchema,

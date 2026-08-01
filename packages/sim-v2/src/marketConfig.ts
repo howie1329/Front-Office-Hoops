@@ -35,6 +35,7 @@ export const STANDARD_CONTRACT_MARKET_CONFIG: ContractMarketConfig = {
   presetId: "standard",
   freeAgencyRounds: 3,
   targetBoardSize: 8,
+  marketRosterSlots: 3,
   lateMarketCleanup: true,
   minimumAcceptableUtility: 58,
   waitUtilityMargin: 8,
@@ -79,6 +80,7 @@ export type MarketNumericSettingPath =
   | "market.minimumAcceptableUtility"
   | "market.waitUtilityMargin"
   | "market.targetBoardSize"
+  | "market.marketRosterSlots"
 
 export type MarketSettingDescriptor = {
   path: MarketNumericSettingPath
@@ -181,6 +183,15 @@ export const MARKET_SETTING_DESCRIPTORS: MarketSettingDescriptor[] = [
     step: 1,
     unit: "points",
   },
+  {
+    path: "market.marketRosterSlots",
+    label: "Market roster slots",
+    description: "Maximum number of new free agents each team can add in this lab run.",
+    min: 0,
+    max: 8,
+    step: 1,
+    unit: "points",
+  },
 ]
 
 export function getMarketNumericSetting(
@@ -225,6 +236,8 @@ export function getMarketNumericSetting(
       return market.waitUtilityMargin
     case "market.targetBoardSize":
       return market.targetBoardSize
+    case "market.marketRosterSlots":
+      return market.marketRosterSlots
   }
 }
 
@@ -292,6 +305,9 @@ export function updateMarketNumericSetting(
       break
     case "market.targetBoardSize":
       nextMarket.targetBoardSize = Math.round(bounded)
+      break
+    case "market.marketRosterSlots":
+      nextMarket.marketRosterSlots = Math.round(bounded)
       break
   }
 
