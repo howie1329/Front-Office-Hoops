@@ -1,7 +1,7 @@
 # V2 Production & Value Lab — Implementation Plan
 
-**Status:** First implementation slice complete; calibration and promotion gates remain
-**Date:** 2026-07-31
+**Status:** Implemented initial lab; calibration and promotion gates remain
+**Last reviewed:** August 1, 2026
 **Roadmap position:** Phase 2 calibration, Slice 2
 **Depends on:** Initial Player Universe and the Game & Matchup production contract
 **Primary surfaces:** `packages/domain-v2`, `packages/league-schema`, `packages/sim-v2`, `packages/calibration`, `apps/web-v2`
@@ -24,7 +24,7 @@ This plan follows:
 - [V2 data and export design](../specs/foh-v2-data-and-export-design.md) for snapshots, events, JSON, and persistence boundaries.
 - [V2 UI information architecture](../specs/foh-v2-ui-information-architecture.md) for settings, tables, responsive behavior, and developer-lab expectations.
 - [Game & Matchup Lab implementation plan](./foh-v2-game-matchup-lab-implementation-plan.md) for the existing game fixture/result contract and calibration style.
-- [Experiment backlog](./foh-v2-experiment-backlog.md), especially E4 and E5.
+- [Archived experiment backlog](../archive/foh-v2-experiment-backlog.md), especially E4 and E5.
 
 Required constraints:
 

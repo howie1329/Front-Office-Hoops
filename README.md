@@ -1,39 +1,24 @@
 # Front Office Hoops
 
-Front Office Hoops is a browser-based basketball general-manager simulation. Build a franchise, manage its roster and staff, navigate the salary cap, simulate seasons, and carry the league’s history forward.
+Front Office Hoops is a browser-based basketball general-manager simulation.
+The repository currently contains the playable V1 application and the V2
+rewrite/calibration build.
 
-The product is web-first, mobile-friendly, and local-first. The simulation and saves run in the browser without requiring an account or a server connection.
+## Current project position
 
-The project is currently an early local-first prototype (`0.0.1`). The core multi-season loop is implemented, but save portability, browser-level test coverage, responsive polish, and hosted product infrastructure are still planned. See the [product brief](./docs/product-brief.md) for the product boundary and readiness bar.
+V2 is the primary development direction. It currently provides a foundation
+worker/schema/repository round trip and six developer-lab routes across five
+active calibration surfaces. It does not yet provide the complete playable
+league loop.
 
-## Current experience
+V1 remains runnable and contains the existing local multi-season league
+experience. V1 and V2 use isolated simulation and save contracts.
 
-- Create 6-team mini leagues or full 30-team leagues and choose a franchise.
-- Simulate regular-season days, weeks, playoffs, and complete seasons.
-- Review calendars, standings, schedules, box scores, player stats, injuries, and season history.
-- Manage rosters, contracts, cap space, tax, dead money, exceptions, Bird rights, and team strategy.
-- Run offseason staff, re-signing, draft, and free-agency phases.
-- Hire, fire, and extend staff; staff quality influences team philosophy and development.
-- Evaluate and execute trades with player values, draft picks, salary rules, trade exceptions, and AI offers.
-- Track player archetypes, development, aging, injuries, retirement, and career history.
-- Inspect scouting reports whose precision depends on team scouting quality.
-- Carry owner goals, team strategy, and staff effects through league state and offseason decisions.
-- Maintain multiple local league saves and experiment in Sim Lab or Season Lab.
+Read the [V2 current state](./docs/v2/current-state.md) for the authoritative
+implementation matrix and [V2 documentation index](./docs/v2/README.md) for
+the ordered rewrite documentation.
 
-## Stack
-
-| Layer | Technology |
-|-------|------------|
-| Web app | [TanStack Start](https://tanstack.com/start) + React 19 |
-| Routing | TanStack Router file-based routes |
-| Styling | Tailwind CSS 4 + [shadcn/ui](https://ui.shadcn.com/) |
-| Simulation | Pure TypeScript engine in `packages/sim` |
-| Shared domain | TypeScript types and constants in `packages/shared` |
-| Local saves | IndexedDB via [Dexie](https://dexie.org/) in `packages/db` |
-| Workspace | npm workspaces + Turborepo |
-| Cloud and AI | Planned; Convex and Vercel AI SDK are not integrated yet |
-
-## Quick start
+## Run the applications
 
 Prerequisites: Node.js 20 or newer and npm 11 or newer.
 
@@ -42,48 +27,67 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), create a league, pick a team, and start simulating.
+The V1 application runs at [http://localhost:3000](http://localhost:3000).
+The V2 application runs at [http://localhost:3001](http://localhost:3001).
+
+To run only one application:
+
+```bash
+npm run dev --workspace=web
+npm run dev --workspace=web-v2
+```
+
+In V2, the home page demonstrates the foundation document round trip. Open
+Developer Labs to inspect the current simulation workbenches.
+
+## V2 implementation surfaces
+
+- Population & Roster — player generation and deterministic team assembly.
+- Game & Matchup — seeded possession simulation, rotations, availability, and reconciliation.
+- Production & Value — season fixtures, production aggregation, and universal player value.
+- Career Cohort — development, decline, availability, retirement, and matched cohorts.
+- Market & Rules — economy, contract demand, offer utility, free agency, target boards, and roster cleanup.
+
+Draft & Decision, the authoritative league shell, lifecycle commands, and the
+multi-season League Loop remain planned.
+
+## V1 application
+
+The V1 app remains the current playable local-first experience. It supports
+league creation, team selection, regular seasons, playoffs, contracts, trades,
+staff, draft, free agency, local saves, and history. V1 details live in the
+[V1 documentation index](./docs/README.md) and its [V1 roadmap](./docs/roadmap.md).
+
+## Stack
+
+| Layer | Technology |
+| --- | --- |
+| Web apps | TanStack Start + React 19 |
+| Routing | TanStack Router file-based routes |
+| Styling | Tailwind CSS 4 + shadcn/ui |
+| V1 simulation | Pure TypeScript in `packages/sim` |
+| V2 simulation | Pure TypeScript in `packages/sim-v2` |
+| V2 domain/schema | `packages/domain-v2` + `packages/league-schema` |
+| Calibration | `packages/calibration` |
+| Local persistence | Dexie/IndexedDB in `packages/db` and `packages/db-v2` |
+| Workspace | npm workspaces + Turborepo |
 
 ## Documentation
 
-The current project docs live in [`docs/`](./docs/README.md):
+See the [documentation index](./docs/README.md) for the complete V1/V2 map.
 
-- [Vision](./docs/vision.md) — product goals and design principles
-- [Product Brief](./docs/product-brief.md) — audience, product boundary, current state, and readiness bar
-- [Architecture](./docs/architecture.md) — monorepo boundaries and data flow
-- [Simulation Engine](./docs/simulation-engine.md) — games, seasons, development, and offseason phases
-- [Data Model](./docs/data-model.md) — domain types, save shape, and persistence
-- [Contract Offer Market](./docs/contract-offer-market.md) — player and staff offer resolution
-- [Development](./docs/development.md) — setup, conventions, and testing
-- [Roadmap](./docs/roadmap.md) — shipped functionality and remaining work
-- [v2 Product Brief](./docs/v2/specs/foh-v2-product-brief.md) — approved rewrite direction and first-release scope
-- [v2 Roadmap](./docs/v2/plans/foh-v2-roadmap.md) — sequenced rewrite development plan
-- [v2 Architecture](./docs/v2/specs/foh-v2-simulation-architecture.md) — worker, domain, lifecycle, simulation, and economy boundaries
-- [Product](./apps/web/PRODUCT.md) — audience, product vocabulary, and UX principles
-- [Design](./apps/web/DESIGN.md) — visual system and accessibility guidance
+Useful V2 links:
 
-## Current limitations
-
-- Saves are stored locally in IndexedDB; there is no account, cloud sync, or cross-device backup.
-- There is no save migration layer yet. Breaking schema changes require clearing local saves during development.
-- Export/import, browser E2E coverage, service-worker offline support, and settings are not complete.
-- AI-generated narrative and hosted services are future work, not part of the current gameplay loop.
-
-## Repository structure
-
-```
-apps/web/          TanStack Start application and player-facing UI
-packages/sim/      Pure client-side simulation engine
-packages/shared/   Shared domain types, constants, and save schema
-packages/db/       Dexie / IndexedDB persistence and save repository
-packages/ui/       Shared shadcn/ui components and styles
-docs/              Product, architecture, engine, and development docs
-```
+- [Current State](./docs/v2/current-state.md)
+- [V2 Roadmap](./docs/v2/plans/foh-v2-roadmap.md)
+- [V2 Lab Strategy](./docs/v2/plans/foh-v2-lab-strategy.md)
+- [V2 Product Brief](./docs/v2/specs/foh-v2-product-brief.md)
+- [V2 Simulation Architecture](./docs/v2/specs/foh-v2-simulation-architecture.md)
 
 ## Scripts
 
 ```bash
-npm run dev        # Start the web app through Turborepo
+npm run dev        # Start both web apps through Turborepo
 npm run build      # Build all workspaces
 npm run test       # Run package tests
 npm run typecheck  # TypeScript checks across workspaces
@@ -94,9 +98,10 @@ npm run format     # Format workspace source files
 Useful focused commands:
 
 ```bash
-npm run test --workspace=@workspace/sim
-npm run test --workspace=@workspace/db
-npm run dev --workspace=web
+npm test --workspace=@workspace/sim-v2
+npm test --workspace=@workspace/calibration
+npm run typecheck --workspace=web-v2
+npm run dev --workspace=web-v2
 ```
 
 ## License

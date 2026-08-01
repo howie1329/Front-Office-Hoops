@@ -1,10 +1,10 @@
 # V2 Career Cohort Explorer — UI Brief
 
-**Status:** Proposed  
-**Date:** 2026-07-31  
+**Status:** Implemented interaction contract; calibration acceptance pending<br>
+**Last reviewed:** August 1, 2026<br>
 **Surface:** `/developer-labs/development-cohorts`  
 **Register:** Developer calibration tool  
-**Companion:** [Career Cohort Curves and Explorer Implementation Plan](../plans/foh-v2-career-cohort-curves-and-explorer-plan.md)
+**Companion:** [V2 Career Cohort Calibration](../plans/foh-v2-career-cohort-calibration-plan.md)
 
 ## Product intent
 

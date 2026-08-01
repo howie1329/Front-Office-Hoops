@@ -1,33 +1,56 @@
 # Front Office Hoops v2 Documentation
 
-This folder contains the product, architecture, research, specification, experiment, and migration documents for the v2 rewrite. The documents under `docs/` outside this folder describe the existing v1 application unless explicitly linked otherwise.
+V2 is the active rewrite and calibration build. V1 remains the existing
+playable application and is intentionally kept runnable beside it.
 
-## Current status
+## Current state
 
-V2 document/schema/repository foundations and the player-generation and roster-assembly groundwork are complete. Distributional player-generation calibration acceptance remains pending. The current player-universe groundwork includes structured identities and league statuses, population presets, 450 rostered players, 100 free agents, 90 draft prospects, and deterministic 30-team roster assembly.
+V2 currently provides the foundation worker/schema/repository round trip and
+five active developer-lab surfaces: Population & Roster, Game & Matchup,
+Production & Value, Career Cohort, and Market & Rules. The six routes behind
+those surfaces are calibration tools, not a complete playable league.
 
-The next work is calibration rather than the full league shell:
+The authoritative league document is still foundation-only. Full league
+creation, lifecycle commands, the management shell, Draft & Decision, and the
+League Loop remain future work. Market & Rules is the latest active calibration
+area, with acceptance and league integration still pending.
 
-1. Game simulation calibration.
-2. Production composite and visible universal player value.
-3. Initial league shell and complete league-creation flow.
+Read the [V2 current state](./current-state.md) for the implementation matrix,
+route inventory, package boundaries, and validation snapshot. Read the
+[V2 roadmap](./plans/foh-v2-roadmap.md) for delivery order and replacement
+gates.
 
-V1 remains runnable during this work. See the [V2 roadmap](./plans/foh-v2-roadmap.md) for the authoritative sequence and replacement gate.
+## Read in this order
 
-## Start here
+### 1. Current state and delivery sequence
 
-- [Product Brief](./specs/foh-v2-product-brief.md)
-- [Roadmap](./plans/foh-v2-roadmap.md)
-- [Simulation Architecture](./specs/foh-v2-simulation-architecture.md)
-- [Data and Export Design](./specs/foh-v2-data-and-export-design.md)
-- [UI Information Architecture](./specs/foh-v2-ui-information-architecture.md)
+- [Current State](./current-state.md) — what exists, what is pending, and what is not built
+- [Roadmap](./plans/foh-v2-roadmap.md) — phase sequence and replacement gate
+- [Lab Strategy](./plans/foh-v2-lab-strategy.md) — permanent lab boundaries and calibration order
 
-## Plans and research
+### 2. Product and technical contracts
 
-- [Migration Plan](./plans/foh-v2-migration-plan.md)
-- [Experiment Backlog](./plans/foh-v2-experiment-backlog.md)
-- [Production & Value Lab Implementation Plan](./plans/foh-v2-production-value-lab-implementation-plan.md)
-- [Contract Market & Negotiation Plan](./plans/foh-v2-contract-market-and-negotiation-plan.md)
-- [Game & Matchup Lab Implementation Plan](./plans/foh-v2-game-matchup-lab-implementation-plan.md)
-- [Current-State Audit](./audits/foh-current-state-audit.md)
+- [Product Brief](./specs/foh-v2-product-brief.md) — approved product direction and first-v2 target
+- [Simulation Architecture](./specs/foh-v2-simulation-architecture.md) — workers, packages, randomness, and simulation boundaries
+- [Data and Export Design](./specs/foh-v2-data-and-export-design.md) — canonical document, persistence, events, and portability
+- [UI Information Architecture](./specs/foh-v2-ui-information-architecture.md) — target management shell and developer-lab structure
+- [Career Cohort Explorer UI Brief](./specs/foh-v2-career-cohort-explorer-ui-brief.md) — current career-lab interaction contract
+
+### 3. Active implementation and calibration plans
+
+- [Game & Matchup Lab](./plans/foh-v2-game-matchup-lab-implementation-plan.md)
+- [Production & Value Lab](./plans/foh-v2-production-value-lab-implementation-plan.md)
+- [Career Cohort Calibration](./plans/foh-v2-career-cohort-calibration-plan.md)
+- [Market & Rules](./plans/foh-v2-contract-market-and-negotiation-plan.md)
+- [Migration and Coexistence](./plans/foh-v2-migration-plan.md)
+
+### 4. Evidence and research
+
+- [Game Calibration Baseline](./audits/foh-v2-game-calibration-baseline.md)
+- [Slider Sensitivity Baseline](./audits/foh-v2-slider-sensitivity-baseline.md)
 - [Basketball Simulation Reference Study](./research/basketball-sim-reference-study.md)
+
+### 5. Archive
+
+[Archived V2 documents](./archive/README.md) preserve superseded plans and
+experiments. They are historical context, not active contracts.

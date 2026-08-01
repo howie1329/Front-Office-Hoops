@@ -1,5 +1,8 @@
 # Front Office Hoops v2 Data and Export Design
 
+**Status:** Target portability contract; foundation round trip implemented<br>
+**Current implementation:** [V2 Current State](../current-state.md)
+
 ## Data decisions
 
 - The league document is a first-class user-facing JSON contract.
@@ -104,7 +107,7 @@ Event IDs must be stable within a saved league. Wall-clock timestamps may exist 
 
 ## Persistence through Dexie
 
-`packages/db` should expose a repository interface:
+`packages/db-v2` should expose the V2 repository interface:
 
 ```ts
 interface LeagueRepository {
@@ -116,6 +119,10 @@ interface LeagueRepository {
   import(file: Blob): Promise<ImportPreview>
 }
 ```
+
+The current repository proves save/load, validation, serialization, and JSON
+round-trip behavior for the foundation document. Export profiles, large-data
+separation, and full phase-specific league data remain target-product work.
 
 Dexie stores the current document envelope and may later store large game sections separately. The UI and worker must not know Dexie table names. The repository writes transactionally after each completed command/day and before changing the active save pointer.
 

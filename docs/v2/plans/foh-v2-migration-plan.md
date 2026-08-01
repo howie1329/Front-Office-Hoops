@@ -16,12 +16,13 @@ packages/
   shared/                      stable UI/general utilities only
   ui/                          shared shadcn/ui primitives
   sim/                         current v1 simulation
-  db/                          v1 adapter plus v2 repository adapter
+  db/                          v1 persistence adapter
+  db-v2/                       v2 Dexie document repository
   domain-v2/                   v2 entities, commands, events, projections
   sim-v2/                      v2 simulation, markets, lifecycle, worker protocol
   league-schema/               JSON Schema, validators, migrations, export profiles
   calibration/                 labs, benchmarks, batch reports
-  story-packets/               later factual narrative inputs
+  story-packets/               later factual narrative inputs; not yet created
 ```
 
 The v2 application can initially render a shell and a generated fixture while engine experiments run independently. It should not import v1 `LeagueRecord` or v1 valuation functions.

@@ -1,15 +1,17 @@
 # FOH V2 Career Development Settings Pipeline Plan
 
+> Archived on August 1, 2026. Consolidated into [V2 Career Cohort Calibration](../plans/foh-v2-career-cohort-calibration-plan.md).
+
 **Status:** Planned  
 **Date:** 2026-07-31  
 **Roadmap position:** Phase 2 calibration and developer-lab infrastructure  
 **Related documents:**
 
-- `docs/v2/plans/foh-v2-career-development-growth-calibration-plan.md`
-- `docs/v2/plans/foh-v2-career-cohort-curves-and-explorer-plan.md`
-- `docs/v2/specs/foh-v2-career-cohort-explorer-ui-brief.md`
-- `docs/v2/specs/foh-v2-data-and-export-design.md`
-- `docs/v2/specs/foh-v2-simulation-architecture.md`
+- `../plans/foh-v2-career-cohort-calibration-plan.md`
+- `./foh-v2-career-development-growth-calibration-plan.md`
+- `../specs/foh-v2-career-cohort-explorer-ui-brief.md`
+- `../specs/foh-v2-data-and-export-design.md`
+- `../specs/foh-v2-simulation-architecture.md`
 
 ## 1. Purpose
 

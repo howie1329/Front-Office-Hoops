@@ -1,5 +1,7 @@
 # V2 Career Development Growth Calibration and Harness Settings — Implementation Plan
 
+> Archived on August 1, 2026. Consolidated into [V2 Career Cohort Calibration](../plans/foh-v2-career-cohort-calibration-plan.md).
+
 **Status:** Ready for calibration<br>
 **Date:** 2026-07-31<br>
 **Roadmap position:** Phase 2 calibration<br>

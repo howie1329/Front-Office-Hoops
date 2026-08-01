@@ -1,6 +1,8 @@
 # Front Office Hoops v2 Experiment Backlog
 
-Experiments are ordered by risk to the first-v2 product. Each experiment should be independent of the polished UI, use explicit deterministic seeds where reproducibility is required, produce downloadable reports, and retain failed cases as fixtures. The [lab strategy](./foh-v2-lab-strategy.md) maps these experiments to a smaller set of visual surfaces and headless harnesses.
+> Archived on August 1, 2026. The active sequence now lives in the [V2 roadmap](../plans/foh-v2-roadmap.md) and [V2 lab strategy](../plans/foh-v2-lab-strategy.md).
+
+Experiments are ordered by risk to the first-v2 product. Each experiment should be independent of the polished UI, use explicit deterministic seeds where reproducibility is required, produce downloadable reports, and retain failed cases as fixtures. The [lab strategy](../plans/foh-v2-lab-strategy.md) maps these experiments to a smaller set of visual surfaces and headless harnesses.
 
 ## Strategy alignment
 

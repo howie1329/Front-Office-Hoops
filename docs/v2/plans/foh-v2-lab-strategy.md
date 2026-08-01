@@ -1,8 +1,8 @@
 # Front Office Hoops v2 Lab Strategy
 
-**Status:** Recommended calibration and integration strategy  
-**Review date:** 2026-07-29  
-**Branch reviewed:** `codex/v2-tanstack-start-scaffold`
+**Status:** Active calibration and integration strategy<br>
+**Review date:** August 1, 2026<br>
+**Implementation status:** Five active lab surfaces are implemented in slices; Draft & Decision and League Loop remain planned.
 
 ## Executive recommendation
 
@@ -18,7 +18,11 @@ The recommended product surface is:
 6. **Draft & Decision Lab** — draft-class/scouting inspection plus baseline decision scenarios; owner, staff, and AI policy tests are embedded or batch-driven rather than separate simulators.
 7. **League Loop Lab** — the integration and failure-reproduction harness for a complete saved league; it is not a second simulation engine.
 
-The first implementation slice should be the **Game & Matchup Lab**, beginning with a headless batch harness and a small visual fixture inspector. It establishes the first downstream production contracts: rotations, availability, staff inputs, game results, box scores, and reconciliation. It should consume a real imported `InitialPlayerUniverse` fixture and progressively write the game output into a versioned `LeagueDocument` rather than inventing another simulation model.
+The current implementation has worker-backed routes for Population & Roster,
+Game & Matchup, Production & Value, Career Cohort, and Market & Rules. The
+latest active calibration area is Market & Rules. The next integration slice is
+cross-lab acceptance followed by a league-creation adapter and authoritative
+lifecycle commands; it is not another standalone visual simulator.
 
 The first complete simulation engine exists when a generated `LeagueDocument` can run a full regular season, playoffs, simple offseason, and begin the next season with no manual repair. A game benchmark or a season-production report alone is not a complete engine.
 
@@ -369,35 +373,52 @@ Build or extract the shared batch primitives before the next visual route:
 
 This is the first justified slice of `packages/calibration`. Keep it small and dependency-directed: `calibration -> domain-v2`, `sim-v2`, and `league-schema`; never `sim-v2 -> calibration`.
 
-### Slice 1 — Game & Matchup Lab (next build)
+### Slice 1 — Game & Matchup Lab (implemented initial slice)
 
-Start with a two-team imported fixture and a single game. Add repeated matchup mode only after the single-game invariants exist. Use manual staff fixtures. Establish the production game contract before adding a season runner.
+The typed fixture/config/result boundary, possession engine, rotation and
+availability validation, seeded batch runner, worker-backed route, reports, and
+reconciliation evidence now exist. The standard preset remains a calibration
+target rather than an accepted gameplay profile.
 
-Exit condition: one deterministic game can be rerun exactly, produces complete reconciled box scores, and has an explicit failure for invalid lineups/availability.
+Acceptance condition: benchmark ranges pass for pace, scoring, efficiency,
+stat distributions, player opportunity, variance, and exact reconciliation.
 
-### Slice 2 — Season Production & Value
+### Slice 2 — Season Production & Value (implemented initial slice)
 
-Add schedule/season execution around the calibrated game engine, then production aggregation, standings inputs, and the visible universal value. Do not build the full league shell yet; use a developer-only document/fixture runner.
+The season fixture, schedule runner, production aggregation, universal player
+value, checkpoints, and worker-backed route now exist. The full 82-game fixture
+can run as a developer report, but its outputs remain calibration evidence.
 
-Exit condition: a full 82-game regular season can be batch-run and value breakdowns remain explainable with sample-size flags.
+Acceptance condition: production and value remain explainable across short and
+full samples, populations, injuries, and repeated deterministic runs.
 
-### Slice 3 — Minimal league creation and first in-season vertical slice
+### Slice 3 — Career Cohort Harness (implemented initial slice)
 
-Create the adapter that embeds the initial universe into `LeagueDocument`, add teams/rosters/rotations/coach fixtures, schedule, standings, injuries, checkpoints, and worker progress. Add enough UI for league creation, team selection, rotation, simulate-to-game/date, box scores, and save/reload.
+The annual development, decline, availability, retirement, settings pipeline,
+matched-run reports, worker, and explorer route now exist. These outputs must be
+accepted before they become the League Loop's annual transition authority.
 
-Exit condition: the user can create a complete legal league, choose a team, set a rotation, simulate to the trade deadline, and reload without data repair.
+Acceptance condition: growth, curve separation, potential forecasting, injury
+burden, and retirement distributions meet agreed ranges.
 
-### Slice 4 — Career transitions and basic staff/owner effects
+### Slice 4 — Market & Rules (active implementation and calibration)
 
-Add annual development, aging, injury/recovery, retirement, simple owners/goals, and bounded staff effects. Run the cohort harness alongside the first season loop. Do not add staff markets or organization AI.
+Economy, contract demand, offer utility, legality/affordability, deterministic
+free agency, target boards, activity reporting, roster capacity, and cleanup
+behavior are implemented in the Market & Rules workbench.
 
-Exit condition: season one can transition to season two with stable cohort and availability distributions.
+Acceptance condition: multi-season markets produce legal rosters, continuous
+salary behavior, meaningful bidder activity, and explainable outliers.
 
-### Slice 5 — Market & Rules
+### Slice 5 — Minimal league creation and first in-season vertical slice
 
-Implement a simple rules profile, contract terms, demand, separate legality/affordability, re-signing, three-stage free agency, and baseline roster completion. Add individual contract and market batch reports.
+Create the adapter that embeds the validated initial universe into
+`LeagueDocument`, add teams/rosters/rotations, schedule, standings, injuries,
+checkpoints, worker progress, and enough UI for league creation, team
+selection, simulation, box scores, and save/reload.
 
-Exit condition: a legal offseason can complete with continuity and explainable signings.
+Exit condition: the user can create a complete legal league, choose a team, set
+a rotation, simulate to the trade deadline, and reload without data repair.
 
 ### Slice 6 — Draft & baseline decisions
 
@@ -660,13 +681,15 @@ V2 should not replace V1 when it merely has a pretty league shell or a successfu
 
 ## 15. Immediate next implementation slice
 
-Build the first Game & Matchup Lab slice, but keep the work scoped to contracts and calibration:
+Consolidate the existing calibration slices into the first authoritative league
+boundary:
 
-1. Add a versioned matchup fixture adapter that consumes an `InitialPlayerUniverse` or a canonical `LeagueDocument` subset.
-2. Define rotation, availability, coaching-profile, `GameResult`, team box-score, player box-score, and reconciliation types in the production domain boundary.
-3. Implement the headless single-game runner and deterministic replay test.
-4. Add hard invariants for minutes, player uniqueness, available-player usage, team/player stat reconciliation, and result serialization.
-5. Add the batch runner with progress, cancellation, metrics, and failed-seed retention through `packages/calibration`.
-6. Add the visual two-team inspector only after the runner and fixture contract exist.
+1. Run accepted-range reviews for population, game, production/value, career, and market reports.
+2. Retain failed seeds and outlier reports as versioned calibration fixtures.
+3. Define the league-creation adapter that promotes the validated initial universe into `LeagueDocument`.
+4. Expand `LeagueCommand` beyond `NoOp` and the intentionally rejected `AdvanceDay`.
+5. Persist promoted game, production, market, career, and lifecycle events through the V2 document and repository boundaries.
+6. Add the first browser-visible league-creation and team-selection flow only after those contracts pass.
 
-This slice establishes the production contracts needed by Season Production & Value and avoids building a game-specific prototype that must later be replaced by the league loop.
+This slice connects the existing production contracts without creating a second
+simulation truth inside the league loop.

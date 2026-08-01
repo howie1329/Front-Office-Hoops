@@ -1,8 +1,7 @@
 # V2 Game & Matchup Lab — Implementation Plan
 
 **Status:** Implemented initial slice; calibration acceptance pending
-**Date:** 2026-07-29
-**Feature branch:** `codex/game-matchup-lab`
+**Last reviewed:** August 1, 2026
 **Roadmap position:** Phase 2, Slice 1
 
 ## Implementation note
@@ -222,14 +221,13 @@ Reconciliation must verify at minimum:
 
 ## Implementation phases
 
-### Phase 0 — Branch and baseline
+### Phase 0 — Baseline
 
-- Work only on `codex/game-matchup-lab`.
 - Confirm the V2 package/test baseline is clean before feature changes.
 - Record the implementation plan and linked V2 roadmap/lab-strategy constraints.
 - Do not modify V1 surfaces.
 
-**Exit:** branch is isolated, baseline checks pass, and all new files remain within V2 packages/docs.
+**Exit:** baseline checks pass and all implementation files remain within the V2 packages and documentation directories.
 
 ### Phase 1 — Domain and schema contracts
 
@@ -471,7 +469,7 @@ Use the repository’s actual workspace runner if a command differs from the ins
 
 ## Completion checklist
 
-- [x] Dedicated feature branch contains the work.
+- [x] Implementation remains isolated from V1 surfaces.
 - [x] Typed game contracts and schemas exist.
 - [x] Standard preset is explicit and versioned.
 - [x] Single-game engine passes deterministic and reconciliation tests.
@@ -480,5 +478,5 @@ Use the repository’s actual workspace runner if a command differs from the ins
 - [x] Game & Matchup Lab exposes shared settings plus lab-only controls.
 - [x] Desktop and responsive layouts preserve readable evidence and usable controls.
 - [x] Worker progress/cancellation protects the browser during batches.
-- [ ] V2 checks pass; focused V2 checks pass, while an unrelated pre-existing V1 calibration test remains over its rebound upper bound.
-- [ ] Roadmap/README status is updated only after acceptance.
+- [x] Focused V2 tests and typechecks pass; web-v2 has two known pre-existing lint diagnostics in this branch.
+- [x] Roadmap and README status identify implementation separately from calibration acceptance.

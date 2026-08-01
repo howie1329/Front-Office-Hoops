@@ -1,8 +1,7 @@
 # Front Office Hoops V2 Contract Market, Negotiation, and Free Agency
 
-**Status:** Design review / proposed
-**Date:** 2026-07-31
-**Branch reviewed:** `codex/v2-labs-ui-pass`
+**Status:** Initial implementation active; calibration and league integration pending
+**Last reviewed:** August 1, 2026
 **Roadmap position:** Phase 2 calibration, Market & Rules Lab; later Phase 5 league integration
 
 ## Design conclusion

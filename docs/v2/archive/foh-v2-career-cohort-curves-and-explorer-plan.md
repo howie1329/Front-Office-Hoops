@@ -1,5 +1,7 @@
 # V2 Career Cohort Curves and Explorer — Implementation Plan
 
+> Archived on August 1, 2026. Consolidated into [V2 Career Cohort Calibration](../plans/foh-v2-career-cohort-calibration-plan.md).
+
 **Status:** Proposed  
 **Date:** 2026-07-31  
 **Roadmap position:** Phase 2 calibration  
