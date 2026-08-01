@@ -212,10 +212,19 @@ export function resolveSeasonProductionConfig(
   const source = config ?? STANDARD_SEASON_PRODUCTION_CONFIG
   const preset = SEASON_RUN_PRESETS.find((item) => item.id === source.runPreset)
   const value = source.value ?? STANDARD_UNIVERSAL_PLAYER_VALUE_CONFIG
+  const gamesPerTeam = Math.round(
+    clamp(
+      preset && source.runPreset !== "batch"
+        ? Math.min(source.gamesPerTeam, preset.gamesPerTeam)
+        : source.gamesPerTeam,
+      1,
+      82
+    )
+  )
   return {
     ...structuredClone(source),
     version: SEASON_PRODUCTION_VERSION,
-    gamesPerTeam: Math.round(clamp(source.gamesPerTeam, 1, 82)),
+    gamesPerTeam,
     schedule: {
       ...source.schedule,
       teamCount: Math.round(clamp(source.schedule.teamCount, 2, 30)),
@@ -245,9 +254,6 @@ export function resolveSeasonProductionConfig(
     },
     presetId: source.presetId === "custom" ? "custom" : "standard",
     runPreset: source.runPreset,
-    ...(preset && source.runPreset !== "batch"
-      ? { gamesPerTeam: Math.min(source.gamesPerTeam, preset.gamesPerTeam) }
-      : {}),
   }
 }
 

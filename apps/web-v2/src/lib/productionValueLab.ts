@@ -40,26 +40,10 @@ export function createDefaultProductionValueLabFixture(
     options.config ?? createStandardSeasonProductionConfig(runPreset)
   const fixture = createDefaultSeasonFixture(options.seed, {
     runPreset,
+    config,
     gameConfig: options.gameConfig ?? createStandardGameSimulationConfig(),
   })
-  const gameConfig = structuredClone(options.gameConfig ?? fixture.gameConfig)
-  if (config.injuries.mode === "off") {
-    gameConfig.injuries.frequency = "off"
-    gameConfig.injuries.inGameInjuries = false
-  }
-  return {
-    ...fixture,
-    gameConfig,
-    config: {
-      ...fixture.config,
-      ...config,
-      schedule: {
-        ...fixture.config.schedule,
-        ...config.schedule,
-      },
-      value: structuredClone(config.value),
-    },
-  }
+  return fixture
 }
 
 export function updateProductionValueSetting(
@@ -93,12 +77,14 @@ export function serializeProductionValueLabReport(
 }
 
 export function getPopulationLabel(
-  fixture: SeasonFixture,
-  playerId: string
+  playerId: string,
+  populationSets: {
+    freeAgents: Set<string>
+    draftProspects: Set<string>
+  }
 ): string {
-  if (fixture.populations.freeAgents.includes(playerId)) return "Free agent"
-  if (fixture.populations.draftProspects.includes(playerId))
-    return "Draft prospect"
+  if (populationSets.freeAgents.has(playerId)) return "Free agent"
+  if (populationSets.draftProspects.has(playerId)) return "Draft prospect"
   return "Current player"
 }
 
@@ -107,5 +93,9 @@ export function getSeasonTeamName(
   teamId: string | null
 ): string {
   if (!teamId) return "Unassigned"
-  return fixture.teams[teamId].name
+  const teams = fixture.teams as Record<
+    string,
+    (typeof fixture.teams)[string] | undefined
+  >
+  return teams[teamId]?.name ?? "Unassigned"
 }

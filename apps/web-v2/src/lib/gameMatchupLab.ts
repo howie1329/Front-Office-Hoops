@@ -75,7 +75,7 @@ export function migrateGameMatchupLabReport(
     schema: "foh-game-matchup-lab",
     version: GAME_MATCHUP_LAB_REPORT_VERSION,
     fixture: gameMatchupFixtureSchema.parse(payload.fixture),
-    result: gameResultSchema.parse(migratedResult) as GameResult,
+    result: gameResultSchema.parse(migratedResult),
   }
 }
 

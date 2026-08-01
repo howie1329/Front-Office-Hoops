@@ -173,9 +173,13 @@ For each descriptor, run the same fixture factory and seed list at:
 - the 75th-percentile value between min and max;
 - the descriptor maximum.
 
-If the baseline equals a quartile, deduplicate that arm while retaining its
-label. Every arm must record the effective config actually passed to the
-engine.
+For each arm, first snap the quartile or baseline candidate to the descriptor
+step, then clamp it to the descriptor bounds, then deduplicate equal effective
+values while retaining the surviving arm label. Every arm must record that
+snapped-and-clamped value in the effective config passed to the engine. Keep
+the five-arm structure whenever all five effective values are distinct; when
+values collide, retain the labels for the arms that remain under the UI
+contract.
 
 Use the same seeds in every arm. The harness should report both aggregate
 metric deltas and the number of paired games whose compact result fingerprint
@@ -209,8 +213,23 @@ Classify each result as one of:
 
 The report should include exact endpoint deltas, the five arm means, p10/p90
 values, paired changed-game count, and a short reason for the classification.
-Report-only sensitivity thresholds are not gameplay constants and must not be
-copied into GameSimulationConfig.
+Each arm must also record requested-game count, completed-game count, and
+retained failure count. Define paired seeds as the intersection of successful
+seeds common to every compared arm, retain that seed set (or equivalent
+per-seed data), and calculate changed-game counts and endpoint comparisons from
+that set so failures and cancellation cannot create false pairings.
+
+Before generating a baseline, define a versioned registry of metric-specific
+diagnostic floors. Each entry owns an explicit numeric value and owner (the
+initial registry is calibration-owned); maintenance requires updating the
+registry version and its documentation when a metric or floor changes. Use
+this deterministic classification precedence: conditional when a wired result
+is present only in a required matched scenario while the default scenario is
+no-op; otherwise wired when the directional floor and adjacent-arm rule pass;
+otherwise saturated when the metric is unchanged because an input/output
+bound is active; otherwise no-op when all compared outputs and fingerprints are
+equal; otherwise unknown. This order resolves overlaps consistently. These
+report-only thresholds remain separate from GameSimulationConfig.
 
 For declared directional metrics, use the endpoint sign plus the five-arm
 sequence as evidence. A directional pass requires the endpoint delta to exceed
@@ -229,9 +248,10 @@ report should contain:
 - baseline effective config;
 - one result per numeric descriptor;
 - arm values and effective configs;
+- requested, completed, and retained-failure counts per arm;
 - selected metric summaries and endpoint deltas;
 - expected direction and primary metric;
-- paired changed-game count;
+- successful paired seed intersection and paired changed-game count;
 - classification and diagnostic note.
 
 Do not add sensitivity results to MatchupBatchReport or bump its version. The
@@ -256,37 +276,37 @@ primary signal, fixture requirement, and direction type. Use the following
 initial contract; revise only when the first report reveals a genuine
 measurement ambiguity.
 
-| Setting | Primary signal | Fixture/scenario | Expected behavior |
-| --- | --- | --- | --- |
-| environment.pace | teamPossessions | Standard, injuries off | Higher values increase possessions. |
-| environment.scoringEnvironment | teamPoints and offensiveEfficiency | Standard, injuries off | Higher values increase scoring output. |
-| environment.gameVariance | total-score or possession p90-p10 spread | Standard, injuries off | Higher values increase outcome spread, not necessarily the mean. |
-| environment.talentSeparation | strong-team advantage spread | Asymmetric talent fixture | Higher values make skill differences more visible. |
-| environment.homeCourtAdvantage | home-minus-away score/efficiency delta | Matched teams, alternating home identity | Higher values increase the home edge. |
-| offense.threePointRate | threePointAttemptRate | Standard, injuries off | Higher values increase three-point share. |
-| offense.rimRate | rimAttemptRate | Standard, injuries off | Higher values increase rim share. |
-| offense.midrangeRate | midrangeAttemptRate | Standard, injuries off | Higher values increase mid-range share. |
-| offense.shotSelectionDiscipline | fieldGoalPercentage plus shot-quality mix | Standard and varied-skill fixture | Higher values favor the player's more efficient supported attempts. |
-| offense.starUsage | topPlayerOpportunityShare | Standard, injuries off | Higher values concentrate creation around the best players. |
-| offense.ballMovement | assists per team | Standard, injuries off | Higher values increase assisted scoring opportunities. |
-| offense.isolationRate | assists per team | Standard, injuries off | Higher values reduce assisted scoring opportunities. |
-| offense.transitionRate | transition proxy: early-offense shot mix and possessions | Standard, injuries off | Higher values increase the defined early-offense proxy without double-counting pace. |
-| offense.offensiveRebounding | offensiveRebounds | Standard, injuries off | Higher values increase second-chance rebounds. |
-| defense.pressure | turnovers, fouls, and field-goal percentage | Standard, injuries off | Higher pressure forces more mistakes but carries the existing foul tradeoff. |
-| defense.helpDefense | blocks and opponent field-goal percentage | Standard, injuries off | Higher values improve contests and blocks within bounds. |
-| defense.turnoverPressure | turnovers | Standard, injuries off | Higher values force more turnovers. |
-| defense.switching | mismatch/contest signal | Mismatched role fixture | Classify conditionally until a matchup assignment contract exists. |
-| defense.doubleTeamRate | creator turnovers and creator shot share | Star-versus-support fixture | Higher values create more pressure on primary creators. |
-| defense.foulDiscipline | defensive fouls | Standard, injuries off | Higher values reduce defensive fouls. |
-| rotation.adherence | distance from configured target minutes | Manual target-minute fixture | Higher values keep final minutes closer to the configured targets. |
-| rotation.benchUsage | bench opportunity and bench points share | Standard, injuries off | Higher values increase bench opportunity. |
-| rotation.starterWorkload | starter minutes and opportunities | Standard, injuries off | Higher values favor starters. |
-| rotation.fatigueImpact | late-period efficiency delta | Standard, injuries off | Higher values increase the late-stint penalty. |
-| coaching.influence | difference between matched coach profiles | Non-neutral coach fixture | Higher values amplify profile differences around neutral 50. |
-| coaching.paceInfluence | possessions by coach pace | Non-neutral coach fixture | Higher values amplify coach pace differences. |
-| coaching.shotSelectionInfluence | shot mix by coach shot-selection profile | Non-neutral coach fixture | Higher values amplify coach shot-profile differences. |
-| coaching.defensiveInfluence | turnovers/field-goal percentage by coach defense profile | Non-neutral coach fixture | Higher values amplify coach defensive differences. |
-| injuries.maxGamesOut | generated injury duration | Injuries enabled and enough bench depth | Higher values increase the upper duration bound, not injury frequency. |
+| Setting                         | Primary signal                                           | Fixture/scenario                         | Expected behavior                                                                    |
+| ------------------------------- | -------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| environment.pace                | teamPossessions                                          | Standard, injuries off                   | Higher values increase possessions.                                                  |
+| environment.scoringEnvironment  | teamPoints and offensiveEfficiency                       | Standard, injuries off                   | Higher values increase scoring output.                                               |
+| environment.gameVariance        | total-score or possession p90-p10 spread                 | Standard, injuries off                   | Higher values increase outcome spread, not necessarily the mean.                     |
+| environment.talentSeparation    | strong-team advantage spread                             | Asymmetric talent fixture                | Higher values make skill differences more visible.                                   |
+| environment.homeCourtAdvantage  | home-minus-away score/efficiency delta                   | Matched teams, alternating home identity | Higher values increase the home edge.                                                |
+| offense.threePointRate          | threePointAttemptRate                                    | Standard, injuries off                   | Higher values increase three-point share.                                            |
+| offense.rimRate                 | rimAttemptRate                                           | Standard, injuries off                   | Higher values increase rim share.                                                    |
+| offense.midrangeRate            | midrangeAttemptRate                                      | Standard, injuries off                   | Higher values increase mid-range share.                                              |
+| offense.shotSelectionDiscipline | fieldGoalPercentage plus shot-quality mix                | Standard and varied-skill fixture        | Higher values favor the player's more efficient supported attempts.                  |
+| offense.starUsage               | topPlayerOpportunityShare                                | Standard, injuries off                   | Higher values concentrate creation around the best players.                          |
+| offense.ballMovement            | assists per team                                         | Standard, injuries off                   | Higher values increase assisted scoring opportunities.                               |
+| offense.isolationRate           | assists per team                                         | Standard, injuries off                   | Higher values reduce assisted scoring opportunities.                                 |
+| offense.transitionRate          | transition proxy: early-offense shot mix and possessions | Standard, injuries off                   | Higher values increase the defined early-offense proxy without double-counting pace. |
+| offense.offensiveRebounding     | offensiveRebounds                                        | Standard, injuries off                   | Higher values increase second-chance rebounds.                                       |
+| defense.pressure                | turnovers, fouls, and field-goal percentage              | Standard, injuries off                   | Higher pressure forces more mistakes but carries the existing foul tradeoff.         |
+| defense.helpDefense             | blocks and opponent field-goal percentage                | Standard, injuries off                   | Higher values improve contests and blocks within bounds.                             |
+| defense.turnoverPressure        | turnovers                                                | Standard, injuries off                   | Higher values force more turnovers.                                                  |
+| defense.switching               | mismatch/contest signal                                  | Mismatched role fixture                  | Classify conditionally until a matchup assignment contract exists.                   |
+| defense.doubleTeamRate          | creator turnovers and creator shot share                 | Star-versus-support fixture              | Higher values create more pressure on primary creators.                              |
+| defense.foulDiscipline          | defensive fouls                                          | Standard, injuries off                   | Higher values reduce defensive fouls.                                                |
+| rotation.adherence              | distance from configured target minutes                  | Manual target-minute fixture             | Higher values keep final minutes closer to the configured targets.                   |
+| rotation.benchUsage             | bench opportunity and bench points share                 | Standard, injuries off                   | Higher values increase bench opportunity.                                            |
+| rotation.starterWorkload        | starter minutes and opportunities                        | Standard, injuries off                   | Higher values favor starters.                                                        |
+| rotation.fatigueImpact          | late-period efficiency delta                             | Standard, injuries off                   | Higher values increase the late-stint penalty.                                       |
+| coaching.influence              | difference between matched coach profiles                | Non-neutral coach fixture                | Higher values amplify profile differences around neutral 50.                         |
+| coaching.paceInfluence          | possessions by coach pace                                | Non-neutral coach fixture                | Higher values amplify coach pace differences.                                        |
+| coaching.shotSelectionInfluence | shot mix by coach shot-selection profile                 | Non-neutral coach fixture                | Higher values amplify coach shot-profile differences.                                |
+| coaching.defensiveInfluence     | turnovers/field-goal percentage by coach defense profile | Non-neutral coach fixture                | Higher values amplify coach defensive differences.                                   |
+| injuries.maxGamesOut            | generated injury duration                                | Injuries enabled and enough bench depth  | Higher values increase the upper duration bound, not injury frequency.               |
 
 The registry must make exceptions visible. A conditional control is not a
 failed slider, and a control whose product meaning cannot be measured from the

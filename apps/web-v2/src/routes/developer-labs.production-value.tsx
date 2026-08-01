@@ -103,7 +103,12 @@ function formatPercentage(numerator: number, denominator: number): string {
 }
 
 function getPlayerName(fixture: SeasonFixture, playerId: string): string {
-  const player = fixture.players[playerId]
+  const players = fixture.players as Record<
+    string,
+    (typeof fixture.players)[string] | undefined
+  >
+  const player = players[playerId]
+  if (!player) return playerId.split(":").at(-1) || playerId
   const name = [player.identity.firstName, player.identity.lastName]
     .filter(Boolean)
     .join(" ")
@@ -492,6 +497,17 @@ function ProductionValueLabPage() {
   const [error, setError] = React.useState<string | null>(null)
   const abortController = React.useRef<AbortController | null>(null)
 
+  const populationSets = React.useMemo(
+    () =>
+      fixture
+        ? {
+            freeAgents: new Set(fixture.populations.freeAgents),
+            draftProspects: new Set(fixture.populations.draftProspects),
+          }
+        : null,
+    [fixture]
+  )
+
   const checkpoints = result?.checkpoints ?? []
   const activeCheckpoint =
     checkpoints.find(
@@ -583,6 +599,7 @@ function ProductionValueLabPage() {
     fixture,
     playerSort,
     population,
+    populationSets,
     preseasonCheckpoint,
     teamFilter,
   ])
@@ -614,9 +631,10 @@ function ProductionValueLabPage() {
       : null
   const selectedPopulationLabel =
     selectedPlayerId && fixture
-      ? getPopulationLabel(fixture, selectedPlayerId) === "Current player"
+      ? getPopulationLabel(selectedPlayerId, populationSets!) ===
+        "Current player"
         ? "current players"
-        : getPopulationLabel(fixture, selectedPlayerId) === "Free agent"
+        : getPopulationLabel(selectedPlayerId, populationSets!) === "Free agent"
           ? "free agents"
           : "draft prospects"
       : "population"
@@ -635,10 +653,19 @@ function ProductionValueLabPage() {
 
   function updatePreset(value: SeasonRunPresetId) {
     const preset = SEASON_RUN_PRESETS.find((item) => item.id === value)
+    const standardValueConfig =
+      createStandardSeasonProductionConfig(value).value
+    const usesStandardValueSettings = VALUE_SETTING_DESCRIPTORS.every(
+      (descriptor) =>
+        getValueSetting(config, descriptor.path) ===
+        standardValueConfig[
+          descriptor.path.split(".")[1] as keyof typeof standardValueConfig
+        ]
+    )
     setRunPreset(value)
     setConfig((current) => ({
       ...current,
-      presetId: "custom",
+      presetId: usesStandardValueSettings ? "standard" : "custom",
       runPreset: value,
       gamesPerTeam: preset?.gamesPerTeam ?? 82,
     }))
@@ -678,6 +705,7 @@ function ProductionValueLabPage() {
     setResult(null)
     setBatchReport(null)
     setSelectedCheckpoint(0)
+    setSelectedPlayerId(null)
     setIsRunning(true)
     setIsDirty(false)
     setError(null)
@@ -696,12 +724,21 @@ function ProductionValueLabPage() {
         if (lastReport) {
           setFixture(lastReport.fixture)
           setResult(lastReport)
+          setSelectedPlayerId(null)
           setSelectedCheckpoint(
             lastReport.checkpoints.at(-1)?.gamesPerTeam ?? 0
           )
         }
         setProgress(`${report.completed} season runs completed.`)
       } else {
+        let partialResult: SeasonRunResult = {
+          status: "cancelled",
+          fixture: nextFixture,
+          games: [],
+          checkpoints: [],
+          finalAvailability: nextFixture.availability,
+          failures: [],
+        }
         const nextResult = await runSeasonInWorker(nextFixture, {
           signal: controller.signal,
           onProgress: (nextProgress) =>
@@ -709,6 +746,11 @@ function ProductionValueLabPage() {
               `${nextProgress.gamesCompleted} games · ${nextProgress.gamesPerTeam} per team`
             ),
           onCheckpoint: (checkpoint) => {
+            partialResult = {
+              ...partialResult,
+              checkpoints: [...partialResult.checkpoints, checkpoint],
+            }
+            setResult(partialResult)
             setSelectedCheckpoint(checkpoint.gamesPerTeam)
             setProgress(
               `Checkpoint reached · ${checkpoint.gamesPerTeam} games per team`
@@ -823,7 +865,9 @@ function ProductionValueLabPage() {
             <Badge variant={isRunning ? "default" : "secondary"}>
               {isRunning ? "Running" : "Ready"}
             </Badge>
-            <span className="text-muted-foreground">{progress}</span>
+            <span className="text-muted-foreground" aria-live="polite">
+              {progress}
+            </span>
           </div>
           <span className="text-muted-foreground">
             {fixture?.teams
@@ -1103,7 +1147,10 @@ function ProductionValueLabPage() {
                                 ...structuredClone(gameConfig),
                                 overtime: {
                                   ...gameConfig.overtime,
-                                  segmentMinutes: Number(event.target.value),
+                                  segmentMinutes: Math.min(
+                                    20,
+                                    Math.max(1, Number(event.target.value))
+                                  ),
                                 },
                               })
                             }
@@ -1124,7 +1171,10 @@ function ProductionValueLabPage() {
                                 ...structuredClone(gameConfig),
                                 overtime: {
                                   ...gameConfig.overtime,
-                                  maxSegments: Number(event.target.value),
+                                  maxSegments: Math.min(
+                                    20,
+                                    Math.max(1, Number(event.target.value))
+                                  ),
                                 },
                               })
                             }
@@ -1404,8 +1454,10 @@ function ProductionValueLabPage() {
                                 </span>
                               </TableCell>
                               <TableCell className="text-muted-foreground">
-                                {getPopulationLabel(fixture!, playerId) ===
-                                "Current player"
+                                {getPopulationLabel(
+                                  playerId,
+                                  populationSets!
+                                ) === "Current player"
                                   ? getSeasonTeamName(
                                       fixture!,
                                       production?.teamId ??
@@ -1414,7 +1466,10 @@ function ProductionValueLabPage() {
                                           ? player.leagueStatus.teamId
                                           : null)
                                     )
-                                  : getPopulationLabel(fixture!, playerId)}
+                                  : getPopulationLabel(
+                                      playerId,
+                                      populationSets!
+                                    )}
                               </TableCell>
                               <TableCell className="text-right font-medium tabular-nums">
                                 {player ? getPlayerCurrentAbility(player) : "—"}

@@ -80,6 +80,10 @@ export function runSeasonBatch(options: SeasonBatchOptions): SeasonBatchReport {
           }),
       }
     )
+    if (report.status === "cancelled") {
+      cancelled = true
+      break
+    }
     reports.push(report)
     const final = report.checkpoints.at(-1)
     if (final) {
@@ -91,7 +95,9 @@ export function runSeasonBatch(options: SeasonBatchOptions): SeasonBatchReport {
       summaries.finalReconciliationPassRate.push(
         final.leagueSummary.reconciliationPassRate
       )
-      summaries.finalTopPlayerValue.push(Math.max(...values, 0))
+      if (values.length > 0) {
+        summaries.finalTopPlayerValue.push(Math.max(...values))
+      }
       summaries.finalAveragePlayerValue.push(
         values.length
           ? values.reduce((sum, value) => sum + value, 0) / values.length

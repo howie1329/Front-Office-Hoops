@@ -30,6 +30,48 @@ export type SensitivityExpectation = {
   diagnosticFloor?: number
 }
 
+export type SensitivityDiagnosticFloor = {
+  value: number
+  owner: string
+}
+
+export type SensitivityDiagnosticFloorRegistry = {
+  version: 1
+  metrics: Record<string, SensitivityDiagnosticFloor>
+}
+
+export const SENSITIVITY_DIAGNOSTIC_FLOOR_REGISTRY: SensitivityDiagnosticFloorRegistry =
+  {
+    version: 1,
+    metrics: {
+      teamPossessions: { value: 0.25, owner: "calibration" },
+      teamPoints: { value: 0.25, owner: "calibration" },
+      totalScore: { value: 0.25, owner: "calibration" },
+      strongTeamPointDiff: { value: 0.25, owner: "calibration" },
+      homeCourtPointDiff: { value: 0.25, owner: "calibration" },
+      threePointAttemptRate: { value: 0.1, owner: "calibration" },
+      rimAttemptRate: { value: 0.1, owner: "calibration" },
+      midrangeAttemptRate: { value: 0.1, owner: "calibration" },
+      fieldGoalPercentage: { value: 0.1, owner: "calibration" },
+      topPlayerOpportunityShare: { value: 0.1, owner: "calibration" },
+      assists: { value: 0.25, owner: "calibration" },
+      transitionAttemptProxy: { value: 0.1, owner: "calibration" },
+      offensiveRebounds: { value: 0.25, owner: "calibration" },
+      turnovers: { value: 0.25, owner: "calibration" },
+      blocks: { value: 0.25, owner: "calibration" },
+      creatorTurnovers: { value: 0.25, owner: "calibration" },
+      fouls: { value: 0.25, owner: "calibration" },
+      rotationTargetError: { value: 0.25, owner: "calibration" },
+      benchPointsShare: { value: 0.1, owner: "calibration" },
+      starterMinutes: { value: 0.25, owner: "calibration" },
+      lateEfficiencyDelta: { value: 0.25, owner: "calibration" },
+      coachPaceAlignedPossessions: { value: 0.25, owner: "calibration" },
+      coachShotSelectionAlignedMix: { value: 0.1, owner: "calibration" },
+      coachDefenseAlignedTurnovers: { value: 0.25, owner: "calibration" },
+      injuryDuration: { value: 0.25, owner: "calibration" },
+    },
+  }
+
 export type SliderSensitivityScenario = {
   id: string
   createFixture: (seed: string) => GameMatchupFixture
@@ -51,6 +93,9 @@ export type SliderSensitivityArm = {
   value: number
   effectiveConfig: GameSimulationConfig
   metrics: Record<string, CalibrationMetric>
+  requestedCount: number
+  completedCount: number
+  retainedFailureCount: number
 }
 
 export type SensitivityMetricDelta = {
@@ -68,6 +113,7 @@ export type SensitivityMetricDelta = {
 export type SliderSensitivityScenarioResult = {
   scenario: string
   arms: SliderSensitivityArm[]
+  pairedSeeds: string[]
   pairedCount: number
   pairedChangedCount: number
   primary: SensitivityMetricDelta
@@ -277,15 +323,13 @@ function getDiagnosticFloor(
   override: number | undefined
 ): number {
   if (override !== undefined) return override
-  if (
-    metricName.toLowerCase().includes("percentage") ||
-    metricName.toLowerCase().includes("share") ||
-    metricName.toLowerCase().includes("rate") ||
-    metricName.toLowerCase().includes("mix")
-  ) {
-    return 0.1
+  const entry = SENSITIVITY_DIAGNOSTIC_FLOOR_REGISTRY.metrics[metricName]
+  if (!entry) {
+    throw new Error(
+      `No diagnostic floor is registered for sensitivity metric ${metricName}.`
+    )
   }
-  return 0.25
+  return entry.value
 }
 
 function getSignalValue(
@@ -509,22 +553,39 @@ function countChangedPairs(
   lowResults: GameResult[],
   highResults: GameResult[]
 ): number {
-  return lowResults.reduce(
-    (count, result, index) =>
-      count +
-      (fingerprint(result) === fingerprint(highResults[index]!) ? 0 : 1),
+  const lowFingerprints = lowResults.map(fingerprint)
+  const highFingerprints = highResults.map(fingerprint)
+  return lowFingerprints.reduce(
+    (count, value, index) =>
+      count + (value === highFingerprints[index] ? 0 : 1),
     0
   )
 }
 
 function allResultsEqual(results: GameResult[][]): boolean {
   const first = results[0] ?? []
-  return results.every(
-    (candidate) =>
-      candidate.length === first.length &&
+  const firstFingerprints = first.map(fingerprint)
+  const fingerprints = results.map((candidate) => candidate.map(fingerprint))
+  return fingerprints.every(
+    (candidate, candidateIndex) =>
+      candidate.length === firstFingerprints.length &&
       candidate.every(
-        (result, index) => fingerprint(result) === fingerprint(first[index]!)
+        (value, index) =>
+          candidateIndex === 0 || value === firstFingerprints[index]
       )
+  )
+}
+
+function successfulResultsBySeed(
+  results: GameResult[]
+): Map<string, GameResult> {
+  return new Map(
+    results
+      .filter(
+        (result) =>
+          result.status === "completed" && result.reconciliation.passed
+      )
+      .map((result) => [result.seed, result])
   )
 }
 
@@ -589,9 +650,18 @@ function classifyScenario(
     diagnosticFloor: floor,
     directionalPass: directionalPass(signals, expectation.direction, floor),
   }
+  const successfulResultSets = resultSets.map(successfulResultsBySeed)
+  const pairedSeeds = (
+    successfulResultSets[0] ? [...successfulResultSets[0].keys()] : []
+  ).filter((seed) => successfulResultSets.every((results) => results.has(seed)))
+  const pairedResults = {
+    low: pairedSeeds.map((seed) => successfulResultSets[0]!.get(seed)!),
+    high: pairedSeeds.map((seed) => successfulResultSets.at(-1)!.get(seed)!),
+    seeds: pairedSeeds,
+  }
   const pairedChangedCount = countChangedPairs(
-    resultSets[0] ?? [],
-    resultSets.at(-1) ?? []
+    pairedResults.low,
+    pairedResults.high
   )
   const unchanged = allResultsEqual(resultSets)
   const signalRange = Math.max(...signals, 0) - Math.min(...signals, 0)
@@ -612,16 +682,15 @@ function classifyScenario(
     "; changed paired games " +
     pairedChangedCount +
     "/" +
-    Math.min(resultSets[0]?.length ?? 0, resultSets.at(-1)?.length ?? 0) +
+    pairedSeeds.length +
     "; endpoint delta " +
     primary.delta.toFixed(2) +
     "."
   return {
     scenario,
     arms,
-    pairedCount: resultSets.length
-      ? Math.min(...resultSets.map((results) => results.length))
-      : 0,
+    pairedSeeds,
+    pairedCount: pairedSeeds.length,
     pairedChangedCount,
     primary,
     classification,
@@ -634,6 +703,7 @@ function aggregateClassification(
   direction: SensitivityDirection
 ): SensitivityClassification {
   const classifications = scenarios.map((scenario) => scenario.classification)
+  if (classifications.includes("conditional")) return "conditional"
   if (classifications.includes("wired") && classifications.includes("no-op")) {
     return "conditional"
   }
@@ -698,6 +768,9 @@ export function runSliderSensitivity(
         ...run.arm,
         effectiveConfig: run.batch.effectiveConfig,
         metrics: run.metrics,
+        requestedCount: run.batch.count,
+        completedCount: run.batch.completed,
+        retainedFailureCount: run.batch.failed,
       }))
       const expectation = expectations[path]!
       return classifyScenario(

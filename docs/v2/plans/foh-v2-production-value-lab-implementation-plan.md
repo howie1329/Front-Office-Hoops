@@ -309,6 +309,11 @@ type SeasonProductionConfig = {
   presetId: "standard" | "custom"
   runPreset: "smoke" | "early" | "half" | "full" | "batch"
   gamesPerTeam: number
+  gameSettings: {
+    version: number
+    config: GameSimulationConfig
+    seed: string
+  }
   schedule: {
     teamCount: number
     homeAwayBalanced: boolean
@@ -327,6 +332,12 @@ type SeasonProductionConfig = {
 }
 ```
 
+`gameSettings` is the shared, versioned contract for the effective game
+simulation and rotation settings used by the season. It includes the game
+configuration (including rotation settings) and the seed needed to reproduce a
+custom run. Preserve it wherever `SeasonProductionConfig` is stored, including
+`SeasonFixture.config` and `ProductionValueLabReport.effectiveConfig`.
+
 The standard preset uses 30 teams, 82 games per team, deterministic balanced scheduling, standard injuries, fixed abilities, no playoffs, and a three-season value horizon.
 
 ### `UniversalPlayerValueConfig`
@@ -344,6 +355,26 @@ type UniversalPlayerValueConfig = {
   durabilityImpact: number
   defenseEmphasis: number
   teamContextNormalization: number
+}
+```
+
+The domain-owned benchmark field uses a neutral summary contract rather than a
+calibration-package type:
+
+```ts
+type SeasonBenchmarkSummary = {
+  profileId: string
+  label: string
+  passed: boolean
+  checks: Record<
+    string,
+    {
+      metric: string
+      actual: { count: number; mean: number; minimum: number; maximum: number }
+      target: { min: number; max: number }
+      passed: boolean
+    }
+  >
 }
 ```
 
@@ -438,7 +469,7 @@ type ProductionValueLabReport = {
   leagueSummary: LeagueProductionSummary[]
   values: Record<string, UniversalPlayerValue[]>
   failures: SeasonRunFailure[]
-  benchmark: CalibrationBenchmarkReport | null
+  benchmark: SeasonBenchmarkSummary | null
 }
 ```
 
@@ -752,19 +783,19 @@ Keep the following in the lab/debug surface rather than normal gameplay settings
 
 ## Risks and mitigations
 
-| Risk | Mitigation |
-|---|---|
-| Season runner accidentally becomes a second game engine | It only creates game fixtures and calls `simulateGameMatchup`; all game stats come from `GameResult`. |
-| 1,230 games freeze the browser | Run full seasons and batches in a worker with progress, cancellation, and checkpoint commits. |
-| Production rewards opportunity rather than ability | Use role, minutes, usage, efficiency, and team-context normalization. |
-| Defensive value is overstated from box-score events | Expose defensive confidence and defer full on/off impact until stint data exists. |
-| A short hot streak rewrites the projection | Keep separate current-form and slower projection signals with sample confidence. |
-| Value becomes league-relative or replacement-based | Do not use dynamic replacement, scarcity, percentile, or rank as core inputs. |
-| Contract quality contaminates player value | Keep contract adjustment in the future Market & Rules/Trade layers. |
-| Settings become a raw formula editor | Expose semantic bounded settings and keep coefficients/diagnostics developer-only. |
-| Free agents or prospects receive fabricated production | Keep their production absent and their value explicitly projection-based. |
-| Value reports diverge from future gameplay | Share typed config, fixture, production, and value modules with the future league loop. |
-| Full league-shell scope expands prematurely | Keep the runner developer-fixture based; defer authoritative `LeagueDocument` embedding and lifecycle commands. |
+| Risk                                                    | Mitigation                                                                                                      |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Season runner accidentally becomes a second game engine | It only creates game fixtures and calls `simulateGameMatchup`; all game stats come from `GameResult`.           |
+| 1,230 games freeze the browser                          | Run full seasons and batches in a worker with progress, cancellation, and checkpoint commits.                   |
+| Production rewards opportunity rather than ability      | Use role, minutes, usage, efficiency, and team-context normalization.                                           |
+| Defensive value is overstated from box-score events     | Expose defensive confidence and defer full on/off impact until stint data exists.                               |
+| A short hot streak rewrites the projection              | Keep separate current-form and slower projection signals with sample confidence.                                |
+| Value becomes league-relative or replacement-based      | Do not use dynamic replacement, scarcity, percentile, or rank as core inputs.                                   |
+| Contract quality contaminates player value              | Keep contract adjustment in the future Market & Rules/Trade layers.                                             |
+| Settings become a raw formula editor                    | Expose semantic bounded settings and keep coefficients/diagnostics developer-only.                              |
+| Free agents or prospects receive fabricated production  | Keep their production absent and their value explicitly projection-based.                                       |
+| Value reports diverge from future gameplay              | Share typed config, fixture, production, and value modules with the future league loop.                         |
+| Full league-shell scope expands prematurely             | Keep the runner developer-fixture based; defer authoritative `LeagueDocument` embedding and lifecycle commands. |
 
 ## Verification commands
 

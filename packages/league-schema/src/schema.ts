@@ -865,6 +865,9 @@ const sliderSensitivityArmSchema = z.strictObject({
   value: z.number(),
   effectiveConfig: gameSimulationConfigSchema,
   metrics: z.record(z.string().min(1), sliderSensitivityMetricSchema),
+  requestedCount: z.number().int().positive(),
+  completedCount: z.number().int().nonnegative(),
+  retainedFailureCount: z.number().int().nonnegative(),
 })
 
 const sliderSensitivityMetricDeltaSchema = z.strictObject({
@@ -883,11 +886,15 @@ const sliderSensitivityScenarioSchema = z
   .strictObject({
     scenario: z.string().min(1),
     arms: z.array(sliderSensitivityArmSchema).min(2),
+    pairedSeeds: z.array(z.string()),
     pairedCount: z.number().int().nonnegative(),
     pairedChangedCount: z.number().int().nonnegative(),
     primary: sliderSensitivityMetricDeltaSchema,
     classification: sliderSensitivityClassificationSchema,
     diagnostic: z.string().min(1),
+  })
+  .refine((scenario) => scenario.pairedSeeds.length === scenario.pairedCount, {
+    message: "Paired seed count must match paired count.",
   })
   .refine((scenario) => scenario.pairedChangedCount <= scenario.pairedCount, {
     message: "Changed paired games cannot exceed paired games.",
@@ -1754,22 +1761,24 @@ export const marketRoundResultSchema = z.strictObject({
   offers: z.array(contractOfferSchema),
   decisions: z.array(contractOfferDecisionSchema),
   acceptedPlayerIds: z.array(z.string().min(1)),
-  teamActivity: z.array(
-    z.strictObject({
-      teamId: z.string().min(1),
-      targetPlayerIds: z.array(z.string().min(1)),
-      activeOfferCount: z.number().int().nonnegative(),
-      rejectedOfferCount: z.number().int().nonnegative(),
-      payrollBefore: moneySchema,
-      payrollAfter: moneySchema,
-      reservedSalary: moneySchema,
-      rosteredPlayerCountBefore: z.number().int().nonnegative().default(0),
-      rosteredPlayerCountAfter: z.number().int().nonnegative().default(0),
-      marketRosterSlotsBefore: z.number().int().nonnegative().default(0),
-      marketRosterSlotsAfter: z.number().int().nonnegative().default(0),
-      reservedRosterSlots: z.number().int().nonnegative().default(0),
-    })
-  ).default([]),
+  teamActivity: z
+    .array(
+      z.strictObject({
+        teamId: z.string().min(1),
+        targetPlayerIds: z.array(z.string().min(1)),
+        activeOfferCount: z.number().int().nonnegative(),
+        rejectedOfferCount: z.number().int().nonnegative(),
+        payrollBefore: moneySchema,
+        payrollAfter: moneySchema,
+        reservedSalary: moneySchema,
+        rosteredPlayerCountBefore: z.number().int().nonnegative().default(0),
+        rosteredPlayerCountAfter: z.number().int().nonnegative().default(0),
+        marketRosterSlotsBefore: z.number().int().nonnegative().default(0),
+        marketRosterSlotsAfter: z.number().int().nonnegative().default(0),
+        reservedRosterSlots: z.number().int().nonnegative().default(0),
+      })
+    )
+    .default([]),
 })
 
 export const marketCleanupResultSchema = z.strictObject({

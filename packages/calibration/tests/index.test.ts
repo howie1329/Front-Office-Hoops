@@ -227,7 +227,7 @@ describe("runMatchupBatch", () => {
     expect(report.failures[0]?.seed).toBe("invalid-batch:1")
     expect(report.metrics.teamPoints?.count).toBe(0)
     expect(report.metrics.failureRate?.mean).toBe(1)
-    expect(report.metrics.reconciliationPass?.count).toBe(0)
+    expect(report.metrics.reconciliationPass?.count).toBe(1)
   })
 
   it("retains an effective config when cancellation happens before game one", () => {

@@ -52,11 +52,18 @@ function createCheckpoint(
 
 function updateAvailabilityAfterGame(
   availability: Record<string, PlayerAvailability>,
+  activePlayerIds: Set<string>,
   injuredPlayerIds: Set<string>,
   injuryEvents: Array<{ playerId: string; gamesRemaining: number }>
 ): void {
   for (const [playerId, player] of Object.entries(availability)) {
-    if (player.available || injuredPlayerIds.has(playerId)) continue
+    if (
+      !activePlayerIds.has(playerId) ||
+      player.available ||
+      injuredPlayerIds.has(playerId)
+    ) {
+      continue
+    }
     player.gamesRemaining = Math.max(0, player.gamesRemaining - 1)
     if (player.gamesRemaining === 0) {
       player.available = true
@@ -136,20 +143,15 @@ export function runSeason(
         playerId: event.playerId,
         gamesRemaining: event.gamesRemaining,
       }))
+      const activePlayerIds = new Set([
+        ...(fixture.rosters[entry.homeTeamId] ?? []),
+        ...(fixture.rosters[entry.awayTeamId] ?? []),
+      ])
       updateAvailabilityAfterGame(
         availability,
+        activePlayerIds,
         new Set(injuryEvents.map((event) => event.playerId)),
         injuryEvents
-      )
-
-      // Recalculate the live value state after every completed game. Only
-      // milestone checkpoints are retained in the result to keep reports
-      // compact.
-      void createCheckpoint(
-        fixture,
-        games,
-        Math.min(...Object.values(gamesPerTeamCount)),
-        "checkpoint"
       )
     }
 
@@ -160,7 +162,7 @@ export function runSeason(
       gamesPerTeam: completedGamesPerTeam,
       checkpointGamesPerTeam:
         targets.find((value) => value > completedGamesPerTeam) ?? target,
-      label: `Simulating ${entry.homeTeamId} at ${entry.awayTeamId}`,
+      label: `Simulating ${entry.awayTeamId} at ${entry.homeTeamId}`,
     })
 
     for (const checkpoint of targets) {

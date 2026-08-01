@@ -3,6 +3,8 @@
 ## Run metadata
 
 - Git HEAD: 98d59a5
+- Implementation commit: cc46c8d
+- Implementation tree: dirty; diff SHA-256 (excluding this metadata file): fda02ac487ea8ff2ac09f62186b786bb644fa1f518ebeb3b9581d40943f1fbb6
 - Run date: 2026-07-31
 - Report schema: foh-slider-sensitivity version 1
 - Standard base seed: foh-v2-slider-baseline
@@ -12,9 +14,9 @@
 - Arm values: descriptor minimum, 25th percentile, effective baseline, 75th percentile, descriptor maximum
 - Reproduction runner: packages/calibration/tests/sensitivityBaseline.ts
 
-The report is generated from the Plan 002 working tree implementation at the
-listed Git HEAD. The HEAD identifies the repository baseline; the code changes
-under review are the implementation being measured.
+The report is generated from the Plan 002 implementation at the listed
+implementation commit. The repository baseline commit identifies the source
+baseline used for comparison.
 
 ## Fixture scenarios
 
@@ -63,7 +65,7 @@ setting is expected when the required fixture context is neutral or disabled.
 | environment.pace                | teamPossessions              | Increase          | Wired          | Standard delta +10.92; 50/50 paired games changed.                                                    |
 | environment.scoringEnvironment  | teamPoints                   | Increase          | Wired          | Standard delta +14.09; 50/50 changed.                                                                 |
 | environment.gameVariance        | totalScore spread            | Spread increase   | Wired          | Standard spread delta +6.00.                                                                          |
-| environment.talentSeparation    | strongTeamPointDiff          | Increase          | Wired          | Standard delta -0.44; talent fixture delta +15.24; contextual effect is strongest with talent spread. |
+| environment.talentSeparation    | strongTeamPointDiff          | Increase          | Conditional    | Standard delta -0.44; talent fixture delta +15.24; contextual effect is strongest with talent spread. |
 | environment.homeCourtAdvantage  | homeCourtPointDiff           | Increase          | Wired          | Standard delta +10.02; 50/50 changed.                                                                 |
 | offense.threePointRate          | threePointAttemptRate        | Increase          | Wired          | Standard delta +13.50.                                                                                |
 | offense.rimRate                 | rimAttemptRate               | Increase          | Wired          | Standard delta +10.32.                                                                                |

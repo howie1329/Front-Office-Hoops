@@ -38,11 +38,12 @@ function sampleState(games: number, scheduled: number): ProductionSampleState {
 }
 
 function populationFor(
-  fixture: SeasonFixture,
-  playerId: string
+  playerId: string,
+  freeAgentIds: Set<string>,
+  draftProspectIds: Set<string>
 ): PlayerSeasonProduction["population"] {
-  if (fixture.populations.freeAgents.includes(playerId)) return "free-agent"
-  if (fixture.populations.draftProspects.includes(playerId)) {
+  if (freeAgentIds.has(playerId)) return "free-agent"
+  if (draftProspectIds.has(playerId)) {
     return "draft-prospect"
   }
   return "rostered"
@@ -106,16 +107,17 @@ type MutableTeamProduction = {
 }
 
 function createPlayerProduction(
-  fixture: SeasonFixture,
   player: PlayerEntity,
-  gamesPerTeam: number
+  gamesPerTeam: number,
+  freeAgentIds: Set<string>,
+  draftProspectIds: Set<string>
 ): MutablePlayerProduction {
   const teamId =
     player.leagueStatus.kind === "rostered" ? player.leagueStatus.teamId : null
   return {
     playerId: player.id,
     teamId,
-    population: populationFor(fixture, player.id),
+    population: populationFor(player.id, freeAgentIds, draftProspectIds),
     gamesScheduled: teamId ? gamesPerTeam : 0,
     gamesPlayed: 0,
     starts: 0,
@@ -326,13 +328,16 @@ export function aggregateSeasonProduction(
   games: GameResult[],
   gamesPerTeam: number
 ): ProductionAggregation {
+  const freeAgentIds = new Set(fixture.populations.freeAgents)
+  const draftProspectIds = new Set(fixture.populations.draftProspects)
   const players = Object.fromEntries(
     Object.values(fixture.players).map((player) => [
       player.id,
       createPlayerProduction(
-        fixture,
         player,
-        player.leagueStatus.kind === "rostered" ? gamesPerTeam : 0
+        player.leagueStatus.kind === "rostered" ? gamesPerTeam : 0,
+        freeAgentIds,
+        draftProspectIds
       ),
     ])
   ) as Record<string, MutablePlayerProduction>

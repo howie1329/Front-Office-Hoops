@@ -68,6 +68,8 @@ export type {
 } from "./season"
 export type {
   SensitivityClassification,
+  SensitivityDiagnosticFloor,
+  SensitivityDiagnosticFloorRegistry,
   SensitivityDirection,
   SensitivityExpectation,
   SliderSensitivityArm,
@@ -77,6 +79,7 @@ export type {
   SliderSensitivityScenario,
   SliderSensitivityScenarioResult,
 } from "./sensitivity"
+export { SENSITIVITY_DIAGNOSTIC_FLOOR_REGISTRY } from "./sensitivity"
 
 export type CalibrationProgress = {
   completed: number
@@ -489,6 +492,22 @@ function resolveFixtureConfig(
   return resolveGameSimulationConfig(fixture.config, fixture.config.presetId)
 }
 
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize)
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, entry]) => [key, canonicalize(entry)])
+    )
+  }
+  return value
+}
+
+function fingerprint(value: unknown): string {
+  return JSON.stringify(canonicalize(value))
+}
+
 function rejectedResult(fixture: GameMatchupFixture, seed: string): GameResult {
   return {
     version: GAME_SIMULATION_VERSION,
@@ -527,7 +546,7 @@ export function runMatchupBatch(
   const firstSeed = options.baseSeed + ":1"
   const firstFixture = options.createFixture(firstSeed)
   const effectiveConfig = resolveFixtureConfig(firstFixture, firstSeed)
-  const effectiveConfigFingerprint = JSON.stringify(effectiveConfig)
+  const effectiveConfigFingerprint = fingerprint(effectiveConfig)
   const results: GameResult[] = []
   const failures: CalibrationFailure[] = []
   const buckets = createMetricBuckets()
@@ -537,7 +556,7 @@ export function runMatchupBatch(
     const seed = options.baseSeed + ":" + (index + 1)
     const fixture = index === 0 ? firstFixture : options.createFixture(seed)
     const fixtureConfig = resolveFixtureConfig(fixture, seed)
-    if (JSON.stringify(fixtureConfig) !== effectiveConfigFingerprint) {
+    if (fingerprint(fixtureConfig) !== effectiveConfigFingerprint) {
       throw new Error(
         "Calibration batch fixtures must use one effective game simulation config."
       )
@@ -555,6 +574,7 @@ export function runMatchupBatch(
     collectAttemptMetrics(result, buckets)
     if (result.status !== "completed" || !result.reconciliation.passed) {
       failures.push({ seed, fixture, result })
+      addMetric(buckets, "reconciliationPass", 0)
     } else {
       addMetric(buckets, "reconciliationPass", 1)
       collectMetrics(result, buckets, execution.telemetry)

@@ -65,7 +65,7 @@ Experiments are ordered by risk to the first-v2 product. Each experiment should 
 
 - **Question:** Can a simple visible universal player value combine current ability and recent production without becoming a master number for every decision?
 - **Hypothesis:** A player-centered, unbounded additive index over a three-season horizon can combine current ability, role-adjusted box-score production, age/trajectory, upside, and durability without becoming a league-relative or contract-specific value.
-- **Method:** Build two-season production composites from scoring/efficiency, assists/turnovers, rebounding, steals/blocks, games/minutes, and basic role context. Compare value ranks with overall, production, age, health, and simulated team impact.
+- **Method:** Build production composites from two completed seasons as the preferred stable input for the three-season value horizon described in the Hypothesis, using scoring/efficiency, assists/turnovers, rebounding, steals/blocks, games/minutes, and basic role context. Compare value ranks with overall, production, age, health, and simulated team impact.
 - **Output:** Visible value breakdown, calibration report, trade/contract context-modifier contract.
 - **Success:** Value rewards production without rewriting true talent; similar players are ordered plausibly; outliers are explainable.
 - **Failure:** Points-per-game dominates, value oscillates without performance change, or role specialists disappear.

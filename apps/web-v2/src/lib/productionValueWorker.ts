@@ -16,15 +16,25 @@ type SeasonWorkerMessage =
   | { type: "checkpoint"; checkpoint: SeasonCheckpointReport }
   | { type: "completed"; result: SeasonRunResult }
   | { type: "batch-completed"; report: SeasonBatchReport }
+  | { type: "error"; error: { name: string; message: string } }
 
-export function runSeasonInWorker(
-  fixture: SeasonFixture,
-  options: {
-    signal?: AbortSignal
-    onProgress?: (progress: SeasonWorkerProgress) => void
-    onCheckpoint?: (checkpoint: SeasonCheckpointReport) => void
-  } = {}
-): Promise<SeasonRunResult> {
+type SeasonWorkerRunOptions<TResult> = {
+  request:
+    | { type: "season"; fixture: SeasonFixture }
+    | {
+        type: "batch"
+        fixture: SeasonFixture
+        count: number
+      }
+  signal?: AbortSignal
+  onProgress?: (progress: SeasonWorkerProgress) => void
+  onMessage: (message: SeasonWorkerMessage) => TResult | undefined
+  abortMessage: string
+}
+
+function runSeasonWorker<TResult>(
+  options: SeasonWorkerRunOptions<TResult>
+): Promise<TResult> {
   return new Promise((resolve, reject) => {
     const worker = new Worker(
       new URL("../workers/production-value.worker.ts", import.meta.url),
@@ -37,31 +47,75 @@ export function runSeasonInWorker(
     }
     const onAbort = () => {
       cleanup()
-      reject(new DOMException("The season run was aborted.", "AbortError"))
+      reject(new DOMException(options.abortMessage, "AbortError"))
     }
+    const rejectWithError = (error: unknown) => {
+      cleanup()
+      reject(error instanceof Error ? error : new Error(String(error)))
+    }
+
     worker.onmessage = (event: MessageEvent<SeasonWorkerMessage>) => {
       if (event.data.type === "progress") {
         options.onProgress?.(event.data.progress)
         return
       }
-      if (event.data.type === "checkpoint") {
-        options.onCheckpoint?.(event.data.checkpoint)
+      if (event.data.type === "error") {
+        rejectWithError(
+          new Error(`${event.data.error.name}: ${event.data.error.message}`)
+        )
         return
       }
-      if (event.data.type !== "completed") return
-      cleanup()
-      resolve(event.data.result)
+      try {
+        const result = options.onMessage(event.data)
+        if (result !== undefined) {
+          cleanup()
+          resolve(result)
+        }
+      } catch (error) {
+        rejectWithError(error)
+      }
     }
     worker.onerror = (event) => {
-      cleanup()
-      reject(new Error(event.message || "The season worker failed."))
+      rejectWithError(new Error(event.message || "The season worker failed."))
+    }
+    worker.onmessageerror = () => {
+      rejectWithError(
+        new Error("The season worker response could not be deserialized.")
+      )
     }
     if (signal?.aborted) {
       onAbort()
       return
     }
     signal?.addEventListener("abort", onAbort, { once: true })
-    worker.postMessage({ type: "season", fixture })
+    try {
+      worker.postMessage(options.request)
+    } catch (error) {
+      rejectWithError(error)
+    }
+  })
+}
+
+export function runSeasonInWorker(
+  fixture: SeasonFixture,
+  options: {
+    signal?: AbortSignal
+    onProgress?: (progress: SeasonWorkerProgress) => void
+    onCheckpoint?: (checkpoint: SeasonCheckpointReport) => void
+  } = {}
+): Promise<SeasonRunResult> {
+  return runSeasonWorker({
+    request: { type: "season", fixture },
+    signal: options.signal,
+    onProgress: options.onProgress,
+    abortMessage: "The season run was aborted.",
+    onMessage: (message) => {
+      if (message.type === "checkpoint") {
+        options.onCheckpoint?.(message.checkpoint)
+        return undefined
+      }
+      return message.type === "completed" ? message.result : undefined
+    },
   })
 }
 
@@ -73,39 +127,12 @@ export function runSeasonBatchInWorker(
     onProgress?: (progress: SeasonWorkerProgress) => void
   } = {}
 ): Promise<SeasonBatchReport> {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(
-      new URL("../workers/production-value.worker.ts", import.meta.url),
-      { type: "module" }
-    )
-    const signal = options.signal
-    const cleanup = () => {
-      signal?.removeEventListener("abort", onAbort)
-      worker.terminate()
-    }
-    const onAbort = () => {
-      cleanup()
-      reject(new DOMException("The season batch was aborted.", "AbortError"))
-    }
-    worker.onmessage = (event: MessageEvent<SeasonWorkerMessage>) => {
-      if (event.data.type === "progress") {
-        options.onProgress?.(event.data.progress)
-        return
-      }
-      if (event.data.type === "batch-completed") {
-        cleanup()
-        resolve(event.data.report)
-      }
-    }
-    worker.onerror = (event) => {
-      cleanup()
-      reject(new Error(event.message || "The season worker failed."))
-    }
-    if (signal?.aborted) {
-      onAbort()
-      return
-    }
-    signal?.addEventListener("abort", onAbort, { once: true })
-    worker.postMessage({ type: "batch", fixture, count })
+  return runSeasonWorker({
+    request: { type: "batch", fixture, count },
+    signal: options.signal,
+    onProgress: options.onProgress,
+    abortMessage: "The season batch was aborted.",
+    onMessage: (message) =>
+      message.type === "batch-completed" ? message.report : undefined,
   })
 }

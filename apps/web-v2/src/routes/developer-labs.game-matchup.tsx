@@ -1,8 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
-import {
-  serializeMatchupBatchReport,
-  type MatchupBatchReport,
-} from "@workspace/calibration"
+import { serializeMatchupBatchReport } from "@workspace/calibration"
+import type { MatchupBatchReport } from "@workspace/calibration"
 import type {
   GameMatchupFixture,
   GameResult,
@@ -88,15 +86,14 @@ function SettingField({
           step={descriptor.step}
           value={value}
           aria-label={`${descriptor.label} exact value`}
-          onChange={(event) =>
+          onChange={(event) => {
+            const nextValue = Number(event.target.value)
+            if (!Number.isFinite(nextValue)) return
             onChange(
               descriptor.path,
-              Math.min(
-                descriptor.max,
-                Math.max(descriptor.min, Number(event.target.value))
-              )
+              Math.min(descriptor.max, Math.max(descriptor.min, nextValue))
             )
-          }
+          }}
         />
       </div>
       <input
@@ -108,9 +105,10 @@ function SettingField({
         value={value}
         aria-label={descriptor.label}
         className="h-1.5 w-full accent-foreground"
-        onChange={(event) =>
-          onChange(descriptor.path, Number(event.target.value))
-        }
+        onChange={(event) => {
+          const nextValue = Number(event.target.value)
+          if (Number.isFinite(nextValue)) onChange(descriptor.path, nextValue)
+        }}
       />
       <div className="flex justify-between text-[11px] text-muted-foreground">
         <span>{descriptor.min}</span>
@@ -256,7 +254,7 @@ function Scoreboard({
     { teamId: fixture.awayTeamId, team: away, periods: awayPeriodPoints ?? [] },
   ]
   return (
-    <div className="grid gap-5" aria-label="Game result">
+    <div className="grid gap-5" role="group" aria-label="Game result">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -890,9 +888,14 @@ function GameMatchupLabPage() {
                         min={1}
                         max={1000}
                         value={batchCount}
-                        onChange={(event) =>
-                          setBatchCount(Number(event.target.value))
-                        }
+                        onChange={(event) => {
+                          const nextValue = Number(event.target.value)
+                          if (Number.isFinite(nextValue)) {
+                            setBatchCount(
+                              Math.min(1000, Math.max(1, nextValue))
+                            )
+                          }
+                        }}
                       />
                     </div>
                     {progress ? (
@@ -964,7 +967,7 @@ function GameMatchupLabPage() {
             </SettingsSection>
 
             <SettingsSection
-              title="Defense &amp; rotation"
+              title="Defense & rotation"
               description="Stops, minutes, and rotation behavior."
             >
               <div className="grid gap-5">
@@ -984,7 +987,7 @@ function GameMatchupLabPage() {
             </SettingsSection>
 
             <SettingsSection
-              title="Rules &amp; coaching"
+              title="Rules & coaching"
               description="Injuries, overtime, and coaching response."
             >
               <div className="grid gap-3">

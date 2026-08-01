@@ -146,6 +146,8 @@ const canonicalLabs = [
   },
 ] as const
 
+const currentLab = canonicalLabs.find((lab) => lab.statusTone === "current")
+
 type Lab = (typeof canonicalLabs)[number]
 
 const labGroups: Array<{
@@ -239,7 +241,7 @@ function DeveloperLabsPage() {
                 Current sequence
               </p>
               <h2 className="mt-2 text-lg leading-6 font-semibold tracking-[-0.02em]">
-                Market & rules
+                {currentLab?.title}
               </h2>
               <p className="mt-2 text-sm leading-5 text-muted-foreground">
                 The latest implementation work covers free-agency target boards,
@@ -247,7 +249,7 @@ function DeveloperLabsPage() {
                 Calibration and league integration remain open.
               </p>
               <Link
-                to="/developer-labs/market-rules"
+                to={currentLab?.links[0]?.to ?? "/developer-labs"}
                 className="mt-4 inline-flex items-center gap-2 text-sm leading-5 font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
               >
                 Open current workbench
@@ -349,7 +351,7 @@ function DeveloperLabsPage() {
 function LabRow({ lab, isLast }: { lab: Lab; isLast: boolean }) {
   return (
     <article
-      className={`grid gap-5 bg-card p-5 text-card-foreground transition-colors sm:p-6 lg:grid-cols-[3.5rem_minmax(0,1fr)_13rem] lg:items-start ${isLast ? "" : "border-b border-border"} ${lab.statusTone === "current" ? "bg-muted/60" : ""}`}
+      className={`grid gap-5 p-5 text-card-foreground transition-colors sm:p-6 lg:grid-cols-[3.5rem_minmax(0,1fr)_13rem] lg:items-start ${isLast ? "" : "border-b border-border"} ${lab.statusTone === "current" ? "bg-muted/60" : "bg-card"}`}
     >
       <div className="flex items-start gap-3 lg:block">
         <span className="text-sm leading-6 font-semibold text-muted-foreground tabular-nums">

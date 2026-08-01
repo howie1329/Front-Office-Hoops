@@ -481,7 +481,8 @@ function validateRotation(
   if (
     rotation.starters.length === 5 &&
     rotation.starters.every((playerId) => fixture.players[playerId]) &&
-    !canCoverLineupPositions(fixture, rotation.starters)
+    !canCoverLineupPositions(fixture, rotation.starters) &&
+    canCoverLineupPositions(fixture, availablePlayerIds)
   ) {
     diagnostics.push(
       diagnostic(

@@ -187,6 +187,9 @@ function createSchemaSensitivityReport() {
     value: label === "minimum" ? 0 : 50,
     effectiveConfig: createGameSimulationConfig(),
     metrics: { teamPoints: metric },
+    requestedCount: 1,
+    completedCount: 1,
+    retainedFailureCount: 0,
   })
   return {
     schema: "foh-slider-sensitivity" as const,
@@ -205,6 +208,7 @@ function createSchemaSensitivityReport() {
           {
             scenario: "standard",
             arms: [arm("minimum"), arm("baseline")],
+            pairedSeeds: ["sensitivity-schema:1"],
             pairedCount: 1,
             pairedChangedCount: 1,
             primary: {

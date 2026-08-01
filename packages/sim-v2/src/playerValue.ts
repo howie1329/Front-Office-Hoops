@@ -119,15 +119,12 @@ function durabilitySignal(
   return availability + resistance
 }
 
-function defensiveSignal(
-  production: PlayerSeasonProduction,
-  config: UniversalPlayerValueConfig
-): number {
+function defensiveSignal(production: PlayerSeasonProduction): number {
   const eventRate =
     ((production.steals + production.blocks) /
       Math.max(1, production.gamesPlayed)) *
     8
-  return eventRate * (0.5 + config.defenseEmphasis / 100)
+  return eventRate
 }
 
 function buildValue(
@@ -147,7 +144,10 @@ function buildValue(
     production.gamesPlayed === 0
       ? 0
       : weighted(roleContext, config.productionEmphasis)
-  const defensiveContribution = defensiveSignal(production, config)
+  const defensiveContribution = weighted(
+    defensiveSignal(production),
+    config.defenseEmphasis
+  )
   const baseProjection =
     weighted(ability * 10, config.currentAbilityEmphasis) +
     weighted(ageTrajectory, config.trajectoryEmphasis) +
@@ -157,13 +157,16 @@ function buildValue(
     production.gamesPlayed === 0
       ? 0
       : weighted(productionSignal(production), config.productionEmphasis) +
-        weighted(defensiveContribution, config.defenseEmphasis) +
+        defensiveContribution +
         teamContextSignal(production, aggregation, config)
   const sampleProgress = clamp(production.gamesPlayed / 25, 0, 1)
-  const evidenceWeight =
+  const evidenceWeight = clamp(
     (config.currentFormResponsiveness / 100) *
-    (0.25 + sampleProgress * (0.75 * (config.sampleConfidence / 100)))
-  const projectionWeight = 1 - clamp(evidenceWeight, 0, 0.8)
+      (0.25 + sampleProgress * (0.75 * (config.sampleConfidence / 100))),
+    0,
+    0.8
+  )
+  const projectionWeight = 1 - evidenceWeight
   const horizonMultiplier = config.horizonSeasons / 3
   const projectionSignal = baseProjection * horizonMultiplier
   const rawValue =

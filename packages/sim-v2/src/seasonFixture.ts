@@ -96,6 +96,48 @@ function createAvailability(
   )
 }
 
+function createAvailableRotation(
+  fixture: SeasonFixture,
+  teamId: string,
+  availability: Record<string, PlayerAvailability>
+): GameRotationInput {
+  const rotation = fixture.rotations[teamId]!
+  const availableIds = rotation.depthOrder.filter(
+    (playerId) => availability[playerId]?.available !== false
+  )
+  function findStarters(
+    positionIndex: number,
+    selected: string[]
+  ): string[] | null {
+    if (positionIndex === positions.length) return selected
+    const position = positions[positionIndex]!
+    for (const playerId of availableIds) {
+      if (
+        selected.includes(playerId) ||
+        !isPositionEligible(fixture.players[playerId]!, position)
+      ) {
+        continue
+      }
+      const next = findStarters(positionIndex + 1, [...selected, playerId])
+      if (next) return next
+    }
+    return null
+  }
+  const starters = findStarters(0, []) ?? []
+  for (const playerId of availableIds) {
+    if (starters.length >= 5) break
+    if (!starters.includes(playerId)) starters.push(playerId)
+  }
+  return {
+    ...structuredClone(rotation),
+    starters,
+    depthOrder: [
+      ...starters,
+      ...rotation.depthOrder.filter((playerId) => !starters.includes(playerId)),
+    ],
+  }
+}
+
 function balanceHomeAway(
   schedule: SeasonScheduleEntry[],
   teamIds: string[]
@@ -162,7 +204,8 @@ function balanceHomeAway(
 export function createBalancedSeasonSchedule(
   teamIds: string[],
   gamesPerTeam: number,
-  seed: string
+  seed: string,
+  homeAwayBalanced = true
 ): SeasonScheduleEntry[] {
   if (teamIds.length < 2 || teamIds.length % 2 !== 0) {
     throw new Error("A balanced season schedule requires an even team count.")
@@ -203,7 +246,7 @@ export function createBalancedSeasonSchedule(
       })
     }
   }
-  return balanceHomeAway(schedule, teamIds)
+  return homeAwayBalanced ? balanceHomeAway(schedule, teamIds) : schedule
 }
 
 export type SeasonFixtureOptions = {
@@ -252,7 +295,8 @@ export function createSeasonFixtureFromUniverse(
     schedule: createBalancedSeasonSchedule(
       teamIds,
       config.gamesPerTeam,
-      config.schedule.scheduleSeed || `${options.seed}:schedule`
+      config.schedule.scheduleSeed || `${options.seed}:schedule`,
+      config.schedule.homeAwayBalanced
     ),
     rotations: Object.fromEntries(
       teamIds.map((teamId) => [
@@ -277,6 +321,7 @@ export function createDefaultSeasonFixture(
   seed = "production-value-lab",
   options: {
     runPreset?: SeasonProductionConfig["runPreset"]
+    config?: SeasonProductionConfig
     gameConfig: GameSimulationConfig
   }
 ): SeasonFixture {
@@ -305,7 +350,9 @@ export function createDefaultSeasonFixture(
   return createSeasonFixtureFromUniverse(universe, {
     seed,
     gameConfig: options.gameConfig,
-    config: createStandardSeasonProductionConfig(options.runPreset ?? "full"),
+    config:
+      options.config ??
+      createStandardSeasonProductionConfig(options.runPreset ?? "full"),
   })
 }
 
@@ -339,8 +386,16 @@ export function createSeasonGameFixture(
     teams: Object.fromEntries(teamIds.map((id) => [id, fixture.teams[id]!])),
     players,
     rotations: {
-      [entry.homeTeamId]: fixture.rotations[entry.homeTeamId]!,
-      [entry.awayTeamId]: fixture.rotations[entry.awayTeamId]!,
+      [entry.homeTeamId]: createAvailableRotation(
+        fixture,
+        entry.homeTeamId,
+        availability
+      ),
+      [entry.awayTeamId]: createAvailableRotation(
+        fixture,
+        entry.awayTeamId,
+        availability
+      ),
     },
     availability: matchupAvailability,
     coaching: {
