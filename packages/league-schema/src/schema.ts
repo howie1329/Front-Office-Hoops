@@ -1542,6 +1542,7 @@ export const contractMarketConfigSchema = z.strictObject({
   version: z.literal(1),
   presetId: z.string().min(1),
   freeAgencyRounds: z.number().int().min(1).max(10),
+  targetBoardSize: z.number().int().min(1).max(20).default(8),
   lateMarketCleanup: z.boolean(),
   minimumAcceptableUtility: z.number().min(0).max(120),
   waitUtilityMargin: z.number().min(0).max(50),
@@ -1749,6 +1750,17 @@ export const marketRoundResultSchema = z.strictObject({
   offers: z.array(contractOfferSchema),
   decisions: z.array(contractOfferDecisionSchema),
   acceptedPlayerIds: z.array(z.string().min(1)),
+  teamActivity: z.array(
+    z.strictObject({
+      teamId: z.string().min(1),
+      targetPlayerIds: z.array(z.string().min(1)),
+      activeOfferCount: z.number().int().nonnegative(),
+      rejectedOfferCount: z.number().int().nonnegative(),
+      payrollBefore: moneySchema,
+      payrollAfter: moneySchema,
+      reservedSalary: moneySchema,
+    })
+  ).default([]),
 })
 
 export const freeAgencySimulationResultSchema = z.strictObject({

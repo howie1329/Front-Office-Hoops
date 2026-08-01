@@ -180,15 +180,26 @@ function getRightsMechanism(
   return contract.rights.level === "bird" ? "bird" : contract.rights.level
 }
 
+export type ContractOfferEvaluationOptions = {
+  reservedSalaryExclusion?: number
+}
+
 export function validateContractOffer(
   fixture: ContractMarketFixture,
-  offer: ContractOffer
+  offer: ContractOffer,
+  options: ContractOfferEvaluationOptions = {}
 ): ContractLegalityResult {
   const economy = fixture.economy
   const team = fixture.teamContexts[offer.teamId]
   const reasons: string[] = []
   const firstYearSalary = offer.annualSalary[0] ?? 0
-  const projectedPayroll = (team?.payroll ?? 0) + (team?.reservedSalary ?? 0) + firstYearSalary
+  const reservedSalary = Math.max(
+    0,
+    (team?.reservedSalary ?? 0) -
+      Math.max(0, options.reservedSalaryExclusion ?? 0)
+  )
+  const projectedPayroll =
+    (team?.payroll ?? 0) + reservedSalary + firstYearSalary
   const mechanism = getRightsMechanism(fixture, offer)
   const previousContract = getPlayerContract(fixture, offer.playerId)
   const previousSalary = previousContract?.annualSalary.at(-1) ?? economy.minimumSalary
@@ -333,10 +344,11 @@ function initialNegotiationState(
 
 export function evaluateContractOffer(
   fixture: ContractMarketFixture,
-  offer: ContractOffer
+  offer: ContractOffer,
+  options: ContractOfferEvaluationOptions = {}
 ): ContractOfferDecision {
   const demand = calculateContractDemand(fixture, offer.playerId, offer.phase)
-  const legal = validateContractOffer(fixture, offer)
+  const legal = validateContractOffer(fixture, offer, options)
   const utility = calculateOfferUtility(fixture, offer, demand)
   const key = negotiationKey(offer)
   const state = fixture.negotiationStates[key] ?? initialNegotiationState(fixture, offer)
@@ -435,9 +447,18 @@ export function applyContractOfferDecision(
 
 export function evaluateCompetitiveOffers(
   fixture: ContractMarketFixture,
-  offers: ContractOffer[]
+  offers: ContractOffer[],
+  options: { offersHaveReservations?: boolean } = {}
 ): ContractOfferDecision[] {
-  const evaluations = offers.map((offer) => evaluateContractOffer(fixture, offer))
+  const evaluations = offers.map((offer) =>
+    evaluateContractOffer(
+      fixture,
+      offer,
+      options.offersHaveReservations
+        ? { reservedSalaryExclusion: offer.annualSalary[0] ?? 0 }
+        : undefined
+    )
+  )
   const grouped = new Map<string, ContractOfferDecision[]>()
   for (const evaluation of evaluations) {
     const group = grouped.get(evaluation.playerId) ?? []

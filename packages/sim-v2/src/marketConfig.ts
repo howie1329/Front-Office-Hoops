@@ -34,6 +34,7 @@ export const STANDARD_CONTRACT_MARKET_CONFIG: ContractMarketConfig = {
   version: CONTRACT_MARKET_VERSION,
   presetId: "standard",
   freeAgencyRounds: 3,
+  targetBoardSize: 8,
   lateMarketCleanup: true,
   minimumAcceptableUtility: 58,
   waitUtilityMargin: 8,
@@ -77,6 +78,7 @@ export type MarketNumericSettingPath =
   | "market.earlyBirdSalaryMultiplier"
   | "market.minimumAcceptableUtility"
   | "market.waitUtilityMargin"
+  | "market.targetBoardSize"
 
 export type MarketSettingDescriptor = {
   path: MarketNumericSettingPath
@@ -170,6 +172,15 @@ export const MARKET_SETTING_DESCRIPTORS: MarketSettingDescriptor[] = [
     step: 1,
     unit: "points",
   },
+  {
+    path: "market.targetBoardSize",
+    label: "AI target board",
+    description: "Number of team-specific free-agent targets kept as fallback options.",
+    min: 1,
+    max: 20,
+    step: 1,
+    unit: "points",
+  },
 ]
 
 export function getMarketNumericSetting(
@@ -212,6 +223,8 @@ export function getMarketNumericSetting(
       return market.minimumAcceptableUtility
     case "market.waitUtilityMargin":
       return market.waitUtilityMargin
+    case "market.targetBoardSize":
+      return market.targetBoardSize
   }
 }
 
@@ -276,6 +289,9 @@ export function updateMarketNumericSetting(
       break
     case "market.waitUtilityMargin":
       nextMarket.waitUtilityMargin = bounded
+      break
+    case "market.targetBoardSize":
+      nextMarket.targetBoardSize = Math.round(bounded)
       break
   }
 

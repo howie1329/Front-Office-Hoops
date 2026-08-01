@@ -154,6 +154,7 @@ export type {
   FreeAgencySimulationProgress,
   FreeAgencySimulationResult,
   MarketRoundResult,
+  MarketTeamRoundResult,
 } from "./marketSimulation"
 export type {
   RosterAssemblyConfig,

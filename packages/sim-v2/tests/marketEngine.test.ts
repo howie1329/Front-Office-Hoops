@@ -149,6 +149,51 @@ describe("contract market engine", () => {
     expect(first.finalFixture.offers).not.toEqual({})
   })
 
+  it("uses eight-player team boards and reconciles payroll after each signing", () => {
+    const fixture = createDefaultContractMarketFixture("capacity-run-seed")
+    const result = runFreeAgencySimulation(fixture)
+
+    expect(fixture.config.targetBoardSize).toBe(8)
+    expect(
+      result.rounds.every((round) =>
+        round.teamActivity.every(
+          (activity) =>
+            activity.targetPlayerIds.length <= fixture.config.targetBoardSize &&
+            activity.activeOfferCount <= activity.targetPlayerIds.length
+        )
+      )
+    ).toBe(true)
+
+    for (const [teamId, initialTeam] of Object.entries(
+      fixture.teamContexts
+    )) {
+      const finalTeam = result.finalFixture.teamContexts[teamId]!
+      const signedSalary = result.signedContracts
+        .filter((contract) => contract.teamId === teamId)
+        .reduce((sum, contract) => sum + (contract.annualSalary[0] ?? 0), 0)
+
+      expect(finalTeam.payroll).toBe(initialTeam.payroll + signedSalary)
+      expect(finalTeam.reservedSalary).toBe(0)
+    }
+  })
+
+  it("keeps hard-capped teams within the active hard-cap line", () => {
+    const fixture = createDefaultContractMarketFixture("hard-cap-run-seed")
+    const hardCapLine = Math.max(
+      ...Object.values(fixture.teamContexts).map((team) => team.payroll)
+    ) + 20_000_000
+    fixture.economy.hardCapTriggered = true
+    fixture.economy.hardCapLine = hardCapLine
+
+    const result = runFreeAgencySimulation(fixture)
+
+    expect(
+      Object.values(result.finalFixture.teamContexts).every(
+        (team) => team.payroll <= hardCapLine
+      )
+    ).toBe(true)
+  })
+
   it("exposes the market-only economy harness as a separate result", () => {
     const result = runEconomySimulation("economy-seed", 10)
 

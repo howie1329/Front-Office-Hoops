@@ -91,6 +91,7 @@ export type ContractMarketConfig = {
   version: 1
   presetId: string
   freeAgencyRounds: number
+  targetBoardSize: number
   lateMarketCleanup: boolean
   minimumAcceptableUtility: number
   waitUtilityMargin: number

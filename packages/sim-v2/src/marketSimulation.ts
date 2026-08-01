@@ -9,7 +9,6 @@ import type {
 } from "@workspace/domain-v2"
 
 import {
-  applyContractOfferDecision,
   calculateContractDemand,
   evaluateCompetitiveOffers,
   validateContractOffer,
@@ -22,6 +21,17 @@ export type MarketRoundResult = {
   offers: ContractOffer[]
   decisions: ContractOfferDecision[]
   acceptedPlayerIds: string[]
+  teamActivity: MarketTeamRoundResult[]
+}
+
+export type MarketTeamRoundResult = {
+  teamId: string
+  targetPlayerIds: string[]
+  activeOfferCount: number
+  rejectedOfferCount: number
+  payrollBefore: number
+  payrollAfter: number
+  reservedSalary: number
 }
 
 export type FreeAgencySimulationProgress = {
@@ -35,7 +45,6 @@ export type FreeAgencySimulationProgress = {
 
 export type FreeAgencySimulationOptions = {
   userTeamId?: string | null
-  maxTeamsPerPlayer?: number
   onProgress?: (progress: FreeAgencySimulationProgress) => void
 }
 
@@ -131,17 +140,65 @@ function createAiOffer(
     : null
 }
 
-function updateTeamPayroll(
+function refreshTeamFinancials(
+  fixture: ContractMarketFixture,
+  teamId: string
+) {
+  const team = fixture.teamContexts[teamId]
+  if (!team) return
+  const committedPayroll = team.payroll + team.reservedSalary
+  team.capRoom = Math.max(0, fixture.economy.softCap - committedPayroll)
+  team.taxRoom = fixture.economy.taxLine - committedPayroll
+  team.hardCapRoom = fixture.economy.hardCapLine - committedPayroll
+}
+
+function reserveTeamSalary(
   fixture: ContractMarketFixture,
   teamId: string,
   salary: number
 ) {
   const team = fixture.teamContexts[teamId]
   if (!team) return
+  team.reservedSalary += salary
+  refreshTeamFinancials(fixture, teamId)
+}
+
+function releaseTeamSalary(
+  fixture: ContractMarketFixture,
+  teamId: string,
+  salary: number
+) {
+  const team = fixture.teamContexts[teamId]
+  if (!team) return
+  team.reservedSalary = Math.max(0, team.reservedSalary - salary)
+  refreshTeamFinancials(fixture, teamId)
+}
+
+function commitTeamPayroll(
+  fixture: ContractMarketFixture,
+  teamId: string,
+  salary: number
+) {
+  const team = fixture.teamContexts[teamId]
+  if (!team) return
+  team.reservedSalary = Math.max(0, team.reservedSalary - salary)
   team.payroll += salary
-  team.capRoom = Math.max(0, fixture.economy.softCap - team.payroll)
-  team.taxRoom = fixture.economy.taxLine - team.payroll
-  team.hardCapRoom = fixture.economy.hardCapLine - team.payroll
+  refreshTeamFinancials(fixture, teamId)
+}
+
+function updateTeamNeedsAfterSigning(
+  fixture: ContractMarketFixture,
+  teamId: string,
+  playerId: string
+) {
+  const team = fixture.teamContexts[teamId]
+  const player = fixture.players[playerId]
+  if (!team || !player) return
+  const position = player.profile.role.primaryPosition
+  team.positionalNeeds[position] = Math.max(
+    0,
+    (team.positionalNeeds[position] ?? 0) - 20
+  )
 }
 
 function removeFromProjectedFreeAgency(
@@ -190,26 +247,46 @@ function createSignedContract(
   }
 }
 
-function targetTeams(
+function targetBoardScore(
   fixture: ContractMarketFixture,
   playerId: string,
-  maxTeams = 3
-): string[] {
+  teamId: string
+): number {
   const player = fixture.players[playerId]
-  if (!player) return []
+  const team = fixture.teamContexts[teamId]
+  if (!player || !team) return Number.NEGATIVE_INFINITY
   const position = player.profile.role.primaryPosition
-  return Object.values(fixture.teamContexts)
-    .map((team) => ({
-      teamId: team.team.id,
-      score:
-        (team.positionalNeeds[position] ?? 0) * 0.45 +
-        team.teamQuality * 0.2 +
-        team.spendingTolerance * 0.15 +
-        team.playingTimeProjection * 0.2,
+  const playerQuality = Math.min(
+    100,
+    Math.max(0, (fixture.values[playerId]?.rawValue ?? 0) / 10)
+  )
+  return (
+    (team.positionalNeeds[position] ?? 0) * 0.35 +
+    playerQuality * 0.25 +
+    team.teamQuality * 0.12 +
+    team.roleOpportunity * 0.12 +
+    team.playingTimeProjection * 0.1 +
+    team.spendingTolerance * 0.08
+  )
+}
+
+function buildTargetBoard(
+  fixture: ContractMarketFixture,
+  teamId: string,
+  availablePlayerIds: Iterable<string>
+): string[] {
+  return [...availablePlayerIds]
+    .map((playerId) => ({
+      playerId,
+      score: targetBoardScore(fixture, playerId, teamId),
     }))
-    .sort((left, right) => right.score - left.score)
-    .slice(0, maxTeams)
-    .map((entry) => entry.teamId)
+    .filter((entry) => Number.isFinite(entry.score))
+    .sort(
+      (left, right) =>
+        right.score - left.score || left.playerId.localeCompare(right.playerId)
+    )
+    .slice(0, fixture.config.targetBoardSize)
+    .map((entry) => entry.playerId)
 }
 
 export function runFreeAgencySimulation(
@@ -233,6 +310,7 @@ export function runFreeAgencySimulation(
 
   for (let round = 1; round <= totalRounds; round += 1) {
     const offers: ContractOffer[] = []
+    const teamActivity = new Map<string, MarketTeamRoundResult>()
     options.onProgress?.({
       phase: "offering",
       round,
@@ -241,15 +319,40 @@ export function runFreeAgencySimulation(
       offerCount: 0,
       label: `Generating round ${round} offers`,
     })
-    for (const playerId of available) {
-      for (const teamId of targetTeams(
+    for (const teamId of Object.keys(working.teamContexts).sort()) {
+      const team = working.teamContexts[teamId]!
+      const targetPlayerIds = buildTargetBoard(
         working,
-        playerId,
-        options.maxTeamsPerPlayer ?? 3
-      )) {
-        const offer = createAiOffer(working, playerId, teamId, round)
-        if (offer) offers.push(offer)
+        teamId,
+        available
+      )
+      const activity: MarketTeamRoundResult = {
+        teamId,
+        targetPlayerIds,
+        activeOfferCount: 0,
+        rejectedOfferCount: 0,
+        payrollBefore: team.payroll,
+        payrollAfter: team.payroll,
+        reservedSalary: team.reservedSalary,
       }
+      teamActivity.set(teamId, activity)
+
+      for (const playerId of targetPlayerIds) {
+        const offer = createAiOffer(working, playerId, teamId, round)
+        if (!offer) {
+          activity.rejectedOfferCount += 1
+          continue
+        }
+        const legality = validateContractOffer(working, offer)
+        if (!legality.valid) {
+          activity.rejectedOfferCount += 1
+          continue
+        }
+        reserveTeamSalary(working, teamId, offer.annualSalary[0] ?? 0)
+        activity.activeOfferCount += 1
+        offers.push(offer)
+      }
+      activity.reservedSalary = working.teamContexts[teamId]!.reservedSalary
     }
 
     options.onProgress?.({
@@ -260,9 +363,15 @@ export function runFreeAgencySimulation(
       offerCount: offers.length,
       label: `Resolving round ${round}`,
     })
-    const decisions = evaluateCompetitiveOffers(working, offers)
+    const decisions = evaluateCompetitiveOffers(working, offers, {
+      offersHaveReservations: true,
+    })
     const acceptedPlayerIds: string[] = []
-    for (const decision of decisions) {
+    const pendingAcceptedDecisions = decisions.filter(
+      (decision) => decision.decision === "accept"
+    )
+    for (let index = 0; index < pendingAcceptedDecisions.length; index += 1) {
+      const decision = pendingAcceptedDecisions[index]!
       if (
         decision.decision !== "accept" ||
         acceptedPlayerIds.includes(decision.playerId)
@@ -272,6 +381,51 @@ export function runFreeAgencySimulation(
         (candidate) => candidate.id === decision.offerId
       )
       if (!offer) continue
+      const firstYearSalary = offer.annualSalary[0] ?? 0
+      const legality = validateContractOffer(working, offer, {
+        reservedSalaryExclusion: firstYearSalary,
+      })
+      if (!legality.valid) {
+        decision.decision = "decline"
+        decision.legal = legality
+        decision.reasonCodes = [
+          "offer-invalidated-by-current-payroll",
+          "league-legality-failed",
+        ]
+        decision.summary =
+          "The team no longer has legal payroll capacity for this offer."
+        const fallback = decisions
+          .filter(
+            (candidate) =>
+              candidate.playerId === decision.playerId &&
+              candidate.offerId !== decision.offerId &&
+              candidate.decision !== "refuse-further-negotiation"
+          )
+          .sort((left, right) => right.utility.total - left.utility.total)
+          .map((candidate) => ({
+            candidate,
+            offer: offers.find((offer) => offer.id === candidate.offerId),
+          }))
+          .find(({ candidate, offer }) => {
+            if (!offer || candidate.utility.total < working.config.minimumAcceptableUtility) {
+              return false
+            }
+            return validateContractOffer(working, offer, {
+              reservedSalaryExclusion: offer.annualSalary[0] ?? 0,
+            }).valid
+          })
+        if (fallback) {
+          fallback.candidate.decision = "accept"
+          fallback.candidate.reasonCodes = [
+            "accepted-after-capacity-recheck",
+          ]
+          fallback.candidate.summary =
+            "The next-best legal offer was accepted after the leading offer lost payroll capacity."
+          pendingAcceptedDecisions.push(fallback.candidate)
+        }
+        continue
+      }
+      decision.legal = legality
       const before = working.contracts[offer.playerId]
       const nextRights: FreeAgencyRights = {
         level: "none",
@@ -285,7 +439,8 @@ export function runFreeAgencySimulation(
         ...working.players[offer.playerId]!,
         leagueStatus: { kind: "rostered", teamId: offer.teamId },
       }
-      updateTeamPayroll(working, offer.teamId, offer.annualSalary[0] ?? 0)
+      commitTeamPayroll(working, offer.teamId, firstYearSalary)
+      updateTeamNeedsAfterSigning(working, offer.teamId, offer.playerId)
       working.actualFreeAgentIds = working.actualFreeAgentIds.filter(
         (playerId) => playerId !== offer.playerId
       )
@@ -293,16 +448,49 @@ export function runFreeAgencySimulation(
       available.delete(offer.playerId)
       signedContracts.push(contract)
       acceptedPlayerIds.push(offer.playerId)
-      const statefulFixture = applyContractOfferDecision(
-        working,
-        offer,
-        decision
-      )
-      working.offers = statefulFixture.offers
-      working.negotiationStates = statefulFixture.negotiationStates
     }
 
-    rounds.push({ round, offers, decisions, acceptedPlayerIds })
+    const acceptedOfferIds = new Set(
+      decisions
+        .filter((decision) => decision.decision === "accept")
+        .map((decision) => decision.offerId)
+    )
+    for (const offer of offers) {
+      if (!acceptedOfferIds.has(offer.id)) {
+        releaseTeamSalary(working, offer.teamId, offer.annualSalary[0] ?? 0)
+      }
+    }
+    for (const decision of decisions.filter(
+      (candidate) => candidate.decision === "accept"
+    )) {
+      const offer = offers.find((candidate) => candidate.id === decision.offerId)
+      if (!offer) continue
+      const periodKey = `${offer.playerId}:${offer.teamId}:${offer.season}:${offer.phase}`
+      const previousState = working.negotiationStates[periodKey]
+      working.offers[offer.id] = structuredClone(offer)
+      working.negotiationStates[periodKey] = {
+        playerId: offer.playerId,
+        teamId: offer.teamId,
+        periodKey,
+        willingness: decision.willingnessAfter,
+        status: "active",
+        offersSubmitted: (previousState?.offersSubmitted ?? 0) + 1,
+        lastOfferId: offer.id,
+        reasonCodes: decision.reasonCodes,
+      }
+    }
+    for (const activity of teamActivity.values()) {
+      const team = working.teamContexts[activity.teamId]!
+      activity.payrollAfter = team.payroll
+    }
+
+    rounds.push({
+      round,
+      offers,
+      decisions,
+      acceptedPlayerIds,
+      teamActivity: [...teamActivity.values()],
+    })
     options.onProgress?.({
       phase: "resolving",
       round,

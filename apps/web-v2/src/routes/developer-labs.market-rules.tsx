@@ -210,6 +210,13 @@ function FreeAgencyReportPanel({
     },
     {} as Record<string, number>
   )
+  const participatingTeams = new Set(
+    rounds.flatMap((round) =>
+      round.teamActivity
+        .filter((activity) => activity.activeOfferCount > 0)
+        .map((activity) => activity.teamId)
+    )
+  )
   const initialTeam = selectedTeamId
     ? fixture.teamContexts[selectedTeamId]
     : null
@@ -252,6 +259,10 @@ function FreeAgencyReportPanel({
           <p className="mt-1">
             {marketRun.unsignedPlayerIds.length} players remain unsigned
           </p>
+          <p className="mt-1">
+            {participatingTeams.size} teams submitted offers ·{" "}
+            {fixture.config.targetBoardSize}-player target boards
+          </p>
         </div>
       </div>
 
@@ -277,8 +288,8 @@ function FreeAgencyReportPanel({
                 Round activity
               </p>
               <p className="mt-1 text-[0.6875rem] leading-4 text-muted-foreground">
-                Every offer is evaluated against the same fixture and player
-                utility rules.
+                Teams keep a live payroll reservation and rebuild their target
+                boards after each market round.
               </p>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -302,7 +313,10 @@ function FreeAgencyReportPanel({
                     <span className="font-medium">Round {round.round}</span>
                     <span className="text-muted-foreground">
                       {round.offers.length} offers ·{" "}
-                      {round.acceptedPlayerIds.length} signed
+                      {round.acceptedPlayerIds.length} signed ·{" "}
+                      {round.teamActivity.filter(
+                        (activity) => activity.activeOfferCount > 0
+                      ).length} teams
                     </span>
                   </div>
                 </summary>
@@ -338,6 +352,15 @@ function FreeAgencyReportPanel({
                       ).length
                     )}
                   />
+                  <Metric
+                    label="Rejected"
+                    value={String(
+                      round.teamActivity.reduce(
+                        (sum, activity) => sum + activity.rejectedOfferCount,
+                        0
+                      )
+                    )}
+                  />
                 </div>
               </details>
             ))}
@@ -369,6 +392,10 @@ function FreeAgencyReportPanel({
                   label="Ending cap room"
                   value={formatMoney(finalTeam.capRoom)}
                 />
+                <Metric
+                  label="Reserved salary"
+                  value={formatMoney(finalTeam.reservedSalary)}
+                />
               </div>
               <div className="mt-4 border-t border-border pt-3 text-xs leading-5 text-muted-foreground">
                 {selectedTeamSignings.length
@@ -382,6 +409,57 @@ function FreeAgencyReportPanel({
               cap-room movement.
             </p>
           )}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-md border border-border">
+        <div className="border-b border-border px-3 py-3">
+          <p className="text-xs font-semibold">Team market activity</p>
+          <p className="mt-1 text-[0.6875rem] text-muted-foreground">
+            The exported run keeps each team&apos;s top-eight board, active
+            offers, and payroll movement visible by round.
+          </p>
+        </div>
+        <div className="max-h-[22rem] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
+                <TableHead>Round</TableHead>
+                <TableHead>Team</TableHead>
+                <TableHead>Targets</TableHead>
+                <TableHead>Offers</TableHead>
+                <TableHead>Rejected</TableHead>
+                <TableHead>Payroll movement</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rounds.flatMap((round) =>
+                round.teamActivity.map((activity) => (
+                  <TableRow
+                    key={String(round.round) + ":" + activity.teamId}
+                  >
+                    <TableCell className="tabular-nums">{round.round}</TableCell>
+                    <TableCell className="font-medium">
+                      {fixture.teams[activity.teamId].name}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {activity.targetPlayerIds.length}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {activity.activeOfferCount}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {activity.rejectedOfferCount}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap tabular-nums">
+                      {formatMoney(activity.payrollBefore)} →{" "}
+                      {formatMoney(activity.payrollAfter)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
