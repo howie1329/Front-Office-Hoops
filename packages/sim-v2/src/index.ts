@@ -19,6 +19,10 @@ export {
   getPlayerCurrentAbility,
 } from "./playerGeneration"
 export {
+  createDefaultPlayerMarketProfile,
+  DEFAULT_PLAYER_MARKET_PROFILE,
+} from "./playerMarketProfile"
+export {
   generatePlayerIdentity,
   PLAYER_IDENTITY_GENERATOR_VERSION,
 } from "./playerIdentity"
@@ -73,6 +77,35 @@ export {
   createRandomSource,
   createRuntimeRandom,
 } from "./randomness"
+export {
+  calculateCapRoom,
+  calculateHardCapRoom,
+  calculateLuxuryTaxExposure,
+  createEconomySnapshot,
+  getRookieScaleSalary,
+} from "./economy"
+export {
+  CONTRACT_MARKET_VERSION,
+  ECONOMY_VERSION,
+  MARKET_SETTING_DESCRIPTORS,
+  STANDARD_CONTRACT_MARKET_CONFIG,
+  STANDARD_ECONOMY_CONFIG,
+  getMarketNumericSetting,
+  updateMarketNumericSetting,
+} from "./marketConfig"
+export {
+  applyContractOfferDecision,
+  calculateContractDemand,
+  calculateOfferUtility,
+  evaluateCompetitiveOffers,
+  evaluateContractOffer,
+  validateContractOffer,
+} from "./marketEngine"
+export { createDefaultContractMarketFixture } from "./marketFixture"
+export {
+  runEconomySimulation,
+  runFreeAgencySimulation,
+} from "./marketSimulation"
 export type { RandomSource, RandomSourceOptions } from "./randomness"
 export type {
   GameNumericSettingPath,
@@ -109,6 +142,17 @@ export type {
 export type { ProductionAggregation } from "./production"
 export type { SeasonRunnerOptions } from "./seasonRunner"
 export type { ValueSettingDescriptor, ValueSettingPath } from "./seasonConfig"
+export type {
+  MarketNumericSettingPath,
+  MarketSettingDescriptor,
+} from "./marketConfig"
+export type { ContractMarketFixtureOptions } from "./marketFixture"
+export type {
+  EconomySimulationResult,
+  EconomySimulationSeason,
+  FreeAgencySimulationResult,
+  MarketRoundResult,
+} from "./marketSimulation"
 export type {
   RosterAssemblyConfig,
   RosterAssemblyDiagnostics,

@@ -107,11 +107,16 @@ const canonicalLabs = [
       "Model the contract market while keeping financial outcomes legal and explainable.",
     scope:
       "Contract terms, player demand, offer acceptance, free agency, cap/tax, legality, affordability, and market clearing.",
-    status: "Later",
-    statusDetail: "Planned",
-    statusTone: "planned",
+    status: "Active build",
+    statusDetail: "Slice 0",
+    statusTone: "next",
     icon: PieChartIcon,
-    links: undefined,
+    links: [
+      {
+        label: "Open workbench",
+        to: "/developer-labs/market-rules" as const,
+      },
+    ],
   },
   {
     order: "06",

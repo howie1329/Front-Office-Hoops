@@ -414,12 +414,31 @@ export type PlayerProfile = {
   traits: PlayerTrait[]
 }
 
+/**
+ * Persistent, intentionally small market preference data.
+ *
+ * These values are not a general personality model. They are stable inputs
+ * for contract utility so two players can evaluate the same offer differently.
+ */
+export type PlayerMarketProfile = {
+  salaryPriority: number
+  securityPriority: number
+  winningPriority: number
+  rolePriority: number
+  playingTimePriority: number
+  marketSizePriority: number
+  loyalty: number
+  patience: number
+  negotiationBaseline: number
+}
+
 export type PlayerEntity = {
   id: string
   identity: PlayerIdentity
   leagueStatus: PlayerLeagueStatus
   age: number
   profile: PlayerProfile
+  marketPreferences?: PlayerMarketProfile
 }
 
 export type LeagueEventType = "command.completed" | "migration.applied"

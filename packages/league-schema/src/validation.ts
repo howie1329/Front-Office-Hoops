@@ -1,6 +1,7 @@
 import type {
   CareerCohortReport,
   CareerIndividualReport,
+  ContractMarketFixture,
   LeagueDocument,
   ValidationIssue,
 } from "@workspace/domain-v2"
@@ -9,6 +10,7 @@ import { ZodError } from "zod"
 import {
   careerCohortReportSchema,
   careerIndividualReportSchema,
+  contractMarketFixtureSchema,
   leagueDocumentSchema,
 } from "./schema"
 import { CURRENT_SCHEMA_VERSION } from "./version"
@@ -50,6 +52,16 @@ export class CareerReportValidationError extends Error {
   constructor(issues: ValidationIssue[]) {
     super("Career report validation failed")
     this.name = "CareerReportValidationError"
+    this.issues = issues
+  }
+}
+
+export class ContractMarketValidationError extends Error {
+  readonly issues: ValidationIssue[]
+
+  constructor(issues: ValidationIssue[]) {
+    super("Contract market fixture validation failed")
+    this.name = "ContractMarketValidationError"
     this.issues = issues
   }
 }
@@ -164,6 +176,45 @@ export function parseLeagueDocument(input: unknown): LeagueDocument {
 export function serializeLeagueDocument(document: LeagueDocument): string {
   parseLeagueDocument(document)
   return JSON.stringify(document, null, 2)
+}
+
+export function validateContractMarketFixture(
+  input: unknown
+):
+  | { valid: true; data: ContractMarketFixture }
+  | { valid: false; issues: ValidationIssue[] } {
+  const result = contractMarketFixtureSchema.safeParse(input)
+  return result.success
+    ? { valid: true, data: result.data as ContractMarketFixture }
+    : { valid: false, issues: formatIssues(result.error) }
+}
+
+export function parseContractMarketFixture(
+  input: unknown
+): ContractMarketFixture {
+  const result = validateContractMarketFixture(input)
+  if (!result.valid) throw new ContractMarketValidationError(result.issues)
+  return result.data
+}
+
+export function serializeContractMarketFixture(
+  fixture: ContractMarketFixture
+): string {
+  parseContractMarketFixture(fixture)
+  return JSON.stringify(fixture, null, 2)
+}
+
+export function deserializeContractMarketFixture(
+  serialized: string
+): ContractMarketFixture {
+  try {
+    return parseContractMarketFixture(JSON.parse(serialized) as unknown)
+  } catch (error) {
+    if (error instanceof ContractMarketValidationError) throw error
+    throw new ContractMarketValidationError([
+      { code: "invalid_json", message: "The fixture is not valid JSON." },
+    ])
+  }
 }
 
 export function deserializeLeagueDocument(serialized: string): LeagueDocument {

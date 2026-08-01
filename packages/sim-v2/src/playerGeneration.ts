@@ -14,6 +14,7 @@ import { STANDARD_PLAYER_GENERATION_CONFIG } from "@workspace/domain-v2"
 import type { RandomSource } from "./randomness"
 import { derivePlayerRole } from "./playerRole"
 import type { PlayerRoleDiagnostics } from "./playerRole"
+import { createDefaultPlayerMarketProfile } from "./playerMarketProfile"
 
 export type PlayerGenerationInput = {
   id: string
@@ -268,6 +269,7 @@ export function generatePlayerWithDiagnostics(
   const skillRandom = random.fork("skills")
   const developmentRandom = random.fork("development")
   const traitRandom = random.fork("traits")
+  const marketRandom = random.fork("market-preferences")
   const age =
     input.age ??
     random.int(Math.ceil(config.age.min), Math.floor(config.age.max))
@@ -426,6 +428,7 @@ export function generatePlayerWithDiagnostics(
       },
       traits: drawTraits(traitRandom, config),
     },
+    marketPreferences: createDefaultPlayerMarketProfile(marketRandom),
   }
 
   return {

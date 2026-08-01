@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeveloperLabsTeamAssemblyRouteImport } from './routes/developer-labs.team-assembly'
 import { Route as DeveloperLabsProductionValueRouteImport } from './routes/developer-labs.production-value'
 import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
+import { Route as DeveloperLabsMarketRulesRouteImport } from './routes/developer-labs.market-rules'
 import { Route as DeveloperLabsGameMatchupRouteImport } from './routes/developer-labs.game-matchup'
 import { Route as DeveloperLabsDevelopmentCohortsRouteImport } from './routes/developer-labs.development-cohorts'
 
@@ -45,6 +46,12 @@ const DeveloperLabsPlayerGenerationRoute =
     path: '/player-generation',
     getParentRoute: () => DeveloperLabsRoute,
   } as any)
+const DeveloperLabsMarketRulesRoute =
+  DeveloperLabsMarketRulesRouteImport.update({
+    id: '/market-rules',
+    path: '/market-rules',
+    getParentRoute: () => DeveloperLabsRoute,
+  } as any)
 const DeveloperLabsGameMatchupRoute =
   DeveloperLabsGameMatchupRouteImport.update({
     id: '/game-matchup',
@@ -63,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
+  '/developer-labs/market-rules': typeof DeveloperLabsMarketRulesRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
@@ -72,6 +80,7 @@ export interface FileRoutesByTo {
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
+  '/developer-labs/market-rules': typeof DeveloperLabsMarketRulesRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
@@ -82,6 +91,7 @@ export interface FileRoutesById {
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
+  '/developer-labs/market-rules': typeof DeveloperLabsMarketRulesRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
@@ -93,6 +103,7 @@ export interface FileRouteTypes {
     | '/developer-labs'
     | '/developer-labs/development-cohorts'
     | '/developer-labs/game-matchup'
+    | '/developer-labs/market-rules'
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
@@ -102,6 +113,7 @@ export interface FileRouteTypes {
     | '/developer-labs'
     | '/developer-labs/development-cohorts'
     | '/developer-labs/game-matchup'
+    | '/developer-labs/market-rules'
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
@@ -111,6 +123,7 @@ export interface FileRouteTypes {
     | '/developer-labs'
     | '/developer-labs/development-cohorts'
     | '/developer-labs/game-matchup'
+    | '/developer-labs/market-rules'
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeveloperLabsPlayerGenerationRouteImport
       parentRoute: typeof DeveloperLabsRoute
     }
+    '/developer-labs/market-rules': {
+      id: '/developer-labs/market-rules'
+      path: '/market-rules'
+      fullPath: '/developer-labs/market-rules'
+      preLoaderRoute: typeof DeveloperLabsMarketRulesRouteImport
+      parentRoute: typeof DeveloperLabsRoute
+    }
     '/developer-labs/game-matchup': {
       id: '/developer-labs/game-matchup'
       path: '/game-matchup'
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 interface DeveloperLabsRouteChildren {
   DeveloperLabsDevelopmentCohortsRoute: typeof DeveloperLabsDevelopmentCohortsRoute
   DeveloperLabsGameMatchupRoute: typeof DeveloperLabsGameMatchupRoute
+  DeveloperLabsMarketRulesRoute: typeof DeveloperLabsMarketRulesRoute
   DeveloperLabsPlayerGenerationRoute: typeof DeveloperLabsPlayerGenerationRoute
   DeveloperLabsProductionValueRoute: typeof DeveloperLabsProductionValueRoute
   DeveloperLabsTeamAssemblyRoute: typeof DeveloperLabsTeamAssemblyRoute
@@ -186,6 +207,7 @@ interface DeveloperLabsRouteChildren {
 const DeveloperLabsRouteChildren: DeveloperLabsRouteChildren = {
   DeveloperLabsDevelopmentCohortsRoute: DeveloperLabsDevelopmentCohortsRoute,
   DeveloperLabsGameMatchupRoute: DeveloperLabsGameMatchupRoute,
+  DeveloperLabsMarketRulesRoute: DeveloperLabsMarketRulesRoute,
   DeveloperLabsPlayerGenerationRoute: DeveloperLabsPlayerGenerationRoute,
   DeveloperLabsProductionValueRoute: DeveloperLabsProductionValueRoute,
   DeveloperLabsTeamAssemblyRoute: DeveloperLabsTeamAssemblyRoute,
