@@ -12,7 +12,12 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
-import type { LeagueDocument, LeagueScheduleEntry } from "@workspace/domain-v2"
+import type {
+  GamePlayerBoxScore,
+  LeagueDocument,
+  LeagueGameRecord,
+  LeagueScheduleEntry,
+} from "@workspace/domain-v2"
 import { V2LeagueRepository } from "@workspace/db-v2"
 import {
   getLifecycleActionState,
@@ -169,6 +174,177 @@ function gameOpponent(
     name: league.entities.teams[opponentId].name,
     home,
   }
+}
+
+type LeaderCategoryId =
+  | "points"
+  | "assists"
+  | "rebounds"
+  | "steals"
+  | "blocks"
+  | "field-goal-percentage"
+
+type LeagueLeaderRow = {
+  category: string
+  categoryId: LeaderCategoryId
+  playerId: string
+  playerName: string
+  teamName: string
+  value: number
+  displayValue: string
+}
+
+type PlayerStatLine = {
+  player: GamePlayerBoxScore
+  games: number
+  points: number
+  assists: number
+  rebounds: number
+  steals: number
+  blocks: number
+  fieldGoalsMade: number
+  fieldGoalsAttempted: number
+}
+
+const LEADER_CATEGORIES: Array<{
+  id: LeaderCategoryId
+  label: string
+  format: (stats: PlayerStatLine) => { value: number; displayValue: string }
+}> = [
+  {
+    id: "points",
+    label: "Points",
+    format: (stats) => ({
+      value: stats.points / stats.games,
+      displayValue: (stats.points / stats.games).toFixed(1),
+    }),
+  },
+  {
+    id: "assists",
+    label: "Assists",
+    format: (stats) => ({
+      value: stats.assists / stats.games,
+      displayValue: (stats.assists / stats.games).toFixed(1),
+    }),
+  },
+  {
+    id: "rebounds",
+    label: "Rebounds",
+    format: (stats) => ({
+      value: stats.rebounds / stats.games,
+      displayValue: (stats.rebounds / stats.games).toFixed(1),
+    }),
+  },
+  {
+    id: "steals",
+    label: "Steals",
+    format: (stats) => ({
+      value: stats.steals / stats.games,
+      displayValue: (stats.steals / stats.games).toFixed(1),
+    }),
+  },
+  {
+    id: "blocks",
+    label: "Blocks",
+    format: (stats) => ({
+      value: stats.blocks / stats.games,
+      displayValue: (stats.blocks / stats.games).toFixed(1),
+    }),
+  },
+  {
+    id: "field-goal-percentage",
+    label: "FG%",
+    format: (stats) => ({
+      value:
+        stats.fieldGoalsAttempted > 0
+          ? (stats.fieldGoalsMade / stats.fieldGoalsAttempted) * 100
+          : 0,
+      displayValue:
+        stats.fieldGoalsAttempted > 0
+          ? `${((stats.fieldGoalsMade / stats.fieldGoalsAttempted) * 100).toFixed(1)}%`
+          : "—",
+    }),
+  },
+]
+
+function playerName(league: LeagueDocument, playerId: string): string {
+  const player = league.entities.players[playerId]
+  return [player.identity.firstName, player.identity.lastName]
+    .filter(Boolean)
+    .join(" ")
+}
+
+function getCompletedGames(league: LeagueDocument): Array<LeagueGameRecord> {
+  return league.optionalData?.games ?? []
+}
+
+function getLeagueLeaders(league: LeagueDocument): Array<LeagueLeaderRow> {
+  const statsByPlayer = new Map<string, PlayerStatLine>()
+
+  for (const game of getCompletedGames(league)) {
+    for (const player of Object.values(game.result.players)) {
+      const existing = statsByPlayer.get(player.playerId)
+      if (existing) {
+        existing.games += 1
+        existing.points += player.points
+        existing.assists += player.assists
+        existing.rebounds += player.rebounds
+        existing.steals += player.steals
+        existing.blocks += player.blocks
+        existing.fieldGoalsMade += player.fieldGoalsMade
+        existing.fieldGoalsAttempted += player.fieldGoalsAttempted
+      } else {
+        statsByPlayer.set(player.playerId, {
+          player,
+          games: 1,
+          points: player.points,
+          assists: player.assists,
+          rebounds: player.rebounds,
+          steals: player.steals,
+          blocks: player.blocks,
+          fieldGoalsMade: player.fieldGoalsMade,
+          fieldGoalsAttempted: player.fieldGoalsAttempted,
+        })
+      }
+    }
+  }
+
+  return LEADER_CATEGORIES.flatMap((category) => {
+    const rows = Array.from(statsByPlayer.values())
+      .filter(
+        (stats) =>
+          category.id !== "field-goal-percentage" ||
+          stats.fieldGoalsAttempted > 0
+      )
+      .map((stats) => {
+        const formatted = category.format(stats)
+        return {
+          category: category.label,
+          categoryId: category.id,
+          playerId: stats.player.playerId,
+          playerName: playerName(league, stats.player.playerId),
+          teamName: league.entities.teams[stats.player.teamId].name,
+          value: formatted.value,
+          displayValue: formatted.displayValue,
+        }
+      })
+      .sort((left, right) => {
+        if (right.value !== left.value) return right.value - left.value
+        return left.playerName.localeCompare(right.playerName)
+      })
+      .slice(0, 5)
+
+    return rows
+  })
+}
+
+function getRecentGameRows(league: LeagueDocument): Array<LeagueGameRecord> {
+  return [...getCompletedGames(league)]
+    .sort((left, right) => {
+      if (right.date !== left.date) return right.date.localeCompare(left.date)
+      return right.scheduleId.localeCompare(left.scheduleId)
+    })
+    .slice(0, 8)
 }
 
 const DEFAULT_SIDEBAR_WIDTH = 224
@@ -513,12 +689,7 @@ function MobileDashboardHeader({
   )
 }
 
-function CommandHeader({
-  league,
-  advanceAction,
-  isSimulating,
-  onAdvanceDay,
-}: { league: LeagueDocument } & SimulationControlProps) {
+function CommandHeader({ league }: { league: LeagueDocument }) {
   return (
     <header className="border-b border-border px-5 py-4 sm:px-8 lg:px-10">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -535,15 +706,6 @@ function CommandHeader({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            disabled={isSimulating || !advanceAction.enabled}
-            title={advanceAction.reason}
-            onClick={onAdvanceDay}
-          >
-            {isSimulating ? "Simulating…" : advanceAction.label}
-          </Button>
           <Button
             type="button"
             variant="outline"
@@ -579,16 +741,22 @@ function CommandHeader({
   )
 }
 
-function TeamSnapshot({
+function TeamStatusBar({
   league,
   teamId,
   nextGame,
   record,
+  advanceAction,
+  isSimulating,
+  onAdvanceDay,
 }: {
   league: LeagueDocument
   teamId: string
   nextGame?: LeagueScheduleEntry
   record: { wins: number; losses: number; rank: number }
+  advanceAction: LifecycleActionState
+  isSimulating: boolean
+  onAdvanceDay: () => void
 }) {
   const team = league.entities.teams[teamId]
   const { conference, division } = getDivisionAndConference(league, teamId)
@@ -596,81 +764,70 @@ function TeamSnapshot({
 
   return (
     <section
-      aria-labelledby="team-snapshot-heading"
-      className="border-y border-border"
+      aria-labelledby="team-status-heading"
+      className="flex-none border-y border-border bg-muted/20"
     >
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Team snapshot
+      <div className="grid gap-4 px-4 py-4 sm:px-5 xl:grid-cols-[minmax(14rem,1.35fr)_repeat(3,minmax(7rem,0.7fr))_minmax(12rem,1fr)_auto] xl:items-center">
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium text-muted-foreground">
+            Team status
           </p>
-          <h2
-            id="team-snapshot-heading"
-            className="mt-2 text-2xl font-semibold tracking-[-0.03em]"
+          <h1
+            id="team-status-heading"
+            className="mt-1 truncate text-lg font-semibold tracking-[-0.02em]"
           >
             {team.name}
-          </h2>
+          </h1>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {conference?.name ?? "Conference not set"} · {division?.name ?? "Division not set"}
+          </p>
         </div>
-        <div className="text-left sm:text-right">
-          <p className="text-xs text-muted-foreground">Next game</p>
-          <p className="mt-2 text-sm font-semibold">
+        <div>
+          <p className="text-[11px] text-muted-foreground">Record</p>
+          <p className="mt-1 text-sm font-semibold tabular-nums">
+            {formatRecord(record.wins, record.losses)}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] text-muted-foreground">League rank</p>
+          <p className="mt-1 text-sm font-semibold tabular-nums">
+            {record.rank > 0 ? `#${record.rank}` : "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-[11px] text-muted-foreground">Roster</p>
+          <p className="mt-1 text-sm font-semibold tabular-nums">
+            {team.rosterPlayerIds?.length ?? 0}
+          </p>
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] text-muted-foreground">Next game</p>
+          <p className="mt-1 truncate text-sm font-semibold">
             {opponent
               ? `${opponent.home ? "vs." : "at"} ${opponent.name}`
               : "No game scheduled"}
           </p>
-          {nextGame && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {formatDate(nextGame.date)} ·{" "}
-              {nextGame.kind === "preseason" ? "Exhibition" : "Regular season"}
-            </p>
-          )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {nextGame ? formatDate(nextGame.date) : "Calendar clear"}
+          </p>
         </div>
+        <Button
+          type="button"
+          size="sm"
+          className="w-full xl:w-auto"
+          disabled={isSimulating || !advanceAction.enabled}
+          title={advanceAction.reason}
+          onClick={onAdvanceDay}
+        >
+          {isSimulating ? "Simulating…" : advanceAction.label}
+          <HugeiconsIcon icon={ArrowRight01Icon} size={15} strokeWidth={2} aria-hidden="true" />
+        </Button>
       </div>
-      <Table>
-        <TableBody>
-          <TableRow>
-            <TableCell className="w-1/2 font-medium text-muted-foreground">
-              Record
-            </TableCell>
-            <TableCell className="tabular-nums">
-              {formatRecord(record.wins, record.losses)} · {record.rank}
-              {record.rank === 1
-                ? "st"
-                : record.rank === 2
-                  ? "nd"
-                  : record.rank === 3
-                    ? "rd"
-                    : "th"}{" "}
-              overall
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium text-muted-foreground">
-              Conference
-            </TableCell>
-            <TableCell>{conference?.name ?? "—"}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium text-muted-foreground">
-              Division
-            </TableCell>
-            <TableCell>{division?.name ?? "—"}</TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium text-muted-foreground">
-              Roster
-            </TableCell>
-            <TableCell className="tabular-nums">
-              {team.rosterPlayerIds?.length ?? 0} players registered
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
     </section>
   )
 }
 
-function RosterWatch({
+function RosterWatchPanel({
   league,
   teamId,
 }: {
@@ -682,7 +839,7 @@ function RosterWatch({
   return (
     <section
       aria-labelledby="roster-watch-heading"
-      className="border-y border-border"
+      className="flex min-h-0 flex-col border-y border-border"
     >
       <div className="flex items-end justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
         <div>
@@ -700,7 +857,8 @@ function RosterWatch({
           Top five by overall
         </span>
       </div>
-      <Table>
+      <div className="min-h-0 overflow-auto">
+        <Table>
         <TableCaption className="sr-only">
           Top five players on the selected team's roster.
         </TableCaption>
@@ -730,86 +888,86 @@ function RosterWatch({
             </TableRow>
           ))}
         </TableBody>
-      </Table>
-      <div className="border-t border-border px-5 py-4 sm:px-6">
-        <span className="text-sm text-muted-foreground">
-          Full roster management will open here next.
-        </span>
+        </Table>
       </div>
     </section>
   )
 }
 
-function LeagueSnapshot({
+function StandingsPanel({
   league,
   teamId,
 }: {
   league: LeagueDocument
   teamId: string
 }) {
-  const rows = getStandingRows(league).slice(0, 8)
+  const rows = getStandingRows(league)
 
   return (
     <section
-      aria-labelledby="league-snapshot-heading"
-      className="border-y border-border"
+      aria-labelledby="standings-heading"
+      className="flex min-h-0 flex-col border-y border-border"
     >
       <div className="flex items-end justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
         <div>
           <p className="text-xs font-medium text-muted-foreground">
-            League snapshot
+            League view
           </p>
           <h2
-            id="league-snapshot-heading"
-            className="mt-2 text-lg font-semibold tracking-[-0.02em]"
+            id="standings-heading"
+            className="mt-1 text-lg font-semibold tracking-[-0.02em]"
           >
             Standings
           </h2>
         </div>
-        <span className="text-xs text-muted-foreground">Top eight</span>
+        <span className="text-xs text-muted-foreground">{rows.length} teams</span>
       </div>
-      <Table>
-        <TableCaption className="sr-only">
-          Current league standings.
-        </TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">Rank</TableHead>
-            <TableHead>Team</TableHead>
-            <TableHead className="text-right">W</TableHead>
-            <TableHead className="text-right">L</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow
-              key={row.team.id}
-              data-state={row.team.id === teamId ? "selected" : undefined}
-            >
-              <TableCell className="text-muted-foreground tabular-nums">
-                {row.rank}
-              </TableCell>
-              <TableCell className="font-medium">{row.team.name}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {row.wins}
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground tabular-nums">
-                {row.losses}
-              </TableCell>
+      <div className="min-h-0 overflow-auto">
+        <Table>
+          <TableCaption className="sr-only">
+            Current league standings.
+          </TableCaption>
+          <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableRow>
+              <TableHead className="w-12">Rank</TableHead>
+              <TableHead>Team</TableHead>
+              <TableHead>Conference</TableHead>
+              <TableHead className="text-right">W</TableHead>
+              <TableHead className="text-right">L</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <div className="border-t border-border px-5 py-4 sm:px-6">
-        <span className="text-sm text-muted-foreground">
-          Full standings will include conference and playoff context.
-        </span>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => {
+              const { conference } = getDivisionAndConference(league, row.team.id)
+              return (
+                <TableRow
+                  key={row.team.id}
+                  data-state={row.team.id === teamId ? "selected" : undefined}
+                >
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {row.rank}
+                  </TableCell>
+                  <TableCell className="font-medium">{row.team.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {conference?.name.replace(" Conference", "") ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {row.wins}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground tabular-nums">
+                    {row.losses}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
       </div>
     </section>
   )
 }
 
-function UpcomingSchedule({
+function UpcomingSchedulePanel({
   league,
   teamId,
 }: {
@@ -821,62 +979,247 @@ function UpcomingSchedule({
   return (
     <section
       aria-labelledby="upcoming-schedule-heading"
-      className="border-y border-border"
+      className="flex min-h-0 flex-col border-y border-border"
     >
       <div className="flex items-end justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
         <div>
           <p className="text-xs font-medium text-muted-foreground">
-            What is next
+            Team calendar
           </p>
           <h2
             id="upcoming-schedule-heading"
-            className="mt-2 text-lg font-semibold tracking-[-0.02em]"
+            className="mt-1 text-lg font-semibold tracking-[-0.02em]"
           >
             Upcoming schedule
           </h2>
         </div>
         <span className="text-xs text-muted-foreground">Next five</span>
       </div>
-      <Table>
-        <TableCaption className="sr-only">
-          The selected team's next five scheduled games.
-        </TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Opponent</TableHead>
-            <TableHead>H/A</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {games.map((game, index) => {
-            const opponent = gameOpponent(league, game, teamId)
-            return (
-              <TableRow
-                key={game.id}
-                data-state={index === 0 ? "selected" : undefined}
-              >
-                <TableCell className="font-medium">
-                  {formatDate(game.date)}
-                </TableCell>
-                <TableCell>{opponent.name}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {opponent.home ? "Home" : "Away"}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {game.kind === "preseason" ? "Exhibition" : "Scheduled"}
-                </TableCell>
+      <div className="min-h-0 overflow-auto">
+        <Table>
+          <TableCaption className="sr-only">
+            The selected team's next five scheduled games.
+          </TableCaption>
+          <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Opponent</TableHead>
+              <TableHead>H/A</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {games.map((game, index) => {
+              const opponent = gameOpponent(league, game, teamId)
+              return (
+                <TableRow
+                  key={game.id}
+                  data-state={index === 0 ? "selected" : undefined}
+                >
+                  <TableCell className="font-medium">
+                    {formatDate(game.date)}
+                  </TableCell>
+                  <TableCell>{opponent.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {opponent.home ? "Home" : "Away"}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+        {games.length === 0 && (
+          <p className="px-5 py-6 text-sm text-muted-foreground sm:px-6">
+            No scheduled games are waiting on the current calendar.
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function LeagueLeadersPanel({ league }: { league: LeagueDocument }) {
+  const rows = getLeagueLeaders(league)
+  let previousCategory: LeaderCategoryId | null = null
+  let categoryRank = 0
+
+  return (
+    <section
+      aria-labelledby="league-leaders-heading"
+      className="flex min-h-0 flex-col border-y border-border"
+    >
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+        <div>
+          <p className="text-[11px] font-medium text-muted-foreground">
+            League view
+          </p>
+          <h2
+            id="league-leaders-heading"
+            className="mt-1 text-lg font-semibold tracking-[-0.02em]"
+          >
+            League leaders
+          </h2>
+        </div>
+        <span className="text-xs text-muted-foreground">Top five · six categories</span>
+      </div>
+      <div className="min-h-0 overflow-auto">
+        {rows.length > 0 ? (
+          <Table>
+            <TableCaption className="sr-only">
+              League leaders across six statistical categories.
+            </TableCaption>
+            <TableHeader className="sticky top-0 z-10 bg-background">
+              <TableRow>
+                <TableHead className="w-12">Rank</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Player</TableHead>
+                <TableHead>Team</TableHead>
+                <TableHead className="text-right">Value</TableHead>
               </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
-      {games.length === 0 && (
-        <p className="px-5 py-6 text-sm text-muted-foreground sm:px-6">
-          No scheduled games are waiting on the current calendar.
-        </p>
-      )}
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => {
+                if (row.categoryId !== previousCategory) {
+                  previousCategory = row.categoryId
+                  categoryRank = 1
+                } else {
+                  categoryRank += 1
+                }
+                return (
+                  <TableRow key={`${row.categoryId}:${row.playerId}`}>
+                    <TableCell className="text-muted-foreground tabular-nums">
+                      {categoryRank}
+                    </TableCell>
+                    <TableCell className="font-medium">{row.category}</TableCell>
+                    <TableCell>{row.playerName}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {row.teamName}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {row.displayValue}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="px-5 py-8 text-sm text-muted-foreground">
+            League leaders will appear after games are completed.
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function RecentActivityPanel({ league }: { league: LeagueDocument }) {
+  const games = getRecentGameRows(league)
+
+  return (
+    <section
+      aria-labelledby="recent-activity-heading"
+      className="flex min-h-0 flex-col border-y border-border"
+    >
+      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+        <div>
+          <p className="text-[11px] font-medium text-muted-foreground">
+            League log
+          </p>
+          <h2
+            id="recent-activity-heading"
+            className="mt-1 text-lg font-semibold tracking-[-0.02em]"
+          >
+            Recent activity
+          </h2>
+        </div>
+        <span className="text-xs text-muted-foreground">Latest completed games</span>
+      </div>
+      <div className="min-h-0 overflow-auto">
+        {games.length > 0 ? (
+          <Table>
+            <TableCaption className="sr-only">
+              Latest completed league games.
+            </TableCaption>
+            <TableHeader className="sticky top-0 z-10 bg-background">
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Matchup</TableHead>
+                <TableHead className="text-right">Score</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {games.map((game) => {
+                const homeTeam = league.entities.teams[game.result.homeTeamId]
+                const awayTeam = league.entities.teams[game.result.awayTeamId]
+                const homePoints = game.result.teams[game.result.homeTeamId].points
+                const awayPoints = game.result.teams[game.result.awayTeamId].points
+                return (
+                  <TableRow key={game.scheduleId}>
+                    <TableCell className="font-medium">
+                      {formatDate(game.date)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {awayTeam.name} at {homeTeam.name}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {awayPoints}–{homePoints}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="px-5 py-8 text-sm text-muted-foreground">
+            Completed games and league activity will appear here.
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function KeyDatesPanel({ league }: { league: LeagueDocument }) {
+  const milestones = [
+    { label: "Trade deadline", date: league.state.calendar.milestones.tradeDeadline },
+    { label: "Regular season ends", date: league.state.calendar.regularSeasonEnd },
+    { label: "Playoffs begin", date: league.state.calendar.milestones.playoffsStart },
+  ].filter((milestone) => milestone.date >= league.state.calendar.currentDate)
+
+  return (
+    <section aria-labelledby="key-dates-heading" className="border-y border-border">
+      <div className="flex items-end justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+        <div>
+          <p className="text-[11px] font-medium text-muted-foreground">Calendar</p>
+          <h2
+            id="key-dates-heading"
+            className="mt-1 text-lg font-semibold tracking-[-0.02em]"
+          >
+            Key dates
+          </h2>
+        </div>
+        <HugeiconsIcon
+          icon={Calendar01Icon}
+          size={16}
+          strokeWidth={2}
+          aria-hidden="true"
+          className="text-muted-foreground"
+        />
+      </div>
+      <div className="grid divide-y divide-border">
+        {milestones.length > 0 ? (
+          milestones.map((milestone) => (
+            <div key={milestone.label} className="flex items-center justify-between gap-4 px-4 py-3 text-sm sm:px-5">
+              <span className="text-muted-foreground">{milestone.label}</span>
+              <span className="font-medium tabular-nums">{formatDate(milestone.date)}</span>
+            </div>
+          ))
+        ) : (
+          <p className="px-4 py-4 text-sm text-muted-foreground sm:px-5">
+            No upcoming milestones are on the calendar.
+          </p>
+        )}
+      </div>
     </section>
   )
 }
@@ -1068,8 +1411,9 @@ function LeagueShellPage() {
   const advanceAction = getLifecycleActionState(league, "advance-day")
 
   return (
-    <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+    <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground xl:h-dvh xl:overflow-hidden">
       <SidebarProvider
+        className="min-h-svh xl:h-dvh"
         style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}
       >
         <DashboardSidebar
@@ -1081,7 +1425,7 @@ function LeagueShellPage() {
           isSimulating={isSimulating}
           onAdvanceDay={() => void handleAdvanceDay()}
         />
-        <SidebarInset>
+        <SidebarInset className="min-h-0 xl:overflow-hidden">
           <MobileDashboardHeader
             league={league}
             advanceAction={advanceAction}
@@ -1090,9 +1434,6 @@ function LeagueShellPage() {
           />
           <CommandHeader
             league={league}
-            advanceAction={advanceAction}
-            isSimulating={isSimulating}
-            onAdvanceDay={() => void handleAdvanceDay()}
           />
 
           {(isSimulating || simulationProgress || simulationError) && (
@@ -1126,32 +1467,32 @@ function LeagueShellPage() {
             </div>
           )}
 
-          <div className="mx-auto w-full max-w-[96rem] px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
-            <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">
-                  League dashboard
-                </p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em]">
-                  Run the office.
-                </h1>
-              </div>
-              <p className="max-w-md text-sm leading-6 text-muted-foreground">
-                Review the team, read the league, and see what is waiting on the
-                calendar.
-              </p>
-            </div>
+          <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 xl:overflow-hidden">
+            <TeamStatusBar
+              league={league}
+              teamId={teamId}
+              nextGame={nextGames[0]}
+              record={standing}
+              advanceAction={advanceAction}
+              isSimulating={isSimulating}
+              onAdvanceDay={() => void handleAdvanceDay()}
+            />
 
-            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
-              <TeamSnapshot
-                league={league}
-                teamId={teamId}
-                nextGame={nextGames[0]}
-                record={standing}
-              />
-              <LeagueSnapshot league={league} teamId={teamId} />
-              <RosterWatch league={league} teamId={teamId} />
-              <UpcomingSchedule league={league} teamId={teamId} />
+            <div className="grid min-h-0 gap-4 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
+              <div className="grid min-h-0 gap-4 xl:grid-rows-[minmax(0,1fr)_minmax(12rem,0.42fr)]">
+                <StandingsPanel league={league} teamId={teamId} />
+                <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(13rem,0.75fr)]">
+                  <RecentActivityPanel league={league} />
+                  <KeyDatesPanel league={league} />
+                </div>
+              </div>
+              <div className="grid min-h-0 gap-4 xl:grid-rows-[minmax(0,1fr)_minmax(12rem,0.42fr)]">
+                <LeagueLeadersPanel league={league} />
+                <div className="grid min-h-0 gap-4 lg:grid-cols-2">
+                  <UpcomingSchedulePanel league={league} teamId={teamId} />
+                  <RosterWatchPanel league={league} teamId={teamId} />
+                </div>
+              </div>
             </div>
           </div>
         </SidebarInset>
