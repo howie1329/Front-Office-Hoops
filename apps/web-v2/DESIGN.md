@@ -121,6 +121,13 @@ The start screen is a direct continuation point, not a second marketing page. Sh
 
 Use one separate `Start a new league` action below the table. Do not make users choose between large, equal-weight cards or route them through an extra choice screen. When a capability is not implemented yet, preserve the layout and label the action honestly as the next V2 surface rather than presenting a dead link.
 
+When `Start a new league` is active, keep creation in the same linear surface:
+first collect the league name and standard setup, then replace the setup form
+with the generated team table. The second state should keep the team choice,
+summary metrics, and final `Enter with this team` action together. After
+selection, route to the saved league shell so the user can verify the team was
+persisted before later lifecycle controls arrive.
+
 ## 6. Motion and interaction
 
 Motion is optional and subordinate to reading. Use short opacity or color transitions for hover and focus feedback. Do not orchestrate page-load reveals or animate the landing page into view. Any future motion must respect `prefers-reduced-motion: reduce`.

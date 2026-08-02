@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { createFoundationLeague } from "@workspace/domain-v2"
 
-import { executeLeagueCommand } from "../src"
+import { createLeague, executeLeagueCommand } from "../src"
 
 describe("executeLeagueCommand", () => {
   it("round-trips a no-op command without changing facts", () => {
@@ -30,6 +30,38 @@ describe("executeLeagueCommand", () => {
 
     expect(result.status).toBe("rejected")
     expect(result.reason?.code).toBe("command_not_implemented")
+  })
+
+  it("records the selected team on a generated league", () => {
+    const league = createLeague({
+      id: "league-selection",
+      name: "Selection League",
+      seed: "selection-seed",
+      mode: "deterministic-lab",
+      createdWithEntropy: false,
+      now: "2026-08-02T00:00:00.000Z",
+    }).document
+
+    const result = executeLeagueCommand({
+      requestId: "request-selection",
+      command: {
+        type: "SelectUserTeam",
+        commandId: "command-selection",
+        teamId: "team:01",
+      },
+      league,
+    })
+
+    expect(result).toMatchObject({
+      status: "completed",
+      league: {
+        state: { userTeamId: "team:01" },
+      },
+    })
+    expect(result.events[0]).toMatchObject({
+      type: "command.completed",
+      entityRefs: [{ type: "team", id: "team:01" }],
+    })
   })
 
   it("rejects malformed league documents", () => {

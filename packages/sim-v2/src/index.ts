@@ -1,5 +1,10 @@
 export { executeLeagueCommand } from "./executeCommand"
 export {
+  createLeague,
+  LEAGUE_CREATION_VERSION,
+  LEAGUE_TEAM_COUNT,
+} from "./leagueCreation"
+export {
   simulateGameMatchup,
   simulateGameMatchupWithTelemetry,
   validateGameMatchupFixture,
@@ -133,6 +138,11 @@ export type {
 } from "./gameSimulation"
 export type { PlayerPopulationContextKind } from "@workspace/domain-v2"
 export type { WorkerRequest, WorkerResult } from "./protocol"
+export type {
+  LeagueCreationInput,
+  LeagueCreationResult,
+  LeagueTeamPreview,
+} from "./leagueCreation"
 export type {
   PlayerGenerationDiagnostics,
   PlayerGenerationInput,

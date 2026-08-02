@@ -1,6 +1,6 @@
 export type JsonRecord = Record<string, unknown>
 
-export type LeaguePhase = "foundation"
+export type LeaguePhase = "foundation" | "preseason"
 
 export type RandomMode = "normal" | "deterministic-lab"
 
@@ -248,6 +248,8 @@ export type PhaseTaskState = {
 export type TeamEntity = {
   id: string
   name: string
+  rosterPlayerIds?: string[]
+  marketSize?: "small" | "medium" | "large"
 }
 
 export type PlayerTrait = string
@@ -480,6 +482,7 @@ export type LeagueDocument = {
   randomness: {
     mode: RandomMode
     createdWithEntropy: boolean
+    seed?: string
     debugScopes?: Record<string, string>
   }
   state: {
@@ -488,7 +491,7 @@ export type LeagueDocument = {
     leagueDay: number
     userTeamId: string | null
     calendar: {
-      kind: "foundation"
+      kind: "foundation" | "preseason"
     }
     phaseTasks: PhaseTaskState[]
   }
@@ -526,6 +529,11 @@ export type LeagueCommand =
   | {
       type: "AdvanceDay"
       commandId: string
+    }
+  | {
+      type: "SelectUserTeam"
+      commandId: string
+      teamId: string
     }
 
 export type ValidationIssue = {

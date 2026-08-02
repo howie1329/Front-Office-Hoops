@@ -84,7 +84,7 @@ function isRuntimeWorkerRequest(
 }
 
 function isSupportedCommandType(type: string): boolean {
-  return type === "NoOp" || type === "AdvanceDay"
+  return type === "NoOp" || type === "AdvanceDay" || type === "SelectUserTeam"
 }
 
 function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
@@ -115,6 +115,54 @@ function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
         message:
           "AdvanceDay is reserved for the lifecycle implementation phase.",
       })
+    case "SelectUserTeam": {
+      const teamId = (request.command as { teamId?: unknown }).teamId
+      if (typeof teamId !== "string" || !teamId) {
+        return rejection(request, {
+          code: "invalid_team_selection",
+          message: "A team must be selected before the league can be entered.",
+          path: ["command", "teamId"],
+        })
+      }
+
+      if (!validation.data.entities.teams[teamId]) {
+        return rejection(request, {
+          code: "unknown_team_selection",
+          message: "The selected team does not exist in this league.",
+          path: ["command", "teamId"],
+        })
+      }
+
+      const now = new Date().toISOString()
+      const nextLeague = structuredClone(validation.data)
+      nextLeague.state.userTeamId = teamId
+      nextLeague.metadata.updatedAt = now
+      const event = {
+        id: `event:${request.command.commandId}`,
+        type: "command.completed" as const,
+        season: nextLeague.state.season,
+        phase: nextLeague.state.phase,
+        leagueDay: nextLeague.state.leagueDay,
+        entityRefs: [{ type: "team", id: teamId }],
+        payload: { teamId },
+        summary: `Selected ${nextLeague.entities.teams[teamId]?.name ?? teamId}.`,
+        importance: "major" as const,
+        storyTags: ["league-creation", "team-selection"],
+        source: {
+          kind: "command" as const,
+          id: request.command.commandId,
+        },
+      }
+      nextLeague.history.events.push(event)
+
+      return {
+        requestId: request.requestId,
+        status: "completed",
+        league: nextLeague,
+        events: [event],
+        diagnostics: [],
+      }
+    }
     default:
       return failure(
         request,

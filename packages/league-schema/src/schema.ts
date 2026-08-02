@@ -356,7 +356,7 @@ const eventSchema = z.strictObject({
   id: z.string().min(1),
   type: z.enum(["command.completed", "migration.applied"]),
   season: z.number().int().nonnegative(),
-  phase: z.literal("foundation"),
+  phase: z.enum(["foundation", "preseason"]),
   leagueDay: z.number().int().nonnegative(),
   entityRefs: z.array(
     z.strictObject({
@@ -1362,14 +1362,17 @@ const leagueDocumentShape = z.strictObject({
   randomness: z.strictObject({
     mode: z.enum(["normal", "deterministic-lab"]),
     createdWithEntropy: z.boolean(),
+    seed: z.string().min(1).optional(),
     debugScopes: z.record(z.string(), z.string()).optional(),
   }),
   state: z.strictObject({
     season: z.number().int().positive(),
-    phase: z.literal("foundation"),
+    phase: z.enum(["foundation", "preseason"]),
     leagueDay: z.number().int().nonnegative(),
     userTeamId: z.string().min(1).nullable(),
-    calendar: z.strictObject({ kind: z.literal("foundation") }),
+    calendar: z.strictObject({
+      kind: z.enum(["foundation", "preseason"]),
+    }),
     phaseTasks: z.array(
       z.strictObject({
         id: z.string().min(1),
@@ -1381,7 +1384,12 @@ const leagueDocumentShape = z.strictObject({
   entities: z.strictObject({
     teams: z.record(
       z.string(),
-      z.strictObject({ id: z.string().min(1), name: z.string().min(1) })
+      z.strictObject({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        rosterPlayerIds: z.array(z.string().min(1)).optional(),
+        marketSize: z.enum(["small", "medium", "large"]).optional(),
+      })
     ),
     players: z.record(z.string(), playerEntitySchema),
     owners: z.record(z.string(), jsonRecordSchema),

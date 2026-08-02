@@ -5,15 +5,17 @@ playable application and is intentionally kept runnable beside it.
 
 ## Current state
 
-V2 currently provides the foundation worker/schema/repository round trip and
-five active developer-lab surfaces: Population & Roster, Game & Matchup,
-Production & Value, Career Cohort, and Market & Rules. The six routes behind
-those surfaces are calibration tools, not a complete playable league.
+V2 currently provides the foundation worker/schema/repository round trip, the
+first authoritative league-creation slice, and five active developer-lab
+surfaces: Population & Roster, Game & Matchup, Production & Value, Career
+Cohort, and Market & Rules. The start flow can generate a league, select a
+team, save it locally, reload it, and delete it.
 
-The authoritative league document is still foundation-only. Full league
-creation, lifecycle commands, the management shell, Draft & Decision, and the
-League Loop remain future work. Market & Rules is the latest active calibration
-area, with acceptance and league integration still pending.
+The authoritative league document now supports a thin generated preseason
+slice and team selection. In-season lifecycle commands, the full management
+shell, Draft & Decision promotion, and the League Loop remain future work.
+Market & Rules is the latest active calibration area, with acceptance and
+broader league integration still pending.
 
 Read the [V2 current state](./current-state.md) for the implementation matrix,
 route inventory, package boundaries, and validation snapshot. Read the

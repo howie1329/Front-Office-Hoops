@@ -1,19 +1,21 @@
 # Front Office Hoops v2 — Current State
 
-**Last audited:** August 1, 2026  
+**Last audited:** August 2, 2026
 **Status vocabulary:** `implemented` means the code and route exist; `calibration pending` means the behavior is not yet accepted as standard gameplay; `planned` means no production route or authoritative league integration exists.
 
 ## Product position
 
-V2 is currently a browser-hosted calibration platform, not a playable replacement
-for V1. It has a foundation worker/schema/repository round trip and a set of
-worker-backed developer labs that exercise production simulation modules.
+V2 is currently a browser-hosted calibration platform with its first
+authoritative league-creation slice, not a playable replacement for V1. It has
+the foundation worker/schema/repository round trip, worker-backed developer
+labs, and a generated preseason league that can be saved, selected, reloaded,
+and deleted.
 
-The V2 home page currently demonstrates a validated `LeagueDocument` moving
-through the worker, Dexie, and JSON import/export path. The authoritative league
-document is still foundation-only: `LeaguePhase` is `"foundation"`, `NoOp` is the
-only completed lifecycle command, and `AdvanceDay` remains intentionally
-rejected until lifecycle integration is implemented.
+The V2 home page and start flow now demonstrate a validated `LeagueDocument`
+moving through league creation, team selection, the worker, Dexie, and JSON
+import/export paths. The document still has only a thin `preseason` lifecycle:
+`SelectUserTeam` is implemented, while `AdvanceDay` remains intentionally
+rejected until the in-season integration slice is implemented.
 
 V1 remains the existing playable local league application and is intentionally
 kept runnable beside V2.
@@ -22,18 +24,21 @@ kept runnable beside V2.
 
 | Area | Current state | Evidence | Next gate |
 | --- | --- | --- | --- |
-| Document, schema, worker, repository | Implemented foundation | `domain-v2`, `league-schema`, `sim-v2`, `db-v2`, and the V2 home round trip | Promote validated systems into lifecycle commands |
+| Document, schema, worker, repository | Implemented first creation slice | `domain-v2`, `league-schema`, `sim-v2`, `db-v2`, creation worker, and saved league shell | Add lifecycle commands and checkpoint transitions |
 | Population & roster | Implemented workbench | Player Generation and Team Assembly routes; deterministic population and roster fixtures | Accept league-wide distributions and league-creation adapter |
 | Game & matchup | Implemented initial engine and lab | Possession simulation, rotations, availability, reconciliation, worker batches, reports | Accept benchmark ranges and promote into gameplay |
 | Production & value | Implemented initial lab and season runner | Season fixtures, game aggregation, production records, universal player value, worker route | Accept production/value ranges |
 | Career cohort | Implemented worker-backed harness | Development, decline, retirement, matched cohorts, reports, settings, explorer UI | Accept career distributions and league-loop transitions |
 | Market & rules | Active implementation/calibration | Economy, demand, offer utility, deterministic free agency, target boards, activity reporting, roster cleanup | Accept multi-season market behavior and integrate into league commands |
 | Draft & decision | Implemented calibration workbench; calibration pending | `/developer-labs/draft-decision`, deterministic 75-player/60-pick runs, scouting reports, versioned boards, matched diagnostics, safe/full exports | Accept board behavior across 100+ classes and integrate draft contracts into the league loop |
-| League loop and management shell | Planned | No V2 playable league shell; lifecycle command remains foundation-only | Generate, select, simulate, save, reload, and advance a complete league |
+| League loop and management shell | Implemented creation shell | `/league/start` creates/selects leagues; `/league` reloads the selected save | Add owner goals, rotations, simulation, and lifecycle recovery |
 
 ## V2 routes
 
-The current V2 application exposes seven lab routes plus the foundation home page:
+The current V2 application exposes the start/league shell plus seven lab routes:
+
+- `/league/start`
+- `/league`
 
 - `/developer-labs/player-generation`
 - `/developer-labs/team-assembly`
@@ -84,9 +89,8 @@ simulation contracts or lab adapters.
 
 The following remain target-product or later-phase work:
 
-- Complete league creation and team selection flow.
 - In-season lifecycle commands, standings, playoffs, and season archives in the authoritative league document.
-- The player-facing league shell and management screens.
+- The player-facing league management screens beyond the initial shell.
 - Authoritative Draft & Decision integration and baseline draft promotion into the league loop.
 - Multi-season League Loop Lab.
 - Full first-v2 export profiles, migration coverage, browser E2E coverage, and production hardening.

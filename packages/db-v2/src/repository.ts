@@ -65,6 +65,11 @@ export class V2LeagueRepository {
     })
   }
 
+  async create(document: LeagueDocument): Promise<string> {
+    await this.save(document)
+    return document.metadata.id
+  }
+
   async remove(id: string): Promise<void> {
     await getDb().leagues.delete(id)
   }
