@@ -28,7 +28,6 @@ import type { LifecycleActionState } from "@workspace/sim-v2"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +65,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { runAndCommitLeagueCommand } from "@/lib/leagueLifecycle"
 
 export const Route = createFileRoute("/league/")({
@@ -356,12 +356,6 @@ type SimulationControlProps = {
   advanceAction: LifecycleActionState
   isSimulating: boolean
   onAdvanceDay: () => void
-}
-
-type SimulationProgress = {
-  completed: number
-  total?: number
-  label: string
 }
 
 function clampSidebarWidth(width: number): number {
@@ -689,7 +683,12 @@ function MobileDashboardHeader({
   )
 }
 
-function CommandHeader({ league }: { league: LeagueDocument }) {
+function CommandHeader({
+  league,
+  advanceAction,
+  isSimulating,
+  onAdvanceDay,
+}: { league: LeagueDocument } & SimulationControlProps) {
   return (
     <header className="border-b border-border px-5 py-4 sm:px-8 lg:px-10">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -706,6 +705,15 @@ function CommandHeader({ league }: { league: LeagueDocument }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            disabled={isSimulating || !advanceAction.enabled}
+            title={advanceAction.reason}
+            onClick={onAdvanceDay}
+          >
+            {isSimulating ? "Simulating…" : advanceAction.label}
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -746,17 +754,11 @@ function TeamStatusBar({
   teamId,
   nextGame,
   record,
-  advanceAction,
-  isSimulating,
-  onAdvanceDay,
 }: {
   league: LeagueDocument
   teamId: string
   nextGame?: LeagueScheduleEntry
   record: { wins: number; losses: number; rank: number }
-  advanceAction: LifecycleActionState
-  isSimulating: boolean
-  onAdvanceDay: () => void
 }) {
   const team = league.entities.teams[teamId]
   const { conference, division } = getDivisionAndConference(league, teamId)
@@ -767,7 +769,7 @@ function TeamStatusBar({
       aria-labelledby="team-status-heading"
       className="flex-none border-y border-border bg-muted/20"
     >
-      <div className="grid gap-4 px-4 py-4 sm:px-5 xl:grid-cols-[minmax(14rem,1.35fr)_repeat(3,minmax(7rem,0.7fr))_minmax(12rem,1fr)_auto] xl:items-center">
+      <div className="grid gap-4 px-4 py-4 sm:px-5 xl:grid-cols-[minmax(14rem,1.35fr)_repeat(3,minmax(7rem,0.7fr))_minmax(12rem,1fr)] xl:items-center">
         <div className="min-w-0">
           <p className="text-[11px] font-medium text-muted-foreground">
             Team status
@@ -811,17 +813,6 @@ function TeamStatusBar({
             {nextGame ? formatDate(nextGame.date) : "Calendar clear"}
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          className="w-full xl:w-auto"
-          disabled={isSimulating || !advanceAction.enabled}
-          title={advanceAction.reason}
-          onClick={onAdvanceDay}
-        >
-          {isSimulating ? "Simulating…" : advanceAction.label}
-          <HugeiconsIcon icon={ArrowRight01Icon} size={15} strokeWidth={2} aria-hidden="true" />
-        </Button>
       </div>
     </section>
   )
@@ -841,7 +832,7 @@ function RosterWatchPanel({
       aria-labelledby="roster-watch-heading"
       className="flex min-h-0 flex-col border-y border-border"
     >
-      <div className="flex items-end justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
+      <div className="flex items-end justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
         <div>
           <p className="text-xs font-medium text-muted-foreground">
             Attention list
@@ -902,13 +893,21 @@ function StandingsPanel({
   teamId: string
 }) {
   const rows = getStandingRows(league)
+  const conferences = league.state.structure?.conferences ?? []
+  const [selectedConferenceId, setSelectedConferenceId] = React.useState(
+    conferences[0]?.id ?? "all"
+  )
+  const selectedRows = rows.filter((row) => {
+    if (selectedConferenceId === "all") return true
+    return getDivisionAndConference(league, row.team.id).conference?.id === selectedConferenceId
+  })
 
   return (
     <section
       aria-labelledby="standings-heading"
       className="flex min-h-0 flex-col border-y border-border"
     >
-      <div className="flex items-end justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
+      <div className="grid gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div>
           <p className="text-xs font-medium text-muted-foreground">
             League view
@@ -920,7 +919,26 @@ function StandingsPanel({
             Standings
           </h2>
         </div>
-        <span className="text-xs text-muted-foreground">{rows.length} teams</span>
+        <Tabs
+          value={selectedConferenceId}
+          onValueChange={setSelectedConferenceId}
+          className="gap-0"
+        >
+          <TabsList variant="line" className="w-full justify-start sm:w-fit">
+            {conferences.length > 0 ? (
+              conferences.map((conference) => (
+                <TabsTrigger key={conference.id} value={conference.id}>
+                  {conference.name.replace(" Conference", "")}
+                </TabsTrigger>
+              ))
+            ) : (
+              <TabsTrigger value="all">All teams</TabsTrigger>
+            )}
+          </TabsList>
+        </Tabs>
+        <span className="text-xs text-muted-foreground">
+          {selectedRows.length} teams
+        </span>
       </div>
       <div className="min-h-0 overflow-auto">
         <Table>
@@ -937,7 +955,7 @@ function StandingsPanel({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => {
+            {selectedRows.map((row, index) => {
               const { conference } = getDivisionAndConference(league, row.team.id)
               return (
                 <TableRow
@@ -945,7 +963,7 @@ function StandingsPanel({
                   data-state={row.team.id === teamId ? "selected" : undefined}
                 >
                   <TableCell className="text-muted-foreground tabular-nums">
-                    {row.rank}
+                    {index + 1}
                   </TableCell>
                   <TableCell className="font-medium">{row.team.name}</TableCell>
                   <TableCell className="text-muted-foreground">
@@ -981,7 +999,7 @@ function UpcomingSchedulePanel({
       aria-labelledby="upcoming-schedule-heading"
       className="flex min-h-0 flex-col border-y border-border"
     >
-      <div className="flex items-end justify-between gap-4 border-b border-border px-5 py-5 sm:px-6">
+      <div className="flex items-end justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
         <div>
           <p className="text-xs font-medium text-muted-foreground">
             Team calendar
@@ -1039,15 +1057,21 @@ function UpcomingSchedulePanel({
 
 function LeagueLeadersPanel({ league }: { league: LeagueDocument }) {
   const rows = getLeagueLeaders(league)
-  let previousCategory: LeaderCategoryId | null = null
-  let categoryRank = 0
+  const [selectedCategoryId, setSelectedCategoryId] =
+    React.useState<LeaderCategoryId>("points")
+  const selectedRows = rows.filter(
+    (row) => row.categoryId === selectedCategoryId
+  )
+  const selectedCategory = LEADER_CATEGORIES.find(
+    (category) => category.id === selectedCategoryId
+  )
 
   return (
     <section
       aria-labelledby="league-leaders-heading"
       className="flex min-h-0 flex-col border-y border-border"
     >
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+      <div className="grid gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div>
           <p className="text-[11px] font-medium text-muted-foreground">
             League view
@@ -1059,37 +1083,49 @@ function LeagueLeadersPanel({ league }: { league: LeagueDocument }) {
             League leaders
           </h2>
         </div>
-        <span className="text-xs text-muted-foreground">Top five · six categories</span>
+        <Tabs
+          value={selectedCategoryId}
+          onValueChange={(value) =>
+            setSelectedCategoryId(value as LeaderCategoryId)
+          }
+          className="gap-0"
+        >
+          <TabsList
+            variant="line"
+            className="grid w-full grid-cols-3 sm:grid-cols-6"
+          >
+            {LEADER_CATEGORIES.map((category) => (
+              <TabsTrigger key={category.id} value={category.id}>
+                {category.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+        <span className="text-xs text-muted-foreground">
+          Top five · {selectedCategory?.label ?? "Category"}
+        </span>
       </div>
       <div className="min-h-0 overflow-auto">
-        {rows.length > 0 ? (
+        {selectedRows.length > 0 ? (
           <Table>
             <TableCaption className="sr-only">
-              League leaders across six statistical categories.
+              Top five league leaders for {selectedCategory?.label ?? "this category"}.
             </TableCaption>
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
                 <TableHead className="w-12">Rank</TableHead>
-                <TableHead>Category</TableHead>
                 <TableHead>Player</TableHead>
                 <TableHead>Team</TableHead>
                 <TableHead className="text-right">Value</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => {
-                if (row.categoryId !== previousCategory) {
-                  previousCategory = row.categoryId
-                  categoryRank = 1
-                } else {
-                  categoryRank += 1
-                }
+              {selectedRows.map((row, index) => {
                 return (
                   <TableRow key={`${row.categoryId}:${row.playerId}`}>
                     <TableCell className="text-muted-foreground tabular-nums">
-                      {categoryRank}
+                      {index + 1}
                     </TableCell>
-                    <TableCell className="font-medium">{row.category}</TableCell>
                     <TableCell>{row.playerName}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {row.teamName}
@@ -1232,8 +1268,6 @@ function LeagueShellPage() {
   const [sidebarWidth, setSidebarWidth] = React.useState(DEFAULT_SIDEBAR_WIDTH)
   const [isSidebarWidthHydrated, setIsSidebarWidthHydrated] = React.useState(false)
   const [isSimulating, setIsSimulating] = React.useState(false)
-  const [simulationProgress, setSimulationProgress] =
-    React.useState<SimulationProgress | null>(null)
   const [simulationError, setSimulationError] = React.useState<string | null>(
     null
   )
@@ -1294,11 +1328,6 @@ function LeagueShellPage() {
     const commandId = `command:advance-day:${crypto.randomUUID()}`
     setIsSimulating(true)
     setSimulationError(null)
-    setSimulationProgress({
-      completed: 0,
-      total: 1,
-      label: "Simulating the current calendar day…",
-    })
 
     try {
       const result = await runAndCommitLeagueCommand(
@@ -1311,7 +1340,6 @@ function LeagueShellPage() {
       )
 
       if (result.status !== "completed" || !result.league) {
-        setSimulationProgress(null)
         setSimulationError(
           result.reason?.message ?? "The simulation could not be completed."
         )
@@ -1319,15 +1347,7 @@ function LeagueShellPage() {
       }
 
       setLeague(result.league)
-      setSimulationProgress(
-        result.progress ?? {
-          completed: 1,
-          total: 1,
-          label: "Calendar advanced.",
-        }
-      )
     } catch (caughtError) {
-      setSimulationProgress(null)
       setSimulationError(
         caughtError instanceof Error
           ? caughtError.message
@@ -1434,61 +1454,38 @@ function LeagueShellPage() {
           />
           <CommandHeader
             league={league}
+            advanceAction={advanceAction}
+            isSimulating={isSimulating}
+            onAdvanceDay={() => void handleAdvanceDay()}
           />
 
-          {(isSimulating || simulationProgress || simulationError) && (
-            <div className="border-b border-border px-5 py-3 sm:px-8 lg:px-10">
-              {simulationError ? (
-                <Alert variant="destructive">
-                  <AlertDescription>{simulationError}</AlertDescription>
-                </Alert>
-              ) : (
-                <div className="grid gap-2" role="status" aria-live="polite">
-                  <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
-                    <span>{simulationProgress?.label ?? "Simulation running…"}</span>
-                    {simulationProgress?.total ? (
-                      <span className="tabular-nums">
-                        {simulationProgress.completed}/{simulationProgress.total}
-                      </span>
-                    ) : null}
-                  </div>
-                  <Progress
-                    value={
-                      simulationProgress?.total
-                        ? (simulationProgress.completed /
-                            simulationProgress.total) *
-                          100
-                        : 0
-                    }
-                    aria-label="Simulation progress"
-                  />
-                </div>
-              )}
+          {simulationError && (
+            <div className="flex-none border-b border-border px-5 py-2 sm:px-8 lg:px-10">
+              <Alert variant="destructive" className="py-2">
+                <AlertDescription>{simulationError}</AlertDescription>
+              </Alert>
             </div>
           )}
 
-          <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 xl:overflow-hidden">
+          <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col gap-3 overflow-y-auto px-4 py-3 sm:px-6 lg:px-8 xl:overflow-hidden">
             <TeamStatusBar
               league={league}
               teamId={teamId}
               nextGame={nextGames[0]}
               record={standing}
-              advanceAction={advanceAction}
-              isSimulating={isSimulating}
-              onAdvanceDay={() => void handleAdvanceDay()}
             />
 
-            <div className="grid min-h-0 gap-4 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
-              <div className="grid min-h-0 gap-4 xl:grid-rows-[minmax(0,1fr)_minmax(12rem,0.42fr)]">
+            <div className="grid min-h-0 gap-3 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
+              <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_minmax(10rem,0.32fr)]">
                 <StandingsPanel league={league} teamId={teamId} />
-                <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(13rem,0.75fr)]">
+                <div className="grid min-h-0 gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(13rem,0.75fr)]">
                   <RecentActivityPanel league={league} />
                   <KeyDatesPanel league={league} />
                 </div>
               </div>
-              <div className="grid min-h-0 gap-4 xl:grid-rows-[minmax(0,1fr)_minmax(12rem,0.42fr)]">
+              <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_minmax(10rem,0.32fr)]">
                 <LeagueLeadersPanel league={league} />
-                <div className="grid min-h-0 gap-4 lg:grid-cols-2">
+                <div className="grid min-h-0 gap-3 lg:grid-cols-2">
                   <UpcomingSchedulePanel league={league} teamId={teamId} />
                   <RosterWatchPanel league={league} teamId={teamId} />
                 </div>
