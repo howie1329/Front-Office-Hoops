@@ -5,6 +5,7 @@ import { V2LeagueRepository } from "@workspace/db-v2"
 import type { LeagueSummary } from "@workspace/db-v2"
 import type { LeagueCreationResult, LeagueTeamPreview } from "@workspace/sim-v2"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,9 +32,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { Separator } from "@workspace/ui/components/separator"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Separator } from "@/components/ui/separator"
 
 import { runLeagueCreation } from "@/lib/leagueCreationWorker"
 import { runLeagueCommand } from "@/lib/leagueWorker"
@@ -243,9 +245,9 @@ function CreateLeagueFlow({
                 </div>
 
                 {error && (
-                  <p className="text-sm text-destructive" role="alert">
-                    {error}
-                  </p>
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
 
                 <div className="flex flex-wrap items-center justify-between gap-4">
@@ -317,46 +319,48 @@ function TeamSelectionStep({
         direction you want to own.
       </p>
 
-      <Table>
-        <TableCaption>Generated teams available to select.</TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Team</TableHead>
-            <TableHead>Conference</TableHead>
-            <TableHead>Division</TableHead>
-            <TableHead>Roster</TableHead>
-            <TableHead>Current ability</TableHead>
-            <TableHead>Potential</TableHead>
-            <TableHead>Market</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {previews.map((preview) => {
-            const isSelected = preview.teamId === selectedTeamId
-            const inputId = `team-choice-${preview.teamId}`
+      <RadioGroup
+        value={selectedTeamId ?? ""}
+        onValueChange={onSelect}
+        className="block"
+        aria-label="Select a team"
+      >
+        <Table>
+          <TableCaption>Generated teams available to select.</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Team</TableHead>
+              <TableHead>Conference</TableHead>
+              <TableHead>Division</TableHead>
+              <TableHead>Roster</TableHead>
+              <TableHead>Current ability</TableHead>
+              <TableHead>Potential</TableHead>
+              <TableHead>Market</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {previews.map((preview) => {
+              const isSelected = preview.teamId === selectedTeamId
+              const inputId = `team-choice-${preview.teamId}`
 
-            return (
-              <TableRow
-                key={preview.teamId}
-                data-state={isSelected ? "selected" : undefined}
-              >
-                <TableCell className="font-medium">
-                  <label
-                    htmlFor={inputId}
-                    className="flex min-h-11 cursor-pointer items-center gap-3"
-                  >
-                    <input
-                      id={inputId}
-                      type="radio"
-                      name="team-choice"
-                      value={preview.teamId}
-                      checked={isSelected}
-                      onChange={() => onSelect(preview.teamId)}
-                      className="size-4 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    />
-                    <span>{preview.name}</span>
-                  </label>
-                </TableCell>
+              return (
+                <TableRow
+                  key={preview.teamId}
+                  data-state={isSelected ? "selected" : undefined}
+                >
+                  <TableCell className="font-medium">
+                    <Label
+                      htmlFor={inputId}
+                      className="flex min-h-11 cursor-pointer items-center gap-3"
+                    >
+                      <RadioGroupItem
+                        id={inputId}
+                        value={preview.teamId}
+                        aria-label={`Select ${preview.name}`}
+                      />
+                      <span>{preview.name}</span>
+                    </Label>
+                  </TableCell>
                 <TableCell className="text-muted-foreground">
                   {preview.conference}
                 </TableCell>
@@ -375,16 +379,17 @@ function TeamSelectionStep({
                 <TableCell className="text-muted-foreground capitalize">
                   {preview.marketSize}
                 </TableCell>
-              </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </RadioGroup>
 
       {error && (
-        <p className="text-sm text-destructive" role="alert">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -549,9 +554,9 @@ function LeagueStartPage() {
               )}
 
               {!isLoading && error && (
-                <p className="py-8 text-sm text-muted-foreground" role="alert">
-                  {error}
-                </p>
+                <Alert variant="destructive" className="my-8">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
 
               {!isLoading && !error && saves.length === 0 && (
@@ -566,48 +571,50 @@ function LeagueStartPage() {
               )}
 
               {!isLoading && !error && saves.length > 0 && (
-                <Table>
-                  <TableCaption>
-                    Saved leagues available to select.
-                  </TableCaption>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>League</TableHead>
-                      <TableHead>Season</TableHead>
-                      <TableHead>Team</TableHead>
-                      <TableHead className="text-right">Updated</TableHead>
-                      <TableHead className="text-right">
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {saves.map((save) => {
-                      const inputId = `saved-league-${save.id}`
-                      const isSelected = save.id === selectedId
+                <RadioGroup
+                  value={selectedId ?? ""}
+                  onValueChange={setSelectedId}
+                  className="block"
+                  aria-label="Select a saved league"
+                >
+                  <Table>
+                    <TableCaption>
+                      Saved leagues available to select.
+                    </TableCaption>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>League</TableHead>
+                        <TableHead>Season</TableHead>
+                        <TableHead>Team</TableHead>
+                        <TableHead className="text-right">Updated</TableHead>
+                        <TableHead className="text-right">
+                          <span className="sr-only">Actions</span>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {saves.map((save) => {
+                        const inputId = `saved-league-${save.id}`
+                        const isSelected = save.id === selectedId
 
-                      return (
-                        <TableRow
-                          key={save.id}
-                          data-state={isSelected ? "selected" : undefined}
-                        >
-                          <TableCell className="font-medium">
-                            <label
-                              htmlFor={inputId}
-                              className="flex min-h-11 cursor-pointer items-center gap-3"
-                            >
-                              <input
-                                id={inputId}
-                                type="radio"
-                                name="saved-league"
-                                value={save.id}
-                                checked={isSelected}
-                                onChange={() => setSelectedId(save.id)}
-                                className="size-4 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                              />
-                              <span>{save.name}</span>
-                            </label>
-                          </TableCell>
+                        return (
+                          <TableRow
+                            key={save.id}
+                            data-state={isSelected ? "selected" : undefined}
+                          >
+                            <TableCell className="font-medium">
+                              <Label
+                                htmlFor={inputId}
+                                className="flex min-h-11 cursor-pointer items-center gap-3"
+                              >
+                                <RadioGroupItem
+                                  id={inputId}
+                                  value={save.id}
+                                  aria-label={`Select ${save.name}`}
+                                />
+                                <span>{save.name}</span>
+                              </Label>
+                            </TableCell>
                           <TableCell className="text-muted-foreground tabular-nums">
                             {save.season}
                           </TableCell>
@@ -629,20 +636,21 @@ function LeagueStartPage() {
                               Delete
                             </Button>
                           </TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </RadioGroup>
               )}
             </div>
 
             <Separator className="my-7" />
 
             {actionError && (
-              <p className="mb-5 text-sm text-destructive" role="alert">
-                {actionError}
-              </p>
+              <Alert variant="destructive" className="mb-5">
+                <AlertDescription>{actionError}</AlertDescription>
+              </Alert>
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-4">

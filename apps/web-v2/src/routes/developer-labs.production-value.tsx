@@ -23,24 +23,27 @@ import type {
   GameNumericSettingPath,
   ValueSettingPath,
 } from "@workspace/sim-v2"
-import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@workspace/ui/components/card"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+} from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@workspace/ui/components/select"
+} from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
   TableBody,
@@ -48,9 +51,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@workspace/ui/components/table"
+} from "@/components/ui/table"
 import * as React from "react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   createDefaultProductionValueLabFixture,
   getPopulationLabel,
@@ -168,9 +172,11 @@ function SortableHeader({
         active ? (direction === "asc" ? "ascending" : "descending") : "none"
       }
     >
-      <button
+      <Button
         type="button"
-        className={`inline-flex items-center gap-1 font-semibold hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${align === "right" ? "ml-auto" : ""}`}
+        variant="ghost"
+        size="sm"
+        className={`h-auto gap-1 px-0 font-semibold ${align === "right" ? "ml-auto" : ""}`}
         onClick={() => onSort(column)}
       >
         {label}
@@ -180,7 +186,7 @@ function SortableHeader({
         >
           {direction === "asc" ? "↑" : direction === "desc" ? "↓" : "↕"}
         </span>
-      </button>
+      </Button>
     </TableHead>
   )
 }
@@ -267,18 +273,18 @@ function SettingField({
           }
         />
       </div>
-      <input
+      <Slider
         id={`value-slider-${descriptor.path}`}
-        type="range"
         min={descriptor.min}
         max={descriptor.max}
         step={descriptor.step}
-        value={value}
+        value={[value]}
         aria-label={descriptor.label}
-        className="h-1.5 w-full accent-foreground"
-        onChange={(event) =>
-          onChange(descriptor.path, Number(event.target.value))
-        }
+        className="w-full"
+        onValueChange={(values) => {
+          const nextValue = values[0]
+          if (typeof nextValue === "number") onChange(descriptor.path, nextValue)
+        }}
       />
       <div className="flex justify-between text-[11px] text-muted-foreground">
         <span>{descriptor.min}</span>
@@ -329,18 +335,18 @@ function GameSettingField({
           }
         />
       </div>
-      <input
+      <Slider
         id={`game-slider-${descriptor.path}`}
-        type="range"
         min={descriptor.min}
         max={descriptor.max}
         step={descriptor.step}
-        value={value}
+        value={[value]}
         aria-label={descriptor.label}
-        className="h-1.5 w-full accent-foreground"
-        onChange={(event) =>
-          onChange(descriptor.path, Number(event.target.value))
-        }
+        className="w-full"
+        onValueChange={(values) => {
+          const nextValue = values[0]
+          if (typeof nextValue === "number") onChange(descriptor.path, nextValue)
+        }}
       />
       <div className="flex justify-between text-[11px] text-muted-foreground">
         <span>{descriptor.min}</span>
@@ -424,18 +430,18 @@ function OptionField({
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={id} size="sm" className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
@@ -878,12 +884,9 @@ function ProductionValueLabPage() {
         </div>
 
         {error ? (
-          <div
-            className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
-            role="alert"
-          >
-            {error}
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         ) : null}
 
         <div className="grid items-start gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
@@ -946,12 +949,12 @@ function ProductionValueLabPage() {
                   />
                 </div>
               ) : null}
-              <label className="flex items-start gap-3 rounded-md border border-border bg-muted/30 p-3 text-sm">
-                <input
-                  type="checkbox"
+              <Label className="flex items-start gap-3 rounded-md border border-border bg-muted/30 p-3 text-sm">
+                <Checkbox
                   checked={config.injuries.mode === "off"}
-                  onChange={(event) => {
-                    const mode = event.target.checked ? "off" : "standard"
+                  onCheckedChange={(checked) => {
+                    const noInjuries = checked === true
+                    const mode = noInjuries ? "off" : "standard"
                     updateConfig({
                       ...config,
                       presetId: "custom",
@@ -961,12 +964,12 @@ function ProductionValueLabPage() {
                       ...structuredClone(gameConfig),
                       injuries: {
                         ...gameConfig.injuries,
-                        frequency: event.target.checked ? "off" : "rare",
-                        inGameInjuries: !event.target.checked,
+                        frequency: noInjuries ? "off" : "rare",
+                        inGameInjuries: !noInjuries,
                       },
                     })
                   }}
-                  className="mt-0.5 size-4 accent-foreground"
+                  className="mt-0.5"
                 />
                 <span>
                   <span className="block font-medium">
@@ -977,7 +980,7 @@ function ProductionValueLabPage() {
                     isolated.
                   </span>
                 </span>
-              </label>
+              </Label>
               <div className="grid gap-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1117,22 +1120,21 @@ function ProductionValueLabPage() {
                           })
                         }
                       />
-                      <label className="flex items-center gap-2 text-xs">
-                        <input
-                          type="checkbox"
+                      <Label className="flex items-center gap-2 text-xs">
+                        <Checkbox
                           checked={gameConfig.overtime.enabled}
-                          onChange={(event) =>
+                          onCheckedChange={(checked) =>
                             updateGameConfig({
                               ...structuredClone(gameConfig),
                               overtime: {
                                 ...gameConfig.overtime,
-                                enabled: event.target.checked,
+                                enabled: checked === true,
                               },
                             })
                           }
                         />
                         Enable overtime
-                      </label>
+                      </Label>
                       <div className="grid grid-cols-2 gap-3">
                         <div className="grid gap-1.5">
                           <Label htmlFor="season-ot-minutes">OT minutes</Label>
@@ -1351,22 +1353,24 @@ function ProductionValueLabPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex gap-1 overflow-x-auto border-b border-border">
-                    {POPULATION_TABS.map((tab) => (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        className={`border-b-2 px-3 py-2 text-xs font-semibold whitespace-nowrap transition-colors ${population === tab.id ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                        onClick={() => {
-                          setPopulation(tab.id)
-                          setTeamFilter("all")
-                        }}
-                        aria-pressed={population === tab.id}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
+                  <Tabs
+                    value={population}
+                    onValueChange={(value) => {
+                      setPopulation(value as PopulationTab)
+                      setTeamFilter("all")
+                    }}
+                  >
+                    <TabsList
+                      variant="line"
+                      className="w-full justify-start overflow-x-auto rounded-none border-b border-border p-0"
+                    >
+                      {POPULATION_TABS.map((tab) => (
+                        <TabsTrigger key={tab.id} value={tab.id}>
+                          {tab.label}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  </Tabs>
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
@@ -1441,13 +1445,15 @@ function ProductionValueLabPage() {
                               onClick={() => setSelectedPlayerId(playerId)}
                             >
                               <TableCell>
-                                <button
+                                <Button
                                   type="button"
-                                  className="text-left font-medium hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto px-0 text-left font-medium"
                                   onClick={() => setSelectedPlayerId(playerId)}
                                 >
                                   {getPlayerName(fixture!, playerId)}
-                                </button>
+                                </Button>
                                 <span className="mt-0.5 block text-xs text-muted-foreground">
                                   {player?.age ?? "—"} ·{" "}
                                   {player?.profile.role.primaryPosition ?? "—"}

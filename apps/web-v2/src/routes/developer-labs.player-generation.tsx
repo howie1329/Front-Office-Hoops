@@ -41,24 +41,25 @@ import type {
   PlayerIdentityMode,
   PlayerPopulationResult,
 } from "@workspace/sim-v2"
-import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
-} from "@workspace/ui/components/card"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@workspace/ui/components/select"
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -66,8 +67,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@workspace/ui/components/table"
-import { cn } from "@workspace/ui/lib/utils"
+} from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/developer-labs/player-generation")({
   component: PlayerGenerationLabPage,
@@ -1102,47 +1103,53 @@ function PlayerGenerationLabPage() {
                     >
                       <div className="grid gap-1">
                         <Label htmlFor={`corr-first-${index}`}>First</Label>
-                        <select
-                          id={`corr-first-${index}`}
-                          className="h-7 rounded-md border border-input bg-input/20 px-2 text-xs"
+                        <Select
                           value={correlation.first}
-                          onChange={(event) => {
+                          onValueChange={(value) => {
                             const next = [...config.skillCorrelations]
                             next[index] = {
                               ...correlation,
-                              first: event.target.value as PlayerSkillKey,
+                              first: value as PlayerSkillKey,
                             }
                             updateConfig({ ...config, skillCorrelations: next })
                           }}
                         >
-                          {skillOptions.map((skill) => (
-                            <option key={skill} value={skill}>
-                              {skillLabels[skill]}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger id={`corr-first-${index}`} size="sm" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {skillOptions.map((skill) => (
+                              <SelectItem key={skill} value={skill}>
+                                {skillLabels[skill]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="grid gap-1">
                         <Label htmlFor={`corr-second-${index}`}>Second</Label>
-                        <select
-                          id={`corr-second-${index}`}
-                          className="h-7 rounded-md border border-input bg-input/20 px-2 text-xs"
+                        <Select
                           value={correlation.second}
-                          onChange={(event) => {
+                          onValueChange={(value) => {
                             const next = [...config.skillCorrelations]
                             next[index] = {
                               ...correlation,
-                              second: event.target.value as PlayerSkillKey,
+                              second: value as PlayerSkillKey,
                             }
                             updateConfig({ ...config, skillCorrelations: next })
                           }}
                         >
-                          {skillOptions.map((skill) => (
-                            <option key={skill} value={skill}>
-                              {skillLabels[skill]}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger id={`corr-second-${index}`} size="sm" className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {skillOptions.map((skill) => (
+                              <SelectItem key={skill} value={skill}>
+                                {skillLabels[skill]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <NumberField
                         id={`corr-strength-${index}`}
@@ -1199,14 +1206,15 @@ function PlayerGenerationLabPage() {
               </Section>
 
               {errors.length > 0 ? (
-                <div
-                  className="mx-5 mb-5 grid gap-1 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive"
-                  role="alert"
-                >
-                  {errors.map((error) => (
-                    <p key={error}>{error}</p>
-                  ))}
-                </div>
+                <Alert variant="destructive" className="mx-5 mb-5">
+                  <AlertDescription>
+                    <div className="grid gap-1">
+                      {errors.map((error) => (
+                        <p key={error}>{error}</p>
+                      ))}
+                    </div>
+                  </AlertDescription>
+                </Alert>
               ) : null}
             </CardContent>
             <CardFooter className="z-10 flex-col items-stretch gap-2 border-t border-border bg-muted/40 px-5 py-4 max-xl:sticky max-xl:bottom-0 xl:static">
@@ -1381,20 +1389,21 @@ function PlayerGenerationLabPage() {
                                 Developer diagnostic; not a player overall.
                               </p>
                             </div>
-                            <select
-                              aria-label="Histogram metric"
-                              className="h-9 rounded-md border border-input bg-input/20 px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
+                            <Select
                               value={metricKey}
-                              onChange={(event) =>
-                                setMetricKey(event.target.value as LabMetricKey)
-                              }
+                              onValueChange={(value) => setMetricKey(value as LabMetricKey)}
                             >
-                              {LAB_METRICS.map((option) => (
-                                <option key={option.key} value={option.key}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
+                              <SelectTrigger aria-label="Histogram metric" className="w-48">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {LAB_METRICS.map((option) => (
+                                  <SelectItem key={option.key} value={option.key}>
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
                           <div className="flex h-32 items-end gap-1 border-b border-l border-border px-2 pt-4 pb-2">
                             {histogram.map((bucket) => (
@@ -1558,10 +1567,12 @@ function PlayerGenerationLabPage() {
                               }
                             >
                               {header.isPlaceholder ? null : (
-                                <button
+                                <Button
                                   type="button"
+                                  variant="ghost"
+                                  size="sm"
                                   aria-label={`Sort by ${String(header.column.columnDef.header)}`}
-                                  className="rounded-sm font-medium hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                  className="h-auto rounded-sm px-0 font-medium"
                                   onClick={header.column.getToggleSortingHandler()}
                                 >
                                   {flexRender(
@@ -1575,7 +1586,7 @@ function PlayerGenerationLabPage() {
                                     >
                                   )[header.column.getIsSorted() as string] ??
                                     "↕"}
-                                </button>
+                                </Button>
                               )}
                             </TableHead>
                           ))}

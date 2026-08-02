@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 
+import { Button } from "@/components/ui/button"
+
 export const Route = createFileRoute("/")({ component: V2HomePage })
 
 const roadmap = [
@@ -45,12 +47,11 @@ function V2HomePage() {
             >
               The game
             </a>
-            <Link
-              to="/league/start"
-              className="inline-flex min-h-10 items-center bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            >
-              Create league <span aria-hidden="true" className="ml-3">↗</span>
-            </Link>
+            <Button asChild className="min-h-10 rounded-none px-4">
+              <Link to="/league/start">
+                Create league <span aria-hidden="true" className="ml-3">↗</span>
+              </Link>
+            </Button>
           </nav>
         </header>
 
@@ -70,12 +71,11 @@ function V2HomePage() {
               player development, and the choices that compound over time.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-x-7 gap-y-4">
-              <Link
-                to="/league/start"
-                className="inline-flex min-h-12 items-center bg-primary px-5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-              >
-                Create your league <span aria-hidden="true" className="ml-5">↗</span>
-              </Link>
+              <Button asChild size="lg" className="rounded-none px-5">
+                <Link to="/league/start">
+                  Create your league <span aria-hidden="true" className="ml-5">↗</span>
+                </Link>
+              </Button>
               <Link
                 to="/developer-labs"
                 className="text-sm font-semibold text-foreground underline decoration-border underline-offset-8 transition-colors hover:text-muted-foreground hover:decoration-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"

@@ -15,17 +15,26 @@ import {
   updateGameNumericSetting,
 } from "@workspace/sim-v2"
 import type { GameNumericSettingPath } from "@workspace/sim-v2"
-import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@workspace/ui/components/card"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+} from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
 import {
   Table,
   TableBody,
@@ -33,9 +42,10 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@workspace/ui/components/table"
+} from "@/components/ui/table"
 import * as React from "react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   createDefaultGameMatchupLabFixture,
   getGameMatchupLabPlayerName,
@@ -96,18 +106,19 @@ function SettingField({
           }}
         />
       </div>
-      <input
+      <Slider
         id={`slider-${descriptor.path}`}
-        type="range"
         min={descriptor.min}
         max={descriptor.max}
         step={descriptor.step}
-        value={value}
+        value={[value]}
         aria-label={descriptor.label}
-        className="h-1.5 w-full accent-foreground"
-        onChange={(event) => {
-          const nextValue = Number(event.target.value)
-          if (Number.isFinite(nextValue)) onChange(descriptor.path, nextValue)
+        className="w-full"
+        onValueChange={(values) => {
+          const nextValue = values[0]
+          if (typeof nextValue === "number" && Number.isFinite(nextValue)) {
+            onChange(descriptor.path, nextValue)
+          }
         }}
       />
       <div className="flex justify-between text-[11px] text-muted-foreground">
@@ -192,18 +203,18 @@ function SelectField({
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <select
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={id} size="sm" className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }
@@ -924,12 +935,9 @@ function GameMatchupLabPage() {
                   </p>
                 </div>
                 {error ? (
-                  <p
-                    className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs leading-5 text-destructive"
-                    role="alert"
-                  >
-                    {error}
-                  </p>
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 ) : null}
                 <div className="flex items-center justify-between border-t border-border pt-3 text-xs">
                   <span className="text-muted-foreground">State</span>
@@ -1094,40 +1102,38 @@ function GameMatchupLabPage() {
                     }
                   />
                 </div>
-                <label className="flex items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
+                <Label className="flex items-center gap-2 text-xs">
+                  <Checkbox
                     checked={config.injuries.inGameInjuries}
-                    onChange={(event) =>
+                    onCheckedChange={(checked) =>
                       updateConfig({
                         ...config,
                         presetId: "custom",
                         injuries: {
                           ...config.injuries,
-                          inGameInjuries: event.target.checked,
+                          inGameInjuries: checked === true,
                         },
                       })
                     }
-                  />{" "}
+                  />
                   Enable in-game injuries
-                </label>
-                <label className="flex items-center gap-2 text-xs">
-                  <input
-                    type="checkbox"
+                </Label>
+                <Label className="flex items-center gap-2 text-xs">
+                  <Checkbox
                     checked={config.overtime.enabled}
-                    onChange={(event) =>
+                    onCheckedChange={(checked) =>
                       updateConfig({
                         ...config,
                         presetId: "custom",
                         overtime: {
                           ...config.overtime,
-                          enabled: event.target.checked,
+                          enabled: checked === true,
                         },
                       })
                     }
-                  />{" "}
+                  />
                   Enable overtime
-                </label>
+                </Label>
                 <div className="border-t border-border pt-4">
                   <SectionSettings
                     section="coaching"

@@ -34,17 +34,25 @@ import type {
   FreeAgencySimulationResult,
   MarketNumericSettingPath,
 } from "@workspace/sim-v2"
-import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@workspace/ui/components/card"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
   TableBody,
@@ -52,7 +60,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@workspace/ui/components/table"
+} from "@/components/ui/table"
 import * as React from "react"
 
 import {
@@ -1007,28 +1015,28 @@ function MarketRulesLabPage() {
 
         <div className="grid gap-6 pt-7 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="min-w-0 space-y-6">
-            <nav
-              className="grid gap-2 sm:grid-cols-5"
-              aria-label="Market lab modes"
-            >
-              {modes.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setMode(item.id)}
-                  className={`rounded-md border px-3 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring ${mode === item.id ? "border-foreground bg-foreground text-background" : "border-border bg-card hover:bg-muted"}`}
-                >
-                  <span className="block text-xs font-semibold">
-                    {item.label}
-                  </span>
-                  <span
-                    className={`mt-1 block text-[0.68rem] leading-4 ${mode === item.id ? "text-background/70" : "text-muted-foreground"}`}
+            <Tabs value={mode} onValueChange={(value) => setMode(value as LabMode)}>
+              <TabsList
+                variant="line"
+                className="grid h-auto w-full grid-cols-2 justify-start gap-1 rounded-none border-b border-border p-0 sm:grid-cols-5"
+                aria-label="Market lab modes"
+              >
+                {modes.map((item) => (
+                  <TabsTrigger
+                    key={item.id}
+                    value={item.id}
+                    className="h-auto min-h-14 justify-start px-3 py-3 text-left"
                   >
-                    {item.detail}
-                  </span>
-                </button>
-              ))}
-            </nav>
+                    <span className="block text-xs font-semibold">
+                      {item.label}
+                    </span>
+                    <span className="mt-1 block text-[0.68rem] leading-4 text-muted-foreground">
+                      {item.detail}
+                    </span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
 
             {(mode === "offer" ||
               mode === "re-signing" ||
@@ -1058,23 +1066,21 @@ function MarketRulesLabPage() {
                   <CardContent className="grid gap-5 pt-6 md:grid-cols-2">
                     <div className="grid gap-2">
                       <Label htmlFor="market-player">Player</Label>
-                      <select
-                        id="market-player"
-                        value={selectedPlayerId}
-                        onChange={(event) =>
-                          setSelectedPlayerId(event.target.value)
-                        }
-                        className="h-9 rounded-md border border-input bg-input/20 px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        {playerIds.slice(0, 180).map((playerId) => (
-                          <option key={playerId} value={playerId}>
-                            {formatName(fixture, playerId)} · OVR{" "}
-                            {formatOverall(
-                              getPlayerCurrentAbility(fixture.players[playerId])
-                            )}
-                          </option>
-                        ))}
-                      </select>
+                      <Select value={selectedPlayerId} onValueChange={setSelectedPlayerId}>
+                        <SelectTrigger id="market-player" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {playerIds.slice(0, 180).map((playerId) => (
+                            <SelectItem key={playerId} value={playerId}>
+                              {formatName(fixture, playerId)} · OVR{" "}
+                              {formatOverall(
+                                getPlayerCurrentAbility(fixture.players[playerId])
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <p className="text-xs leading-5 text-muted-foreground">
                         {selectedPlayer
                           ? `${selectedPlayer.age} years old · OVR ${formatOverall(getPlayerCurrentAbility(selectedPlayer))} · ${selectedPlayer.profile.role.primaryPosition} · ${qualityLabel(fixture.values[selectedPlayerId].rawValue)} market tier`
@@ -1083,20 +1089,18 @@ function MarketRulesLabPage() {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="market-team">Team context</Label>
-                      <select
-                        id="market-team"
-                        value={selectedTeamId}
-                        onChange={(event) =>
-                          setSelectedTeamId(event.target.value)
-                        }
-                        className="h-9 rounded-md border border-input bg-input/20 px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        {Object.values(fixture.teamContexts).map((team) => (
-                          <option key={team.team.id} value={team.team.id}>
-                            {team.team.name} · {team.strategy}
-                          </option>
-                        ))}
-                      </select>
+                      <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                        <SelectTrigger id="market-team" className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(fixture.teamContexts).map((team) => (
+                            <SelectItem key={team.team.id} value={team.team.id}>
+                              {team.team.name} · {team.strategy}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {selectedTeam && (
                         <p className="text-xs leading-5 text-muted-foreground">
                           Payroll {formatMoney(selectedTeam.payroll)} · cap room{" "}
@@ -1377,21 +1381,21 @@ function MarketRulesLabPage() {
                       <Label htmlFor="observer-team">
                         Selected team context
                       </Label>
-                      <select
-                        id="observer-team"
-                        value={selectedTeamId}
-                        onChange={(event) =>
-                          setSelectedTeamId(event.target.value)
-                        }
-                        className="h-9 rounded-md border border-input bg-input/20 px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      <Select
+                        value={selectedTeamId || undefined}
+                        onValueChange={setSelectedTeamId}
                       >
-                        <option value="">No selected team</option>
-                        {Object.values(fixture.teamContexts).map((team) => (
-                          <option key={team.team.id} value={team.team.id}>
-                            {team.team.name}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger id="observer-team" className="w-full">
+                          <SelectValue placeholder="No selected team" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.values(fixture.teamContexts).map((team) => (
+                            <SelectItem key={team.team.id} value={team.team.id}>
+                              {team.team.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <Button onClick={runMarket} disabled={running}>
                       {running ? "Running…" : "Run full market"}

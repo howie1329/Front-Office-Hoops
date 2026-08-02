@@ -5,7 +5,15 @@ import type { LeagueDocument, LeagueScheduleEntry } from "@workspace/domain-v2"
 import { V2LeagueRepository } from "@workspace/db-v2"
 import { getPlayerCurrentAbility } from "@workspace/sim-v2"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
@@ -21,7 +29,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Separator } from "@workspace/ui/components/separator"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export const Route = createFileRoute("/league/")({
   component: LeagueShellPage,
@@ -142,63 +166,80 @@ function DashboardSidebar({
   const { conference, division } = getDivisionAndConference(league, teamId)
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-muted/20 lg:flex">
-      <div className="border-b border-border px-6 py-5">
+    <Sidebar className="border-r border-border bg-muted/20" collapsible="offcanvas">
+      <SidebarHeader className="border-b border-border px-6 py-5">
         <Link
           to="/"
           className="text-sm font-semibold tracking-[-0.02em] transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
         >
           Front Office Hoops <span className="text-muted-foreground">/ V2</span>
         </Link>
-      </div>
+      </SidebarHeader>
 
-      <div className="px-6 py-6">
-        <p className="text-xs font-medium text-muted-foreground">League</p>
-        <p className="mt-2 truncate text-sm font-semibold">
-          {league.metadata.name}
-        </p>
-        <p className="mt-5 text-xs font-medium text-muted-foreground">
-          Your team
-        </p>
-        <p className="mt-2 text-lg font-semibold tracking-[-0.02em]">
-          {team.name}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {conference?.name ?? "—"} · {division?.name ?? "—"}
-        </p>
-      </div>
+      <SidebarContent>
+        <div className="px-6 py-6">
+          <p className="text-xs font-medium text-muted-foreground">League</p>
+          <p className="mt-2 truncate text-sm font-semibold">
+            {league.metadata.name}
+          </p>
+          <p className="mt-5 text-xs font-medium text-muted-foreground">
+            Your team
+          </p>
+          <p className="mt-2 text-lg font-semibold tracking-[-0.02em]">
+            {team.name}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {conference?.name ?? "—"} · {division?.name ?? "—"}
+          </p>
+        </div>
 
-      <Separator />
+        <SidebarSeparator />
 
-      <nav aria-label="League navigation" className="px-3 py-5">
-        <Link
-          to="/league"
-          search={{ saveId: league.metadata.id }}
-          className="flex min-h-10 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          Dashboard
-        </Link>
-        <p className="px-3 pt-7 pb-2 text-xs font-medium text-muted-foreground">
-          Team
-        </p>
-        <span className="flex min-h-9 items-center px-3 text-sm text-muted-foreground/70">
-          Roster · coming next
-        </span>
-        <span className="flex min-h-9 items-center px-3 text-sm text-muted-foreground/70">
-          Schedule · coming next
-        </span>
-        <p className="px-3 pt-7 pb-2 text-xs font-medium text-muted-foreground">
-          League
-        </p>
-        <span className="flex min-h-9 items-center px-3 text-sm text-muted-foreground/70">
-          Standings · coming next
-        </span>
-        <span className="flex min-h-9 items-center px-3 text-sm text-muted-foreground/70">
-          Transactions · coming next
-        </span>
-      </nav>
+        <SidebarGroup>
+          <SidebarGroupLabel>Office</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive>
+                  <Link to="/league" search={{ saveId: league.metadata.id }}>
+                    Dashboard
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-      <div className="mt-auto border-t border-border p-4">
+        <SidebarGroup>
+          <SidebarGroupLabel>Team</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton disabled>Roster · coming next</SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton disabled>Schedule · coming next</SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>League</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton disabled>Standings · coming next</SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton disabled>Transactions · coming next</SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t border-border p-4">
         <Button
           type="button"
           className="h-10 w-full justify-between"
@@ -216,8 +257,8 @@ function DashboardSidebar({
         >
           Save manager
         </Link>
-      </div>
-    </aside>
+      </SidebarFooter>
+    </Sidebar>
   )
 }
 
@@ -225,6 +266,7 @@ function MobileDashboardHeader({ league }: { league: LeagueDocument }) {
   return (
     <div className="border-b border-border px-5 py-4 lg:hidden">
       <div className="flex items-center justify-between gap-4">
+        <SidebarTrigger className="lg:hidden" />
         <Link
           to="/"
           className="text-sm font-semibold tracking-[-0.02em] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
@@ -268,9 +310,9 @@ function CommandHeader({ league }: { league: LeagueDocument }) {
           <p className="text-sm font-semibold">
             {formatDate(league.state.calendar.currentDate, { year: "numeric" })}
           </p>
-          <p className="text-sm text-muted-foreground">
+          <Badge variant="outline">
             Season {league.state.season} · {phaseLabel(league.state.phase)}
-          </p>
+          </Badge>
           <p className="text-sm text-muted-foreground">
             Trade deadline{" "}
             {formatDate(league.state.calendar.milestones.tradeDeadline)}
@@ -303,6 +345,17 @@ function CommandHeader({ league }: { league: LeagueDocument }) {
           >
             Next key date
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" size="sm">
+                More simulation
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem disabled>Simulate to deadline</DropdownMenuItem>
+              <DropdownMenuItem disabled>Simulate to season end</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
@@ -648,7 +701,11 @@ function LeagueShellPage() {
   if (isLoading) {
     return (
       <main className="grid min-h-svh place-items-center bg-background px-5 text-sm text-muted-foreground">
-        Loading dashboard…
+        <div className="grid w-full max-w-sm gap-3">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
       </main>
     )
   }
@@ -670,6 +727,11 @@ function LeagueShellPage() {
                 {error ?? "No league is selected."}
               </EmptyDescription>
             </EmptyHeader>
+            {error ? (
+              <Alert variant="destructive" className="mt-4 w-full max-w-xl">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
           </Empty>
         </div>
       </main>
@@ -709,9 +771,9 @@ function LeagueShellPage() {
 
   return (
     <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-      <div className="flex min-h-svh">
+      <SidebarProvider>
         <DashboardSidebar league={league} teamId={teamId} />
-        <div className="min-w-0 flex-1">
+        <SidebarInset>
           <MobileDashboardHeader league={league} />
           <CommandHeader league={league} />
 
@@ -743,8 +805,8 @@ function LeagueShellPage() {
               <UpcomingSchedule league={league} teamId={teamId} />
             </div>
           </div>
-        </div>
-      </div>
+        </SidebarInset>
+      </SidebarProvider>
     </main>
   )
 }
