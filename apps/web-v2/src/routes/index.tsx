@@ -137,24 +137,24 @@ function V2HomePage() {
               running a league, and making decisions that compound over time.
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 sm:mt-12">
-              <a
-                href="#the-loop"
+              <Link
+                to="/league/start"
                 className="inline-flex min-h-12 items-center bg-background px-5 text-sm font-semibold text-foreground transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background"
               >
-                See the game
+                Start your dynasty
                 <span aria-hidden="true" className="ml-5 text-base">
-                  ↓
-                </span>
-              </a>
-              <Link
-                to="/developer-labs"
-                className="inline-flex min-h-12 items-center border-b border-background/55 text-sm font-semibold text-background transition-colors hover:border-background hover:text-background/75 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background"
-              >
-                Explore the engine
-                <span aria-hidden="true" className="ml-4 text-base">
                   ↗
                 </span>
               </Link>
+              <a
+                href="#the-loop"
+                className="inline-flex min-h-12 items-center border-b border-background/55 text-sm font-semibold text-background transition-colors hover:border-background hover:text-background/75 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-background"
+              >
+                See how it works
+                <span aria-hidden="true" className="ml-4 text-base">
+                  ↓
+                </span>
+              </a>
             </div>
           </div>
 
