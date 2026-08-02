@@ -1,6 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router"
 import * as React from "react"
 
+import {
+  ArrowRight01Icon,
+  Calendar01Icon,
+  ChartLineIcon,
+  DashboardSquare01Icon,
+  Resize01Icon,
+  SaveIcon,
+  UserGroupIcon,
+} from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+
 import type { LeagueDocument, LeagueScheduleEntry } from "@workspace/domain-v2"
 import { V2LeagueRepository } from "@workspace/db-v2"
 import { getPlayerCurrentAbility } from "@workspace/sim-v2"
@@ -42,7 +53,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -155,53 +165,167 @@ function gameOpponent(
   }
 }
 
+const DEFAULT_SIDEBAR_WIDTH = 224
+const MIN_SIDEBAR_WIDTH = 208
+const MAX_SIDEBAR_WIDTH = 296
+const SIDEBAR_WIDTH_STORAGE_KEY = "foh-v2-sidebar-width"
+
+function clampSidebarWidth(width: number): number {
+  return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width))
+}
+
+function SidebarResizeHandle({
+  width,
+  onChange,
+}: {
+  width: number
+  onChange: (width: number) => void
+}) {
+  const [isDragging, setIsDragging] = React.useState(false)
+  const dragStartX = React.useRef(0)
+  const dragStartWidth = React.useRef(width)
+
+  React.useEffect(() => {
+    if (!isDragging) return
+
+    const handlePointerMove = (event: PointerEvent) => {
+      onChange(clampSidebarWidth(dragStartWidth.current + event.clientX - dragStartX.current))
+    }
+    const handlePointerUp = () => setIsDragging(false)
+    const previousCursor = document.body.style.cursor
+    const previousUserSelect = document.body.style.userSelect
+
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
+    window.addEventListener("pointermove", handlePointerMove)
+    window.addEventListener("pointerup", handlePointerUp)
+
+    return () => {
+      document.body.style.cursor = previousCursor
+      document.body.style.userSelect = previousUserSelect
+      window.removeEventListener("pointermove", handlePointerMove)
+      window.removeEventListener("pointerup", handlePointerUp)
+    }
+  }, [isDragging, onChange])
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    const step = event.shiftKey ? 32 : 8
+    if (event.key === "ArrowLeft") {
+      event.preventDefault()
+      onChange(clampSidebarWidth(width - step))
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault()
+      onChange(clampSidebarWidth(width + step))
+    } else if (event.key === "Home") {
+      event.preventDefault()
+      onChange(MIN_SIDEBAR_WIDTH)
+    } else if (event.key === "End") {
+      event.preventDefault()
+      onChange(MAX_SIDEBAR_WIDTH)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      role="separator"
+      aria-label="Resize sidebar"
+      aria-orientation="vertical"
+      aria-valuemin={MIN_SIDEBAR_WIDTH}
+      aria-valuemax={MAX_SIDEBAR_WIDTH}
+      aria-valuenow={width}
+      aria-valuetext={`${width} pixels wide`}
+      title="Resize sidebar"
+      className="group/resize absolute inset-y-0 -right-1 z-30 hidden w-2 cursor-col-resize lg:block"
+      onKeyDown={handleKeyDown}
+      onPointerDown={(event) => {
+        event.preventDefault()
+        dragStartX.current = event.clientX
+        dragStartWidth.current = width
+        setIsDragging(true)
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-transparent transition-colors group-hover/resize:bg-border group-focus-visible/resize:bg-ring"
+      />
+      <HugeiconsIcon
+        icon={Resize01Icon}
+        size={12}
+        strokeWidth={2}
+        aria-hidden="true"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-sidebar p-0.5 text-muted-foreground opacity-0 transition-opacity group-hover/resize:opacity-100 group-focus-visible/resize:opacity-100"
+      />
+      <span className="sr-only">
+        Use the left and right arrow keys to resize. Hold Shift for larger steps.
+      </span>
+    </button>
+  )
+}
+
 function DashboardSidebar({
   league,
   teamId,
+  width,
+  onWidthChange,
 }: {
   league: LeagueDocument
   teamId: string
+  width: number
+  onWidthChange: (width: number) => void
 }) {
   const team = league.entities.teams[teamId]
   const { conference, division } = getDivisionAndConference(league, teamId)
+  const teamMark = team.name.slice(0, 2).toUpperCase()
 
   return (
-    <Sidebar className="border-r border-border bg-muted/20" collapsible="offcanvas">
-      <SidebarHeader className="border-b border-border px-6 py-5">
+    <Sidebar className="relative border-r border-border bg-muted/20" collapsible="offcanvas">
+      <SidebarHeader className="gap-0 border-b border-border px-4 py-3">
         <Link
           to="/"
-          className="text-sm font-semibold tracking-[-0.02em] transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          className="truncate text-[13px] font-semibold tracking-[-0.02em] transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
         >
           Front Office Hoops <span className="text-muted-foreground">/ V2</span>
         </Link>
       </SidebarHeader>
 
       <SidebarContent>
-        <div className="px-6 py-6">
-          <p className="text-xs font-medium text-muted-foreground">League</p>
-          <p className="mt-2 truncate text-sm font-semibold">
-            {league.metadata.name}
-          </p>
-          <p className="mt-5 text-xs font-medium text-muted-foreground">
-            Your team
-          </p>
-          <p className="mt-2 text-lg font-semibold tracking-[-0.02em]">
-            {team.name}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {conference?.name ?? "—"} · {division?.name ?? "—"}
+        <div className="border-b border-border px-4 py-4">
+          <p className="text-[11px] font-medium text-muted-foreground">League</p>
+          <div className="mt-2 flex min-w-0 items-center gap-3">
+            <div
+              aria-hidden="true"
+              className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-[10px] font-semibold tracking-[0.04em] text-primary-foreground"
+            >
+              {teamMark}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{league.metadata.name}</p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                {team.name} · {conference?.name ?? "—"}
+              </p>
+            </div>
+          </div>
+          <p className="mt-3 truncate text-[11px] text-muted-foreground">
+            {division?.name ?? "Division not set"}
           </p>
         </div>
 
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Office</SidebarGroupLabel>
+        <SidebarGroup className="px-2 py-3">
+          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
+            Workspace
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive>
+                <SidebarMenuButton asChild isActive size="sm" className="h-8">
                   <Link to="/league" search={{ saveId: league.metadata.id }}>
+                    <HugeiconsIcon
+                      icon={DashboardSquare01Icon}
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
                     Dashboard
                   </Link>
                 </SidebarMenuButton>
@@ -210,54 +334,107 @@ function DashboardSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Team</SidebarGroupLabel>
+        <SidebarGroup className="px-2 py-1">
+          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
+            Team
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton disabled>Roster · coming next</SidebarMenuButton>
+                <SidebarMenuButton disabled size="sm" className="h-8 justify-between">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <HugeiconsIcon
+                      icon={UserGroupIcon}
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">Roster</span>
+                  </span>
+                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
+                </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton disabled>Schedule · coming next</SidebarMenuButton>
+                <SidebarMenuButton disabled size="sm" className="h-8 justify-between">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <HugeiconsIcon
+                      icon={Calendar01Icon}
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">Schedule</span>
+                  </span>
+                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
+                </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>League</SidebarGroupLabel>
+        <SidebarGroup className="px-2 py-1">
+          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
+            League
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton disabled>Standings · coming next</SidebarMenuButton>
+                <SidebarMenuButton disabled size="sm" className="h-8 justify-between">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <HugeiconsIcon
+                      icon={ChartLineIcon}
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">Standings</span>
+                  </span>
+                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
+                </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton disabled>Transactions · coming next</SidebarMenuButton>
+                <SidebarMenuButton disabled size="sm" className="h-8 justify-between">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <HugeiconsIcon
+                      icon={SaveIcon}
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    <span className="truncate">Transactions</span>
+                  </span>
+                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
+                </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border p-4">
+      <SidebarFooter className="gap-3 border-t border-border px-4 py-3">
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-muted-foreground/50" />
+          <span className="truncate">Simulation worker connecting</span>
+        </div>
         <Button
           type="button"
-          className="h-10 w-full justify-between"
+          size="sm"
+          className="h-8 w-full justify-between"
           disabled
           title="Advance day will be enabled with the lifecycle worker."
         >
-          Advance day <span aria-hidden="true">↗</span>
+          Advance day
+          <HugeiconsIcon icon={ArrowRight01Icon} size={15} strokeWidth={2} aria-hidden="true" />
         </Button>
-        <p className="mt-3 text-xs leading-5 text-muted-foreground">
-          Simulation controls are being connected to the league worker.
-        </p>
         <Link
           to="/league/start"
-          className="mt-5 inline-flex min-h-10 items-center text-sm font-medium text-muted-foreground underline decoration-border underline-offset-8 transition-colors hover:text-foreground hover:decoration-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+          className="inline-flex min-h-7 items-center gap-2 text-xs font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
         >
-          Save manager
+          <HugeiconsIcon icon={SaveIcon} size={14} strokeWidth={2} aria-hidden="true" />
+          Manage saves
         </Link>
       </SidebarFooter>
+      <SidebarResizeHandle width={width} onChange={onWidthChange} />
     </Sidebar>
   )
 }
@@ -669,6 +846,27 @@ function LeagueShellPage() {
   const [league, setLeague] = React.useState<LeagueDocument | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [sidebarWidth, setSidebarWidth] = React.useState(DEFAULT_SIDEBAR_WIDTH)
+  const [isSidebarWidthHydrated, setIsSidebarWidthHydrated] = React.useState(false)
+
+  React.useEffect(() => {
+    try {
+      const storedWidth = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY))
+      if (Number.isFinite(storedWidth)) setSidebarWidth(clampSidebarWidth(storedWidth))
+    } catch {
+      // Local storage is optional; the default width remains usable.
+    }
+    setIsSidebarWidthHydrated(true)
+  }, [])
+
+  React.useEffect(() => {
+    if (!isSidebarWidthHydrated) return
+    try {
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth))
+    } catch {
+      // Local storage is optional; resizing still works for this session.
+    }
+  }, [isSidebarWidthHydrated, sidebarWidth])
 
   React.useEffect(() => {
     let active = true
@@ -771,8 +969,15 @@ function LeagueShellPage() {
 
   return (
     <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-      <SidebarProvider>
-        <DashboardSidebar league={league} teamId={teamId} />
+      <SidebarProvider
+        style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}
+      >
+        <DashboardSidebar
+          league={league}
+          teamId={teamId}
+          width={sidebarWidth}
+          onWidthChange={setSidebarWidth}
+        />
         <SidebarInset>
           <MobileDashboardHeader league={league} />
           <CommandHeader league={league} />
