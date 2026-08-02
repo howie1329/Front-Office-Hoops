@@ -13,6 +13,7 @@ export type ContractPhase = "re-signing" | "extension" | "free-agency"
 
 export type ContractSource =
   | "rookie-scale"
+  | "second-round-minimum"
   | "free-agent"
   | "re-signing"
   | "extension"

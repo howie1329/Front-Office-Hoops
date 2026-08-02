@@ -1475,6 +1475,7 @@ export const contractEntitySchema = z
     rights: freeAgencyRightsSchema,
     source: z.enum([
       "rookie-scale",
+      "second-round-minimum",
       "free-agent",
       "re-signing",
       "extension",

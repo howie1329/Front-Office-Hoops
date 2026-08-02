@@ -125,11 +125,16 @@ const canonicalLabs = [
       "Connect uncertain scouting information to draft classes, user picks, and baseline decisions.",
     scope:
       "Draft classes, scouting ranges, draft order, rookie deals, pick legality, and baseline best-available selection.",
-    status: "Planned",
-    statusDetail: "No route yet",
-    statusTone: "planned",
+    status: "Current calibration",
+    statusDetail: "Implementation active",
+    statusTone: "current",
     icon: Target01Icon,
-    links: undefined,
+    links: [
+      {
+        label: "Open workbench",
+        to: "/developer-labs/draft-decision" as const,
+      },
+    ],
   },
   {
     order: "07",
@@ -146,7 +151,9 @@ const canonicalLabs = [
   },
 ] as const
 
-const currentLab = canonicalLabs.find((lab) => lab.statusTone === "current")
+const currentLab =
+  canonicalLabs.find((lab) => lab.title === "Draft & decision") ??
+  canonicalLabs.find((lab) => lab.statusTone === "current")
 
 type Lab = (typeof canonicalLabs)[number]
 
@@ -159,13 +166,13 @@ const labGroups: Array<{
     title: "Available workbenches",
     description:
       "These routes run current V2 production modules and expose their evidence. Availability does not mean calibration acceptance or gameplay promotion.",
-    labs: canonicalLabs.slice(0, 5),
+    labs: canonicalLabs.slice(0, 6),
   },
   {
     title: "Planned surfaces",
     description:
       "These surfaces depend on the calibrated modules and the authoritative league lifecycle.",
-    labs: canonicalLabs.slice(5),
+    labs: canonicalLabs.slice(6),
   },
 ]
 
@@ -176,8 +183,6 @@ function statusClasses(tone: Lab["statusTone"]) {
     case "active":
       return "border border-border bg-background text-foreground"
     case "final":
-      return "border border-border bg-muted text-muted-foreground"
-    case "planned":
       return "border border-border bg-muted text-muted-foreground"
   }
 }

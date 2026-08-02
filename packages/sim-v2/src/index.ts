@@ -73,6 +73,19 @@ export type { CareerDevelopmentInput } from "./careerDevelopment"
 export { evaluatePlayerRetirement } from "./careerRetirement"
 export type { CareerRetirementInput } from "./careerRetirement"
 export {
+  DRAFT_DECISION_VERSION,
+  STANDARD_DRAFT_DECISION_CONFIG,
+  STANDARD_DRAFT_SCOUTING_CONFIG,
+  buildDraftBoard,
+  createDraftDecisionFixture,
+  createDraftOrder,
+  createDraftScoutingReports,
+  createDraftTeamProfiles,
+  createPublicMock,
+  deriveDraftTeamProfile,
+  runDraftDecisionLab,
+} from "./draftSimulation"
+export {
   createDeterministicRandom,
   createRandomSource,
   createRuntimeRandom,

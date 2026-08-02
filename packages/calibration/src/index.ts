@@ -80,6 +80,12 @@ export type {
   SliderSensitivityScenarioResult,
 } from "./sensitivity"
 export { SENSITIVITY_DIAGNOSTIC_FLOOR_REGISTRY } from "./sensitivity"
+export { runDraftDecisionBatch, serializeDraftDecisionBatch } from "./draft"
+export type {
+  DraftCalibrationMetric,
+  DraftCalibrationOptions,
+  DraftCalibrationReport,
+} from "./draft"
 
 export type CalibrationProgress = {
   completed: number
