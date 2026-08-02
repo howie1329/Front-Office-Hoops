@@ -33,6 +33,7 @@ gates.
 ### 2. Product and technical contracts
 
 - [Product Brief](./specs/foh-v2-product-brief.md) — approved product direction and first-v2 target
+- [Calendar and Season Lifecycle](./specs/foh-v2-calendar-and-season-lifecycle.md) — agreed calendar, phase, development-report, and simulation-control contract
 - [Simulation Architecture](./specs/foh-v2-simulation-architecture.md) — workers, packages, randomness, and simulation boundaries
 - [Data and Export Design](./specs/foh-v2-data-and-export-design.md) — canonical document, persistence, events, and portability
 - [UI Information Architecture](./specs/foh-v2-ui-information-architecture.md) — target management shell and developer-lab structure
