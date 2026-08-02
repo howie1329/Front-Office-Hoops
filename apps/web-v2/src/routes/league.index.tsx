@@ -11,12 +11,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-} from "@/components/ui/table"
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
 import { Separator } from "@workspace/ui/components/separator"
 
 export const Route = createFileRoute("/league/")({
@@ -26,7 +21,13 @@ export const Route = createFileRoute("/league/")({
 const repository = new V2LeagueRepository()
 
 function phaseLabel(phase: LeagueDocument["state"]["phase"]): string {
-  return phase === "preseason" ? "Preseason" : "Foundation fixture"
+  return {
+    foundation: "Foundation",
+    preseason: "Preseason",
+    "regular-season": "Regular season",
+    playoffs: "Playoffs",
+    offseason: "Offseason",
+  }[phase]
 }
 
 function LeagueShellPage() {
@@ -50,7 +51,8 @@ function LeagueShellPage() {
           setLeague(document)
         }
       } catch {
-        if (active) setError("That league could not be loaded from this browser.")
+        if (active)
+          setError("That league could not be loaded from this browser.")
       } finally {
         if (active) setIsLoading(false)
       }
@@ -83,7 +85,9 @@ function LeagueShellPage() {
           <Empty className="items-start rounded-none border-y border-border px-0 py-12 text-left">
             <EmptyHeader className="items-start text-left">
               <EmptyTitle>League unavailable.</EmptyTitle>
-              <EmptyDescription>{error ?? "No league is selected."}</EmptyDescription>
+              <EmptyDescription>
+                {error ?? "No league is selected."}
+              </EmptyDescription>
             </EmptyHeader>
           </Empty>
         </div>
@@ -95,6 +99,16 @@ function LeagueShellPage() {
     ? league.entities.teams[league.state.userTeamId]
     : null
   const roster = userTeam?.rosterPlayerIds ?? []
+  const division = userTeam?.divisionId
+    ? league.state.structure?.divisions.find(
+        (item) => item.id === userTeam.divisionId
+      )
+    : null
+  const conference = division?.conferenceId
+    ? league.state.structure?.conferences.find(
+        (item) => item.id === division.conferenceId
+      )
+    : null
 
   return (
     <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
@@ -104,7 +118,8 @@ function LeagueShellPage() {
             to="/league/start"
             className="text-sm font-semibold tracking-[-0.02em] transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
-            Front Office Hoops <span className="text-muted-foreground">/ V2</span>
+            Front Office Hoops{" "}
+            <span className="text-muted-foreground">/ V2</span>
           </Link>
           <Button variant="ghost" asChild>
             <Link to="/league/start">Save manager</Link>
@@ -125,7 +140,10 @@ function LeagueShellPage() {
             </p>
           </div>
 
-          <section aria-labelledby="league-overview-heading" className="min-w-0">
+          <section
+            aria-labelledby="league-overview-heading"
+            className="min-w-0"
+          >
             <h2 id="league-overview-heading" className="text-sm font-semibold">
               League overview
             </h2>
@@ -148,19 +166,33 @@ function LeagueShellPage() {
                   <TableCell className="font-medium text-muted-foreground">
                     Roster
                   </TableCell>
-                  <TableCell className="tabular-nums">{roster.length} players</TableCell>
+                  <TableCell className="tabular-nums">
+                    {roster.length} players
+                  </TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell className="font-medium text-muted-foreground">
-                    Next phase
+                    Conference
                   </TableCell>
-                  <TableCell>Owner goals</TableCell>
+                  <TableCell>{conference?.name ?? "—"}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium text-muted-foreground">
+                    Division
+                  </TableCell>
+                  <TableCell>{division?.name ?? "—"}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-medium text-muted-foreground">
+                    Current date
+                  </TableCell>
+                  <TableCell>{league.state.calendar.currentDate}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
             <p className="mt-7 text-sm leading-6 text-muted-foreground">
-              Simulation controls, owner goals, rotations, and the calendar will
-              attach to this saved league as the authoritative shell expands.
+              The calendar and schedule are now part of the authoritative league
+              document. Simulation controls will attach to this shell next.
             </p>
           </section>
         </section>

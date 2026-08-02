@@ -356,7 +356,13 @@ const eventSchema = z.strictObject({
   id: z.string().min(1),
   type: z.enum(["command.completed", "migration.applied"]),
   season: z.number().int().nonnegative(),
-  phase: z.enum(["foundation", "preseason"]),
+  phase: z.enum([
+    "foundation",
+    "preseason",
+    "regular-season",
+    "playoffs",
+    "offseason",
+  ]),
   leagueDay: z.number().int().nonnegative(),
   entityRefs: z.array(
     z.strictObject({
@@ -372,6 +378,40 @@ const eventSchema = z.strictObject({
     kind: z.enum(["command", "simulation", "migration"]),
     id: z.string().min(1),
   }),
+})
+
+const leagueScheduleEntrySchema = z.strictObject({
+  id: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  kind: z.enum([
+    "preseason",
+    "regular-season",
+    "play-in",
+    "playoffs",
+    "finals",
+  ]),
+  round: z.number().int().positive(),
+  homeTeamId: z.string().min(1),
+  awayTeamId: z.string().min(1),
+  status: z.enum(["scheduled", "completed", "cancelled"]),
+})
+
+const leagueStructureSchema = z.strictObject({
+  conferences: z.array(
+    z.strictObject({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      divisionIds: z.array(z.string().min(1)),
+    })
+  ),
+  divisions: z.array(
+    z.strictObject({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      conferenceId: z.string().min(1),
+      teamIds: z.array(z.string().min(1)),
+    })
+  ),
 })
 
 const gamePeriodSchema = z.strictObject({
@@ -1367,11 +1407,44 @@ const leagueDocumentShape = z.strictObject({
   }),
   state: z.strictObject({
     season: z.number().int().positive(),
-    phase: z.enum(["foundation", "preseason"]),
+    phase: z.enum([
+      "foundation",
+      "preseason",
+      "regular-season",
+      "playoffs",
+      "offseason",
+    ]),
+    offseasonPhase: z
+      .enum([
+        "season-review",
+        "staff",
+        "re-signing",
+        "draft",
+        "free-agency-1",
+        "free-agency-2",
+        "free-agency-3",
+      ])
+      .optional(),
     leagueDay: z.number().int().nonnegative(),
     userTeamId: z.string().min(1).nullable(),
+    structure: leagueStructureSchema,
     calendar: z.strictObject({
-      kind: z.enum(["foundation", "preseason"]),
+      kind: z.enum([
+        "foundation",
+        "preseason",
+        "regular-season",
+        "playoffs",
+        "offseason",
+      ]),
+      currentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      preseasonStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      regularSeasonStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      regularSeasonEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      milestones: z.strictObject({
+        tradeDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        playoffsStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }),
+      schedule: z.array(leagueScheduleEntrySchema),
     }),
     phaseTasks: z.array(
       z.strictObject({
@@ -1388,6 +1461,8 @@ const leagueDocumentShape = z.strictObject({
         id: z.string().min(1),
         name: z.string().min(1),
         rosterPlayerIds: z.array(z.string().min(1)).optional(),
+        conferenceId: z.string().min(1).optional(),
+        divisionId: z.string().min(1).optional(),
         marketSize: z.enum(["small", "medium", "large"]).optional(),
       })
     ),
@@ -1419,12 +1494,96 @@ const leagueDocumentShape = z.strictObject({
 
 export const leagueDocumentSchema = leagueDocumentShape.superRefine(
   (league, context) => {
+    const hasLeagueStructure = league.state.structure.conferences.length > 0
+    const conferences = new Map(
+      league.state.structure.conferences.map((conference) => [
+        conference.id,
+        conference,
+      ])
+    )
+    const divisions = new Map(
+      league.state.structure.divisions.map((division) => [
+        division.id,
+        division,
+      ])
+    )
+    const assignedTeamIds = new Set<string>()
+
+    for (const conference of hasLeagueStructure
+      ? league.state.structure.conferences
+      : []) {
+      if (conference.divisionIds.length !== 3) {
+        context.addIssue({
+          code: "custom",
+          message: "Each conference must contain exactly three divisions.",
+          path: ["state", "structure", "conferences", conference.id],
+        })
+      }
+      for (const divisionId of conference.divisionIds) {
+        const division = divisions.get(divisionId)
+        if (!division || division.conferenceId !== conference.id) {
+          context.addIssue({
+            code: "custom",
+            message:
+              "Conference divisions must reference their parent conference.",
+            path: ["state", "structure", "conferences", conference.id],
+          })
+        }
+      }
+    }
+
+    for (const division of hasLeagueStructure
+      ? league.state.structure.divisions
+      : []) {
+      if (division.teamIds.length !== 5) {
+        context.addIssue({
+          code: "custom",
+          message: "Each division must contain exactly five teams.",
+          path: ["state", "structure", "divisions", division.id],
+        })
+      }
+      if (!conferences.has(division.conferenceId)) {
+        context.addIssue({
+          code: "custom",
+          message: "Each division must reference an existing conference.",
+          path: ["state", "structure", "divisions", division.id],
+        })
+      }
+      for (const teamId of division.teamIds) {
+        if (assignedTeamIds.has(teamId)) {
+          context.addIssue({
+            code: "custom",
+            message: "A team cannot belong to more than one division.",
+            path: ["state", "structure", "divisions", division.id, "teamIds"],
+          })
+        }
+        assignedTeamIds.add(teamId)
+      }
+    }
+
     for (const [teamKey, team] of Object.entries(league.entities.teams)) {
       if (teamKey !== team.id) {
         context.addIssue({
           code: "custom",
           message: "The team record key must match the team ID.",
           path: ["entities", "teams", teamKey, "id"],
+        })
+      }
+
+      if (
+        hasLeagueStructure &&
+        (!team.conferenceId ||
+          !team.divisionId ||
+          !conferences.has(team.conferenceId) ||
+          !divisions.has(team.divisionId) ||
+          divisions.get(team.divisionId)?.conferenceId !== team.conferenceId ||
+          !divisions.get(team.divisionId)?.teamIds.includes(team.id))
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "Every team must reference its stored conference and division.",
+          path: ["entities", "teams", teamKey],
         })
       }
     }

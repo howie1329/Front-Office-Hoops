@@ -1,6 +1,62 @@
 export type JsonRecord = Record<string, unknown>
 
-export type LeaguePhase = "foundation" | "preseason"
+export type LeaguePhase =
+  "foundation" | "preseason" | "regular-season" | "playoffs" | "offseason"
+
+export type OffseasonPhase =
+  | "season-review"
+  | "staff"
+  | "re-signing"
+  | "draft"
+  | "free-agency-1"
+  | "free-agency-2"
+  | "free-agency-3"
+
+export type LeagueGameKind =
+  "preseason" | "regular-season" | "play-in" | "playoffs" | "finals"
+
+export type LeagueGameStatus = "scheduled" | "completed" | "cancelled"
+
+export type LeagueScheduleEntry = {
+  id: string
+  date: string
+  kind: LeagueGameKind
+  round: number
+  homeTeamId: string
+  awayTeamId: string
+  status: LeagueGameStatus
+}
+
+export type LeagueConference = {
+  id: string
+  name: string
+  divisionIds: string[]
+}
+
+export type LeagueDivision = {
+  id: string
+  name: string
+  conferenceId: string
+  teamIds: string[]
+}
+
+export type LeagueStructure = {
+  conferences: LeagueConference[]
+  divisions: LeagueDivision[]
+}
+
+export type LeagueCalendar = {
+  kind: LeaguePhase
+  currentDate: string
+  preseasonStart: string
+  regularSeasonStart: string
+  regularSeasonEnd: string
+  milestones: {
+    tradeDeadline: string
+    playoffsStart: string
+  }
+  schedule: LeagueScheduleEntry[]
+}
 
 export type RandomMode = "normal" | "deterministic-lab"
 
@@ -248,6 +304,8 @@ export type PhaseTaskState = {
 export type TeamEntity = {
   id: string
   name: string
+  conferenceId?: string
+  divisionId?: string
   rosterPlayerIds?: string[]
   marketSize?: "small" | "medium" | "large"
 }
@@ -488,11 +546,11 @@ export type LeagueDocument = {
   state: {
     season: number
     phase: LeaguePhase
+    offseasonPhase?: OffseasonPhase
     leagueDay: number
     userTeamId: string | null
-    calendar: {
-      kind: "foundation" | "preseason"
-    }
+    structure?: LeagueStructure
+    calendar: LeagueCalendar
     phaseTasks: PhaseTaskState[]
   }
   entities: {

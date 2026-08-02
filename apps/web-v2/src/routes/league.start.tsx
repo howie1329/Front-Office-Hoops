@@ -3,10 +3,7 @@ import * as React from "react"
 
 import { V2LeagueRepository } from "@workspace/db-v2"
 import type { LeagueSummary } from "@workspace/db-v2"
-import type {
-  LeagueCreationResult,
-  LeagueTeamPreview,
-} from "@workspace/sim-v2"
+import type { LeagueCreationResult, LeagueTeamPreview } from "@workspace/sim-v2"
 
 import {
   AlertDialog,
@@ -103,7 +100,7 @@ function CreateLeagueFlow({
   const [name, setName] = React.useState("My Front Office League")
   const [result, setResult] = React.useState<LeagueCreationResult | null>(null)
   const [selectedTeamId, setSelectedTeamId] = React.useState<string | null>(
-    null,
+    null
   )
   const [isGenerating, setIsGenerating] = React.useState(false)
   const [isSelecting, setIsSelecting] = React.useState(false)
@@ -134,7 +131,7 @@ function CreateLeagueFlow({
       setError(
         creationError instanceof Error
           ? creationError.message
-          : "The league could not be generated.",
+          : "The league could not be generated."
       )
     } finally {
       setIsGenerating(false)
@@ -161,7 +158,7 @@ function CreateLeagueFlow({
       if (commandResult.status !== "completed" || !commandResult.league) {
         throw new Error(
           commandResult.reason?.message ??
-            "The selected team could not be saved.",
+            "The selected team could not be saved."
         )
       }
 
@@ -173,7 +170,7 @@ function CreateLeagueFlow({
       setError(
         selectionError instanceof Error
           ? selectionError.message
-          : "The selected team could not be saved.",
+          : "The selected team could not be saved."
       )
     } finally {
       setIsSelecting(false)
@@ -211,7 +208,10 @@ function CreateLeagueFlow({
                 <p className="text-sm font-semibold text-muted-foreground">
                   {step === "setup" ? "League setup" : "Team selection"}
                 </p>
-                <h2 id="create-step-heading" className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                <h2
+                  id="create-step-heading"
+                  className="mt-2 text-2xl font-semibold tracking-[-0.03em]"
+                >
                   {step === "setup"
                     ? "Name your league."
                     : "Choose your franchise."}
@@ -322,6 +322,8 @@ function TeamSelectionStep({
         <TableHeader>
           <TableRow>
             <TableHead>Team</TableHead>
+            <TableHead>Conference</TableHead>
+            <TableHead>Division</TableHead>
             <TableHead>Roster</TableHead>
             <TableHead>Current ability</TableHead>
             <TableHead>Potential</TableHead>
@@ -355,16 +357,22 @@ function TeamSelectionStep({
                     <span>{preview.name}</span>
                   </label>
                 </TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">
+                <TableCell className="text-muted-foreground">
+                  {preview.conference}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {preview.division}
+                </TableCell>
+                <TableCell className="text-muted-foreground tabular-nums">
                   {preview.rosterSize}
                 </TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">
+                <TableCell className="text-muted-foreground tabular-nums">
                   {formatNumber(preview.topTenAverageAbility)}
                 </TableCell>
-                <TableCell className="tabular-nums text-muted-foreground">
+                <TableCell className="text-muted-foreground tabular-nums">
                   {formatNumber(preview.averagePotential)}
                 </TableCell>
-                <TableCell className="capitalize text-muted-foreground">
+                <TableCell className="text-muted-foreground capitalize">
                   {preview.marketSize}
                 </TableCell>
               </TableRow>
@@ -380,7 +388,12 @@ function TeamSelectionStep({
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <Button type="button" variant="ghost" onClick={onBack} disabled={isSelecting}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onBack}
+          disabled={isSelecting}
+        >
           Back to setup
         </Button>
         <Button
@@ -406,7 +419,9 @@ function LeagueStartPage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [actionError, setActionError] = React.useState<string | null>(null)
-  const [deleteTarget, setDeleteTarget] = React.useState<LeagueSummary | null>(null)
+  const [deleteTarget, setDeleteTarget] = React.useState<LeagueSummary | null>(
+    null
+  )
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [isCreateFlow, setIsCreateFlow] = React.useState(false)
 
@@ -461,7 +476,12 @@ function LeagueStartPage() {
   function handleCreated(result: LeagueCreationResult) {
     void repository
       .create(result.document)
-      .then(() => navigate({ to: "/league", search: { saveId: result.document.metadata.id } }))
+      .then(() =>
+        navigate({
+          to: "/league",
+          search: { saveId: result.document.metadata.id },
+        })
+      )
       .catch(() => {
         setError("The new league was generated but could not be saved.")
         setIsCreateFlow(false)
@@ -547,7 +567,9 @@ function LeagueStartPage() {
 
               {!isLoading && !error && saves.length > 0 && (
                 <Table>
-                  <TableCaption>Saved leagues available to select.</TableCaption>
+                  <TableCaption>
+                    Saved leagues available to select.
+                  </TableCaption>
                   <TableHeader>
                     <TableRow>
                       <TableHead>League</TableHead>
@@ -586,13 +608,13 @@ function LeagueStartPage() {
                               <span>{save.name}</span>
                             </label>
                           </TableCell>
-                          <TableCell className="tabular-nums text-muted-foreground">
+                          <TableCell className="text-muted-foreground tabular-nums">
                             {save.season}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {save.teamName ?? "No team selected"}
                           </TableCell>
-                          <TableCell className="text-right tabular-nums text-muted-foreground">
+                          <TableCell className="text-right text-muted-foreground tabular-nums">
                             {formatUpdatedAt(save.updatedAt)}
                           </TableCell>
                           <TableCell className="text-right">
@@ -624,7 +646,10 @@ function LeagueStartPage() {
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <p className="max-w-md text-sm leading-6 text-muted-foreground" aria-live="polite">
+              <p
+                className="max-w-md text-sm leading-6 text-muted-foreground"
+                aria-live="polite"
+              >
                 {selectedSave
                   ? `${selectedSave.name} is selected.`
                   : "Create a league to make your first save."}
@@ -675,7 +700,9 @@ function LeagueStartPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Keep save</AlertDialogCancel>
+              <AlertDialogCancel disabled={isDeleting}>
+                Keep save
+              </AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
                 disabled={isDeleting}

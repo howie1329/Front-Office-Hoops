@@ -10,6 +10,10 @@ import {
   generateInitialPlayerUniverse,
   STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG,
 } from "./playerUniverse"
+import {
+  createLeagueCalendar,
+  createStandardLeagueStructure,
+} from "./leagueSchedule"
 
 const TEAM_NAMES = [
   "Baltimore Foundry",
@@ -60,6 +64,8 @@ export type LeagueCreationInput = {
 export type LeagueTeamPreview = {
   teamId: string
   name: string
+  conference: string
+  division: string
   rosterSize: number
   topTenAverageAbility: number
   averageAge: number
@@ -126,7 +132,10 @@ function createContract(player: PlayerEntity): JsonRecord {
   return {
     id: `contract:${player.id}`,
     playerId: player.id,
-    teamId: player.leagueStatus.kind === "rostered" ? player.leagueStatus.teamId : null,
+    teamId:
+      player.leagueStatus.kind === "rostered"
+        ? player.leagueStatus.teamId
+        : null,
     salary: Math.max(1_000_000, Math.round(ability * 100_000)),
     yearsRemaining: 2,
     source: "initial-league",
@@ -146,6 +155,7 @@ function createDraftAssets(team: TeamEntity): JsonRecord[] {
 function createTeamPreview(
   team: TeamEntity,
   roster: PlayerEntity[],
+  structure: ReturnType<typeof createStandardLeagueStructure>
 ): LeagueTeamPreview {
   const abilities = roster
     .map(getPlayerCurrentAbility)
@@ -154,11 +164,18 @@ function createTeamPreview(
   return {
     teamId: team.id,
     name: team.name,
+    conference:
+      structure.conferences.find(
+        (conference) => conference.id === team.conferenceId
+      )?.name ?? "Unknown conference",
+    division:
+      structure.divisions.find((division) => division.id === team.divisionId)
+        ?.name ?? "Unknown division",
     rosterSize: roster.length,
     topTenAverageAbility: round(average(abilities.slice(0, 10))),
     averageAge: round(average(roster.map((player) => player.age))),
     averagePotential: round(
-      average(roster.map((player) => player.profile.development.potential)),
+      average(roster.map((player) => player.profile.development.potential))
     ),
     marketSize: team.marketSize,
   }
@@ -172,6 +189,26 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
   const now = input.now ?? new Date().toISOString()
   const teams = createTeams()
   const teamIds = teams.map((team) => team.id)
+  const structure = createStandardLeagueStructure(teamIds)
+  const divisionsByTeamId = new Map(
+    structure.divisions.flatMap((division) =>
+      division.teamIds.map((teamId) => [teamId, division] as const)
+    )
+  )
+  const teamsWithStructure = teams.map((team) => {
+    const division = divisionsByTeamId.get(team.id)!
+    return {
+      ...team,
+      conferenceId: division.conferenceId,
+      divisionId: division.id,
+    }
+  })
+  const calendar = createLeagueCalendar(
+    teamIds,
+    structure,
+    input.seed,
+    new Date(now).getUTCFullYear()
+  )
   const universe = generateInitialPlayerUniverse({
     seed: input.seed,
     leagueId: input.id,
@@ -181,16 +218,16 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
 
   if (universe.validationIssues.length > 0) {
     throw new Error(
-      `Initial player universe is invalid: ${universe.validationIssues[0]?.message}`,
+      `Initial player universe is invalid: ${universe.validationIssues[0]?.message}`
     )
   }
 
-  const teamsWithRosters = teams.map((team) => ({
+  const teamsWithRosters = teamsWithStructure.map((team) => ({
     ...team,
     rosterPlayerIds: universe.rosters[team.id] ?? [],
   }))
   const rosteredPlayers = Object.values(universe.players).filter(
-    (player) => player.leagueStatus.kind === "rostered",
+    (player) => player.leagueStatus.kind === "rostered"
   )
   const staff = teamsWithRosters.flatMap(createStaff)
   const contracts = rosteredPlayers.map(createContract)
@@ -225,35 +262,38 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
     },
     state: {
       season: 1,
-      phase: "preseason",
+      phase: "regular-season",
       leagueDay: 0,
       userTeamId: null,
-      calendar: { kind: "preseason" },
-      phaseTasks: [
-        {
-          id: "owner-goals",
-          label: "Set owner goals",
-          status: "pending",
-        },
-      ],
+      structure,
+      calendar,
+      phaseTasks: [],
     },
     entities: {
-      teams: Object.fromEntries(teamsWithRosters.map((team) => [team.id, team])),
+      teams: Object.fromEntries(
+        teamsWithRosters.map((team) => [team.id, team])
+      ),
       players: universe.players,
       owners: Object.fromEntries(
-        teamsWithRosters.map((team) => [`owner:${team.id}`, createOwner(team)]),
+        teamsWithRosters.map((team) => [`owner:${team.id}`, createOwner(team)])
       ),
-      staff: Object.fromEntries(staff.map((member) => [member.id as string, member])),
+      staff: Object.fromEntries(
+        staff.map((member) => [member.id as string, member])
+      ),
       contracts: Object.fromEntries(
-        contracts.map((contract) => [contract.id as string, contract]),
+        contracts.map((contract) => [contract.id as string, contract])
       ),
       draftAssets: Object.fromEntries(
-        draftAssets.map((asset) => [asset.id as string, asset]),
+        draftAssets.map((asset) => [asset.id as string, asset])
       ),
       offers: {},
     },
     projections: {
-      standings: teamsWithRosters.map((team) => ({ teamId: team.id, wins: 0, losses: 0 })),
+      standings: teamsWithRosters.map((team) => ({
+        teamId: team.id,
+        wins: 0,
+        losses: 0,
+      })),
       payroll,
     },
     history: {
@@ -269,8 +309,11 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
     teamPreviews: teamsWithRosters.map((team) =>
       createTeamPreview(
         team,
-        (team.rosterPlayerIds ?? []).map((playerId) => universe.players[playerId]!),
-      ),
+        (team.rosterPlayerIds ?? []).map(
+          (playerId) => universe.players[playerId]!
+        ),
+        structure
+      )
     ),
   }
 }

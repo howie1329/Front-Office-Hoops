@@ -11,9 +11,11 @@ surfaces: Population & Roster, Game & Matchup, Production & Value, Career
 Cohort, and Market & Rules. The start flow can generate a league, select a
 team, save it locally, reload it, and delete it.
 
-The authoritative league document now supports a thin generated preseason
-slice and team selection. In-season lifecycle commands, the full management
-shell, Draft & Decision promotion, and the League Loop remain future work.
+The authoritative league document now supports deterministic conference and
+division assignment, dated preseason and regular-season schedules, regular-
+season opening bootstrap, and team selection. In-season lifecycle commands,
+the full management shell, Draft & Decision promotion, and the League Loop
+remain future work.
 Market & Rules is the latest active calibration area, with acceptance and
 broader league integration still pending.
 
@@ -41,6 +43,7 @@ gates.
 
 ### 3. Active implementation and calibration plans
 
+- [League Lifecycle Implementation](./plans/foh-v2-league-lifecycle-implementation-plan.md)
 - [Game & Matchup Lab](./plans/foh-v2-game-matchup-lab-implementation-plan.md)
 - [Production & Value Lab](./plans/foh-v2-production-value-lab-implementation-plan.md)
 - [Career Cohort Calibration](./plans/foh-v2-career-cohort-calibration-plan.md)
