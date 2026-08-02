@@ -31,9 +31,9 @@ function V2HomePage() {
       if (result.status !== "completed") {
         setStatus(
           result.reason?.message ??
-          (result.status === "failed"
-            ? "The worker failed to execute the command."
-            : "The worker rejected the command.")
+            (result.status === "failed"
+              ? "The worker failed to execute the command."
+              : "The worker rejected the command.")
         )
         return
       }
@@ -68,14 +68,15 @@ function V2HomePage() {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center">
       <p className="text-sm text-muted-foreground">
-        Front Office Hoops v2 foundation
+        Front Office Hoops v2 calibration build
       </p>
       <h1 className="text-2xl font-semibold tracking-tight">
-        Document round trip
+        Foundation document round trip
       </h1>
       <p className="max-w-md text-sm text-muted-foreground">
-        Validate a fixture, send a no-op command through the worker, save it to
-        Dexie, reload it, and verify the exported facts.
+        This developer foundation check validates a fixture, sends a no-op
+        command through the worker, saves it to Dexie, reloads it, and verifies
+        the exported facts. The playable V2 league loop is not wired yet.
       </p>
       <Button onClick={() => void runFoundationRoundTrip()}>
         Run foundation round trip
@@ -83,6 +84,10 @@ function V2HomePage() {
       <Button variant="outline" asChild>
         <Link to="/developer-labs">Open developer labs</Link>
       </Button>
+      <p className="max-w-xl text-xs leading-5 text-muted-foreground">
+        Current V2 surfaces: population, game, production/value, career cohort,
+        and market/rules calibration.
+      </p>
       <p className="max-w-xl text-sm" role="status" aria-live="polite">
         {status}
       </p>

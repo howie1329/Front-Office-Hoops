@@ -37,6 +37,42 @@ const potentialHeadroomConfigSchema = distributionConfigSchema
     message: "Potential headroom center must not exceed its maximum.",
   })
 
+const careerGrowthCurveSchema = z.enum(["slow", "standard", "fast", "elite"])
+const careerDeclineCurveSchema = z.enum([
+  "durable",
+  "standard",
+  "early",
+  "steep",
+])
+const careerGrowthCurveWeightsSchema = z
+  .strictObject({
+    slow: z.number().nonnegative(),
+    standard: z.number().nonnegative(),
+    fast: z.number().nonnegative(),
+    elite: z.number().nonnegative(),
+  })
+  .refine(
+    (weights) =>
+      Math.abs(
+        Object.values(weights).reduce((sum, value) => sum + value, 0) - 1
+      ) < 0.0001,
+    { message: "Growth curve weights must sum to one." }
+  )
+const careerDeclineCurveWeightsSchema = z
+  .strictObject({
+    durable: z.number().nonnegative(),
+    standard: z.number().nonnegative(),
+    early: z.number().nonnegative(),
+    steep: z.number().nonnegative(),
+  })
+  .refine(
+    (weights) =>
+      Math.abs(
+        Object.values(weights).reduce((sum, value) => sum + value, 0) - 1
+      ) < 0.0001,
+    { message: "Decline curve weights must sum to one." }
+  )
+
 const classificationConfigSchema = z.strictObject({
   minPositionFit: z.number().int().min(0).max(100),
   maxSecondaryPositionGap: z.number().int().min(0).max(100),
@@ -67,6 +103,8 @@ export const playerGenerationConfigSchema = z.strictObject({
     potential: potentialHeadroomConfigSchema,
     rating: distributionConfigSchema,
     volatility: distributionConfigSchema,
+    growthCurveWeights: careerGrowthCurveWeightsSchema,
+    declineCurveWeights: careerDeclineCurveWeightsSchema,
   }),
   classification: classificationConfigSchema,
   traitFrequency: z.number().min(0).max(1),
@@ -108,14 +146,14 @@ const physicalProfileSchema = z.strictObject({
 })
 
 const playerSkillsSchema = z.strictObject({
-  shooting: ratingSchema,
-  finishing: ratingSchema,
-  passing: ratingSchema,
-  handling: ratingSchema,
-  rebounding: ratingSchema,
-  defense: ratingSchema,
-  basketballIQ: ratingSchema,
-  stamina: ratingSchema,
+  shooting: z.number().min(0).max(100),
+  finishing: z.number().min(0).max(100),
+  passing: z.number().min(0).max(100),
+  handling: z.number().min(0).max(100),
+  rebounding: z.number().min(0).max(100),
+  defense: z.number().min(0).max(100),
+  basketballIQ: z.number().min(0).max(100),
+  stamina: z.number().min(0).max(100),
 })
 
 const playerRoleSchema = z.strictObject({
@@ -157,19 +195,40 @@ const playerRoleSchema = z.strictObject({
     .nullable(),
 })
 
-const developmentProfileSchema = z.strictObject({
-  potential: ratingSchema,
-  rating: ratingSchema,
-  volatility: ratingSchema,
-})
+export const careerDevelopmentProfileSchema = z
+  .strictObject({
+    potential: ratingSchema,
+    rating: ratingSchema,
+    volatility: ratingSchema,
+    peakAge: z.number().int().min(18).max(50),
+    declineStartAge: z.number().int().min(19).max(50),
+    growthCurve: careerGrowthCurveSchema,
+    declineCurve: careerDeclineCurveSchema,
+  })
+  .refine((profile) => profile.declineStartAge > profile.peakAge, {
+    message: "Decline must start after the peak age.",
+    path: ["declineStartAge"],
+  })
 
 const playerProfileSchema = z.strictObject({
   physical: physicalProfileSchema,
   skills: playerSkillsSchema,
   role: playerRoleSchema,
   injuryResistance: ratingSchema,
-  development: developmentProfileSchema,
+  development: careerDevelopmentProfileSchema,
   traits: z.array(z.string().min(1)).max(3),
+})
+
+export const playerMarketProfileSchema = z.strictObject({
+  salaryPriority: ratingSchema,
+  securityPriority: ratingSchema,
+  winningPriority: ratingSchema,
+  rolePriority: ratingSchema,
+  playingTimePriority: ratingSchema,
+  marketSizePriority: ratingSchema,
+  loyalty: ratingSchema,
+  patience: ratingSchema,
+  negotiationBaseline: ratingSchema,
 })
 
 export const playerEntitySchema = z.strictObject({
@@ -190,12 +249,14 @@ export const playerEntitySchema = z.strictObject({
       kind: z.literal("draft-prospect"),
       draftClassId: z.string().min(1),
     }),
+    z.strictObject({ kind: z.literal("retired") }),
   ]),
-  age: z.number().int().min(18).max(50),
+  age: z.number().int().min(18).max(80),
   profile: playerProfileSchema,
+  marketPreferences: playerMarketProfileSchema.optional(),
 })
 
-const gameSimulationConfigSchema = z.strictObject({
+export const gameSimulationConfigSchema = z.strictObject({
   version: z.number().int().positive(),
   presetId: z.enum(["standard", "custom"]),
   environment: z.strictObject({
@@ -318,10 +379,7 @@ const gamePeriodSchema = z.strictObject({
   kind: z.enum(["regulation", "overtime"]),
   minutes: z.number().positive(),
   teamPoints: z.record(z.string().min(1), z.number().int().nonnegative()),
-  teamPossessions: z.record(
-    z.string().min(1),
-    z.number().int().nonnegative()
-  ),
+  teamPossessions: z.record(z.string().min(1), z.number().int().nonnegative()),
 })
 
 const gamePlayerBoxScoreSchema = z.strictObject({
@@ -396,6 +454,22 @@ const gameEventSchema = z.strictObject({
   gamesRemaining: z.number().int().positive(),
 })
 
+const gameLineupSegmentSchema = z.strictObject({
+  id: z.string().min(1),
+  teamId: z.string().min(1),
+  period: z.number().int().positive(),
+  startMinute: z.number().nonnegative(),
+  endMinute: z.number().nonnegative(),
+  playerIds: z.array(z.string().min(1)).length(5),
+  reason: z.enum([
+    "period-start",
+    "checkpoint",
+    "foul-trouble",
+    "injury",
+    "overtime",
+  ]),
+})
+
 const gameDiagnosticSchema = z.strictObject({
   code: z.string().min(1),
   message: z.string().min(1),
@@ -423,6 +497,7 @@ export const gameResultSchema = z.strictObject({
   periods: z.array(gamePeriodSchema),
   teams: z.record(z.string().min(1), gameTeamBoxScoreSchema),
   players: z.record(z.string().min(1), gamePlayerBoxScoreSchema),
+  lineupSegments: z.array(gameLineupSegmentSchema),
   events: z.array(gameEventSchema),
   diagnostics: z.array(gameDiagnosticSchema),
   reconciliation: z.strictObject({
@@ -446,20 +521,820 @@ const matchupCalibrationMetricSchema = z.strictObject({
   p90: z.number(),
 })
 
+const matchupCalibrationTargetSchema = z
+  .strictObject({
+    min: z.number(),
+    max: z.number(),
+  })
+  .refine((target) => target.min <= target.max, {
+    message: "Calibration target minimum must not exceed its maximum.",
+  })
+
+const matchupCalibrationBenchmarkCheckSchema = z.strictObject({
+  metric: z.string().min(1),
+  actual: matchupCalibrationMetricSchema,
+  target: matchupCalibrationTargetSchema,
+  passed: z.boolean(),
+})
+
+const matchupCalibrationBenchmarkSchema = z.strictObject({
+  profileId: z.string().min(1),
+  label: z.string().min(1),
+  passed: z.boolean(),
+  checks: z.record(z.string().min(1), matchupCalibrationBenchmarkCheckSchema),
+})
+
 export const matchupBatchReportSchema = z.strictObject({
   schema: z.literal("foh-matchup-calibration"),
-  version: z.literal(1),
+  version: z.literal(2),
   baseSeed: z.string().min(1),
   count: z.number().int().positive(),
   completed: z.number().int().nonnegative(),
   failed: z.number().int().nonnegative(),
+  effectiveConfig: gameSimulationConfigSchema,
   metrics: z.record(z.string().min(1), matchupCalibrationMetricSchema),
+  benchmark: matchupCalibrationBenchmarkSchema.nullable(),
   results: z.array(gameResultSchema),
   failures: z.array(
     z.strictObject({
       seed: z.string().min(1),
       fixture: gameMatchupFixtureSchema,
       result: gameResultSchema,
+    })
+  ),
+})
+
+const universalPlayerValueConfigSchema = z.strictObject({
+  version: z.literal(1),
+  horizonSeasons: z.number().int().min(1).max(5),
+  currentFormResponsiveness: z.number().min(0).max(100),
+  sampleConfidence: z.number().min(0).max(100),
+  currentAbilityEmphasis: z.number().min(0).max(100),
+  productionEmphasis: z.number().min(0).max(100),
+  trajectoryEmphasis: z.number().min(0).max(100),
+  upsideEmphasis: z.number().min(0).max(100),
+  durabilityImpact: z.number().min(0).max(100),
+  defenseEmphasis: z.number().min(0).max(100),
+  teamContextNormalization: z.number().min(0).max(100),
+})
+
+export const seasonProductionConfigSchema = z.strictObject({
+  version: z.literal(1),
+  presetId: z.enum(["standard", "custom"]),
+  runPreset: z.enum(["smoke", "early", "half", "full", "batch"]),
+  gamesPerTeam: z.number().int().min(1).max(82),
+  schedule: z.strictObject({
+    teamCount: z.number().int().min(2).max(30),
+    homeAwayBalanced: z.boolean(),
+    scheduleSeed: z.string().min(1),
+  }),
+  injuries: z.strictObject({ mode: z.enum(["standard", "off"]) }),
+  development: z.strictObject({ enabled: z.literal(false) }),
+  playoffs: z.strictObject({ enabled: z.literal(false) }),
+  value: universalPlayerValueConfigSchema,
+})
+
+export const seasonScheduleEntrySchema = z.strictObject({
+  id: z.string().min(1),
+  round: z.number().int().positive(),
+  leagueDay: z.number().int().positive(),
+  homeTeamId: z.string().min(1),
+  awayTeamId: z.string().min(1),
+})
+
+export const seasonFixtureSchema = z.strictObject({
+  version: z.literal(1),
+  source: z.strictObject({
+    kind: z.enum(["initial-player-universe", "league-document", "manual"]),
+    id: z.string().min(1),
+    version: z.number().int().positive(),
+  }),
+  seed: z.string().min(1),
+  season: z.number().int().positive(),
+  teams: z.record(
+    z.string().min(1),
+    z.strictObject({ id: z.string().min(1), name: z.string().min(1) })
+  ),
+  players: z.record(z.string().min(1), playerEntitySchema),
+  rosters: z.record(z.string().min(1), z.array(z.string().min(1))),
+  populations: z.strictObject({
+    rostered: z.array(z.string().min(1)),
+    freeAgents: z.array(z.string().min(1)),
+    draftProspects: z.array(z.string().min(1)),
+  }),
+  schedule: z.array(seasonScheduleEntrySchema),
+  rotations: z.record(z.string().min(1), gameRotationSchema),
+  coaching: z.record(z.string().min(1), gameCoachingProfileSchema),
+  availability: z.record(z.string().min(1), gameAvailabilitySchema),
+  gameConfig: gameSimulationConfigSchema,
+  config: seasonProductionConfigSchema,
+})
+
+const playerSeasonProductionSchema = z.strictObject({
+  playerId: z.string().min(1),
+  teamId: z.string().min(1).nullable(),
+  population: z.enum(["rostered", "free-agent", "draft-prospect"]),
+  gamesScheduled: z.number().int().nonnegative(),
+  gamesPlayed: z.number().int().nonnegative(),
+  starts: z.number().int().nonnegative(),
+  minutes: z.number().nonnegative(),
+  opportunities: z.number().int().nonnegative(),
+  usageRate: z.number().nonnegative(),
+  points: z.number().int().nonnegative(),
+  pointsPerGame: z.number().nonnegative(),
+  fieldGoalsMade: z.number().int().nonnegative(),
+  fieldGoalsAttempted: z.number().int().nonnegative(),
+  threePointersMade: z.number().int().nonnegative(),
+  threePointersAttempted: z.number().int().nonnegative(),
+  freeThrowsMade: z.number().int().nonnegative(),
+  freeThrowsAttempted: z.number().int().nonnegative(),
+  trueShootingPercentage: z.number().nonnegative(),
+  offensiveRebounds: z.number().int().nonnegative(),
+  defensiveRebounds: z.number().int().nonnegative(),
+  rebounds: z.number().int().nonnegative(),
+  reboundsPerGame: z.number().nonnegative(),
+  assists: z.number().int().nonnegative(),
+  assistsPerGame: z.number().nonnegative(),
+  turnovers: z.number().int().nonnegative(),
+  turnoversPerGame: z.number().nonnegative(),
+  steals: z.number().int().nonnegative(),
+  blocks: z.number().int().nonnegative(),
+  fouls: z.number().int().nonnegative(),
+  availabilityRate: z.number().nonnegative(),
+  shotProfile: z.strictObject({
+    rimAttempts: z.number().int().nonnegative(),
+    midrangeAttempts: z.number().int().nonnegative(),
+    threePointAttempts: z.number().int().nonnegative(),
+  }),
+  role: z.string().min(1),
+  sampleState: z.enum(["provisional", "early", "established", "full"]),
+})
+
+const teamSeasonProductionSchema = z.strictObject({
+  teamId: z.string().min(1),
+  gamesPlayed: z.number().int().nonnegative(),
+  wins: z.number().int().nonnegative(),
+  losses: z.number().int().nonnegative(),
+  points: z.number().int().nonnegative(),
+  opponentPoints: z.number().int().nonnegative(),
+  possessions: z.number().int().nonnegative(),
+  opponentPossessions: z.number().int().nonnegative(),
+  pace: z.number().nonnegative(),
+  offensiveEfficiency: z.number().nonnegative(),
+  defensiveEfficiency: z.number().nonnegative(),
+  fieldGoalsMade: z.number().int().nonnegative(),
+  fieldGoalsAttempted: z.number().int().nonnegative(),
+  threePointersMade: z.number().int().nonnegative(),
+  threePointersAttempted: z.number().int().nonnegative(),
+  freeThrowsMade: z.number().int().nonnegative(),
+  freeThrowsAttempted: z.number().int().nonnegative(),
+  rebounds: z.number().int().nonnegative(),
+  assists: z.number().int().nonnegative(),
+  turnovers: z.number().int().nonnegative(),
+  steals: z.number().int().nonnegative(),
+  blocks: z.number().int().nonnegative(),
+  fouls: z.number().int().nonnegative(),
+})
+
+const leagueProductionSummarySchema = z.strictObject({
+  gamesCompleted: z.number().int().nonnegative(),
+  gamesPerTeam: z.number().int().nonnegative(),
+  teamCount: z.number().int().positive(),
+  pointsPerGame: z.number().nonnegative(),
+  possessionsPerTeam: z.number().nonnegative(),
+  offensiveEfficiency: z.number().nonnegative(),
+  fieldGoalPercentage: z.number().nonnegative(),
+  threePointPercentage: z.number().nonnegative(),
+  freeThrowPercentage: z.number().nonnegative(),
+  threePointAttemptRate: z.number().nonnegative(),
+  assistsPerTeam: z.number().nonnegative(),
+  turnoversPerTeam: z.number().nonnegative(),
+  reboundsPerTeam: z.number().nonnegative(),
+  injuries: z.number().int().nonnegative(),
+  reconciliationPassRate: z.number().nonnegative(),
+})
+
+const universalPlayerValueSchema = z.strictObject({
+  playerId: z.string().min(1),
+  evaluationPoint: z.enum(["preseason", "checkpoint", "final"]),
+  checkpointGamesPerTeam: z.number().int().nonnegative(),
+  rawValue: z.number(),
+  currentFormSignal: z.number(),
+  projectionSignal: z.number(),
+  confidence: z.enum(["provisional", "early", "established", "full"]),
+  sample: z.strictObject({
+    games: z.number().int().nonnegative(),
+    minutes: z.number().nonnegative(),
+    seasons: z.number().int().nonnegative(),
+  }),
+  breakdown: z.strictObject({
+    currentAbility: z.number(),
+    recentProduction: z.number(),
+    projectedContribution: z.number(),
+    ageTrajectory: z.number(),
+    upside: z.number(),
+    durability: z.number(),
+    opportunity: z.number().default(0),
+    roleContext: z.number(),
+    defensiveContribution: z.number(),
+  }),
+  diagnostics: z.strictObject({
+    percentile: z.number().nonnegative(),
+    rank: z.number().int().nonnegative(),
+    outlierFlags: z.array(z.string()),
+  }),
+})
+
+export const seasonCheckpointReportSchema = z.strictObject({
+  gamesPerTeam: z.number().int().nonnegative(),
+  gamesCompleted: z.number().int().nonnegative(),
+  playerProduction: z.record(z.string().min(1), playerSeasonProductionSchema),
+  teamProduction: z.record(z.string().min(1), teamSeasonProductionSchema),
+  leagueSummary: leagueProductionSummarySchema,
+  values: z.record(z.string().min(1), universalPlayerValueSchema),
+})
+
+const seasonRunFailureSchema = z.strictObject({
+  scheduleEntry: seasonScheduleEntrySchema,
+  fixture: gameMatchupFixtureSchema,
+  result: gameResultSchema,
+})
+
+export const seasonRunResultSchema = z.strictObject({
+  status: z.enum(["completed", "cancelled", "failed"]),
+  fixture: seasonFixtureSchema,
+  games: z.array(gameResultSchema),
+  checkpoints: z.array(seasonCheckpointReportSchema),
+  finalAvailability: z.record(z.string().min(1), gameAvailabilitySchema),
+  failures: z.array(seasonRunFailureSchema),
+})
+
+const seasonBatchMetricSchema = z.strictObject({
+  count: z.number().int().nonnegative(),
+  mean: z.number(),
+  minimum: z.number(),
+  maximum: z.number(),
+})
+
+export const seasonBatchReportSchema = z.strictObject({
+  schema: z.literal("foh-season-production-calibration"),
+  version: z.literal(1),
+  baseSeed: z.string().min(1),
+  count: z.number().int().positive(),
+  completed: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  cancelled: z.boolean(),
+  reports: z.array(seasonRunResultSchema),
+  metrics: z.record(z.string().min(1), seasonBatchMetricSchema),
+})
+
+export const productionValueLabReportSchema = z.strictObject({
+  schema: z.literal("foh-production-value-lab"),
+  version: z.literal(1),
+  baseSeed: z.string().min(1),
+  fixture: seasonFixtureSchema,
+  result: seasonRunResultSchema,
+})
+
+const gameNumericSettingPathSchema = z.enum([
+  "environment.pace",
+  "environment.scoringEnvironment",
+  "environment.gameVariance",
+  "environment.talentSeparation",
+  "environment.homeCourtAdvantage",
+  "offense.threePointRate",
+  "offense.rimRate",
+  "offense.midrangeRate",
+  "offense.shotSelectionDiscipline",
+  "offense.starUsage",
+  "offense.ballMovement",
+  "offense.isolationRate",
+  "offense.transitionRate",
+  "offense.offensiveRebounding",
+  "defense.pressure",
+  "defense.helpDefense",
+  "defense.turnoverPressure",
+  "defense.switching",
+  "defense.doubleTeamRate",
+  "defense.foulDiscipline",
+  "rotation.adherence",
+  "rotation.benchUsage",
+  "rotation.starterWorkload",
+  "rotation.fatigueImpact",
+  "coaching.influence",
+  "coaching.paceInfluence",
+  "coaching.shotSelectionInfluence",
+  "coaching.defensiveInfluence",
+  "injuries.maxGamesOut",
+])
+
+const sliderSensitivityMetricSchema = z.strictObject({
+  count: z.number().int().nonnegative(),
+  mean: z.number(),
+  minimum: z.number(),
+  maximum: z.number(),
+  p10: z.number(),
+  median: z.number(),
+  p90: z.number(),
+})
+
+const sliderSensitivityDirectionSchema = z.enum([
+  "increase",
+  "decrease",
+  "spread-increase",
+  "distance-decrease",
+  "observe",
+])
+
+const sliderSensitivityClassificationSchema = z.enum([
+  "wired",
+  "no-op",
+  "conditional",
+  "saturated",
+  "unknown",
+])
+
+const sliderSensitivityArmSchema = z.strictObject({
+  label: z.enum([
+    "minimum",
+    "lower-quartile",
+    "baseline",
+    "upper-quartile",
+    "maximum",
+  ]),
+  value: z.number(),
+  effectiveConfig: gameSimulationConfigSchema,
+  metrics: z.record(z.string().min(1), sliderSensitivityMetricSchema),
+  requestedCount: z.number().int().positive(),
+  completedCount: z.number().int().nonnegative(),
+  retainedFailureCount: z.number().int().nonnegative(),
+})
+
+const sliderSensitivityMetricDeltaSchema = z.strictObject({
+  metric: z.string().min(1),
+  baseline: sliderSensitivityMetricSchema,
+  low: sliderSensitivityMetricSchema,
+  high: sliderSensitivityMetricSchema,
+  lowSignal: z.number(),
+  highSignal: z.number(),
+  delta: z.number(),
+  diagnosticFloor: z.number().nonnegative(),
+  directionalPass: z.boolean(),
+})
+
+const sliderSensitivityScenarioSchema = z
+  .strictObject({
+    scenario: z.string().min(1),
+    arms: z.array(sliderSensitivityArmSchema).min(2),
+    pairedSeeds: z.array(z.string()),
+    pairedCount: z.number().int().nonnegative(),
+    pairedChangedCount: z.number().int().nonnegative(),
+    primary: sliderSensitivityMetricDeltaSchema,
+    classification: sliderSensitivityClassificationSchema,
+    diagnostic: z.string().min(1),
+  })
+  .refine((scenario) => scenario.pairedSeeds.length === scenario.pairedCount, {
+    message: "Paired seed count must match paired count.",
+  })
+  .refine((scenario) => scenario.pairedChangedCount <= scenario.pairedCount, {
+    message: "Changed paired games cannot exceed paired games.",
+  })
+
+const sliderSensitivityResultSchema = z.strictObject({
+  path: gameNumericSettingPathSchema,
+  label: z.string().min(1),
+  primaryMetric: z.string().min(1),
+  direction: sliderSensitivityDirectionSchema,
+  classification: sliderSensitivityClassificationSchema,
+  scenarios: z.array(sliderSensitivityScenarioSchema).min(1),
+  diagnostic: z.string().min(1),
+})
+
+export const sliderSensitivityReportSchema = z.strictObject({
+  schema: z.literal("foh-slider-sensitivity"),
+  version: z.literal(1),
+  baseSeed: z.string().min(1),
+  count: z.number().int().positive(),
+  baselineConfig: gameSimulationConfigSchema,
+  results: z.array(sliderSensitivityResultSchema).min(1),
+})
+
+const careerPhaseSchema = z.enum(["growth", "plateau", "decline"])
+const careerSkillKeySchema = z.enum([
+  "shooting",
+  "finishing",
+  "passing",
+  "handling",
+  "rebounding",
+  "defense",
+  "basketballIQ",
+  "stamina",
+])
+
+export const careerAnnualContextSchema = z.strictObject({
+  season: z.number().int().nonnegative(),
+  minutes: z.number().nonnegative(),
+  gamesPlayed: z.number().int().nonnegative(),
+  gamesScheduled: z.number().int().positive(),
+  injuryDevelopmentPenalty: z.number().min(0).max(1),
+  coachingDevelopmentEmphasis: z.number().min(0).max(100),
+})
+
+export const careerAvailabilitySummarySchema = z.strictObject({
+  gamesScheduled: z.number().int().nonnegative(),
+  gamesPlayed: z.number().int().nonnegative(),
+  minutes: z.number().nonnegative(),
+  availabilityRate: z.number().min(0).max(1),
+  injuryDevelopmentPenalty: z.number().min(0).max(1),
+  injuryAffected: z.boolean(),
+})
+
+export const careerDevelopmentEventSchema = z.strictObject({
+  id: z.string().min(1),
+  type: z.enum([
+    "phase-change",
+    "skill-development",
+    "plateau-noise",
+    "development-stall",
+    "development-surge",
+    "injury-effect",
+    "availability",
+    "trajectory-change",
+  ]),
+  season: z.number().int().nonnegative(),
+  playerId: z.string().min(1),
+  phase: careerPhaseSchema,
+  skill: careerSkillKeySchema.nullable(),
+  delta: z.number(),
+  summary: z.string().min(1),
+  curveDimension: z.enum(["growth", "decline"]).optional(),
+  fromCurve: z
+    .union([careerGrowthCurveSchema, careerDeclineCurveSchema])
+    .optional(),
+  toCurve: z
+    .union([careerGrowthCurveSchema, careerDeclineCurveSchema])
+    .optional(),
+  reason: z.enum(["age-transition", "calibration"]).optional(),
+})
+
+export const careerTransitionResultSchema = z.strictObject({
+  player: playerEntitySchema,
+  phase: careerPhaseSchema,
+  skillDeltas: z.strictObject({
+    shooting: z.number(),
+    finishing: z.number(),
+    passing: z.number(),
+    handling: z.number(),
+    rebounding: z.number(),
+    defense: z.number(),
+    basketballIQ: z.number(),
+    stamina: z.number(),
+  }),
+  events: z.array(careerDevelopmentEventSchema),
+  availability: careerAvailabilitySummarySchema,
+})
+
+const retirementFactorSchema = z.strictObject({
+  key: z.enum([
+    "age",
+    "health",
+    "injury-history",
+    "current-ability",
+    "role",
+    "opportunity",
+    "contract-opportunity",
+  ]),
+  label: z.string().min(1),
+  contribution: z.number(),
+  explanation: z.string().min(1),
+})
+
+export const retirementEvaluationSchema = z.strictObject({
+  eligible: z.boolean(),
+  retired: z.boolean(),
+  probability: z.number().min(0).max(1),
+  factors: z.array(retirementFactorSchema),
+})
+
+export const careerRetirementContextSchema = z.strictObject({
+  season: z.number().int().nonnegative(),
+  gamesPlayed: z.number().int().nonnegative().optional(),
+  gamesScheduled: z.number().int().positive().optional(),
+  minutes: z.number().nonnegative().optional(),
+  injuryHistory: z.number().min(0).max(1).optional(),
+  health: z.number().min(0).max(100).optional(),
+  opportunity: z.number().min(0).max(100).optional(),
+  contractOpportunity: z.number().min(0).max(100).optional(),
+})
+
+const careerContextPresetSchema = z.enum(["healthy", "normal", "injured"])
+const careerMinutesPresetSchema = z.enum(["zero", "low", "typical", "high"])
+const careerCoachingPresetSchema = z.enum(["weak", "standard", "strong"])
+const careerTimingPresetSchema = z.enum(["standard", "early", "late"])
+const careerPopulationContextSchema = z.enum([
+  "draft-class",
+  "roster",
+  "free-agent",
+  "veteran",
+])
+const careerDevelopmentPresetSchema = z.enum([
+  "standard",
+  "high-potential",
+  "low-potential",
+  "high-volatility",
+])
+
+export const careerDevelopmentSettingsSchema = z
+  .strictObject({
+    growthMultipliers: z
+      .strictObject({
+        slow: z.number().min(0.1).max(3),
+        standard: z.number().min(0.1).max(3),
+        fast: z.number().min(0.1).max(3),
+        elite: z.number().min(0.1).max(3),
+      })
+      .partial(),
+    declineMultipliers: z
+      .strictObject({
+        durable: z.number().min(0.1).max(3),
+        standard: z.number().min(0.1).max(3),
+        early: z.number().min(0.1).max(3),
+        steep: z.number().min(0.1).max(3),
+      })
+      .partial(),
+    growthTransitionChance: z.number().min(0).max(1),
+    declineTransitionChance: z.number().min(0).max(1),
+    growthRateScale: z.number().min(0.25).max(3),
+    growthNoiseScale: z.number().min(0).max(3),
+    stallChance: z.number().min(0).max(1),
+    stallMagnitude: z.number().min(0).max(1),
+    surgeChance: z.number().min(0).max(1),
+    surgeMagnitude: z.number().min(0).max(1),
+    timingPreset: careerTimingPresetSchema,
+  })
+  .partial()
+
+export const careerCohortOptionsSchema = z.strictObject({
+  seed: z.string().min(1),
+  startingAge: z.number().int().min(18).max(40),
+  sampleSize: z.number().int().positive().max(100000),
+  runYears: z.number().int().positive().max(30),
+  minutesContext: careerMinutesPresetSchema,
+  coachingContext: careerCoachingPresetSchema,
+  injuryContext: careerContextPresetSchema,
+  developmentContext: careerDevelopmentPresetSchema,
+  populationContext: careerPopulationContextSchema,
+  growthCurve: z.union([careerGrowthCurveSchema, z.literal("distribution")]),
+  declineCurve: z.union([careerDeclineCurveSchema, z.literal("distribution")]),
+  settings: careerDevelopmentSettingsSchema.optional(),
+  season: z.number().int().nonnegative().optional(),
+})
+
+export const careerIndividualOptionsSchema = careerCohortOptionsSchema.omit({
+  sampleSize: true,
+})
+
+export const careerSeasonDevelopmentSchema = z.strictObject({
+  phase: careerPhaseSchema,
+  growthCurve: careerGrowthCurveSchema,
+  declineCurve: careerDeclineCurveSchema,
+  appliedGrowthMultiplier: z.number().positive(),
+  appliedDeclineMultiplier: z.number().positive(),
+  skillDeltas: z.strictObject({
+    shooting: z.number(),
+    finishing: z.number(),
+    passing: z.number(),
+    handling: z.number(),
+    rebounding: z.number(),
+    defense: z.number(),
+    basketballIQ: z.number(),
+    stamina: z.number(),
+  }),
+  events: z.array(careerDevelopmentEventSchema),
+})
+
+export const careerSeasonResultSchema = z.strictObject({
+  availability: careerAvailabilitySummarySchema,
+  retirement: retirementEvaluationSchema,
+  development: careerSeasonDevelopmentSchema.nullable(),
+})
+
+export const careerSnapshotSchema = z.strictObject({
+  season: z.number().int().nonnegative(),
+  ageAtSeasonStart: z.number().int().min(18).max(80),
+  playerAtSeasonStart: playerEntitySchema,
+  currentAbility: ratingSchema,
+  potentialForecast: ratingSchema,
+  peakAge: z.number().int().min(18).max(50),
+  declineStartAge: z.number().int().min(19).max(50),
+  phase: careerPhaseSchema,
+  seasonResult: careerSeasonResultSchema,
+})
+
+export const careerTimelineSchema = z.strictObject({
+  playerId: z.string().min(1),
+  seed: z.string().min(1),
+  startingAge: z.number().int().min(18).max(40),
+  snapshots: z.array(careerSnapshotSchema).min(1),
+  finalPlayer: playerEntitySchema,
+  retired: z.boolean(),
+  retirementAge: z.number().int().min(18).max(80).nullable(),
+  retirementSeason: z.number().int().nonnegative().nullable(),
+  seasonsSimulated: z.number().int().nonnegative(),
+  terminationReason: z.enum(["retired", "horizon-complete"]),
+  peakAbility: ratingSchema,
+  realizedPeakAge: z.number().int().min(18).max(50),
+  plateauLength: z.number().int().nonnegative(),
+})
+
+const careerSkillsSchema = z.strictObject({
+  shooting: z.number().min(0).max(100),
+  finishing: z.number().min(0).max(100),
+  passing: z.number().min(0).max(100),
+  handling: z.number().min(0).max(100),
+  rebounding: z.number().min(0).max(100),
+  defense: z.number().min(0).max(100),
+  basketballIQ: z.number().min(0).max(100),
+  stamina: z.number().min(0).max(100),
+})
+
+const careerSkillTrajectorySchema = z.strictObject({
+  season: z.number().int().nonnegative(),
+  age: z.number().int().min(18).max(80),
+  activePlayers: z.number().int().nonnegative(),
+  average: careerSkillsSchema,
+  p10: careerSkillsSchema,
+  median: careerSkillsSchema,
+  p90: careerSkillsSchema,
+  currentAbility: z.strictObject({
+    average: z.number().min(0).max(100),
+    p10: z.number().min(0).max(100),
+    median: z.number().min(0).max(100),
+    p90: z.number().min(0).max(100),
+  }),
+})
+
+export const careerBenchmarkResultSchema = z.strictObject({
+  profileId: z.string().min(1),
+  label: z.string().min(1),
+  passed: z.boolean(),
+  checks: z.record(
+    z.string().min(1),
+    z.strictObject({
+      metric: z.string().min(1),
+      actual: z.number(),
+      target: z.strictObject({ min: z.number(), max: z.number() }),
+      passed: z.boolean(),
+    })
+  ),
+})
+
+export const careerCohortSummarySchema = z.strictObject({
+  playerCount: z.number().int().nonnegative(),
+  startingAge: z.number().int().min(18).max(40),
+  runYears: z.number().int().positive().max(30),
+  skillTrajectories: z.array(careerSkillTrajectorySchema),
+  averagePeakAge: z.number(),
+  averageDeclineStartAge: z.number(),
+  averagePlateauLength: z.number().nonnegative(),
+  growthToPeak: z.number(),
+  declineRate: z.number(),
+  breakoutRate: z.number().min(0).max(1),
+  bustRate: z.number().min(0).max(1),
+  lateBloomerRate: z.number().min(0).max(1),
+  availabilityRate: z.number().min(0).max(1),
+  injuryAffectedSeasons: z.number().int().nonnegative(),
+  retirementRate: z.number().min(0).max(1),
+  retirementAgeDistribution: z.array(
+    z.strictObject({
+      age: z.number().int().min(18).max(80),
+      count: z.number().int().nonnegative(),
+      rate: z.number().min(0).max(1),
+    })
+  ),
+  potentialForecastVsRealizedPeak: z.strictObject({
+    averageForecast: z.number().min(0).max(100),
+    averageRealizedPeak: z.number().min(0).max(100),
+    correlation: z.number().min(-1).max(1),
+  }),
+  potentialForecastError: z.strictObject({
+    mean: z.number(),
+    median: z.number(),
+    p10: z.number(),
+    p90: z.number(),
+    within1Rate: z.number().min(0).max(1),
+    within3Rate: z.number().min(0).max(1),
+    within5Rate: z.number().min(0).max(1),
+    within10Rate: z.number().min(0).max(1),
+    exceededForecastRate: z.number().min(0).max(1),
+  }),
+  growthEvents: z.strictObject({
+    surgeCount: z.number().int().nonnegative(),
+    stallCount: z.number().int().nonnegative(),
+    surgeRate: z.number().min(0).max(1),
+    stallRate: z.number().min(0).max(1),
+  }),
+  failedSeeds: z.array(z.string().min(1)),
+  outlierTimelines: z.array(careerTimelineSchema),
+})
+
+export const failedCareerFixtureSchema = z.strictObject({
+  seed: z.string().min(1),
+  message: z.string().min(1),
+  playerId: z.string().min(1).optional(),
+})
+
+export const careerResolvedSettingsSchema = z.strictObject({
+  settingsVersion: z.number().int().positive(),
+  populationContext: careerPopulationContextSchema,
+  growthCurve: z.union([careerGrowthCurveSchema, z.literal("distribution")]),
+  declineCurve: z.union([careerDeclineCurveSchema, z.literal("distribution")]),
+  growthCurveWeights: careerGrowthCurveWeightsSchema,
+  declineCurveWeights: careerDeclineCurveWeightsSchema,
+  growthMultipliers: z.strictObject({
+    slow: z.number().min(0.1).max(3),
+    standard: z.number().min(0.1).max(3),
+    fast: z.number().min(0.1).max(3),
+    elite: z.number().min(0.1).max(3),
+  }),
+  declineMultipliers: z.strictObject({
+    durable: z.number().min(0.1).max(3),
+    standard: z.number().min(0.1).max(3),
+    early: z.number().min(0.1).max(3),
+    steep: z.number().min(0.1).max(3),
+  }),
+  growthTransitionChance: z.number().min(0).max(1),
+  declineTransitionChance: z.number().min(0).max(1),
+  growthRateScale: z.number().min(0.25).max(3),
+  growthNoiseScale: z.number().min(0).max(3),
+  stallChance: z.number().min(0).max(1),
+  stallMagnitude: z.number().min(0).max(1),
+  surgeChance: z.number().min(0).max(1),
+  surgeMagnitude: z.number().min(0).max(1),
+  timingPreset: careerTimingPresetSchema,
+})
+
+export const careerCohortReportSchema = z.strictObject({
+  schema: z.literal("foh-career-cohort-lab"),
+  version: z.literal(5),
+  options: careerCohortOptionsSchema,
+  completed: z.number().int().nonnegative(),
+  cancelled: z.boolean(),
+  summary: careerCohortSummarySchema,
+  resolvedSettings: careerResolvedSettingsSchema,
+  playerIndex: z.array(
+    z.strictObject({
+      playerId: z.string().min(1),
+      seed: z.string().min(1),
+      startingAge: z.number().int().min(18).max(80),
+      finalAge: z.number().int().min(18).max(80),
+      finalAbility: ratingSchema,
+      peakAbility: ratingSchema,
+      realizedPeakAge: z.number().int().min(18).max(80),
+      peakAge: z.number().int().min(18).max(50),
+      declineStartAge: z.number().int().min(19).max(50),
+      growthCurve: careerGrowthCurveSchema,
+      declineCurve: careerDeclineCurveSchema,
+      retired: z.boolean(),
+      retirementAge: z.number().int().min(18).max(80).nullable(),
+      seasonsSimulated: z.number().int().nonnegative(),
+      terminationReason: z.enum(["retired", "horizon-complete"]),
+    })
+  ),
+  timelines: z.array(careerTimelineSchema).optional(),
+  benchmark: careerBenchmarkResultSchema.nullable(),
+  failedFixtures: z.array(failedCareerFixtureSchema),
+})
+
+export const careerIndividualReportSchema = z.strictObject({
+  schema: z.literal("foh-career-individual-lab"),
+  version: z.literal(5),
+  options: careerIndividualOptionsSchema,
+  timeline: careerTimelineSchema,
+  resolvedSettings: careerResolvedSettingsSchema,
+  failedFixtures: z.array(failedCareerFixtureSchema),
+})
+
+export const careerMatchedCohortReportSchema = z.strictObject({
+  schema: z.literal("foh-career-matched-cohort-lab"),
+  version: z.literal(1),
+  options: careerCohortOptionsSchema,
+  baseline: careerCohortReportSchema,
+  variant: careerCohortReportSchema,
+  settingsDiff: z
+    .array(
+      z.strictObject({
+        path: z.string().min(1),
+        baseline: z.union([z.number(), z.string()]),
+        variant: z.union([z.number(), z.string()]),
+      })
+    )
+    .length(1),
+  playerPairs: z.array(
+    z.strictObject({
+      seed: z.string().min(1),
+      baselinePlayerId: z.string().min(1),
+      variantPlayerId: z.string().min(1),
     })
   ),
 })
@@ -575,3 +1450,441 @@ export type LeagueDocumentInput = z.input<typeof leagueDocumentSchema>
 export function getLeagueDocumentJsonSchema(): Record<string, unknown> {
   return z.toJSONSchema(leagueDocumentSchema) as Record<string, unknown>
 }
+
+const moneySchema = z.number().int().nonnegative()
+
+const birdRightsLevelSchema = z.enum(["none", "non-bird", "early-bird", "bird"])
+
+const freeAgencyRightsSchema = z.strictObject({
+  level: birdRightsLevelSchema,
+  teamId: z.string().min(1).nullable(),
+  seasonsWithTeam: z.number().int().nonnegative(),
+  lastContractId: z.string().min(1).nullable(),
+})
+
+export const contractEntitySchema = z
+  .strictObject({
+    id: z.string().min(1),
+    playerId: z.string().min(1),
+    teamId: z.string().min(1),
+    startSeason: z.number().int().positive(),
+    endSeason: z.number().int().positive(),
+    years: z.number().int().min(1).max(4),
+    annualSalary: z.array(moneySchema).min(1).max(4),
+    fullyGuaranteed: z.literal(true),
+    rights: freeAgencyRightsSchema,
+    source: z.enum([
+      "rookie-scale",
+      "second-round-minimum",
+      "free-agent",
+      "re-signing",
+      "extension",
+      "manual",
+    ]),
+  })
+  .superRefine((contract, context) => {
+    if (contract.annualSalary.length !== contract.years) {
+      context.addIssue({
+        code: "custom",
+        message: "Annual salary count must match the contract years.",
+        path: ["annualSalary"],
+      })
+    }
+    if (contract.endSeason - contract.startSeason + 1 !== contract.years) {
+      context.addIssue({
+        code: "custom",
+        message: "Contract seasons must match the contract years.",
+        path: ["endSeason"],
+      })
+    }
+  })
+
+const economyGrowthConfigSchema = z.strictObject({
+  softCap: moneySchema,
+  taxLine: moneySchema,
+  hardCapLine: moneySchema,
+  minimumSalary: moneySchema,
+  maximumSalary: moneySchema,
+  rookieScale: moneySchema,
+})
+
+const economyGrowthRatesSchema = z.strictObject({
+  softCap: z.number().min(-0.5).max(1),
+  taxLine: z.number().min(-0.5).max(1),
+  hardCapLine: z.number().min(-0.5).max(1),
+  minimumSalary: z.number().min(-0.5).max(1),
+  maximumSalary: z.number().min(-0.5).max(1),
+  rookieScale: z.number().min(-0.5).max(1),
+})
+
+export const economyConfigSchema = z.strictObject({
+  version: z.literal(1),
+  presetId: z.string().min(1),
+  minimumTeamSalaryPercent: z.number().min(0).max(100),
+  standardRaiseRate: z.number().min(0).max(0.25),
+  birdRaiseRate: z.number().min(0).max(0.25),
+  growth: economyGrowthConfigSchema,
+  annualGrowth: economyGrowthRatesSchema,
+})
+
+const rookieScaleEntrySchema = z.strictObject({
+  slot: z.number().int().positive(),
+  salary: moneySchema,
+})
+
+export const economySnapshotSchema = z.strictObject({
+  version: z.literal(1),
+  season: z.number().int().positive(),
+  config: economyConfigSchema,
+  softCap: moneySchema,
+  taxLine: moneySchema,
+  hardCapLine: moneySchema,
+  minimumSalary: moneySchema,
+  maximumSalary: moneySchema,
+  minimumTeamSalary: moneySchema,
+  rookieScale: z.array(rookieScaleEntrySchema),
+  hardCapTriggered: z.boolean(),
+})
+
+export const contractMarketConfigSchema = z.strictObject({
+  version: z.literal(1),
+  presetId: z.string().min(1),
+  freeAgencyRounds: z.number().int().min(1).max(10),
+  targetBoardSize: z.number().int().min(1).max(20).default(8),
+  marketRosterSlots: z.number().int().min(0).max(15).default(3),
+  lateMarketCleanup: z.boolean(),
+  minimumAcceptableUtility: z.number().min(0).max(120),
+  waitUtilityMargin: z.number().min(0).max(50),
+  maxScarcityAdjustment: z.number().min(0).max(0.5),
+  previousSalaryAnchor: z.number().min(0).max(1),
+  projectedGrowthWeight: z.number().min(0).max(1),
+  nonBirdSalaryMultiplier: z.number().min(1).max(3),
+  earlyBirdSalaryMultiplier: z.number().min(1).max(3),
+  preferenceWeights: z.strictObject({
+    salary: z.number().min(0).max(1),
+    security: z.number().min(0).max(1),
+    winning: z.number().min(0).max(1),
+    role: z.number().min(0).max(1),
+    playingTime: z.number().min(0).max(1),
+    marketSize: z.number().min(0).max(1),
+    loyalty: z.number().min(0).max(1),
+  }),
+  willingness: z.strictObject({
+    lowballPenalty: z.number().min(0).max(100),
+    closeOfferRecovery: z.number().min(0).max(100),
+    strongPreferenceRecovery: z.number().min(0).max(100),
+    lockoutThreshold: z.number().min(0).max(100),
+  }),
+})
+
+const projectedFreeAgentSchema = z.strictObject({
+  playerId: z.string().min(1),
+  currentTeamId: z.string().min(1).nullable(),
+  projectedSeason: z.number().int().positive(),
+  rights: freeAgencyRightsSchema,
+  position: z.enum(["PG", "SG", "SF", "PF", "C"]),
+  archetype: z.enum([
+    "lead_guard",
+    "scoring_guard",
+    "defensive_guard",
+    "combo_guard",
+    "shooting_wing",
+    "three_and_d_wing",
+    "slashing_wing",
+    "point_forward",
+    "utility_wing",
+    "stretch_big",
+    "interior_scorer",
+    "rim_protector",
+    "rebounding_big",
+    "utility_big",
+  ]),
+  qualityTier: z.enum(["star", "starter", "rotation", "depth"]),
+})
+
+const projectedFreeAgencyViewSchema = z.strictObject({
+  version: z.literal(1),
+  season: z.number().int().positive(),
+  entries: z.array(projectedFreeAgentSchema),
+  supplyByPosition: z.record(
+    z.enum(["PG", "SG", "SF", "PF", "C"]),
+    z.number().int().nonnegative()
+  ),
+  supplyByArchetype: z.record(
+    z.string().min(1),
+    z.number().int().nonnegative()
+  ),
+})
+
+export const contractLegalityResultSchema = z.strictObject({
+  valid: z.boolean(),
+  mechanism: z.enum([
+    "cap-room",
+    "bird",
+    "early-bird",
+    "non-bird",
+    "minimum",
+    "rookie-scale",
+    "none",
+  ]),
+  reasons: z.array(z.string().min(1)),
+  projectedPayroll: moneySchema,
+  capRoomAfterOffer: z.number().int(),
+  hardCapRoomAfterOffer: z.number().int(),
+})
+
+export const contractOfferSchema = z
+  .strictObject({
+    id: z.string().min(1),
+    playerId: z.string().min(1),
+    teamId: z.string().min(1),
+    season: z.number().int().positive(),
+    phase: z.enum(["re-signing", "extension", "free-agency"]),
+    round: z.number().int().positive(),
+    annualSalary: z.array(moneySchema).min(1).max(4),
+    years: z.number().int().min(1).max(4),
+    fullyGuaranteed: z.literal(true),
+    source: z.enum(["user", "ai", "fixture"]),
+  })
+  .superRefine((offer, context) => {
+    if (offer.annualSalary.length !== offer.years) {
+      context.addIssue({
+        code: "custom",
+        message: "Annual salary count must match the offer years.",
+        path: ["annualSalary"],
+      })
+    }
+  })
+
+export const contractDemandResultSchema = z.strictObject({
+  playerId: z.string().min(1),
+  phase: z.enum(["re-signing", "extension", "free-agency"]),
+  baselineAnnualValue: moneySchema,
+  lowAnnualValue: moneySchema,
+  highAnnualValue: moneySchema,
+  preferredYears: z.number().int().min(1).max(4),
+  projectedAnnualValue: moneySchema,
+  scarcityMultiplier: z.number().nonnegative(),
+  comparableTier: z.enum(["star", "starter", "rotation", "depth"]),
+  breakdown: z.array(
+    z.strictObject({
+      label: z.string().min(1),
+      amount: z.number().int(),
+      direction: z.enum(["positive", "negative", "neutral"]),
+      reason: z.string().min(1),
+    })
+  ),
+})
+
+export const offerUtilityBreakdownSchema = z.strictObject({
+  salary: z.number(),
+  security: z.number(),
+  winning: z.number(),
+  role: z.number(),
+  playingTime: z.number(),
+  marketSize: z.number(),
+  loyalty: z.number(),
+  total: z.number(),
+})
+
+export const contractOfferDecisionSchema = z.strictObject({
+  offerId: z.string().min(1),
+  playerId: z.string().min(1),
+  teamId: z.string().min(1),
+  decision: z.enum(["accept", "wait", "decline", "refuse-further-negotiation"]),
+  legal: contractLegalityResultSchema,
+  utility: offerUtilityBreakdownSchema,
+  willingnessBefore: z.number().min(0).max(100),
+  willingnessAfter: z.number().min(0).max(100),
+  reasonCodes: z.array(z.string().min(1)),
+  summary: z.string().min(1),
+})
+
+const teamMarketContextSchema = z.strictObject({
+  team: z.strictObject({ id: z.string().min(1), name: z.string().min(1) }),
+  payroll: moneySchema,
+  reservedSalary: moneySchema,
+  rosteredPlayerCount: z.number().int().nonnegative().default(0),
+  marketRosterSlots: z.number().int().nonnegative().default(0),
+  reservedRosterSlots: z.number().int().nonnegative().default(0),
+  capRoom: z.number().int(),
+  taxRoom: z.number().int(),
+  hardCapRoom: z.number().int(),
+  lastSeasonWins: z.number().int().min(0).max(82),
+  teamQuality: z.number().min(0).max(100),
+  marketSize: z.number().min(0).max(100),
+  roleOpportunity: z.number().min(0).max(100),
+  playingTimeProjection: z.number().min(0).max(100),
+  spendingTolerance: z.number().min(0).max(100),
+  strategy: z.enum([
+    "rebuilding",
+    "developing",
+    "middle",
+    "contender",
+    "financially-constrained",
+  ]),
+  positionalNeeds: z.record(z.string().min(1), z.number().min(0).max(100)),
+})
+
+const negotiationStateSchema = z.strictObject({
+  playerId: z.string().min(1),
+  teamId: z.string().min(1),
+  periodKey: z.string().min(1),
+  willingness: z.number().min(0).max(100),
+  status: z.enum(["active", "locked-out"]),
+  offersSubmitted: z.number().int().nonnegative(),
+  lastOfferId: z.string().min(1).nullable(),
+  reasonCodes: z.array(z.string().min(1)),
+})
+
+export const contractMarketFixtureSchema = z.strictObject({
+  version: z.literal(1),
+  seed: z.string().min(1),
+  season: z.number().int().positive(),
+  economy: economySnapshotSchema,
+  config: contractMarketConfigSchema,
+  teams: z.record(
+    z.string().min(1),
+    z.strictObject({ id: z.string().min(1), name: z.string().min(1) })
+  ),
+  players: z.record(z.string().min(1), playerEntitySchema),
+  contracts: z.record(z.string().min(1), contractEntitySchema),
+  offers: z.record(z.string().min(1), contractOfferSchema),
+  values: z.record(z.string().min(1), universalPlayerValueSchema),
+  teamContexts: z.record(z.string().min(1), teamMarketContextSchema),
+  projectedFreeAgency: projectedFreeAgencyViewSchema,
+  actualFreeAgentIds: z.array(z.string().min(1)),
+  negotiationStates: z.record(z.string().min(1), negotiationStateSchema),
+})
+
+export const marketRoundResultSchema = z.strictObject({
+  round: z.number().int().positive(),
+  offers: z.array(contractOfferSchema),
+  decisions: z.array(contractOfferDecisionSchema),
+  acceptedPlayerIds: z.array(z.string().min(1)),
+  teamActivity: z
+    .array(
+      z.strictObject({
+        teamId: z.string().min(1),
+        targetPlayerIds: z.array(z.string().min(1)),
+        activeOfferCount: z.number().int().nonnegative(),
+        rejectedOfferCount: z.number().int().nonnegative(),
+        payrollBefore: moneySchema,
+        payrollAfter: moneySchema,
+        reservedSalary: moneySchema,
+        rosteredPlayerCountBefore: z.number().int().nonnegative().default(0),
+        rosteredPlayerCountAfter: z.number().int().nonnegative().default(0),
+        marketRosterSlotsBefore: z.number().int().nonnegative().default(0),
+        marketRosterSlotsAfter: z.number().int().nonnegative().default(0),
+        reservedRosterSlots: z.number().int().nonnegative().default(0),
+      })
+    )
+    .default([]),
+})
+
+export const marketCleanupResultSchema = z.strictObject({
+  enabled: z.boolean(),
+  consideredPlayerIds: z.array(z.string().min(1)),
+  offers: z.array(contractOfferSchema),
+  decisions: z.array(contractOfferDecisionSchema),
+  acceptedPlayerIds: z.array(z.string().min(1)),
+})
+
+export const marketPlayerCoverageSchema = z.strictObject({
+  playerId: z.string().min(1),
+  targetedRounds: z.array(z.number().int().positive()),
+  offerCount: z.number().int().nonnegative(),
+  teamCount: z.number().int().nonnegative(),
+  acceptCount: z.number().int().nonnegative(),
+  waitCount: z.number().int().nonnegative(),
+  declineCount: z.number().int().nonnegative(),
+  lockoutCount: z.number().int().nonnegative(),
+  cleanupConsidered: z.boolean(),
+  finalStatus: z.enum(["signed", "unsigned"]),
+  finalReason: z.string().min(1),
+})
+
+export const freeAgencySimulationResultSchema = z.strictObject({
+  version: z.literal(1),
+  seed: z.string().min(1),
+  userTeamId: z.string().min(1).nullable(),
+  rounds: z.array(marketRoundResultSchema),
+  cleanup: marketCleanupResultSchema.default({
+    enabled: false,
+    consideredPlayerIds: [],
+    offers: [],
+    decisions: [],
+    acceptedPlayerIds: [],
+  }),
+  playerCoverage: z.array(marketPlayerCoverageSchema).default([]),
+  signedContracts: z.array(contractEntitySchema),
+  unsignedPlayerIds: z.array(z.string().min(1)),
+  finalFixture: contractMarketFixtureSchema,
+})
+
+export const economySimulationResultSchema = z.strictObject({
+  version: z.literal(1),
+  seed: z.string().min(1),
+  seasons: z.array(
+    z.strictObject({
+      season: z.number().int().positive(),
+      softCap: moneySchema,
+      taxLine: moneySchema,
+      maximumSalary: moneySchema,
+      minimumSalary: moneySchema,
+      rookieScaleTop: moneySchema,
+    })
+  ),
+  harnessNote: z.string().min(1),
+})
+
+export const contractMarketScenarioResultSchema = z.strictObject({
+  version: z.literal(1),
+  fixtureSeed: z.string().min(1),
+  playerId: z.string().min(1),
+  demand: contractDemandResultSchema,
+  offer: contractOfferSchema,
+  decision: contractOfferDecisionSchema,
+  playerMarketProfile: playerMarketProfileSchema,
+})
+
+export const marketRulesViewContextSchema = z.strictObject({
+  mode: z.enum(["offer", "re-signing", "extension", "free-agency", "economy"]),
+  selectedPlayerId: z.string().min(1).nullable(),
+  selectedTeamId: z.string().min(1).nullable(),
+  salaryMillions: z.number().nonnegative(),
+  years: z.number().int().min(1).max(4),
+})
+
+export const contractMarketScenarioExportSchema = z.strictObject({
+  schema: z.literal("foh-contract-market-offer-scenario"),
+  version: z.literal(1),
+  fixture: contractMarketFixtureSchema,
+  view: marketRulesViewContextSchema,
+  scenario: contractMarketScenarioResultSchema,
+})
+
+export const freeAgencyRunExportSchema = z.strictObject({
+  schema: z.literal("foh-contract-market-free-agency-report"),
+  version: z.literal(1),
+  fixture: contractMarketFixtureSchema,
+  view: marketRulesViewContextSchema,
+  result: freeAgencySimulationResultSchema,
+})
+
+export const economyRunExportSchema = z.strictObject({
+  schema: z.literal("foh-contract-market-economy-report"),
+  version: z.literal(1),
+  config: economyConfigSchema,
+  view: marketRulesViewContextSchema,
+  result: economySimulationResultSchema,
+})
+
+export type MarketRulesViewContext = z.infer<
+  typeof marketRulesViewContextSchema
+>
+export type ContractMarketScenarioExport = z.infer<
+  typeof contractMarketScenarioExportSchema
+>
+export type FreeAgencyRunExport = z.infer<typeof freeAgencyRunExportSchema>
+export type EconomyRunExport = z.infer<typeof economyRunExportSchema>

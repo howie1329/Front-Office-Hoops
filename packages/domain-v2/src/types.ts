@@ -195,6 +195,16 @@ export type GameEvent = {
   gamesRemaining: number
 }
 
+export type GameLineupSegment = {
+  id: string
+  teamId: string
+  period: number
+  startMinute: number
+  endMinute: number
+  playerIds: string[]
+  reason: "period-start" | "checkpoint" | "foul-trouble" | "injury" | "overtime"
+}
+
 export type GameReconciliationCheck = {
   code: string
   label: string
@@ -223,6 +233,7 @@ export type GameResult = {
   periods: GamePeriodResult[]
   teams: Record<string, GameTeamBoxScore>
   players: Record<string, GamePlayerBoxScore>
+  lineupSegments: GameLineupSegment[]
   events: GameEvent[]
   diagnostics: GameDiagnostic[]
   reconciliation: GameReconciliationReport
@@ -252,6 +263,7 @@ export type PlayerLeagueStatus =
   | { kind: "re-signing"; teamId: string }
   | { kind: "free-agent" }
   | { kind: "draft-prospect"; draftClassId: string }
+  | { kind: "retired" }
 
 export type PlayerPosition = "PG" | "SG" | "SF" | "PF" | "C"
 
@@ -308,6 +320,14 @@ export type PotentialHeadroomConfig = DistributionConfig & {
   maxHeadroom: number
 }
 
+export type CareerGrowthCurve = "slow" | "standard" | "fast" | "elite"
+
+export type CareerDeclineCurve = "durable" | "standard" | "early" | "steep"
+
+export type CareerGrowthCurveWeights = Record<CareerGrowthCurve, number>
+
+export type CareerDeclineCurveWeights = Record<CareerDeclineCurve, number>
+
 export type SkillCorrelation = {
   first: PlayerSkillKey
   second: PlayerSkillKey
@@ -336,6 +356,8 @@ export type PlayerGenerationConfig = {
     potential: PotentialHeadroomConfig
     rating: DistributionConfig
     volatility: DistributionConfig
+    growthCurveWeights: CareerGrowthCurveWeights
+    declineCurveWeights: CareerDeclineCurveWeights
   }
   classification: {
     minPositionFit: number
@@ -356,7 +378,7 @@ export type PlayerPopulationPresetId =
   "initial-roster" | "initial-free-agents" | "draft-class"
 
 export type PlayerPopulationPreset = {
-  version: 1
+  version: 2
   id: PlayerPopulationPresetId
   label: string
   defaultCount: number
@@ -364,11 +386,17 @@ export type PlayerPopulationPreset = {
   config: PlayerGenerationConfig
 }
 
-export type DevelopmentProfile = {
+export type CareerDevelopmentProfile = {
   potential: number
   rating: number
   volatility: number
+  peakAge: number
+  declineStartAge: number
+  growthCurve: CareerGrowthCurve
+  declineCurve: CareerDeclineCurve
 }
+
+export type DevelopmentProfile = CareerDevelopmentProfile
 
 export type PlayerRoleProfile = {
   primaryPosition: PlayerPosition
@@ -386,12 +414,31 @@ export type PlayerProfile = {
   traits: PlayerTrait[]
 }
 
+/**
+ * Persistent, intentionally small market preference data.
+ *
+ * These values are not a general personality model. They are stable inputs
+ * for contract utility so two players can evaluate the same offer differently.
+ */
+export type PlayerMarketProfile = {
+  salaryPriority: number
+  securityPriority: number
+  winningPriority: number
+  rolePriority: number
+  playingTimePriority: number
+  marketSizePriority: number
+  loyalty: number
+  patience: number
+  negotiationBaseline: number
+}
+
 export type PlayerEntity = {
   id: string
   identity: PlayerIdentity
   leagueStatus: PlayerLeagueStatus
   age: number
   profile: PlayerProfile
+  marketPreferences?: PlayerMarketProfile
 }
 
 export type LeagueEventType = "command.completed" | "migration.applied"

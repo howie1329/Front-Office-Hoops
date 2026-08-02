@@ -1,57 +1,55 @@
 # Front Office Hoops — Documentation
 
-Documentation for Front Office Hoops, a simulation-first basketball general-manager game.
+The repository contains two applications. V2 is the active rewrite and
+calibration build; V1 is the existing playable local league application.
 
-## Quick links
-
-| Document | Description |
-| --- | --- |
-| [Vision](./vision.md) | Product goals, principles, and boundaries |
-| [Product Brief](./product-brief.md) | Product audience, promise, scope, current state, and readiness bar |
-| [Architecture](./architecture.md) | Monorepo layout, package boundaries, routes, and data flow |
-| [Simulation Engine](./simulation-engine.md) | Game, season, development, playoff, and offseason behavior |
-| [Data Model](./data-model.md) | Domain types, save shape, and browser persistence |
-| [Contract Offer Market](./contract-offer-market.md) | Player and staff negotiation behavior |
-| [Development](./development.md) | Local setup, scripts, conventions, and tests |
-| [Roadmap](./roadmap.md) | Current implementation status and remaining work |
-
-## v2 planning
-
-The v2 documents are the current rewrite planning set. They supersede v1 assumptions where they conflict, while the v1 documents remain the record of the existing application.
+## Start with V2
 
 | Document | Description |
 | --- | --- |
-| [v2 Product Brief](./v2/specs/foh-v2-product-brief.md) | Approved product direction and first-release scope |
-| [v2 Roadmap](./v2/plans/foh-v2-roadmap.md) | Sequenced rewrite development plan |
-| [v2 Simulation Architecture](./v2/specs/foh-v2-simulation-architecture.md) | Client-first worker, domain, lifecycle, simulation, and economy boundaries |
-| [v2 Data and Export Design](./v2/specs/foh-v2-data-and-export-design.md) | Canonical JSON document, local persistence, events, migrations, and exports |
-| [v2 UI Information Architecture](./v2/specs/foh-v2-ui-information-architecture.md) | Screen inventory, phase actions, tables, and responsive management workflows |
-| [v2 Migration Plan](./v2/plans/foh-v2-migration-plan.md) | v1/v2 coexistence, validation gates, and rollback |
-| [v2 Experiment Backlog](./v2/plans/foh-v2-experiment-backlog.md) | Calibration and architecture experiments ordered by risk |
+| [V2 Current State](./v2/current-state.md) | Implementation matrix, route inventory, package boundaries, and validation snapshot |
+| [V2 Documentation](./v2/README.md) | Ordered V2 documentation navigator |
+| [V2 Roadmap](./v2/plans/foh-v2-roadmap.md) | Delivery sequence and replacement gate |
+| [V2 Lab Strategy](./v2/plans/foh-v2-lab-strategy.md) | Permanent calibration surfaces and promotion rules |
+| [V2 Product Brief](./v2/specs/foh-v2-product-brief.md) | Approved product direction and first-v2 target |
+| [V2 Simulation Architecture](./v2/specs/foh-v2-simulation-architecture.md) | Worker, domain, simulation, persistence, and randomness boundaries |
+| [V2 Data and Export Design](./v2/specs/foh-v2-data-and-export-design.md) | Canonical document, events, validation, and portability |
+| [V2 UI Information Architecture](./v2/specs/foh-v2-ui-information-architecture.md) | Target league shell, management screens, and lab structure |
 
-## Project at a glance
+## V1 reference documentation
 
-- **Web-first and mobile-friendly** — a TanStack Start application with responsive league-office workflows.
-- **Local-first** — simulation and league saves run in the browser using IndexedDB/Dexie.
-- **Simulation-first** — pure, seeded TypeScript logic in `@workspace/sim` owns game and league outcomes.
-- **Front-office depth** — rosters, contracts, cap/tax rules, trades, staff, scouting, draft, re-signing, free agency, development, and history are implemented across the engine and local UI.
-- **Optional future services** — Convex cloud features and Vercel AI SDK narrative features remain planned, not integrated.
+These documents describe the existing playable application and its V1 package
+contracts. They are not V2 implementation guidance.
+
+| Document | Description |
+| --- | --- |
+| [Vision](./vision.md) | Product goals and long-term principles |
+| [Product Brief](./product-brief.md) | V1 audience, promise, scope, and readiness bar |
+| [Architecture](./architecture.md) | V1 monorepo boundaries and data flow |
+| [Simulation Engine](./simulation-engine.md) | V1 game, season, development, and offseason behavior |
+| [Data Model](./data-model.md) | V1 domain types and persistence shape |
+| [Contract Offer Market](./contract-offer-market.md) | V1 player and staff offer resolution |
+| [Development](./development.md) | Setup, conventions, scripts, and tests |
+| [Roadmap](./roadmap.md) | V1 shipped functionality and remaining work |
+| [V1 Current-State Audit](./audits/foh-v1-current-state-audit.md) | Historical V1 repository audit |
 
 ## Repository layout
 
-```
+```text
 Front-Office-Hoops/
-├── apps/web/          # TanStack Start app and UI routes
+├── apps/web/          # Existing playable V1 application
+├── apps/web-v2/       # V2 foundation and developer-lab application
 ├── packages/
-│   ├── db/            # Dexie / IndexedDB persistence
-│   ├── shared/        # Shared domain types and constants
-│   ├── sim/           # Pure simulation engine and Vitest tests
-│   └── ui/            # Shared shadcn/ui components
-└── docs/              # Project documentation
+│   ├── domain-v2/     # V2 entities and report types
+│   ├── league-schema/ # V2 schemas, validation, serialization, migrations
+│   ├── sim-v2/        # V2 simulation modules
+│   ├── calibration/   # V2 seeded labs and benchmark reports
+│   ├── db-v2/         # V2 Dexie/IndexedDB repository
+│   ├── shared/        # V1 shared domain types and constants
+│   ├── sim/           # V1 simulation engine
+│   └── ui/            # Shared UI primitives
+└── docs/              # V1 reference and V2 rewrite documentation
 ```
 
-## Current status
-
-The app supports a full local league lifecycle: create a league, choose a team, simulate the regular season and playoffs, manage the roster and staff, navigate re-signing, draft, and free agency, evaluate trades, advance multiple seasons, and review history. The engine also includes seeded game simulation, player development, injuries, archetypes, scouting uncertainty, contracts, financial AI, draft classes, owner goals, staff lifecycle, and player value models.
-
-See [Roadmap](./roadmap.md) for the shipped foundation, product-readiness work, and longer-term direction.
+Use [V2 Current State](./v2/current-state.md) before relying on any status
+claim elsewhere in the repository.

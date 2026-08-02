@@ -10,6 +10,7 @@ import {
 import {
   createStandardGameSimulationConfig,
   simulateGameMatchup,
+  simulateGameMatchupWithTelemetry,
   validateGameMatchupFixture,
 } from "../src"
 
@@ -25,10 +26,19 @@ function createPlayer(
     leagueStatus: { kind: "rostered", teamId },
   })
   const value = Math.max(20, Math.min(100, ability))
+  const positions = ["PG", "SG", "SF", "PF", "C"] as const
+  const positionIndex = Math.max(0, Number(id.split("-").at(-1) ?? 1) - 1)
+  const primaryPosition = positions[positionIndex % positions.length]
+  const secondaryPosition = positions[(positionIndex + 1) % positions.length]
   return {
     ...player,
     profile: {
       ...player.profile,
+      role: {
+        ...player.profile.role,
+        primaryPosition,
+        secondaryPosition,
+      },
       skills: {
         shooting: value,
         finishing: value,
@@ -76,10 +86,7 @@ function createFixture(
           starters: playerIds.slice(0, 5),
           depthOrder: playerIds,
           targetMinutes: Object.fromEntries(
-            playerIds.map((playerId, index) => [
-              playerId,
-              index < 5 ? 32 : 8,
-            ])
+            playerIds.map((playerId, index) => [playerId, index < 5 ? 32 : 8])
           ),
         },
       ]
@@ -119,6 +126,23 @@ function createFixture(
   }
 }
 
+function average(values: number[]): number {
+  return values.reduce((total, value) => total + value, 0) / values.length
+}
+
+function runSeries(
+  config: GameSimulationConfig,
+  customize?: (fixture: GameMatchupFixture) => void,
+  count = 20
+) {
+  return Array.from({ length: count }, (_, index) => {
+    const fixture = createFixture(structuredClone(config))
+    fixture.seed = "sensitivity-" + (index + 1)
+    customize?.(fixture)
+    return simulateGameMatchup(fixture)
+  })
+}
+
 describe("simulateGameMatchup", () => {
   it("reruns the same seeded fixture exactly", () => {
     const fixture = createFixture()
@@ -128,7 +152,6 @@ describe("simulateGameMatchup", () => {
 
   it("produces periods, box scores, and reconciled totals", () => {
     const result = simulateGameMatchup(createFixture())
-
     expect(result.status).toBe("completed")
     expect(result.periods.length).toBeGreaterThanOrEqual(4)
     expect(result.reconciliation.passed).toBe(true)
@@ -138,6 +161,78 @@ describe("simulateGameMatchup", () => {
         .reduce((sum, player) => sum + player.points, 0)
     )
     expect(result.teams.away?.points).toBeGreaterThan(0)
+  })
+
+  it("keeps foul types and second-chance continuations inside the ledger", () => {
+    let shootingFouls = 0
+    let nonShootingFouls = 0
+    let secondChanceAttempts = 0
+    let secondChancePoints = 0
+
+    for (let index = 0; index < 20; index += 1) {
+      const fixture = createFixture()
+      fixture.seed = `ledger-distributions:${index}`
+      const execution = simulateGameMatchupWithTelemetry(fixture)
+      expect(execution.result.reconciliation.passed).toBe(true)
+      for (const teamId of ["home", "away"] as const) {
+        const team = execution.result.teams[teamId]!
+        const telemetry = execution.telemetry.byTeam[teamId]!
+        const opponentTeamId = teamId === "home" ? "away" : "home"
+        const opponentTelemetry = execution.telemetry.byTeam[opponentTeamId]!
+        expect(team.possessions).toBe(telemetry.possessions)
+        expect(team.freeThrowsAttempted).toBeGreaterThanOrEqual(
+          opponentTelemetry.shootingFouls * 2
+        )
+        expect(team.freeThrowsAttempted).toBeLessThanOrEqual(
+          opponentTelemetry.shootingFouls * 3
+        )
+        shootingFouls += telemetry.shootingFouls
+        nonShootingFouls += telemetry.nonShootingFouls
+        secondChanceAttempts += telemetry.secondChanceAttempts
+        secondChancePoints += telemetry.secondChancePoints
+      }
+    }
+
+    expect(shootingFouls).toBeGreaterThan(0)
+    expect(nonShootingFouls).toBeGreaterThan(0)
+    expect(secondChanceAttempts).toBeGreaterThan(0)
+    expect(secondChancePoints).toBeGreaterThan(0)
+  })
+
+  it("catches final-counter corruption against the possession ledger", () => {
+    const execution = simulateGameMatchupWithTelemetry(createFixture())
+    execution.result.teams.home!.points += 1
+
+    const reconciliation = execution.reconcile()
+
+    expect(reconciliation.passed).toBe(false)
+    expect(
+      reconciliation.checks.find((check) => check.code === "home:ledger-points")
+        ?.passed
+    ).toBe(false)
+  })
+
+  it("records valid five-player lineups across the game clock", () => {
+    const result = simulateGameMatchup(createFixture())
+
+    expect(result.lineupSegments.length).toBeGreaterThan(8)
+    expect(
+      new Set(
+        result.lineupSegments
+          .filter((segment) => segment.teamId === "home")
+          .map((segment) => segment.playerIds.join("|"))
+      ).size
+    ).toBeGreaterThan(1)
+    for (const segment of result.lineupSegments) {
+      expect(segment.playerIds).toHaveLength(5)
+      expect(new Set(segment.playerIds).size).toBe(5)
+      expect(segment.endMinute).toBeGreaterThanOrEqual(segment.startMinute)
+      expect(
+        segment.playerIds.every(
+          (playerId) => result.players[playerId]?.teamId === segment.teamId
+        )
+      ).toBe(true)
+    }
   })
 
   it("lets high-creation stars earn more opportunities without a position cap", () => {
@@ -177,9 +272,9 @@ describe("simulateGameMatchup", () => {
     const diagnostics = validateGameMatchupFixture(fixture)
     const result = simulateGameMatchup(fixture)
 
-    expect(diagnostics.some((entry) => entry.code === "unavailable-starter")).toBe(
-      true
-    )
+    expect(
+      diagnostics.some((entry) => entry.code === "unavailable-starter")
+    ).toBe(true)
     expect(result.status).toBe("rejected")
     expect(result.diagnostics[0]?.message).toContain("unavailable")
   })
@@ -192,11 +287,362 @@ describe("simulateGameMatchup", () => {
       restriction: "minutes-limited",
       minutesLimit: 12,
     }
-    fixture.rotations.home!.starters = ["home-2", "home-3", "home-4", "home-5", "home-6"]
+    fixture.rotations.home!.starters = [
+      "home-2",
+      "home-3",
+      "home-4",
+      "home-5",
+      "home-6",
+    ]
 
     const result = simulateGameMatchup(fixture)
 
     expect(result.status).toBe("completed")
     expect(result.players["home-1"]?.minutes).toBeLessThanOrEqual(12)
+  })
+
+  it("uses rotation adherence to move minutes toward manual targets", () => {
+    const targetMinutes = Object.fromEntries(
+      Object.keys(createFixture().players)
+        .filter((playerId) => playerId.startsWith("home-"))
+        .map((playerId, index) => [playerId, index === 0 ? 42 : 3])
+    )
+    const lowAdherence = createStandardGameSimulationConfig()
+    lowAdherence.rotation.adherence = 0
+    const highAdherence = createStandardGameSimulationConfig()
+    highAdherence.rotation.adherence = 100
+    const lowFixture = createFixture(lowAdherence)
+    const highFixture = createFixture(highAdherence)
+    lowFixture.rotations.home!.targetMinutes = targetMinutes
+    highFixture.rotations.home!.targetMinutes = targetMinutes
+
+    const low = simulateGameMatchup(lowFixture)
+    const high = simulateGameMatchup(highFixture)
+
+    expect(high.players["home-1"]?.minutes).toBeGreaterThan(
+      low.players["home-1"]?.minutes ?? 0
+    )
+    expect(high.reconciliation.passed).toBe(true)
+    expect(low.reconciliation.passed).toBe(true)
+  })
+
+  it("makes transition rate change the early-offense shot proxy", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.offense.transitionRate = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.offense.transitionRate = 100
+    const lowResults = runSeries(lowConfig)
+    const highResults = runSeries(highConfig)
+    const proxy = (result: ReturnType<typeof simulateGameMatchup>) =>
+      Object.values(result.teams).reduce(
+        (total, team) =>
+          total +
+          team.shotProfile.rimAttempts +
+          team.shotProfile.threePointAttempts,
+        0
+      ) /
+      Object.values(result.teams).reduce(
+        (total, team) => total + team.fieldGoalsAttempted,
+        0
+      )
+
+    expect(average(highResults.map(proxy))).toBeGreaterThan(
+      average(lowResults.map(proxy))
+    )
+  })
+
+  it("uses shot-selection discipline when player shot qualities differ", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.offense.shotSelectionDiscipline = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.offense.shotSelectionDiscipline = 100
+    const customize = (fixture: GameMatchupFixture) => {
+      const player = fixture.players["home-1"]!
+      player.profile.skills = {
+        ...player.profile.skills,
+        shooting: 99,
+        finishing: 35,
+        handling: 35,
+        basketballIQ: 95,
+      }
+    }
+    const lowResults = runSeries(lowConfig, customize)
+    const highResults = runSeries(highConfig, customize)
+
+    expect(
+      average(
+        highResults.map((result) => result.teams.home?.offensiveEfficiency ?? 0)
+      )
+    ).toBeGreaterThan(
+      average(
+        lowResults.map((result) => result.teams.home?.offensiveEfficiency ?? 0)
+      )
+    )
+  })
+
+  it("makes double-team pressure affect primary creator turnovers", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.defense.doubleTeamRate = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.defense.doubleTeamRate = 100
+    const lowResults = runSeries(lowConfig)
+    const highResults = runSeries(highConfig)
+
+    expect(
+      average(
+        lowResults.map((result) => result.players["home-1"]?.turnovers ?? 0)
+      )
+    ).toBeLessThan(
+      average(
+        highResults.map((result) => result.players["home-1"]?.turnovers ?? 0)
+      )
+    )
+  })
+
+  it("uses defender fit and stamina to change possession efficiency", () => {
+    const lowDefenseConfig = createStandardGameSimulationConfig()
+    const highDefenseConfig = createStandardGameSimulationConfig()
+    const lowDefense = runSeries(lowDefenseConfig, (fixture) => {
+      for (const playerId of Object.keys(fixture.players).filter((id) =>
+        id.startsWith("away-")
+      )) {
+        fixture.players[playerId]!.profile.skills = {
+          ...fixture.players[playerId]!.profile.skills,
+          defense: 20,
+          basketballIQ: 20,
+        }
+        fixture.players[playerId]!.profile.physical = {
+          ...fixture.players[playerId]!.profile.physical,
+          speed: 25,
+          vertical: 25,
+        }
+      }
+    })
+    const highDefense = runSeries(highDefenseConfig, (fixture) => {
+      for (const playerId of Object.keys(fixture.players).filter((id) =>
+        id.startsWith("away-")
+      )) {
+        fixture.players[playerId]!.profile.skills = {
+          ...fixture.players[playerId]!.profile.skills,
+          defense: 95,
+          basketballIQ: 95,
+        }
+        fixture.players[playerId]!.profile.physical = {
+          ...fixture.players[playerId]!.profile.physical,
+          speed: 95,
+          vertical: 95,
+        }
+      }
+    })
+
+    expect(
+      average(
+        highDefense.map((result) => result.teams.home?.offensiveEfficiency ?? 0)
+      )
+    ).toBeLessThan(
+      average(
+        lowDefense.map((result) => result.teams.home?.offensiveEfficiency ?? 0)
+      )
+    )
+  })
+
+  it("amplifies non-neutral coaching profiles through coaching influence", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.coaching.influence = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.coaching.influence = 100
+    const customize = (fixture: GameMatchupFixture) => {
+      fixture.coaching.home!.pace = 85
+      fixture.coaching.away!.pace = 20
+      fixture.coaching.home!.shotSelection = 85
+      fixture.coaching.away!.shotSelection = 20
+    }
+    const lowResults = runSeries(lowConfig, customize)
+    const highResults = runSeries(highConfig, customize)
+    const possessionGap = (result: ReturnType<typeof simulateGameMatchup>) =>
+      (result.teams.home?.possessions ?? 0) -
+      (result.teams.away?.possessions ?? 0)
+
+    expect(average(highResults.map(possessionGap))).toBeGreaterThan(
+      average(lowResults.map(possessionGap))
+    )
+  })
+
+  it("adds an efficiency edge to home-court advantage", () => {
+    const lowConfig = createStandardGameSimulationConfig()
+    lowConfig.environment.homeCourtAdvantage = 0
+    const highConfig = createStandardGameSimulationConfig()
+    highConfig.environment.homeCourtAdvantage = 100
+    const lowResults = runSeries(lowConfig)
+    const highResults = runSeries(highConfig)
+    const scoreGap = (result: ReturnType<typeof simulateGameMatchup>) =>
+      (result.teams.home?.points ?? 0) - (result.teams.away?.points ?? 0)
+
+    expect(average(highResults.map(scoreGap))).toBeGreaterThan(
+      average(lowResults.map(scoreGap))
+    )
+  })
+
+  it("matches the current single-game characterization", () => {
+    const result = simulateGameMatchup(createFixture())
+
+    expect({
+      status: result.status,
+      periods: result.periods.length,
+      home: {
+        points: result.teams.home?.points,
+        possessions: result.teams.home?.possessions,
+        fieldGoalsMade: result.teams.home?.fieldGoalsMade,
+        fieldGoalsAttempted: result.teams.home?.fieldGoalsAttempted,
+        threePointersMade: result.teams.home?.threePointersMade,
+        threePointersAttempted: result.teams.home?.threePointersAttempted,
+        freeThrowsMade: result.teams.home?.freeThrowsMade,
+        freeThrowsAttempted: result.teams.home?.freeThrowsAttempted,
+        rebounds: result.teams.home?.rebounds,
+        assists: result.teams.home?.assists,
+        turnovers: result.teams.home?.turnovers,
+        steals: result.teams.home?.steals,
+        blocks: result.teams.home?.blocks,
+        fouls: result.teams.home?.fouls,
+      },
+      away: {
+        points: result.teams.away?.points,
+        possessions: result.teams.away?.possessions,
+        fieldGoalsMade: result.teams.away?.fieldGoalsMade,
+        fieldGoalsAttempted: result.teams.away?.fieldGoalsAttempted,
+        threePointersMade: result.teams.away?.threePointersMade,
+        threePointersAttempted: result.teams.away?.threePointersAttempted,
+        freeThrowsMade: result.teams.away?.freeThrowsMade,
+        freeThrowsAttempted: result.teams.away?.freeThrowsAttempted,
+        rebounds: result.teams.away?.rebounds,
+        assists: result.teams.away?.assists,
+        turnovers: result.teams.away?.turnovers,
+        steals: result.teams.away?.steals,
+        blocks: result.teams.away?.blocks,
+        fouls: result.teams.away?.fouls,
+      },
+      topPlayer: {
+        playerId: Object.values(result.players).sort(
+          (left, right) => right.points - left.points
+        )[0]?.playerId,
+        points: Object.values(result.players).sort(
+          (left, right) => right.points - left.points
+        )[0]?.points,
+        opportunities: Object.values(result.players).sort(
+          (left, right) => right.points - left.points
+        )[0]?.opportunities,
+      },
+      reconciliation: result.reconciliation.passed,
+    }).toEqual({
+      status: "completed",
+      periods: 4,
+      home: {
+        points: 119,
+        possessions: 109,
+        fieldGoalsMade: 46,
+        fieldGoalsAttempted: 91,
+        threePointersMade: 12,
+        threePointersAttempted: 30,
+        freeThrowsMade: 15,
+        freeThrowsAttempted: 23,
+        rebounds: 39,
+        assists: 32,
+        turnovers: 14,
+        steals: 10,
+        blocks: 2,
+        fouls: 23,
+      },
+      away: {
+        points: 115,
+        possessions: 103,
+        fieldGoalsMade: 41,
+        fieldGoalsAttempted: 73,
+        threePointersMade: 5,
+        threePointersAttempted: 20,
+        freeThrowsMade: 28,
+        freeThrowsAttempted: 33,
+        rebounds: 38,
+        assists: 32,
+        turnovers: 12,
+        steals: 9,
+        blocks: 1,
+        fouls: 16,
+      },
+      topPlayer: {
+        playerId: "home-2",
+        points: 33,
+        opportunities: 23,
+      },
+      reconciliation: true,
+    })
+  })
+
+  it("preserves box-score accounting invariants", () => {
+    const result = simulateGameMatchup(createFixture())
+    const teamIds = ["home", "away"] as const
+    const playerFields = [
+      "points",
+      "fieldGoalsMade",
+      "fieldGoalsAttempted",
+      "threePointersMade",
+      "threePointersAttempted",
+      "freeThrowsMade",
+      "freeThrowsAttempted",
+      "offensiveRebounds",
+      "defensiveRebounds",
+      "rebounds",
+      "assists",
+      "turnovers",
+      "steals",
+      "blocks",
+      "fouls",
+    ] as const
+
+    expect(result.reconciliation.passed).toBe(true)
+    for (const teamId of teamIds) {
+      const team = result.teams[teamId]!
+      const players = Object.values(result.players).filter(
+        (player) => player.teamId === teamId
+      )
+      const sumPlayerField = (field: (typeof playerFields)[number]) =>
+        players.reduce((total, player) => total + player[field], 0)
+      const periodPoints = result.periods.reduce(
+        (total, period) => total + (period.teamPoints[teamId] ?? 0),
+        0
+      )
+      const shotAttempts =
+        team.shotProfile.rimAttempts +
+        team.shotProfile.midrangeAttempts +
+        team.shotProfile.threePointAttempts
+
+      expect(team.points).toBe(
+        team.fieldGoalsMade * 2 + team.threePointersMade + team.freeThrowsMade
+      )
+      expect(team.fieldGoalsMade).toBeLessThanOrEqual(team.fieldGoalsAttempted)
+      expect(team.threePointersMade).toBeLessThanOrEqual(
+        team.threePointersAttempted
+      )
+      expect(team.threePointersMade).toBeLessThanOrEqual(team.fieldGoalsMade)
+      expect(team.freeThrowsMade).toBeLessThanOrEqual(team.freeThrowsAttempted)
+      expect(team.fieldGoalsAttempted).toBe(shotAttempts)
+      expect(team.shotProfile.threePointAttempts).toBe(
+        team.threePointersAttempted
+      )
+      expect(team.rebounds).toBe(
+        team.offensiveRebounds + team.defensiveRebounds
+      )
+      expect(team.points).toBe(periodPoints)
+      for (const field of playerFields) {
+        expect(team[field]).toBe(sumPlayerField(field))
+      }
+
+      const minutes = players.reduce(
+        (total, player) => total + player.minutes,
+        0
+      )
+      const expectedMinutes =
+        result.periods.reduce((total, period) => total + period.minutes, 0) * 5
+      expect(minutes).toBeCloseTo(expectedMinutes, 0)
+    }
   })
 })

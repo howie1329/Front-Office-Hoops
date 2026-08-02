@@ -1,5 +1,7 @@
 # Front Office Hoops v2 Development Cohorts UI Plan
 
+> Archived on August 1, 2026. The implemented route is now governed by the [Career Cohort Explorer UI Brief](../specs/foh-v2-career-cohort-explorer-ui-brief.md).
+
 **Status:** Implemented UI preview
 **Review date:** 2026-07-29
 **Branch:** `codex/development-cohorts-ui`

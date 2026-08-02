@@ -1,6 +1,8 @@
 # Front Office Hoops v2 Experiment Backlog
 
-Experiments are ordered by risk to the first-v2 product. Each experiment should be independent of the polished UI, use explicit deterministic seeds where reproducibility is required, produce downloadable reports, and retain failed cases as fixtures. The [lab strategy](./foh-v2-lab-strategy.md) maps these experiments to a smaller set of visual surfaces and headless harnesses.
+> Archived on August 1, 2026. The active sequence now lives in the [V2 roadmap](../plans/foh-v2-roadmap.md) and [V2 lab strategy](../plans/foh-v2-lab-strategy.md).
+
+Experiments are ordered by risk to the first-v2 product. Each experiment should be independent of the polished UI, use explicit deterministic seeds where reproducibility is required, produce downloadable reports, and retain failed cases as fixtures. The [lab strategy](../plans/foh-v2-lab-strategy.md) maps these experiments to a smaller set of visual surfaces and headless harnesses.
 
 ## Strategy alignment
 
@@ -62,11 +64,12 @@ Experiments are ordered by risk to the first-v2 product. Each experiment should 
 ## E5 — Production composite and player-value prototype
 
 - **Question:** Can a simple visible universal player value combine current ability and recent production without becoming a master number for every decision?
-- **Hypothesis:** A small weighted model with current ability, simple role-adjusted box-score production, age/trajectory, upside, durability, and bounded scarcity is sufficient for first v2.
-- **Method:** Build two-season production composites from scoring/efficiency, assists/turnovers, rebounding, steals/blocks, games/minutes, and basic role context. Compare value ranks with overall, production, age, health, and simulated team impact.
+- **Hypothesis:** A player-centered, unbounded additive index over a three-season horizon can combine current ability, role-adjusted box-score production, age/trajectory, upside, and durability without becoming a league-relative or contract-specific value.
+- **Method:** Build production composites from two completed seasons as the preferred stable input for the three-season value horizon described in the Hypothesis, using scoring/efficiency, assists/turnovers, rebounding, steals/blocks, games/minutes, and basic role context. Compare value ranks with overall, production, age, health, and simulated team impact.
 - **Output:** Visible value breakdown, calibration report, trade/contract context-modifier contract.
 - **Success:** Value rewards production without rewriting true talent; similar players are ordered plausibly; outliers are explainable.
 - **Failure:** Points-per-game dominates, value oscillates without performance change, or role specialists disappear.
+- **Deferred extension:** Keep playoff production out of the first core value model. Later, evaluate postseason performance as a separate signal for awards, history, reputation, or optional context.
 - **Scope:** 4–6 days.
 - **Dependencies:** E2–E4.
 

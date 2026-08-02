@@ -1,5 +1,8 @@
 # Front Office Hoops v2 UI Information Architecture
 
+**Status:** Target management-shell architecture; current V2 UI is calibration-only<br>
+**Current implementation:** [V2 Current State](../current-state.md)
+
 ## Product shell
 
 V2 uses TanStack Start with a persistent league shell. The shell exposes:
@@ -53,7 +56,11 @@ The dashboard is an action center, not a news feed. It answers what changed, wha
 
 - **Save manager:** local saves, rename, duplicate, delete, backup, import, export, migration preview.
 - **Settings:** standard preset, advanced league-creation settings, exact-value/debug toggles, and resolved configuration.
-- **Developer Labs:** Game, Season, Career, Player Generation, Draft Class, Development, Injury, Contract Market, Trade Market, League Economy, and Baseline AI.
+- **Developer Labs:** Population & Roster, Game & Matchup, Production & Value, Career Cohort, Market & Rules, Draft & Decision, and League Loop.
+
+The current application implements the first five surfaces through six routes:
+Player Generation, Team Assembly, Game & Matchup, Production & Value, Career
+Cohorts, and Market & Rules. Draft & Decision and League Loop are planned.
 
 AI narrative and hosted account screens are later features, not first-v2 requirements.
 

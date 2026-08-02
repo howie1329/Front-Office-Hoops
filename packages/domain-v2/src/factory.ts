@@ -1,8 +1,15 @@
-import type { LeagueDocument, PlayerEntity } from "./types"
+import type {
+  LeagueDocument,
+  PlayerEntity,
+  PlayerMarketProfile,
+} from "./types"
 
 export function createPlayerContractFixture(
   input: Partial<
-    Pick<PlayerEntity, "id" | "identity" | "leagueStatus" | "age">
+    Pick<
+      PlayerEntity,
+      "id" | "identity" | "leagueStatus" | "age" | "marketPreferences"
+    >
   > = {}
 ): PlayerEntity {
   return {
@@ -43,9 +50,26 @@ export function createPlayerContractFixture(
         potential: 82,
         rating: 62,
         volatility: 25,
+        peakAge: 27,
+        declineStartAge: 32,
+        growthCurve: "standard",
+        declineCurve: "standard",
       },
       traits: ["hard-worker"],
     },
+    marketPreferences:
+      input.marketPreferences ??
+      ({
+        salaryPriority: 58,
+        securityPriority: 52,
+        winningPriority: 50,
+        rolePriority: 50,
+        playingTimePriority: 50,
+        marketSizePriority: 45,
+        loyalty: 50,
+        patience: 50,
+        negotiationBaseline: 72,
+      } satisfies PlayerMarketProfile),
   }
 }
 

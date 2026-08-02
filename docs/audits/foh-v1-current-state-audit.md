@@ -1,6 +1,6 @@
 # Front Office Hoops: Current-State Audit
 
-> This is an audit of the v1 repository at the time of review. Product decisions made after the audit are captured in the [FOH v2 Product Brief](../specs/foh-v2-product-brief.md) and [FOH v2 Roadmap](../plans/foh-v2-roadmap.md).
+> This is an audit of the v1 repository at the time of review. Product decisions made after the audit are captured in the [FOH v2 Product Brief](../v2/specs/foh-v2-product-brief.md) and [FOH v2 Roadmap](../v2/plans/foh-v2-roadmap.md).
 
 **Audit date:** 2026-07-28  
 **Scope:** repository behavior, shared data, simulation, lifecycle, persistence, UI, tests, and product documentation.  

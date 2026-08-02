@@ -1,5 +1,8 @@
 # Front Office Hoops v2 Simulation Architecture
 
+**Status:** Target architecture with an implemented foundation and calibration modules<br>
+**Current implementation:** [V2 Current State](../current-state.md)
+
 ## Architecture decision
 
 V2 is a client-first TanStack Start application with no gameplay backend. TanStack Start owns the browser application shell. The simulation engine is pure TypeScript and runs in a Web Worker. IndexedDB/Dexie stores completed snapshots locally. JSON is the portable league contract.
@@ -30,16 +33,21 @@ packages/domain-v2       canonical entities, commands, events, projections
 packages/league-schema   JSON schema, validation, migrations, export profiles
 packages/sim-v2          game, season, player, market, lifecycle simulation
 packages/calibration     seeded labs, benchmark profiles, batch reports
-packages/story-packets   factual narrative inputs for a later release
+future story-packets      factual narrative inputs for a later release; package not yet created
 packages/ui              shadcn/ui primitives and accessible controls
-packages/db              v1 adapter plus v2 Dexie document repository
+packages/db-v2           V2 Dexie document repository
 ```
 
 V2 must not import v1 `LeagueRecord`, v1 valuation functions, v1 phase gates, or v1 game/stat-allocation logic. Safe early sharing is limited to UI primitives, generic formatting, serialization, and utilities after contract tests. A future shared primitive may be extracted only when it has no v1 domain assumptions.
 
 The [lab strategy](../plans/foh-v2-lab-strategy.md) is authoritative for calibration surface boundaries. Visual labs are scenario inspectors over production modules; batch calibration, distribution sweeps, finance rules, career cohorts, and AI policy checks should run headlessly. A lab report or diagnostic fixture is never a second simulation truth.
 
-The current branch is still at the foundation boundary: `LeaguePhase` is `"foundation"`, `SimulationConfig` contains only a preset ID and version, and `LeagueCommand` supports `NoOp` plus a deliberately rejected `AdvanceDay`. The architecture below describes the target contracts, not features that are already implemented.
+The authoritative league runtime is still at the foundation boundary:
+`LeaguePhase` is `"foundation"`, `SimulationConfig` contains only a preset ID
+and version in the foundation document, and `LeagueCommand` supports `NoOp` plus
+a deliberately rejected `AdvanceDay`. The game, season, career, production,
+and market modules are implemented as typed calibration systems, but they have
+not yet been promoted into the authoritative league lifecycle.
 
 ## Worker protocol
 

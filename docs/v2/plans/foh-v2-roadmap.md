@@ -1,12 +1,13 @@
 # Front Office Hoops v2 Roadmap
 
 **Purpose:** sequenced development plan for the first rewrite.  
-**Status:** Phase 0/1 foundations and the initial generation/assembly workbench are complete; calibration acceptance is still incomplete. The next active work is the Game & Matchup Lab, followed by Season Production & Value.
+**Status:** Phase 0/1 foundations and the Phase 2 calibration workbenches are implemented in slices; calibration acceptance and authoritative league integration remain incomplete. The latest active implementation area is Market & Rules.
 **Principle:** build the smallest complete vertical slice only after the contracts and calibration boundaries are clear.
 
 The [V2 lab strategy](./foh-v2-lab-strategy.md) defines the permanent lab surfaces, headless batch harnesses, fixture boundaries, and promotion rules for this roadmap. This roadmap remains the delivery sequence; it does not require a separate visual route for every simulation subsystem.
+The [V2 current state](../current-state.md) is the implementation-status source of truth.
 
-## Current execution position — July 2026
+## Current execution position — August 1, 2026
 
 Completed or substantially complete:
 
@@ -14,13 +15,22 @@ Completed or substantially complete:
 - Phase 1 V2 document, schema, repository, command, and worker foundation.
 - Player-generation and ratings calibration, including correlated profiles, development fields, identities, population presets, league statuses, and deterministic population assembly.
 - Initial player-universe groundwork: 450 rostered players, 100 free agents, 90 draft prospects, and deterministic 30-team roster construction.
+- Initial Game & Matchup engine and worker-backed lab, including rotations, availability, possession simulation, reconciliation, and seeded batch reports.
+- Initial Production & Value season runner, production aggregation, universal player value, and worker-backed lab.
+- Initial Career Cohort harness with development, decline, retirement, matched runs, settings, reports, and explorer UI.
+- Initial Market & Rules implementation with economy, contract demand, offer utility, free-agency simulation, target boards, activity reporting, roster capacity, and cleanup behavior.
 
-The project is currently in Phase 2 calibration. The next two roadmap items are:
+The project is currently in Phase 2 calibration. Existing workbenches are
+available for evidence, but their standard gameplay behavior is not accepted
+until benchmark ranges and promotion gates pass. The immediate sequence is:
 
-1. Game & Matchup Lab: deterministic matchup fixtures, box-score reconciliation, and repeated-game benchmarks.
-2. Season Production & Value Lab: 82-game production aggregation followed by the visible universal player value.
+1. Market & Rules calibration and multi-season economy evidence.
+2. Cross-lab acceptance review for game, production/value, career, and population distributions.
+3. League-creation adapter and the first authoritative lifecycle slice.
 
-The full Phase 3 league shell follows those experiments. The current Player Generation and Team Assembly routes are one upstream Population & Roster workbench, not yet the authoritative league-creation flow. V1 remains runnable while V2 progresses.
+The full Phase 3 league shell follows those gates. The current lab routes are
+fixture and calibration workbenches, not the authoritative league-creation
+flow. V1 remains runnable while V2 progresses.
 
 ## v2 outcome
 
@@ -243,13 +253,18 @@ Only begin these after the first-v2 readiness bar passes:
 
 ## Recommended implementation order for immediate development
 
-The initial three slices are now complete or underway as follows:
+The initial implementation slices are now complete or underway as follows:
 
 1. **V2 document/worker/repository fixture:** complete.
 2. **Population & Roster workbench:** implemented as a deterministic upstream fixture source; distributional acceptance and authoritative league embedding remain open.
-3. **Game & Matchup Lab:** next, followed by Season Production & Value and then the first in-season vertical slice.
+3. **Game & Matchup, Production & Value, and Career Cohort:** initial worker-backed slices implemented; calibration acceptance remains open.
+4. **Market & Rules:** active implementation and calibration; league integration remains open.
+5. **Authoritative league shell:** next product gate after cross-lab acceptance.
 
-Do not build the full league shell until the game and production/value calibration boundaries have accepted ranges and a validated league-creation adapter exists. A thin developer fixture may be used by experiments, but authoritative league creation remains a Phase 3 deliverable.
+Do not build the full league shell until the game, production/value, career,
+population, and market calibration boundaries have accepted ranges and a
+validated league-creation adapter exists. A thin developer fixture may be used
+by experiments, but authoritative league creation remains a Phase 3 deliverable.
 
 Do not begin with the full dashboard, advanced cap, AI narrative, or polished transaction screens. Their contracts depend on the calibrated model.
 

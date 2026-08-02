@@ -12,8 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as DeveloperLabsRouteImport } from './routes/developer-labs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DeveloperLabsTeamAssemblyRouteImport } from './routes/developer-labs.team-assembly'
+import { Route as DeveloperLabsProductionValueRouteImport } from './routes/developer-labs.production-value'
 import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
+import { Route as DeveloperLabsMarketRulesRouteImport } from './routes/developer-labs.market-rules'
 import { Route as DeveloperLabsGameMatchupRouteImport } from './routes/developer-labs.game-matchup'
+import { Route as DeveloperLabsDraftDecisionRouteImport } from './routes/developer-labs.draft-decision'
 import { Route as DeveloperLabsDevelopmentCohortsRouteImport } from './routes/developer-labs.development-cohorts'
 
 const DeveloperLabsRoute = DeveloperLabsRouteImport.update({
@@ -32,16 +35,34 @@ const DeveloperLabsTeamAssemblyRoute =
     path: '/team-assembly',
     getParentRoute: () => DeveloperLabsRoute,
   } as any)
+const DeveloperLabsProductionValueRoute =
+  DeveloperLabsProductionValueRouteImport.update({
+    id: '/production-value',
+    path: '/production-value',
+    getParentRoute: () => DeveloperLabsRoute,
+  } as any)
 const DeveloperLabsPlayerGenerationRoute =
   DeveloperLabsPlayerGenerationRouteImport.update({
     id: '/player-generation',
     path: '/player-generation',
     getParentRoute: () => DeveloperLabsRoute,
   } as any)
+const DeveloperLabsMarketRulesRoute =
+  DeveloperLabsMarketRulesRouteImport.update({
+    id: '/market-rules',
+    path: '/market-rules',
+    getParentRoute: () => DeveloperLabsRoute,
+  } as any)
 const DeveloperLabsGameMatchupRoute =
   DeveloperLabsGameMatchupRouteImport.update({
     id: '/game-matchup',
     path: '/game-matchup',
+    getParentRoute: () => DeveloperLabsRoute,
+  } as any)
+const DeveloperLabsDraftDecisionRoute =
+  DeveloperLabsDraftDecisionRouteImport.update({
+    id: '/draft-decision',
+    path: '/draft-decision',
     getParentRoute: () => DeveloperLabsRoute,
   } as any)
 const DeveloperLabsDevelopmentCohortsRoute =
@@ -55,16 +76,22 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
+  '/developer-labs/draft-decision': typeof DeveloperLabsDraftDecisionRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
+  '/developer-labs/market-rules': typeof DeveloperLabsMarketRulesRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
+  '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
+  '/developer-labs/draft-decision': typeof DeveloperLabsDraftDecisionRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
+  '/developer-labs/market-rules': typeof DeveloperLabsMarketRulesRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
+  '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRoutesById {
@@ -72,8 +99,11 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
+  '/developer-labs/draft-decision': typeof DeveloperLabsDraftDecisionRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
+  '/developer-labs/market-rules': typeof DeveloperLabsMarketRulesRoute
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
+  '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
 }
 export interface FileRouteTypes {
@@ -82,24 +112,33 @@ export interface FileRouteTypes {
     | '/'
     | '/developer-labs'
     | '/developer-labs/development-cohorts'
+    | '/developer-labs/draft-decision'
     | '/developer-labs/game-matchup'
+    | '/developer-labs/market-rules'
     | '/developer-labs/player-generation'
+    | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/developer-labs'
     | '/developer-labs/development-cohorts'
+    | '/developer-labs/draft-decision'
     | '/developer-labs/game-matchup'
+    | '/developer-labs/market-rules'
     | '/developer-labs/player-generation'
+    | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
   id:
     | '__root__'
     | '/'
     | '/developer-labs'
     | '/developer-labs/development-cohorts'
+    | '/developer-labs/draft-decision'
     | '/developer-labs/game-matchup'
+    | '/developer-labs/market-rules'
     | '/developer-labs/player-generation'
+    | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +170,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeveloperLabsTeamAssemblyRouteImport
       parentRoute: typeof DeveloperLabsRoute
     }
+    '/developer-labs/production-value': {
+      id: '/developer-labs/production-value'
+      path: '/production-value'
+      fullPath: '/developer-labs/production-value'
+      preLoaderRoute: typeof DeveloperLabsProductionValueRouteImport
+      parentRoute: typeof DeveloperLabsRoute
+    }
     '/developer-labs/player-generation': {
       id: '/developer-labs/player-generation'
       path: '/player-generation'
@@ -138,11 +184,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeveloperLabsPlayerGenerationRouteImport
       parentRoute: typeof DeveloperLabsRoute
     }
+    '/developer-labs/market-rules': {
+      id: '/developer-labs/market-rules'
+      path: '/market-rules'
+      fullPath: '/developer-labs/market-rules'
+      preLoaderRoute: typeof DeveloperLabsMarketRulesRouteImport
+      parentRoute: typeof DeveloperLabsRoute
+    }
     '/developer-labs/game-matchup': {
       id: '/developer-labs/game-matchup'
       path: '/game-matchup'
       fullPath: '/developer-labs/game-matchup'
       preLoaderRoute: typeof DeveloperLabsGameMatchupRouteImport
+      parentRoute: typeof DeveloperLabsRoute
+    }
+    '/developer-labs/draft-decision': {
+      id: '/developer-labs/draft-decision'
+      path: '/draft-decision'
+      fullPath: '/developer-labs/draft-decision'
+      preLoaderRoute: typeof DeveloperLabsDraftDecisionRouteImport
       parentRoute: typeof DeveloperLabsRoute
     }
     '/developer-labs/development-cohorts': {
@@ -157,15 +217,21 @@ declare module '@tanstack/react-router' {
 
 interface DeveloperLabsRouteChildren {
   DeveloperLabsDevelopmentCohortsRoute: typeof DeveloperLabsDevelopmentCohortsRoute
+  DeveloperLabsDraftDecisionRoute: typeof DeveloperLabsDraftDecisionRoute
   DeveloperLabsGameMatchupRoute: typeof DeveloperLabsGameMatchupRoute
+  DeveloperLabsMarketRulesRoute: typeof DeveloperLabsMarketRulesRoute
   DeveloperLabsPlayerGenerationRoute: typeof DeveloperLabsPlayerGenerationRoute
+  DeveloperLabsProductionValueRoute: typeof DeveloperLabsProductionValueRoute
   DeveloperLabsTeamAssemblyRoute: typeof DeveloperLabsTeamAssemblyRoute
 }
 
 const DeveloperLabsRouteChildren: DeveloperLabsRouteChildren = {
   DeveloperLabsDevelopmentCohortsRoute: DeveloperLabsDevelopmentCohortsRoute,
+  DeveloperLabsDraftDecisionRoute: DeveloperLabsDraftDecisionRoute,
   DeveloperLabsGameMatchupRoute: DeveloperLabsGameMatchupRoute,
+  DeveloperLabsMarketRulesRoute: DeveloperLabsMarketRulesRoute,
   DeveloperLabsPlayerGenerationRoute: DeveloperLabsPlayerGenerationRoute,
+  DeveloperLabsProductionValueRoute: DeveloperLabsProductionValueRoute,
   DeveloperLabsTeamAssemblyRoute: DeveloperLabsTeamAssemblyRoute,
 }
 

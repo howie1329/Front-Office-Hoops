@@ -1,6 +1,8 @@
 import type {
   NumericRange,
   PlayerEntity,
+  CareerDeclineCurve,
+  CareerGrowthCurve,
   PlayerGenerationConfig,
   PlayerIdentity,
   PlayerLeagueStatus,
@@ -12,6 +14,7 @@ import { STANDARD_PLAYER_GENERATION_CONFIG } from "@workspace/domain-v2"
 import type { RandomSource } from "./randomness"
 import { derivePlayerRole } from "./playerRole"
 import type { PlayerRoleDiagnostics } from "./playerRole"
+import { createDefaultPlayerMarketProfile } from "./playerMarketProfile"
 
 export type PlayerGenerationInput = {
   id: string
@@ -29,6 +32,15 @@ export type PlayerGenerationDiagnostics = {
   currentAbility: number
   potentialBase: number
   potentialUpside: number
+  potentialHeadroom: number
+  careerTiming: {
+    peakAge: number
+    declineStartAge: number
+  }
+  careerCurves: {
+    growthCurve: CareerGrowthCurve
+    declineCurve: CareerDeclineCurve
+  }
   rawSkills: PlayerSkills
   role: PlayerRoleDiagnostics
 }
@@ -168,6 +180,79 @@ function getSkillsCurrentAbility(skills: PlayerSkills): number {
   return Math.round(total / playerSkillKeys.length)
 }
 
+function drawCareerTiming(
+  random: RandomSource,
+  age: number,
+  developmentRating: number,
+  volatility: number
+): { peakAge: number; declineStartAge: number } {
+  const timingRandom = random.fork("career-timing")
+  const peakAge = Math.max(
+    age,
+    Math.min(
+      45,
+      Math.max(
+        22,
+        Math.round(
+          timingRandom.normal(26 + (developmentRating - 50) * 0.015, 2.8)
+        )
+      )
+    )
+  )
+  const declineGap = Math.max(
+    2,
+    Math.round(timingRandom.normal(6 - volatility * 0.012, 1.8))
+  )
+
+  return {
+    peakAge,
+    declineStartAge: Math.max(peakAge + 1, Math.min(50, peakAge + declineGap)),
+  }
+}
+
+function drawWeightedCurve<T extends string>(
+  random: RandomSource,
+  weights: Record<T, number>,
+  label: string
+): T {
+  const entries = Object.entries(weights) as Array<[T, number]>
+  const totalWeight = entries.reduce((sum, [, weight]) => sum + weight, 0)
+
+  if (totalWeight <= 0) {
+    throw new Error(`Career ${label} curve weights must total more than zero.`)
+  }
+
+  let remaining = random.next() * totalWeight
+  for (const [curve, weight] of entries) {
+    remaining -= weight
+    if (remaining < 0) {
+      return curve
+    }
+  }
+
+  return entries[entries.length - 1]![0]
+}
+
+function drawCareerCurves(
+  random: RandomSource,
+  config: PlayerGenerationConfig
+): { growthCurve: CareerGrowthCurve; declineCurve: CareerDeclineCurve } {
+  const curvesRandom = random.fork("career-curves")
+
+  return {
+    growthCurve: drawWeightedCurve(
+      curvesRandom.fork("growth"),
+      config.development.growthCurveWeights,
+      "growth"
+    ),
+    declineCurve: drawWeightedCurve(
+      curvesRandom.fork("decline"),
+      config.development.declineCurveWeights,
+      "decline"
+    ),
+  }
+}
+
 export function getPlayerCurrentAbility(
   player: Pick<PlayerEntity, "profile">
 ): number {
@@ -184,6 +269,7 @@ export function generatePlayerWithDiagnostics(
   const skillRandom = random.fork("skills")
   const developmentRandom = random.fork("development")
   const traitRandom = random.fork("traits")
+  const marketRandom = random.fork("market-preferences")
   const age =
     input.age ??
     random.int(Math.ceil(config.age.min), Math.floor(config.age.max))
@@ -308,6 +394,13 @@ export function generatePlayerWithDiagnostics(
       config.development.volatility.spread
     ),
   }
+  const careerTiming = drawCareerTiming(
+    developmentRandom,
+    age,
+    development.rating,
+    development.volatility
+  )
+  const careerCurves = drawCareerCurves(developmentRandom, config)
   const roleResult = derivePlayerRole({ physical, skills }, config)
 
   const player: PlayerEntity = {
@@ -328,9 +421,14 @@ export function generatePlayerWithDiagnostics(
         60,
         14
       ),
-      development,
+      development: {
+        ...development,
+        ...careerTiming,
+        ...careerCurves,
+      },
       traits: drawTraits(traitRandom, config),
     },
+    marketPreferences: createDefaultPlayerMarketProfile(marketRandom),
   }
 
   return {
@@ -341,6 +439,9 @@ export function generatePlayerWithDiagnostics(
       currentAbility,
       potentialBase,
       potentialUpside,
+      potentialHeadroom: potential - currentAbility,
+      careerTiming,
+      careerCurves,
       rawSkills,
       role: roleResult.diagnostics,
     },

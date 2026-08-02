@@ -9,7 +9,12 @@ import type {
   PlayerPosition,
 } from "@workspace/domain-v2"
 import {
+  gameMatchupFixtureSchema,
+  gameResultSchema,
+} from "@workspace/league-schema"
+import {
   createStandardGameSimulationConfig,
+  GAME_SIMULATION_VERSION,
   generateInitialPlayerUniverse,
   getPlayerCurrentAbility,
   STANDARD_INITIAL_PLAYER_UNIVERSE_CONFIG,
@@ -17,7 +22,7 @@ import {
 } from "@workspace/sim-v2"
 import type { InitialPlayerUniverse } from "@workspace/sim-v2"
 
-export const GAME_MATCHUP_LAB_REPORT_VERSION = 1
+export const GAME_MATCHUP_LAB_REPORT_VERSION = 2
 export const GAME_MATCHUP_LAB_TEAM_IDS = ["team-01", "team-02"] as const
 
 export type GameMatchupLabOptions = {
@@ -34,6 +39,46 @@ export type GameMatchupLabReport = {
   result: GameResult
 }
 
+type JsonRecord = Record<string, unknown>
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+export function migrateGameMatchupLabReport(
+  payload: unknown
+): GameMatchupLabReport {
+  if (!isJsonRecord(payload) || payload.schema !== "foh-game-matchup-lab") {
+    throw new Error("Game matchup report has an invalid schema identifier.")
+  }
+  if (
+    payload.version !== 1 &&
+    payload.version !== GAME_MATCHUP_LAB_REPORT_VERSION
+  ) {
+    throw new Error(
+      `Unsupported game matchup report version: ${String(payload.version)}.`
+    )
+  }
+  if (!isJsonRecord(payload.result)) {
+    throw new Error("Game matchup report is missing a result object.")
+  }
+
+  const migratedResult = {
+    ...payload.result,
+    version: GAME_SIMULATION_VERSION,
+    ...(payload.result.lineupSegments === undefined
+      ? { lineupSegments: [] }
+      : {}),
+  }
+
+  return {
+    schema: "foh-game-matchup-lab",
+    version: GAME_MATCHUP_LAB_REPORT_VERSION,
+    fixture: gameMatchupFixtureSchema.parse(payload.fixture),
+    result: gameResultSchema.parse(migratedResult),
+  }
+}
+
 const positions: Array<PlayerPosition> = ["PG", "SG", "SF", "PF", "C"]
 
 function getTeamName(teamId: string): string {
@@ -43,7 +88,10 @@ function getTeamName(teamId: string): string {
     : teamId
 }
 
-function isPositionEligible(player: PlayerEntity, position: PlayerPosition): boolean {
+function isPositionEligible(
+  player: PlayerEntity,
+  position: PlayerPosition
+): boolean {
   return (
     player.profile.role.primaryPosition === position ||
     player.profile.role.secondaryPosition === position
@@ -174,9 +222,7 @@ export function getGameMatchupLabPlayerName(
   return formatPlayerIdentity(fixture.players[playerId].identity) ?? playerId
 }
 
-export function runGameMatchupLab(
-  fixture: GameMatchupFixture
-): GameResult {
+export function runGameMatchupLab(fixture: GameMatchupFixture): GameResult {
   return simulateGameMatchup(fixture)
 }
 
