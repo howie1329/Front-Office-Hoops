@@ -14,11 +14,16 @@ import { HugeiconsIcon } from "@hugeicons/react"
 
 import type { LeagueDocument, LeagueScheduleEntry } from "@workspace/domain-v2"
 import { V2LeagueRepository } from "@workspace/db-v2"
-import { getPlayerCurrentAbility } from "@workspace/sim-v2"
+import {
+  getLifecycleActionState,
+  getPlayerCurrentAbility,
+} from "@workspace/sim-v2"
+import type { LifecycleActionState } from "@workspace/sim-v2"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,6 +61,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Skeleton } from "@/components/ui/skeleton"
+import { runAndCommitLeagueCommand } from "@/lib/leagueLifecycle"
 
 export const Route = createFileRoute("/league/")({
   component: LeagueShellPage,
@@ -170,6 +176,18 @@ const MIN_SIDEBAR_WIDTH = 208
 const MAX_SIDEBAR_WIDTH = 296
 const SIDEBAR_WIDTH_STORAGE_KEY = "foh-v2-sidebar-width"
 
+type SimulationControlProps = {
+  advanceAction: LifecycleActionState
+  isSimulating: boolean
+  onAdvanceDay: () => void
+}
+
+type SimulationProgress = {
+  completed: number
+  total?: number
+  label: string
+}
+
 function clampSidebarWidth(width: number): number {
   return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width))
 }
@@ -268,12 +286,15 @@ function DashboardSidebar({
   teamId,
   width,
   onWidthChange,
+  advanceAction,
+  isSimulating,
+  onAdvanceDay,
 }: {
   league: LeagueDocument
   teamId: string
   width: number
   onWidthChange: (width: number) => void
-}) {
+} & SimulationControlProps) {
   const team = league.entities.teams[teamId]
   const { conference, division } = getDivisionAndConference(league, teamId)
   const teamMark = team.name.slice(0, 2).toUpperCase()
@@ -414,16 +435,23 @@ function DashboardSidebar({
       <SidebarFooter className="gap-3 border-t border-border px-4 py-3">
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-muted-foreground/50" />
-          <span className="truncate">Simulation worker connecting</span>
+          <span className="truncate">
+            {isSimulating
+              ? "Simulation running"
+              : advanceAction.enabled
+                ? "Simulation ready"
+                : "Simulation paused"}
+          </span>
         </div>
         <Button
           type="button"
           size="sm"
           className="h-8 w-full justify-between"
-          disabled
-          title="Advance day will be enabled with the lifecycle worker."
+          disabled={isSimulating || !advanceAction.enabled}
+          title={advanceAction.reason}
+          onClick={onAdvanceDay}
         >
-          Advance day
+          {isSimulating ? "Simulating…" : advanceAction.label}
           <HugeiconsIcon icon={ArrowRight01Icon} size={15} strokeWidth={2} aria-hidden="true" />
         </Button>
         <Link
@@ -439,7 +467,12 @@ function DashboardSidebar({
   )
 }
 
-function MobileDashboardHeader({ league }: { league: LeagueDocument }) {
+function MobileDashboardHeader({
+  league,
+  advanceAction,
+  isSimulating,
+  onAdvanceDay,
+}: { league: LeagueDocument } & SimulationControlProps) {
   return (
     <div className="border-b border-border px-5 py-4 lg:hidden">
       <div className="flex items-center justify-between gap-4">
@@ -469,17 +502,23 @@ function MobileDashboardHeader({ league }: { league: LeagueDocument }) {
         <Button
           type="button"
           size="sm"
-          disabled
-          title="Coming with the lifecycle worker."
+          disabled={isSimulating || !advanceAction.enabled}
+          title={advanceAction.reason}
+          onClick={onAdvanceDay}
         >
-          Advance day
+          {isSimulating ? "Simulating…" : advanceAction.label}
         </Button>
       </div>
     </div>
   )
 }
 
-function CommandHeader({ league }: { league: LeagueDocument }) {
+function CommandHeader({
+  league,
+  advanceAction,
+  isSimulating,
+  onAdvanceDay,
+}: { league: LeagueDocument } & SimulationControlProps) {
   return (
     <header className="border-b border-border px-5 py-4 sm:px-8 lg:px-10">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -499,10 +538,11 @@ function CommandHeader({ league }: { league: LeagueDocument }) {
           <Button
             type="button"
             size="sm"
-            disabled
-            title="Coming with the lifecycle worker."
+            disabled={isSimulating || !advanceAction.enabled}
+            title={advanceAction.reason}
+            onClick={onAdvanceDay}
           >
-            Advance day
+            {isSimulating ? "Simulating…" : advanceAction.label}
           </Button>
           <Button
             type="button"
@@ -848,6 +888,12 @@ function LeagueShellPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [sidebarWidth, setSidebarWidth] = React.useState(DEFAULT_SIDEBAR_WIDTH)
   const [isSidebarWidthHydrated, setIsSidebarWidthHydrated] = React.useState(false)
+  const [isSimulating, setIsSimulating] = React.useState(false)
+  const [simulationProgress, setSimulationProgress] =
+    React.useState<SimulationProgress | null>(null)
+  const [simulationError, setSimulationError] = React.useState<string | null>(
+    null
+  )
 
   React.useEffect(() => {
     try {
@@ -895,6 +941,59 @@ function LeagueShellPage() {
       active = false
     }
   }, [saveId])
+
+  async function handleAdvanceDay() {
+    if (!league || isSimulating) return
+
+    const action = getLifecycleActionState(league, "advance-day")
+    if (!action.enabled) return
+
+    const commandId = `command:advance-day:${crypto.randomUUID()}`
+    setIsSimulating(true)
+    setSimulationError(null)
+    setSimulationProgress({
+      completed: 0,
+      total: 1,
+      label: "Simulating the current calendar day…",
+    })
+
+    try {
+      const result = await runAndCommitLeagueCommand(
+        {
+          requestId: `request:${crypto.randomUUID()}`,
+          command: { type: "AdvanceDay", commandId },
+          league,
+        },
+        repository
+      )
+
+      if (result.status !== "completed" || !result.league) {
+        setSimulationProgress(null)
+        setSimulationError(
+          result.reason?.message ?? "The simulation could not be completed."
+        )
+        return
+      }
+
+      setLeague(result.league)
+      setSimulationProgress(
+        result.progress ?? {
+          completed: 1,
+          total: 1,
+          label: "Calendar advanced.",
+        }
+      )
+    } catch (caughtError) {
+      setSimulationProgress(null)
+      setSimulationError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "The simulation could not be completed."
+      )
+    } finally {
+      setIsSimulating(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -966,6 +1065,7 @@ function LeagueShellPage() {
     rank: 0,
   }
   const nextGames = getNextGames(league, teamId)
+  const advanceAction = getLifecycleActionState(league, "advance-day")
 
   return (
     <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
@@ -977,10 +1077,54 @@ function LeagueShellPage() {
           teamId={teamId}
           width={sidebarWidth}
           onWidthChange={setSidebarWidth}
+          advanceAction={advanceAction}
+          isSimulating={isSimulating}
+          onAdvanceDay={() => void handleAdvanceDay()}
         />
         <SidebarInset>
-          <MobileDashboardHeader league={league} />
-          <CommandHeader league={league} />
+          <MobileDashboardHeader
+            league={league}
+            advanceAction={advanceAction}
+            isSimulating={isSimulating}
+            onAdvanceDay={() => void handleAdvanceDay()}
+          />
+          <CommandHeader
+            league={league}
+            advanceAction={advanceAction}
+            isSimulating={isSimulating}
+            onAdvanceDay={() => void handleAdvanceDay()}
+          />
+
+          {(isSimulating || simulationProgress || simulationError) && (
+            <div className="border-b border-border px-5 py-3 sm:px-8 lg:px-10">
+              {simulationError ? (
+                <Alert variant="destructive">
+                  <AlertDescription>{simulationError}</AlertDescription>
+                </Alert>
+              ) : (
+                <div className="grid gap-2" role="status" aria-live="polite">
+                  <div className="flex items-center justify-between gap-4 text-xs text-muted-foreground">
+                    <span>{simulationProgress?.label ?? "Simulation running…"}</span>
+                    {simulationProgress?.total ? (
+                      <span className="tabular-nums">
+                        {simulationProgress.completed}/{simulationProgress.total}
+                      </span>
+                    ) : null}
+                  </div>
+                  <Progress
+                    value={
+                      simulationProgress?.total
+                        ? (simulationProgress.completed /
+                            simulationProgress.total) *
+                          100
+                        : 0
+                    }
+                    aria-label="Simulation progress"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="mx-auto w-full max-w-[96rem] px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
             <div className="mb-8 flex flex-wrap items-end justify-between gap-4">

@@ -501,7 +501,12 @@ export type PlayerEntity = {
   marketPreferences?: PlayerMarketProfile
 }
 
-export type LeagueEventType = "command.completed" | "migration.applied"
+export type LeagueEventType =
+  | "calendar.advanced"
+  | "command.completed"
+  | "game.completed"
+  | "injury.recorded"
+  | "migration.applied"
 
 export type LeagueEvent = {
   id: string
@@ -563,7 +568,7 @@ export type LeagueDocument = {
     offers: Record<string, JsonRecord>
   }
   projections: {
-    standings: JsonRecord[]
+    standings: LeagueStanding[]
     payroll: JsonRecord[]
   }
   history: {
@@ -572,11 +577,27 @@ export type LeagueDocument = {
     records: JsonRecord[]
   }
   optionalData?: {
-    games?: JsonRecord[]
+    games?: LeagueGameRecord[]
     playerGameLogs?: JsonRecord[]
     labDiagnostics?: JsonRecord[]
     scoutingDiagnostics?: JsonRecord[]
   }
+}
+
+export type LeagueGameRecord = {
+  scheduleId: string
+  season: number
+  date: string
+  kind: LeagueGameKind
+  result: GameResult
+}
+
+export type LeagueStanding = {
+  teamId: string
+  wins: number
+  losses: number
+  gamesPlayed?: number
+  pointDifferential?: number
 }
 
 export type LeagueCommand =
@@ -586,6 +607,23 @@ export type LeagueCommand =
     }
   | {
       type: "AdvanceDay"
+      commandId: string
+    }
+  | {
+      type: "SimulateToNextGame"
+      commandId: string
+    }
+  | {
+      type: "SimulateToDate"
+      commandId: string
+      targetDate: string
+    }
+  | {
+      type: "SimulateToDeadline"
+      commandId: string
+    }
+  | {
+      type: "SimulateToRegularSeasonEnd"
       commandId: string
     }
   | {

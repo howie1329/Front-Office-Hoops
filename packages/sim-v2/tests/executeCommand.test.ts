@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { createFoundationLeague } from "@workspace/domain-v2"
+import { validateLeagueDocument } from "@workspace/league-schema"
 
 import { createLeague, executeLeagueCommand } from "../src"
 
@@ -21,7 +22,7 @@ describe("executeLeagueCommand", () => {
     })
   })
 
-  it("rejects commands that are outside the foundation slice", () => {
+  it("rejects lifecycle commands outside the regular-season phase", () => {
     const result = executeLeagueCommand({
       requestId: "request-2",
       command: { type: "AdvanceDay", commandId: "command-2" },
@@ -29,7 +30,69 @@ describe("executeLeagueCommand", () => {
     })
 
     expect(result.status).toBe("rejected")
-    expect(result.reason?.code).toBe("command_not_implemented")
+    expect(result.reason?.code).toBe("phase_command_blocked")
+  })
+
+  it("advances the current calendar day through the game simulation", () => {
+    const league = createLeague({
+      id: "league-advance-day",
+      name: "Advance Day League",
+      seed: "advance-day-seed",
+      mode: "deterministic-lab",
+      createdWithEntropy: false,
+      now: "2026-08-02T00:00:00.000Z",
+    }).document
+
+    const result = executeLeagueCommand({
+      requestId: "request-advance-day",
+      command: { type: "AdvanceDay", commandId: "command-advance-day" },
+      league,
+    })
+
+    expect(result.status).toBe("completed")
+    expect(result.league).toBeDefined()
+    expect(result.progress?.completed).toBeGreaterThan(0)
+    expect(result.league?.state.calendar.currentDate).toBe("2026-10-22")
+    expect(result.league?.state.leagueDay).toBe(1)
+    expect(result.league?.optionalData?.games).toHaveLength(
+      result.progress?.completed ?? 0
+    )
+    expect(
+      result.league?.history.events.some(
+        (event) => event.type === "game.completed"
+      )
+    ).toBe(true)
+    expect(validateLeagueDocument(result.league)).toMatchObject({ valid: true })
+  })
+
+  it("advances a calendar date even when no games are scheduled", () => {
+    const league = createLeague({
+      id: "league-empty-date",
+      name: "Empty Date League",
+      seed: "empty-date-seed",
+      mode: "deterministic-lab",
+      createdWithEntropy: false,
+      now: "2026-08-02T00:00:00.000Z",
+    }).document
+    const gapLeague = structuredClone(league)
+    gapLeague.state.calendar.schedule = gapLeague.state.calendar.schedule.map(
+      (entry) =>
+        entry.kind === "regular-season" && entry.date === "2026-10-21"
+          ? { ...entry, date: "2026-10-22" }
+          : entry
+    )
+
+    const result = executeLeagueCommand({
+      requestId: "request-empty-date",
+      command: { type: "AdvanceDay", commandId: "command-empty-date" },
+      league: gapLeague,
+    })
+
+    expect(result.status).toBe("completed")
+    expect(result.progress).toMatchObject({ completed: 0, total: 0 })
+    expect(result.league?.state.calendar.currentDate).toBe(
+      "2026-10-22"
+    )
   })
 
   it("records the selected team on a generated league", () => {

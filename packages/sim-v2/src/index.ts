@@ -1,5 +1,10 @@
 export { executeLeagueCommand } from "./executeCommand"
 export {
+  advanceLeagueDay,
+  getLifecycleActionState,
+  LifecycleCommandError,
+} from "./lifecycle"
+export {
   createLeague,
   LEAGUE_CREATION_VERSION,
   LEAGUE_TEAM_COUNT,
@@ -143,6 +148,11 @@ export type {
 } from "./gameSimulation"
 export type { PlayerPopulationContextKind } from "@workspace/domain-v2"
 export type { WorkerRequest, WorkerResult } from "./protocol"
+export type {
+  LifecycleActionId,
+  LifecycleActionState,
+  LifecycleAdvanceResult,
+} from "./lifecycle"
 export type {
   LeagueCreationInput,
   LeagueCreationResult,

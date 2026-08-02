@@ -354,7 +354,13 @@ export const gameMatchupFixtureSchema = z.strictObject({
 
 const eventSchema = z.strictObject({
   id: z.string().min(1),
-  type: z.enum(["command.completed", "migration.applied"]),
+  type: z.enum([
+    "calendar.advanced",
+    "command.completed",
+    "game.completed",
+    "injury.recorded",
+    "migration.applied",
+  ]),
   season: z.number().int().nonnegative(),
   phase: z.enum([
     "foundation",
@@ -394,6 +400,14 @@ const leagueScheduleEntrySchema = z.strictObject({
   homeTeamId: z.string().min(1),
   awayTeamId: z.string().min(1),
   status: z.enum(["scheduled", "completed", "cancelled"]),
+})
+
+const leagueStandingSchema = z.strictObject({
+  teamId: z.string().min(1),
+  wins: z.number().int().nonnegative(),
+  losses: z.number().int().nonnegative(),
+  gamesPlayed: z.number().int().nonnegative().optional(),
+  pointDifferential: z.number().int().optional(),
 })
 
 const leagueStructureSchema = z.strictObject({
@@ -544,6 +558,20 @@ export const gameResultSchema = z.strictObject({
     passed: z.boolean(),
     checks: z.array(gameReconciliationCheckSchema),
   }),
+})
+
+const leagueGameRecordSchema = z.strictObject({
+  scheduleId: z.string().min(1),
+  season: z.number().int().positive(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  kind: z.enum([
+    "preseason",
+    "regular-season",
+    "play-in",
+    "playoffs",
+    "finals",
+  ]),
+  result: gameResultSchema,
 })
 
 export const gameResultEnvelopeSchema = z.strictObject({
@@ -1474,7 +1502,7 @@ const leagueDocumentShape = z.strictObject({
     offers: z.record(z.string(), jsonRecordSchema),
   }),
   projections: z.strictObject({
-    standings: z.array(jsonRecordSchema),
+    standings: z.array(leagueStandingSchema),
     payroll: z.array(jsonRecordSchema),
   }),
   history: z.strictObject({
@@ -1484,7 +1512,7 @@ const leagueDocumentShape = z.strictObject({
   }),
   optionalData: z
     .strictObject({
-      games: z.array(jsonRecordSchema).optional(),
+      games: z.array(leagueGameRecordSchema).optional(),
       playerGameLogs: z.array(jsonRecordSchema).optional(),
       labDiagnostics: z.array(jsonRecordSchema).optional(),
       scoutingDiagnostics: z.array(jsonRecordSchema).optional(),

@@ -1,6 +1,6 @@
 # Front Office Hoops v2 — Lifecycle and Dashboard Controls Implementation Plan
 
-**Status:** Planned
+**Status:** In progress — first vertical slice implemented
 **Scope:** The first authoritative regular-season lifecycle slice and its dashboard simulation controls.
 **Related:** [Calendar and Season Lifecycle](../specs/foh-v2-calendar-and-season-lifecycle.md), [Simulation Architecture](../specs/foh-v2-simulation-architecture.md), [Dashboard UI Brief](../specs/foh-v2-dashboard-ui-brief.md), [League Lifecycle Implementation Plan](./foh-v2-league-lifecycle-implementation-plan.md)
 
@@ -11,6 +11,9 @@ games, save the result, and see the dashboard update.
 
 This is the first vertical slice connecting the authoritative league document,
 the simulation worker, Dexie persistence, and the dashboard shell.
+
+The initial `AdvanceDay` slice is now implemented. Target-date commands remain
+explicitly blocked until the day-advance path has more coverage.
 
 ## Phase 1 — Define the lifecycle contract
 

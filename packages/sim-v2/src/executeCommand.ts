@@ -1,7 +1,15 @@
-import type { DiagnosticEntry, ValidationIssue } from "@workspace/domain-v2"
+import type {
+  DiagnosticEntry,
+  LeagueCommand,
+  ValidationIssue,
+} from "@workspace/domain-v2"
 import { validateLeagueDocument } from "@workspace/league-schema"
 
 import type { WorkerResult } from "./protocol"
+import {
+  advanceLeagueDay,
+  LifecycleCommandError,
+} from "./lifecycle"
 
 function rejection(
   request: RuntimeWorkerRequest,
@@ -84,7 +92,15 @@ function isRuntimeWorkerRequest(
 }
 
 function isSupportedCommandType(type: string): boolean {
-  return type === "NoOp" || type === "AdvanceDay" || type === "SelectUserTeam"
+  return [
+    "NoOp",
+    "AdvanceDay",
+    "SelectUserTeam",
+    "SimulateToNextGame",
+    "SimulateToDate",
+    "SimulateToDeadline",
+    "SimulateToRegularSeasonEnd",
+  ].includes(type)
 }
 
 function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
@@ -109,12 +125,27 @@ function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
         events: [],
         diagnostics: [],
       }
-    case "AdvanceDay":
-      return rejection(request, {
-        code: "command_not_implemented",
-        message:
-          "AdvanceDay is reserved for the lifecycle implementation phase.",
-      })
+    case "AdvanceDay": {
+      try {
+        const result = advanceLeagueDay(
+          validation.data,
+          request.command as Extract<LeagueCommand, { type: "AdvanceDay" }>
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: result.events,
+          diagnostics: [],
+          progress: result.progress,
+        }
+      } catch (error) {
+        if (error instanceof LifecycleCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
     case "SelectUserTeam": {
       const teamId = (request.command as { teamId?: unknown }).teamId
       if (typeof teamId !== "string" || !teamId) {
@@ -163,6 +194,14 @@ function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
         diagnostics: [],
       }
     }
+    case "SimulateToNextGame":
+    case "SimulateToDate":
+    case "SimulateToDeadline":
+    case "SimulateToRegularSeasonEnd":
+      return rejection(request, {
+        code: "command_not_implemented",
+        message: `${request.command.type} is defined but not enabled yet.`,
+      })
     default:
       return failure(
         request,
