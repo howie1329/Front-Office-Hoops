@@ -2,7 +2,7 @@
 
 **Status:** Active calibration and integration strategy<br>
 **Review date:** August 1, 2026<br>
-**Implementation status:** Five active lab surfaces are implemented in slices; Draft & Decision and League Loop remain planned.
+**Implementation status:** Six active lab surfaces are implemented in slices; Draft & Decision is implemented with board calibration pending; League Loop remains planned.
 
 ## Executive recommendation
 
@@ -19,10 +19,12 @@ The recommended product surface is:
 7. **League Loop Lab** — the integration and failure-reproduction harness for a complete saved league; it is not a second simulation engine.
 
 The current implementation has worker-backed routes for Population & Roster,
-Game & Matchup, Production & Value, Career Cohort, and Market & Rules. The
-latest active calibration area is Market & Rules. The next integration slice is
-cross-lab acceptance followed by a league-creation adapter and authoritative
-lifecycle commands; it is not another standalone visual simulator.
+Game & Matchup, Production & Value, Career Cohort, Market & Rules, and Draft &
+Decision. Draft & Decision now has a versioned expected-value board model and
+matched variance diagnostics; the next gate is calibration acceptance. The
+next integration slice is cross-lab acceptance followed by a league-creation
+adapter and authoritative lifecycle commands; it is not another standalone
+visual simulator.
 
 The first complete simulation engine exists when a generated `LeagueDocument` can run a full regular season, playoffs, simple offseason, and begin the next season with no manual repair. A game benchmark or a season-production report alone is not a complete engine.
 

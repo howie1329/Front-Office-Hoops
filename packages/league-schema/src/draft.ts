@@ -3,6 +3,7 @@ import type { DraftDecisionResult, DraftDecisionExportProfile } from "@workspace
 export type DraftDecisionExportOptions = {
   profile: DraftDecisionExportProfile
   selectedTeamId?: string | null
+  pairedDiagnostics?: unknown
 }
 
 export function createDraftDecisionExport(
@@ -15,7 +16,9 @@ export function createDraftDecisionExport(
       schema: "foh-draft-decision-export",
       version: 1,
       profile: options.profile,
-      run: result,
+      run: options.pairedDiagnostics === undefined
+        ? result
+        : { ...result, pairedDiagnostics: options.pairedDiagnostics },
     }
   }
 

@@ -28,12 +28,12 @@ kept runnable beside V2.
 | Production & value | Implemented initial lab and season runner | Season fixtures, game aggregation, production records, universal player value, worker route | Accept production/value ranges |
 | Career cohort | Implemented worker-backed harness | Development, decline, retirement, matched cohorts, reports, settings, explorer UI | Accept career distributions and league-loop transitions |
 | Market & rules | Active implementation/calibration | Economy, demand, offer utility, deterministic free agency, target boards, activity reporting, roster cleanup | Accept multi-season market behavior and integrate into league commands |
-| Draft & decision | Planned | No V2 route or authoritative draft integration | Build after player value, market, and league contracts stabilize |
+| Draft & decision | Implemented calibration workbench; calibration pending | `/developer-labs/draft-decision`, deterministic 75-player/60-pick runs, scouting reports, versioned boards, matched diagnostics, safe/full exports | Accept board behavior across 100+ classes and integrate draft contracts into the league loop |
 | League loop and management shell | Planned | No V2 playable league shell; lifecycle command remains foundation-only | Generate, select, simulate, save, reload, and advance a complete league |
 
 ## V2 routes
 
-The current V2 application exposes six lab routes plus the foundation home page:
+The current V2 application exposes seven lab routes plus the foundation home page:
 
 - `/developer-labs/player-generation`
 - `/developer-labs/team-assembly`
@@ -41,6 +41,7 @@ The current V2 application exposes six lab routes plus the foundation home page:
 - `/developer-labs/production-value`
 - `/developer-labs/development-cohorts`
 - `/developer-labs/market-rules`
+- `/developer-labs/draft-decision`
 
 These routes represent five active lab surfaces because Player Generation and
 Team Assembly are two workbenches inside Population & Roster.
@@ -86,8 +87,7 @@ The following remain target-product or later-phase work:
 - Complete league creation and team selection flow.
 - In-season lifecycle commands, standings, playoffs, and season archives in the authoritative league document.
 - The player-facing league shell and management screens.
-- Draft & Decision Lab and baseline draft integration.
+- Authoritative Draft & Decision integration and baseline draft promotion into the league loop.
 - Multi-season League Loop Lab.
 - Full first-v2 export profiles, migration coverage, browser E2E coverage, and production hardening.
 - Advanced CBA, multi-year organizational AI, morale, narrative, accounts, and cloud saves.
-

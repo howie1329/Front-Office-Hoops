@@ -1,16 +1,18 @@
 import {
   runDraftDecisionBatch,
+  runDraftDecisionMatchedArms,
 } from "@workspace/calibration"
 import { runDraftDecisionLab } from "@workspace/sim-v2"
 import type {
   DraftDecisionRunInput,
   DraftDecisionResult,
 } from "@workspace/domain-v2"
-import type { DraftCalibrationReport } from "@workspace/calibration"
+import type { DraftCalibrationArm, DraftCalibrationReport } from "@workspace/calibration"
 
 type DraftWorkerRequest =
   | { type: "run"; input: DraftDecisionRunInput }
   | { type: "batch"; baseSeed: string; count: number; input?: DraftDecisionRunInput }
+  | { type: "matched"; seed: string; arms: Array<DraftCalibrationArm> }
 
 const workerScope = globalThis as unknown as {
   onmessage: ((event: MessageEvent<DraftWorkerRequest>) => void) | null
@@ -23,6 +25,13 @@ workerScope.onmessage = (event) => {
       workerScope.postMessage({
         type: "completed",
         result: runDraftDecisionLab(event.data.input),
+      })
+      return
+    }
+    if (event.data.type === "matched") {
+      workerScope.postMessage({
+        type: "matched-completed",
+        result: runDraftDecisionMatchedArms({ seed: event.data.seed, arms: event.data.arms }),
       })
       return
     }

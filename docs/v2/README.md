@@ -43,6 +43,7 @@ gates.
 - [Career Cohort Calibration](./plans/foh-v2-career-cohort-calibration-plan.md)
 - [Market & Rules](./plans/foh-v2-contract-market-and-negotiation-plan.md)
 - [Draft & Decision Lab](./plans/foh-v2-draft-decision-lab-implementation-plan.md)
+- [Draft Board Decision Calibration](./plans/foh-v2-draft-board-decision-calibration-plan.md)
 - [Migration and Coexistence](./plans/foh-v2-migration-plan.md)
 
 ### 4. Evidence and research

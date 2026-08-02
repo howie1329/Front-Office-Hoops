@@ -12,6 +12,20 @@ export type DraftTeamMode = "contender" | "balanced" | "rebuilding"
 export type DraftBoardSource = "generated" | "user"
 export type DraftSelectionKind = "ai" | "user"
 
+export type DraftBoardModelConfig = {
+  version: 2
+  modeWeights: Record<DraftTeamMode, {
+    floor: number
+    expectedUpside: number
+  }>
+  maxNeedAdjustment: number
+  maxPublicMockAdjustment: number
+  maxRiskPenalty: number
+  tieThreshold: number
+  tieBreakMaxAdjustment: number
+  tieBreakEnabled: boolean
+}
+
 export type DraftScoutingConfig = {
   version: 1
   publicScoutTier: DraftScoutTier
@@ -92,6 +106,19 @@ export type DraftTeamProfile = {
 }
 
 export type DraftBoardScore = {
+  baseRank: number
+  finalRank: number
+  base: number
+  final: number
+  floor: number
+  expectedUpside: number
+  fit: number
+  risk: number
+  needSignal: number
+  publicSignal: number
+  tieBreak: number
+  tieGroup: string | null
+  /** Backward-compatible aliases for the first lab export shape. */
   total: number
   currentAbility: number
   potential: number
@@ -133,6 +160,8 @@ export type DraftPick = {
   playerId: string
   kind: DraftSelectionKind
   boardRank: number | null
+  baseBoardRank?: number | null
+  tieGroup?: string | null
 }
 
 export type DraftRookieContract = ContractEntity & {
@@ -141,18 +170,14 @@ export type DraftRookieContract = ContractEntity & {
 }
 
 export type DraftDecisionConfig = {
-  version: 1
+  version: 2
   eligibleProspects: number
   selections: number
   rounds: 2
   teams: number
   secondRoundYears: number
   secondRoundSalaryMultiplier: number
-  publicMockWeight: number
-  needWeight: number
-  currentAbilityWeight: number
-  potentialWeight: number
-  boundedVariance: number
+  boardModel: DraftBoardModelConfig
   followUpYears: number
 }
 
@@ -224,6 +249,8 @@ export type DraftDecisionResult = {
     unfilledSelections: number
     averageScoutAbsoluteError: Record<DraftScoutTier, number>
     averageBoardRankOfPick: Record<string, number>
+    averageBaseBoardRankOfPick: Record<string, number>
+    tieBreakUsedRate: number
   }
 }
 

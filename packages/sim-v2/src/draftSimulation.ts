@@ -1,5 +1,6 @@
 import type {
   DraftBoardEntry,
+  DraftBoardModelConfig,
   DraftDecisionConfig,
   DraftDecisionFixture,
   DraftDecisionResult,
@@ -30,22 +31,50 @@ import {
 } from "./playerUniverse"
 import type { CareerAnnualContext } from "@workspace/domain-v2"
 
-export const DRAFT_DECISION_VERSION = 1
+export const DRAFT_DECISION_VERSION = 2
 
 export const STANDARD_DRAFT_DECISION_CONFIG: DraftDecisionConfig = {
-  version: DRAFT_DECISION_VERSION,
+  version: 2,
   eligibleProspects: 75,
   selections: 60,
   rounds: 2,
   teams: 30,
   secondRoundYears: 2,
   secondRoundSalaryMultiplier: 1,
-  publicMockWeight: 0.06,
-  needWeight: 0.12,
-  currentAbilityWeight: 0.52,
-  potentialWeight: 0.24,
-  boundedVariance: 4,
+  boardModel: {
+    version: 2,
+    modeWeights: {
+      rebuilding: { floor: 0.35, expectedUpside: 0.65 },
+      balanced: { floor: 0.5, expectedUpside: 0.5 },
+      contender: { floor: 0.65, expectedUpside: 0.35 },
+    },
+    maxNeedAdjustment: 8,
+    maxPublicMockAdjustment: 3,
+    maxRiskPenalty: 5,
+    tieThreshold: 1,
+    tieBreakMaxAdjustment: 0.5,
+    tieBreakEnabled: true,
+  },
   followUpYears: 5,
+}
+
+export function resolveDraftDecisionConfig(
+  input: Partial<DraftDecisionConfig> = {}
+): DraftDecisionConfig {
+  const boardModel: Partial<DraftBoardModelConfig> = input.boardModel ?? {}
+  return {
+    ...STANDARD_DRAFT_DECISION_CONFIG,
+    ...input,
+    version: 2,
+    boardModel: {
+      ...STANDARD_DRAFT_DECISION_CONFIG.boardModel,
+      ...boardModel,
+      modeWeights: {
+        ...STANDARD_DRAFT_DECISION_CONFIG.boardModel.modeWeights,
+        ...boardModel.modeWeights,
+      },
+    } as DraftBoardModelConfig,
+  }
 }
 
 export const STANDARD_DRAFT_SCOUTING_CONFIG: DraftScoutingConfig = {
@@ -199,6 +228,20 @@ function reportRanges(
 ): Record<string, { min: number; max: number }> {
   const width = config.tierRangeWidth[tier]
   const ranges: Record<string, { min: number; max: number }> = {}
+  const bounds: Record<string, { min: number; max: number }> = {
+    currentAbility: { min: 0, max: 100 },
+    potential: { min: 0, max: 100 },
+    volatility: { min: 0, max: 100 },
+    peakAge: { min: 18, max: 50 },
+    declineStartAge: { min: 19, max: 50 },
+    injuryResistance: { min: 0, max: 100 },
+    heightInches: { min: 48, max: 96 },
+    weightPounds: { min: 80, max: 500 },
+    wingspanInches: { min: 48, max: 110 },
+    speed: { min: 0, max: 100 },
+    strength: { min: 0, max: 100 },
+    vertical: { min: 0, max: 100 },
+  }
   for (const [key, value] of Object.entries({
     currentAbility: estimate.currentAbility,
     potential: estimate.potential,
@@ -208,7 +251,13 @@ function reportRanges(
     injuryResistance: estimate.injuryResistance,
     ...estimate.measurements,
   })) {
-    if (value !== null) ranges[key] = { min: Math.round(value - width), max: Math.round(value + width) }
+    if (value !== null) {
+      const domain = bounds[key] ?? { min: 0, max: 100 }
+      ranges[key] = {
+        min: Math.max(domain.min, Math.round(value - width)),
+        max: Math.min(domain.max, Math.round(value + width)),
+      }
+    }
   }
   return ranges
 }
@@ -389,15 +438,48 @@ export function createPublicMock(input: {
       return {
         playerId,
         signal,
-        projectedRange: { min: Math.max(1, Math.round(signal / 3)), max: Math.round(signal / 1.8) },
+        projectedRange: { min: 1, max: input.prospectIds.length },
+        confidence: report.confidence,
       }
     })
     .sort((left, right) => right.signal - left.signal)
-    .map((entry, index) => ({ ...entry, rank: index + 1 }))
+    .map((entry, index, entries) => {
+      const rank = index + 1
+      const width = Math.min(
+        8,
+        Math.max(2, Math.round(2 + (1 - entry.confidence) * 6))
+      )
+      return {
+        playerId: entry.playerId,
+        signal: entry.signal,
+        rank,
+        projectedRange: {
+          min: Math.max(1, rank - width),
+          max: Math.min(entries.length, rank + width),
+        },
+      }
+    })
 }
 
 function needScore(profile: DraftTeamProfile, positionsSeen: PlayerPosition[]): number {
   return Math.max(...positionsSeen.map((position) => profile.needs.find((need) => need.position === position)?.priority ?? 10), 10)
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value))
+}
+
+function riskScore(report: DraftScoutingReport): number {
+  const volatilityRisk = report.estimate.volatility === null
+    ? 0.5
+    : report.estimate.volatility / 100
+  const injuryRisk = report.estimate.injuryResistance === null
+    ? 0.5
+    : 1 - report.estimate.injuryResistance / 100
+  const informationRisk = 1 - Math.min(1, report.knownFieldCount / 14)
+  return clamp01(
+    volatilityRisk * 0.45 + injuryRisk * 0.35 + informationRisk * 0.2
+  )
 }
 
 export function buildDraftBoard(input: {
@@ -411,34 +493,92 @@ export function buildDraftBoard(input: {
   overrides?: DraftDecisionRunInput["userBoardOverrides"]
 }): DraftTeamBoard {
   const config = input.config ?? STANDARD_DRAFT_DECISION_CONFIG
+  const boardModel = config.boardModel
   const publicById = Object.fromEntries(input.publicMock.map((entry) => [entry.playerId, entry]))
-  const scored = input.prospectIds.map((playerId) => {
+  const modeWeights = boardModel.modeWeights[input.team.mode]
+  const baseScored = input.prospectIds.map((playerId) => {
     const player = input.players[playerId]
     const report = input.reports[playerId]
     const current = report.estimate.currentAbility ?? getPlayerCurrentAbility(player)
     const potential = report.estimate.potential ?? current
+    const potentialConfidence = report.estimate.potential === null ? 0 : report.confidence
+    const expectedUpside = current + potentialConfidence * Math.max(0, potential - current)
     const positionsSeen = report.estimate.positions.length ? report.estimate.positions : [player.profile.role.primaryPosition]
     const need = needScore(input.team, positionsSeen)
+    const roleFit = report.estimate.positions.length ? 1 : 0.65
     const mock = publicById[playerId]?.signal ?? current
-    const variance = createDeterministicRandom(`${input.seed}:board:${input.team.team.id}:${playerId}`).normal(0, config.boundedVariance)
-    const modePotentialWeight = input.team.mode === "rebuilding" ? 1.25 : input.team.mode === "contender" ? 0.8 : 1
-    const score = current * config.currentAbilityWeight + potential * config.potentialWeight * modePotentialWeight + need * config.needWeight / 100 + mock * config.publicMockWeight + variance
-    return { playerId, score, current, potential, need, mock, variance, positionsSeen }
-  }).sort((left, right) => right.score - left.score)
+    const fit = boardModel.maxNeedAdjustment * (need / 100) * roleFit
+    const publicAdjustment = boardModel.maxPublicMockAdjustment * (mock / 100)
+    const risk = boardModel.maxRiskPenalty * riskScore(report)
+    const talentScore = modeWeights.floor * current + modeWeights.expectedUpside * expectedUpside
+    return {
+      playerId,
+      base: talentScore + fit + publicAdjustment - risk,
+      current,
+      potential,
+      expectedUpside,
+      need,
+      mock,
+      fit,
+      publicAdjustment,
+      risk,
+      positionsSeen,
+      tieBreak: 0,
+      tieGroup: null as string | null,
+    }
+  }).sort((left, right) => right.base - left.base)
+
+  let groupIndex = 0
+  for (let start = 0; start < baseScored.length; ) {
+    let end = start
+    const groupStart = baseScored[start]?.base ?? 0
+    while (end + 1 < baseScored.length && groupStart - (baseScored[end + 1]?.base ?? 0) <= boardModel.tieThreshold) {
+      end += 1
+    }
+    const isTieGroup = end > start
+    const tieGroup = isTieGroup ? `${input.team.team.id}:tie:${groupIndex}` : null
+    for (let index = start; index <= end; index += 1) {
+      const entry = baseScored[index]
+      if (!entry) continue
+      entry.tieGroup = tieGroup
+      if (isTieGroup && boardModel.tieBreakEnabled) {
+        const random = createDeterministicRandom(`${input.seed}:board-tiebreak:${input.team.team.id}:${entry.playerId}`)
+        entry.tieBreak = (random.next() * 2 - 1) * boardModel.tieBreakMaxAdjustment
+      }
+    }
+    if (isTieGroup) groupIndex += 1
+    start = end + 1
+  }
+
+  const scored = [...baseScored].sort((left, right) => right.base + right.tieBreak - (left.base + left.tieBreak))
   const entries: DraftBoardEntry[] = scored.map((entry, index) => {
     const override = input.overrides?.[entry.playerId]
+    const baseRank = baseScored.findIndex((candidate) => candidate.playerId === entry.playerId) + 1
+    const finalScore = entry.base + entry.tieBreak
     return {
       rank: index + 1,
       playerId: entry.playerId,
       score: {
-        total: round(entry.score),
+        baseRank,
+        finalRank: index + 1,
+        base: round(entry.base),
+        final: round(finalScore),
+        floor: round(entry.current),
+        expectedUpside: round(entry.expectedUpside),
+        fit: round(entry.fit),
+        risk: round(entry.risk),
+        tieBreak: round(entry.tieBreak),
+        tieGroup: entry.tieGroup,
+        needSignal: round(entry.need),
+        publicSignal: round(entry.mock),
+        total: round(finalScore),
         currentAbility: round(entry.current),
         potential: round(entry.potential),
         need: round(entry.need),
-        publicMock: round(entry.mock),
-        variance: round(entry.variance),
+        publicMock: round(entry.publicAdjustment),
+        variance: round(entry.tieBreak),
       },
-      rationale: `${input.team.mode} board: ${Math.round(entry.current)} current / ${Math.round(entry.potential)} upside, ${Math.round(entry.need)} need signal, ${Math.round(entry.mock)} public signal.`,
+      rationale: `${input.team.mode} board: ${Math.round(entry.current)} floor / ${Math.round(entry.expectedUpside)} expected upside, ${round(entry.fit)} fit, ${round(entry.risk)} risk, ${round(entry.tieBreak)} tie-break.${baseRank !== index + 1 ? ` Base rank ${baseRank}; final rank ${index + 1}.` : ""}`,
       topAlternatives: scored.slice(index + 1, index + 4).map((candidate) => candidate.playerId),
       source: override ? "user" : "generated",
       pinned: override?.pinned ?? false,
@@ -459,7 +599,7 @@ export function createDraftOrder(teams: TeamEntity[], override?: string[]): stri
 }
 
 export function createDraftDecisionFixture(input: DraftDecisionRunInput): DraftDecisionFixture {
-  const config = { ...STANDARD_DRAFT_DECISION_CONFIG, ...input.config }
+  const config = resolveDraftDecisionConfig(input.config)
   const teamIds = Array.from({ length: config.teams }, (_, index) => `team:${String(index + 1).padStart(2, "0")}`)
   const teams = teamIds.map((id, index) => ({ id, name: `Team ${String(index + 1).padStart(2, "0")}` }))
   const universe = generateInitialPlayerUniverse({
@@ -608,6 +748,8 @@ export function runDraftDecisionLab(input: DraftDecisionRunInput): DraftDecision
       playerId: selected.playerId,
       kind: requestedEntry ? "user" : "ai",
       boardRank: selected.rank,
+      baseBoardRank: selected.score.baseRank,
+      tieGroup: selected.score.tieGroup,
     }
     picks.push(pick)
     contracts.push(createRookieContract(fixture, pick))
@@ -655,6 +797,13 @@ export function runDraftDecisionLab(input: DraftDecisionRunInput): DraftDecision
         const teamPicks = picks.filter((pick) => pick.teamId === team.id && pick.boardRank !== null)
         return [team.id, teamPicks.length ? round(teamPicks.reduce((sum, pick) => sum + (pick.boardRank ?? 0), 0) / teamPicks.length) : 0]
       })),
+      averageBaseBoardRankOfPick: Object.fromEntries(fixture.teams.map((team) => {
+        const teamPicks = picks.filter((pick) => pick.teamId === team.id && pick.baseBoardRank !== null && pick.baseBoardRank !== undefined)
+        return [team.id, teamPicks.length ? round(teamPicks.reduce((sum, pick) => sum + (pick.baseBoardRank ?? 0), 0) / teamPicks.length) : 0]
+      })),
+      tieBreakUsedRate: picks.length
+        ? round(picks.filter((pick) => pick.tieGroup !== null && pick.tieGroup !== undefined).length / picks.length)
+        : 0,
     },
   }
 }

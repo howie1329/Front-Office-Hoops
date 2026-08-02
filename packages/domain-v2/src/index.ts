@@ -152,6 +152,7 @@ export type {
 } from "./market"
 export type {
   DraftBoardEntry,
+  DraftBoardModelConfig,
   DraftBoardScore,
   DraftBoardSource,
   DraftDecisionConfig,

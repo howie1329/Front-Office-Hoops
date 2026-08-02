@@ -74,6 +74,7 @@ export { evaluatePlayerRetirement } from "./careerRetirement"
 export type { CareerRetirementInput } from "./careerRetirement"
 export {
   DRAFT_DECISION_VERSION,
+  resolveDraftDecisionConfig,
   STANDARD_DRAFT_DECISION_CONFIG,
   STANDARD_DRAFT_SCOUTING_CONFIG,
   buildDraftBoard,

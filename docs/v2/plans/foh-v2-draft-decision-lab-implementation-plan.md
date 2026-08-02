@@ -1,6 +1,6 @@
 # Front Office Hoops v2 — Draft & Decision Lab Implementation Plan
 
-**Status:** Planned
+**Status:** Implemented initial lab; board calibration pending
 **Written against:** `4b08299`
 **Date:** August 1, 2026
 **Roadmap position:** Phase 2 calibration, final major pre-loop lab
@@ -738,4 +738,3 @@ The Draft & Decision Lab is complete for its first calibration slice when:
 - Batch reports retain benchmark results, failed seeds, outliers, and metrics.
 - Focused tests, typechecks, and lint pass.
 - The route is clearly marked calibration-only until later league integration.
-
