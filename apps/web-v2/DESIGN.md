@@ -115,6 +115,12 @@ Secondary destinations such as Developer Labs use foreground text with an underl
 
 Use a semantic heading and a linear list of short rows. Separate rows with 1px `border-border` rules. Each row has a concise title and a plain-language explanation; avoid metric tiles, icons, badges, and repeated cards.
 
+### Start screen
+
+The start screen is a direct continuation point, not a second marketing page. Show previous local saves in a native table as soon as the screen loads, with a radio selector in the first column and useful metadata such as season, selected team, and last updated time. Keep the selected save visible through row highlighting and a short status line. Each row may include a quiet delete action; deletion must use the shared shadcn `AlertDialog` confirmation pattern and state exactly what will be removed.
+
+Use one separate `Start a new league` action below the table. Do not make users choose between large, equal-weight cards or route them through an extra choice screen. When a capability is not implemented yet, preserve the layout and label the action honestly as the next V2 surface rather than presenting a dead link.
+
 ## 6. Motion and interaction
 
 Motion is optional and subordinate to reading. Use short opacity or color transitions for hover and focus feedback. Do not orchestrate page-load reveals or animate the landing page into view. Any future motion must respect `prefers-reduced-motion: reduce`.

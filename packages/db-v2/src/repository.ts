@@ -14,7 +14,7 @@ export type LeagueSummary = {
   name: string
   updatedAt: string
   season: number
-  phase: string
+  teamName: string | null
 }
 
 export class LeagueRepositoryError extends Error {
@@ -33,7 +33,9 @@ export class V2LeagueRepository {
       name: row.name,
       updatedAt: row.updatedAt,
       season: row.document.state.season,
-      phase: row.document.state.phase,
+      teamName: row.document.state.userTeamId
+        ? row.document.entities.teams[row.document.state.userTeamId]?.name ?? null
+        : null,
     }))
   }
 

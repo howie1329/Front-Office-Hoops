@@ -45,6 +45,21 @@ describe("V2LeagueRepository", () => {
     ])
   })
 
+  it("lists the selected team in a league summary", async () => {
+    const league = createFoundationLeague({ id: "league-team" })
+    league.state.userTeamId = "team:01"
+    league.entities.teams["team:01"] = {
+      id: "team:01",
+      name: "Harbor City",
+    }
+
+    await repository.save(league)
+
+    expect(await repository.list()).toEqual([
+      expect.objectContaining({ teamName: "Harbor City" }),
+    ])
+  })
+
   it("round-trips JSON export and import", async () => {
     const league = createFoundationLeague({ id: "league-export" })
     await repository.save(league)
