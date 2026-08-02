@@ -42,6 +42,7 @@ gates.
 - [Production & Value Lab](./plans/foh-v2-production-value-lab-implementation-plan.md)
 - [Career Cohort Calibration](./plans/foh-v2-career-cohort-calibration-plan.md)
 - [Market & Rules](./plans/foh-v2-contract-market-and-negotiation-plan.md)
+- [Draft & Decision Lab](./plans/foh-v2-draft-decision-lab-implementation-plan.md)
 - [Migration and Coexistence](./plans/foh-v2-migration-plan.md)
 
 ### 4. Evidence and research
