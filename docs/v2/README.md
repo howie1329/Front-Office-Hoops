@@ -39,6 +39,7 @@ gates.
 - [Simulation Architecture](./specs/foh-v2-simulation-architecture.md) — workers, packages, randomness, and simulation boundaries
 - [Data and Export Design](./specs/foh-v2-data-and-export-design.md) — canonical document, persistence, events, and portability
 - [UI Information Architecture](./specs/foh-v2-ui-information-architecture.md) — target management shell and developer-lab structure
+- [Dashboard UI Brief](./specs/foh-v2-dashboard-ui-brief.md) — official dashboard shell, snapshots, tables, and simulation controls
 - [Career Cohort Explorer UI Brief](./specs/foh-v2-career-cohort-explorer-ui-brief.md) — current career-lab interaction contract
 
 ### 3. Active implementation and calibration plans
