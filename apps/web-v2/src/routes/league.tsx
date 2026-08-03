@@ -179,7 +179,9 @@ function LeagueLayout() {
       ? "Team / Roster"
       : pathname === "/league/finance"
         ? "Team / Finance"
-        : "Dashboard"
+        : pathname === "/league/free-agents"
+          ? "Team / Free Agents"
+          : "Dashboard"
 
   return (
     <LeagueShellProvider

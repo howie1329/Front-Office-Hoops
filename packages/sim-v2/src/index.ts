@@ -140,11 +140,21 @@ export {
   getContractYearsRemaining,
   projectTeamFinance,
 } from "./finance"
+export {
+  getCurrentFreeAgents,
+  getFreeAgencyWindowStatus,
+  projectCurrentFreeAgent,
+  projectCurrentFreeAgents,
+} from "./freeAgency"
 export type {
   FinanceContractProjection,
   FinanceSeasonProjection,
   TeamFinanceProjection,
 } from "./finance"
+export type {
+  CurrentFreeAgentProjection,
+  FreeAgencyWindowStatus,
+} from "./freeAgency"
 export type { RandomSource, RandomSourceOptions } from "./randomness"
 export type {
   GameNumericSettingPath,

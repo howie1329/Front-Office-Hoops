@@ -8,6 +8,7 @@ import {
   DashboardSquare01Icon,
   Resize01Icon,
   SaveIcon,
+  UserAdd01Icon,
   UserGroupIcon,
   Wallet01Icon,
 } from "@hugeicons/core-free-icons"
@@ -244,6 +245,27 @@ export function LeagueSidebar({
                       aria-hidden="true"
                     />
                     Roster
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/league/free-agents"}
+                  size="sm"
+                  className="h-8"
+                >
+                  <Link
+                    to="/league/free-agents"
+                    search={{ saveId: league.metadata.id }}
+                  >
+                    <HugeiconsIcon
+                      icon={UserAdd01Icon}
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    Free agents
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
