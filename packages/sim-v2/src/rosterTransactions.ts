@@ -166,6 +166,16 @@ export function releasePlayer(
   nextTeam.rosterPlayerIds = (nextTeam.rosterPlayerIds ?? []).filter(
     (playerId) => playerId !== command.playerId
   )
+  const rotation = nextLeague.state.rotations?.[command.teamId]
+  if (rotation) {
+    rotation.starters = rotation.starters.filter(
+      (playerId) => playerId !== command.playerId
+    )
+    rotation.depthOrder = rotation.depthOrder.filter(
+      (playerId) => playerId !== command.playerId
+    )
+    delete rotation.targetMinutes[command.playerId]
+  }
   nextPlayer.leagueStatus = { kind: "free-agent" }
 
   if (contractEntry) {

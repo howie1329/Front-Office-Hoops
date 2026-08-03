@@ -44,6 +44,8 @@ gates.
 
 ### 3. Active implementation and calibration plans
 
+- [Regular-Season Simulation Vertical Slice](./plans/foh-v2-regular-season-simulation-vertical-slice-implementation-plan.md)
+- [Lifecycle and Dashboard Controls](./plans/foh-v2-lifecycle-and-dashboard-controls-implementation-plan.md)
 - [League Lifecycle Implementation](./plans/foh-v2-league-lifecycle-implementation-plan.md)
 - [Game & Matchup Lab](./plans/foh-v2-game-matchup-lab-implementation-plan.md)
 - [Production & Value Lab](./plans/foh-v2-production-value-lab-implementation-plan.md)

@@ -50,6 +50,7 @@ function LeagueLayout() {
   const {
     handleAdvanceDay,
     handleReleasePlayer,
+    handleSetRotation,
     isSimulating,
     simulationError,
   } = useLeagueSimulation({
@@ -198,6 +199,7 @@ function LeagueLayout() {
         handleAdvanceDay,
         handleReleasePlayer: (playerId) =>
           handleReleasePlayer(teamId, playerId),
+        handleSetRotation: (rotation) => handleSetRotation(teamId, rotation),
       }}
     >
       <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground xl:h-dvh xl:overflow-hidden">

@@ -1455,6 +1455,7 @@ const leagueDocumentShape = z.strictObject({
       .optional(),
     leagueDay: z.number().int().nonnegative(),
     userTeamId: z.string().min(1).nullable(),
+    rotations: z.record(z.string().min(1), gameRotationSchema).optional(),
     structure: leagueStructureSchema,
     calendar: z.strictObject({
       kind: z.enum([

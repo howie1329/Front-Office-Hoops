@@ -8,6 +8,7 @@ import { validateLeagueDocument } from "@workspace/league-schema"
 import type { WorkerResult } from "./protocol"
 import { advanceLeagueDay, LifecycleCommandError } from "./lifecycle"
 import { releasePlayer, ReleasePlayerCommandError } from "./rosterTransactions"
+import { setRotation, SetRotationCommandError } from "./rotationTransactions"
 
 function rejection(
   request: RuntimeWorkerRequest,
@@ -99,6 +100,7 @@ function isSupportedCommandType(type: string): boolean {
     "SimulateToDeadline",
     "SimulateToRegularSeasonEnd",
     "ReleasePlayer",
+    "SetRotation",
   ].includes(type)
 }
 
@@ -160,6 +162,26 @@ function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
         }
       } catch (error) {
         if (error instanceof ReleasePlayerCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
+    case "SetRotation": {
+      try {
+        const result = setRotation(
+          validation.data,
+          request.command as Extract<LeagueCommand, { type: "SetRotation" }>
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: [result.event],
+          diagnostics: [],
+        }
+      } catch (error) {
+        if (error instanceof SetRotationCommandError) {
           return rejection(request, error.reason)
         }
         throw error

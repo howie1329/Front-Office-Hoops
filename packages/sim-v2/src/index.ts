@@ -1,5 +1,6 @@
 export { executeLeagueCommand } from "./executeCommand"
 export { releasePlayer, ReleasePlayerCommandError } from "./rosterTransactions"
+export { setRotation, SetRotationCommandError } from "./rotationTransactions"
 export {
   advanceLeagueDay,
   getLifecycleActionState,

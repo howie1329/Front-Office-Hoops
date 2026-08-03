@@ -14,7 +14,7 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
-import type { LeagueDocument } from "@workspace/domain-v2"
+import type { GameRotationInput, LeagueDocument } from "@workspace/domain-v2"
 import type { LifecycleActionState } from "@workspace/sim-v2"
 
 import {
@@ -38,6 +38,7 @@ export type LeagueShellContextValue = {
   simulationError: string | null
   handleAdvanceDay: () => Promise<void>
   handleReleasePlayer: (playerId: string) => Promise<boolean>
+  handleSetRotation: (rotation: GameRotationInput) => Promise<boolean>
 }
 
 const LeagueShellContext = React.createContext<LeagueShellContextValue | null>(

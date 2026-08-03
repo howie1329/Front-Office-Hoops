@@ -1,6 +1,10 @@
 import * as React from "react"
 
-import type { LeagueCommand, LeagueDocument } from "@workspace/domain-v2"
+import type {
+  GameRotationInput,
+  LeagueCommand,
+  LeagueDocument,
+} from "@workspace/domain-v2"
 import type { V2LeagueRepository } from "@workspace/db-v2"
 import type { WorkerRequest, WorkerResult } from "@workspace/sim-v2"
 import { getLifecycleActionState } from "@workspace/sim-v2"
@@ -98,9 +102,21 @@ export function useLeagueSimulation({
     [runCommand]
   )
 
+  const handleSetRotation = React.useCallback(
+    (teamId: string, rotation: GameRotationInput) =>
+      runCommand({
+        type: "SetRotation",
+        commandId: `command:set-rotation:${crypto.randomUUID()}`,
+        teamId,
+        rotation,
+      }),
+    [runCommand]
+  )
+
   return {
     handleAdvanceDay,
     handleReleasePlayer,
+    handleSetRotation,
     isSimulating,
     simulationError,
   }

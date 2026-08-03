@@ -1,15 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import * as React from "react"
 
-import { FilterHorizontalIcon, Search02Icon } from "@hugeicons/core-free-icons"
+import {
+  ArrowDown01Icon,
+  ArrowUp01Icon,
+  FilterHorizontalIcon,
+  Search02Icon,
+} from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
 import type {
   JsonRecord,
+  GameRotationInput,
   LeagueDocument,
   PlayerEntity,
 } from "@workspace/domain-v2"
 import {
+  createDefaultRotation,
   getContractSalary,
   getContractYearsRemaining,
   getPlayerCurrentAbility,
@@ -18,6 +25,7 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67,17 +75,23 @@ import { cn } from "@/lib/utils"
 export const Route = createFileRoute("/league/roster")({
   validateSearch: (
     search: Record<string, unknown>
-  ): { saveId?: string; playerId?: string } => {
+  ): { saveId?: string; playerId?: string; tab?: RosterTab } => {
     const saveId = typeof search.saveId === "string" ? search.saveId : undefined
     const playerId =
       typeof search.playerId === "string" ? search.playerId : undefined
+    const tab =
+      search.tab === "rotation" || search.tab === "roster"
+        ? search.tab
+        : undefined
 
-    return { saveId, playerId }
+    return { saveId, playerId, tab }
   },
   component: TeamRosterPage,
 })
 
 const ROSTER_LIMIT = 15
+const TEAM_REGULATION_MINUTES = 240
+const ROSTER_TABS = ["roster", "rotation"] as const
 const POSITION_FILTERS = ["all", "PG", "SG", "SF", "PF", "C"] as const
 const HEALTH_FILTERS = ["all", "available", "out"] as const
 const CONTRACT_FILTERS = ["all", "signed", "missing"] as const
@@ -96,6 +110,7 @@ type ContractFilter = (typeof CONTRACT_FILTERS)[number]
 type SortKey = (typeof SORT_KEYS)[number]
 type SortDirection = "asc" | "desc"
 type SortState = { key: SortKey; direction: SortDirection }
+type RosterTab = (typeof ROSTER_TABS)[number]
 
 function formatMoney(value: number | null): string {
   if (value === null) return "—"
@@ -762,6 +777,485 @@ function getRoleLabel(player: PlayerEntity): string {
   return "Depth"
 }
 
+function getEditorRotation(
+  league: LeagueDocument,
+  teamId: string
+): GameRotationInput {
+  const players = getRosterPlayers(league, teamId)
+  const rosterIds = new Set(players.map((player) => player.id))
+  const saved = league.state.rotations?.[teamId]
+
+  if (!saved) return createDefaultRotation(players)
+
+  const depthOrder = [
+    ...saved.depthOrder.filter((playerId) => rosterIds.has(playerId)),
+    ...players
+      .map((player) => player.id)
+      .filter((playerId) => !saved.depthOrder.includes(playerId)),
+  ]
+  const starters = saved.starters.filter((playerId) => rosterIds.has(playerId))
+
+  for (const playerId of depthOrder) {
+    if (starters.length >= 5) break
+    if (!starters.includes(playerId)) starters.push(playerId)
+  }
+
+  const orderedDepth = [
+    ...starters,
+    ...depthOrder.filter((playerId) => !starters.includes(playerId)),
+  ]
+
+  return {
+    starters,
+    depthOrder: orderedDepth,
+    targetMinutes: Object.fromEntries(
+      orderedDepth.map((playerId) => [
+        playerId,
+        saved.targetMinutes[playerId] ?? (starters.includes(playerId) ? 32 : 0),
+      ])
+    ),
+  }
+}
+
+function rotationFingerprint(rotation: GameRotationInput): string {
+  return JSON.stringify({
+    starters: rotation.starters,
+    depthOrder: rotation.depthOrder,
+    targetMinutes: rotation.targetMinutes,
+  })
+}
+
+function canCoverPositions(players: Array<PlayerEntity>): boolean {
+  const positions = ["PG", "SG", "SF", "PF", "C"]
+
+  function cover(positionIndex: number, used: Set<string>): boolean {
+    if (positionIndex === positions.length) return true
+
+    const position = positions[positionIndex]
+    return players.some((player) => {
+      if (
+        used.has(player.id) ||
+        (player.profile.role.primaryPosition !== position &&
+          player.profile.role.secondaryPosition !== position)
+      ) {
+        return false
+      }
+      used.add(player.id)
+      const covered = cover(positionIndex + 1, used)
+      used.delete(player.id)
+      return covered
+    })
+  }
+
+  return cover(0, new Set())
+}
+
+function RotationSummary({
+  league,
+  teamId,
+  rotation,
+}: {
+  league: LeagueDocument
+  teamId: string
+  rotation: GameRotationInput
+}) {
+  const players = getRosterPlayers(league, teamId)
+  const byId = new Map(players.map((player) => [player.id, player]))
+  const starters = rotation.starters
+    .map((playerId) => byId.get(playerId))
+    .filter((player): player is PlayerEntity => Boolean(player))
+  const totalMinutes = rotation.depthOrder.reduce(
+    (total, playerId) => total + (rotation.targetMinutes[playerId] ?? 0),
+    0
+  )
+  const unavailableStarters = starters.filter(
+    (player) => getPlayerHealth(league, player.id).unavailable
+  )
+  const minuteDelta = TEAM_REGULATION_MINUTES - totalMinutes
+  const hasPositionCoverage = canCoverPositions(starters)
+
+  return (
+    <div className="grid shrink-0 border-b border-border sm:grid-cols-4 sm:divide-x sm:divide-border">
+      <div className="border-b border-border px-3 py-3 sm:border-b-0 sm:px-4">
+        <p className="text-[11px] text-muted-foreground">Starters</p>
+        <p className="mt-1 text-sm font-semibold tabular-nums">
+          {starters.length} / 5
+        </p>
+        <p className="truncate text-[10px] text-muted-foreground">
+          {hasPositionCoverage ? "Position coverage ready" : "Coverage issue"}
+        </p>
+      </div>
+      <div className="border-b border-border px-3 py-3 sm:border-b-0 sm:px-4">
+        <p className="text-[11px] text-muted-foreground">Target minutes</p>
+        <p
+          className={cn(
+            "mt-1 text-sm font-semibold tabular-nums",
+            minuteDelta !== 0 && "text-destructive"
+          )}
+        >
+          {totalMinutes} / {TEAM_REGULATION_MINUTES}
+        </p>
+        <p className="truncate text-[10px] text-muted-foreground">
+          {minuteDelta === 0
+            ? "Regulation target"
+            : `${Math.abs(minuteDelta)} min ${minuteDelta > 0 ? "remaining" : "over"}`}
+        </p>
+      </div>
+      <div className="border-b border-border px-3 py-3 sm:border-b-0 sm:px-4">
+        <p className="text-[11px] text-muted-foreground">Bench order</p>
+        <p className="mt-1 text-sm font-semibold tabular-nums">
+          {
+            rotation.depthOrder.filter(
+              (playerId) => !rotation.starters.includes(playerId)
+            ).length
+          }
+        </p>
+        <p className="truncate text-[10px] text-muted-foreground">
+          Ordered behind the starters
+        </p>
+      </div>
+      <div className="px-3 py-3 sm:px-4">
+        <p className="text-[11px] text-muted-foreground">Availability</p>
+        <p
+          className={cn(
+            "mt-1 text-sm font-semibold",
+            unavailableStarters.length > 0 && "text-destructive"
+          )}
+        >
+          {unavailableStarters.length > 0
+            ? `${unavailableStarters.length} starter${unavailableStarters.length === 1 ? "" : "s"} out`
+            : "All starters available"}
+        </p>
+        <p className="truncate text-[10px] text-muted-foreground">
+          Health can change actual minutes
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function RotationEditor({
+  league,
+  teamId,
+  isSaving,
+  onSave,
+}: {
+  league: LeagueDocument
+  teamId: string
+  isSaving: boolean
+  onSave: (rotation: GameRotationInput) => Promise<boolean>
+}) {
+  const savedRotation = React.useMemo(
+    () => getEditorRotation(league, teamId),
+    [league, teamId]
+  )
+  const [rotation, setRotation] =
+    React.useState<GameRotationInput>(savedRotation)
+
+  React.useEffect(() => {
+    setRotation(savedRotation)
+  }, [savedRotation])
+
+  const players = React.useMemo(
+    () => getRosterPlayers(league, teamId),
+    [league, teamId]
+  )
+  const playersById = React.useMemo(
+    () => new Map(players.map((player) => [player.id, player])),
+    [players]
+  )
+  const benchOrder = rotation.depthOrder.filter(
+    (playerId) => !rotation.starters.includes(playerId)
+  )
+  const totalMinutes = rotation.depthOrder.reduce(
+    (total, playerId) => total + (rotation.targetMinutes[playerId] ?? 0),
+    0
+  )
+  const starterPlayers = rotation.starters
+    .map((playerId) => playersById.get(playerId))
+    .filter((player): player is PlayerEntity => Boolean(player))
+  const unavailableStarters = starterPlayers.filter(
+    (player) => getPlayerHealth(league, player.id).unavailable
+  )
+  const hasPositionCoverage = canCoverPositions(starterPlayers)
+  const issues = [
+    rotation.starters.length !== 5 ? "Select exactly five starters." : null,
+    !hasPositionCoverage
+      ? "The starters do not cover all five positions."
+      : null,
+    totalMinutes !== TEAM_REGULATION_MINUTES
+      ? `Target minutes must total ${TEAM_REGULATION_MINUTES}.`
+      : null,
+    unavailableStarters.length > 0
+      ? "An unavailable player is assigned to the starting five."
+      : null,
+  ].filter((issue): issue is string => Boolean(issue))
+  const isDirty =
+    rotationFingerprint(rotation) !== rotationFingerprint(savedRotation)
+  const canSave = issues.length === 0 && isDirty && !isSaving
+
+  function updateRotation(
+    update: (current: GameRotationInput) => GameRotationInput
+  ) {
+    setRotation((current) => update(current))
+  }
+
+  function updateMinutes(playerId: string, value: string) {
+    const parsed = Number(value)
+    const minutes = Number.isFinite(parsed)
+      ? Math.min(60, Math.max(0, Math.round(parsed)))
+      : 0
+    updateRotation((current) => ({
+      ...current,
+      targetMinutes: {
+        ...current.targetMinutes,
+        [playerId]: minutes,
+      },
+    }))
+  }
+
+  function toggleStarter(playerId: string, checked: boolean) {
+    updateRotation((current) => {
+      const starters = checked
+        ? [...current.starters, playerId]
+        : current.starters.filter((id) => id !== playerId)
+      const currentBenchOrder = current.depthOrder.filter(
+        (id) => !starters.includes(id)
+      )
+      return {
+        ...current,
+        starters,
+        depthOrder: [...starters, ...currentBenchOrder],
+      }
+    })
+  }
+
+  function moveBenchPlayer(playerId: string, direction: -1 | 1) {
+    updateRotation((current) => {
+      const currentBenchOrder = current.depthOrder.filter(
+        (id) => !current.starters.includes(id)
+      )
+      const index = currentBenchOrder.indexOf(playerId)
+      const nextIndex = index + direction
+      if (index < 0 || nextIndex < 0 || nextIndex >= currentBenchOrder.length) {
+        return current
+      }
+      const nextBenchOrder = [...currentBenchOrder]
+      const [moved] = nextBenchOrder.splice(index, 1)
+      nextBenchOrder.splice(nextIndex, 0, moved)
+      return {
+        ...current,
+        depthOrder: [...current.starters, ...nextBenchOrder],
+      }
+    })
+  }
+
+  function renderRow(
+    playerId: string,
+    group: "starter" | "bench",
+    index: number
+  ) {
+    const player = playersById.get(playerId)
+    if (!player) return null
+
+    const health = getPlayerHealth(league, player.id)
+    const benchIndex = group === "bench" ? benchOrder.indexOf(player.id) : -1
+    const isStarter = group === "starter"
+
+    return (
+      <TableRow
+        key={player.id}
+        className={cn(health.unavailable && "bg-muted/40")}
+      >
+        <TableCell className="w-10 text-center text-xs text-muted-foreground tabular-nums">
+          {isStarter ? index + 1 : benchIndex + 1}
+        </TableCell>
+        <TableCell className="min-w-48 font-medium">
+          <div className="flex items-center gap-2">
+            <span>{fullName(player)}</span>
+            {health.unavailable ? (
+              <Badge variant="outline" className="text-destructive">
+                {health.label}
+              </Badge>
+            ) : null}
+          </div>
+        </TableCell>
+        <TableCell className="whitespace-nowrap text-muted-foreground">
+          {player.profile.role.primaryPosition}
+          {player.profile.role.secondaryPosition
+            ? ` / ${player.profile.role.secondaryPosition}`
+            : ""}
+        </TableCell>
+        <TableCell>
+          <label className="inline-flex min-h-8 items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={isStarter}
+              aria-label={`${fullName(player)} starter`}
+              onChange={(event) =>
+                toggleStarter(player.id, event.target.checked)
+              }
+              className="size-3.5 accent-primary"
+            />
+            <span>{isStarter ? "Starter" : "Bench"}</span>
+          </label>
+        </TableCell>
+        <TableCell className="w-28 text-right">
+          <div className="ml-auto flex items-center justify-end gap-1">
+            <Input
+              type="number"
+              min={0}
+              max={60}
+              step={1}
+              value={rotation.targetMinutes[player.id] ?? 0}
+              aria-label={`${fullName(player)} target minutes`}
+              onChange={(event) => updateMinutes(player.id, event.target.value)}
+              className="h-8 w-16 text-right tabular-nums"
+            />
+            <span className="text-[11px] text-muted-foreground">min</span>
+          </div>
+        </TableCell>
+        <TableCell className="w-16 text-right font-medium tabular-nums">
+          {Math.round(getPlayerCurrentAbility(player))}
+        </TableCell>
+        <TableCell className="w-24 pr-3 text-right sm:pr-4">
+          {group === "bench" ? (
+            <span className="inline-flex items-center gap-0.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                disabled={benchIndex <= 0}
+                aria-label={`Move ${fullName(player)} up in bench order`}
+                title="Move up in bench order"
+                onClick={() => moveBenchPlayer(player.id, -1)}
+              >
+                <HugeiconsIcon icon={ArrowUp01Icon} size={13} strokeWidth={2} />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                disabled={benchIndex === benchOrder.length - 1}
+                aria-label={`Move ${fullName(player)} down in bench order`}
+                title="Move down in bench order"
+                onClick={() => moveBenchPlayer(player.id, 1)}
+              >
+                <HugeiconsIcon
+                  icon={ArrowDown01Icon}
+                  size={13}
+                  strokeWidth={2}
+                />
+              </Button>
+            </span>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">—</span>
+          )}
+        </TableCell>
+      </TableRow>
+    )
+  }
+
+  return (
+    <section
+      aria-labelledby="rotation-editor-heading"
+      className="flex min-h-0 flex-1 flex-col border-y border-border"
+    >
+      <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border px-3 py-3 sm:px-4">
+        <div>
+          <h2 id="rotation-editor-heading" className="text-sm font-semibold">
+            Rotation
+          </h2>
+          <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+            Set the starting five, order the bench, and assign target minutes.
+            The coach handles substitutions and game conditions can change the
+            final minutes.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isSaving}
+            onClick={() => setRotation(getEditorRotation(league, teamId))}
+          >
+            Reset
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!canSave}
+            onClick={() => void onSave(rotation)}
+          >
+            {isSaving ? "Saving…" : "Save rotation"}
+          </Button>
+        </div>
+      </div>
+
+      <RotationSummary league={league} teamId={teamId} rotation={rotation} />
+
+      <div className="shrink-0 border-b border-border px-3 py-2.5 text-xs sm:px-4">
+        {issues.length > 0 ? (
+          <ul className="space-y-1 text-destructive" aria-live="polite">
+            {issues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        ) : isDirty ? (
+          <p className="text-muted-foreground" aria-live="polite">
+            Unsaved rotation changes.
+          </p>
+        ) : (
+          <p className="text-muted-foreground">Rotation saved.</p>
+        )}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-auto">
+        <Table className="min-w-[860px]">
+          <TableCaption className="sr-only">
+            Set starters, bench order, and target minutes for the team rotation.
+          </TableCaption>
+          <TableHeader className="sticky top-0 z-10 bg-background">
+            <TableRow>
+              <TableHead className="w-10 text-center">#</TableHead>
+              <TableHead>Player</TableHead>
+              <TableHead>Pos</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead className="text-right">Target</TableHead>
+              <TableHead className="text-right">OVR</TableHead>
+              <TableHead className="pr-3 text-right sm:pr-4">Order</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableCell colSpan={7} className="py-2 text-[11px] font-semibold">
+                Starting five
+              </TableCell>
+            </TableRow>
+            {rotation.starters.map((playerId, index) =>
+              renderRow(playerId, "starter", index)
+            )}
+            <TableRow className="bg-muted/40 hover:bg-muted/40">
+              <TableCell colSpan={7} className="py-2 text-[11px] font-semibold">
+                Bench order
+              </TableCell>
+            </TableRow>
+            {benchOrder.map((playerId) => renderRow(playerId, "bench", 0))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
+        <span>{rotation.depthOrder.length} players listed</span>
+        <span className="hidden sm:inline">
+          Target minutes are normalized against a 240-minute regulation game.
+        </span>
+      </div>
+    </section>
+  )
+}
+
 function DetailMetric({
   label,
   value,
@@ -781,10 +1275,12 @@ function PlayerSheet({
   league,
   player,
   onOpenChange,
+  onSetRotation,
 }: {
   league: LeagueDocument
   player?: PlayerEntity
   onOpenChange: (open: boolean) => void
+  onSetRotation: () => void
 }) {
   const contract = player ? getPlayerContract(league, player.id) : undefined
   const health = player ? getPlayerHealth(league, player.id) : undefined
@@ -990,12 +1486,7 @@ function PlayerSheet({
 
             <SheetFooter className="sticky bottom-0 border-t border-border bg-background/95 px-5 py-4 backdrop-blur-sm sm:px-6">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <Button
-                  disabled
-                  title="Rotation commands are not enabled in the current league slice."
-                >
-                  Set rotation
-                </Button>
+                <Button onClick={onSetRotation}>Set rotation</Button>
                 <Button
                   variant="outline"
                   disabled
@@ -1092,9 +1583,15 @@ function ReleasePlayerDialog({
 }
 
 function TeamRosterPage() {
-  const { playerId } = Route.useSearch()
+  const { playerId, tab = "roster" } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
-  const { league, teamId, handleReleasePlayer, isSimulating } = useLeagueShell()
+  const {
+    league,
+    teamId,
+    handleReleasePlayer,
+    handleSetRotation,
+    isSimulating,
+  } = useLeagueShell()
   const [releasePlayer, setReleasePlayer] = React.useState<PlayerEntity>()
   const rosterPlayerIds = league.entities.teams[teamId].rosterPlayerIds ?? []
   const selectedPlayer =
@@ -1114,6 +1611,17 @@ function TeamRosterPage() {
     })
   }
 
+  function changeTab(nextTab: string) {
+    if (!ROSTER_TABS.includes(nextTab as RosterTab)) return
+    void navigate({
+      search: (previous) => ({
+        ...previous,
+        tab: nextTab as RosterTab,
+        playerId: nextTab === "rotation" ? undefined : previous.playerId,
+      }),
+    })
+  }
+
   async function confirmRelease() {
     if (!releasePlayer) return
 
@@ -1125,14 +1633,40 @@ function TeamRosterPage() {
     <>
       <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-6 lg:overflow-hidden lg:px-8">
         <RosterSummary league={league} teamId={teamId} />
-        <RosterTable
-          league={league}
-          teamId={teamId}
-          selectedPlayerId={selectedPlayer?.id}
-          onSelectPlayer={selectPlayer}
-          onReleasePlayer={setReleasePlayer}
-          isSimulating={isSimulating}
-        />
+        <Tabs
+          value={tab}
+          onValueChange={changeTab}
+          className="flex min-h-0 flex-1 flex-col gap-0"
+        >
+          <div className="shrink-0 border-b border-border">
+            <TabsList variant="line" className="h-10 px-1 sm:px-2">
+              <TabsTrigger value="roster" className="h-full px-3">
+                Roster
+              </TabsTrigger>
+              <TabsTrigger value="rotation" className="h-full px-3">
+                Rotation
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="roster" className="mt-0 min-h-0 flex-1">
+            <RosterTable
+              league={league}
+              teamId={teamId}
+              selectedPlayerId={selectedPlayer?.id}
+              onSelectPlayer={selectPlayer}
+              onReleasePlayer={setReleasePlayer}
+              isSimulating={isSimulating}
+            />
+          </TabsContent>
+          <TabsContent value="rotation" className="mt-0 min-h-0 flex-1">
+            <RotationEditor
+              league={league}
+              teamId={teamId}
+              isSaving={isSimulating}
+              onSave={(rotation) => handleSetRotation(rotation)}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
 
       <PlayerSheet
@@ -1140,6 +1674,10 @@ function TeamRosterPage() {
         player={selectedPlayer}
         onOpenChange={(open) => {
           if (!open) closePlayer()
+        }}
+        onSetRotation={() => {
+          closePlayer()
+          changeTab("rotation")
         }}
       />
       <ReleasePlayerDialog

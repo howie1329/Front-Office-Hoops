@@ -16,6 +16,7 @@ import {
   createStandardLeagueStructure,
 } from "./leagueSchedule"
 import { STANDARD_ECONOMY_CONFIG } from "./marketConfig"
+import { createDefaultRotation } from "./seasonFixture"
 
 const TEAM_NAMES = [
   "Baltimore Foundry",
@@ -243,6 +244,18 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
     ...team,
     rosterPlayerIds: universe.rosters[team.id] ?? [],
   }))
+  const rotations = Object.fromEntries(
+    teamsWithRosters.map((team) => [
+      team.id,
+      createDefaultRotation(
+        (team.rosterPlayerIds ?? [])
+          .map((playerId) => universe.players[playerId])
+          .filter((player): player is NonNullable<typeof player> =>
+            Boolean(player)
+          )
+      ),
+    ])
+  )
   const rosteredPlayers = Object.values(universe.players).filter(
     (player) => player.leagueStatus.kind === "rostered"
   )
@@ -282,6 +295,7 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
       phase: "regular-season",
       leagueDay: 0,
       userTeamId: null,
+      rotations,
       structure,
       calendar,
       phaseTasks: [],

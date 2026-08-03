@@ -105,7 +105,8 @@ function createGameFixture(
   if (homePlayers.length < 5 || awayPlayers.length < 5) {
     throw new LifecycleCommandError({
       code: "schedule_roster_incomplete",
-      message: "A scheduled game references a team without five playable players.",
+      message:
+        "A scheduled game references a team without five playable players.",
       path: ["state", "calendar", "schedule", scheduleEntry.id],
     })
   }
@@ -122,8 +123,12 @@ function createGameFixture(
     },
     players: league.entities.players,
     rotations: {
-      [homeTeam.id]: createDefaultRotation(homePlayers),
-      [awayTeam.id]: createDefaultRotation(awayPlayers),
+      [homeTeam.id]:
+        league.state.rotations?.[homeTeam.id] ??
+        createDefaultRotation(homePlayers),
+      [awayTeam.id]:
+        league.state.rotations?.[awayTeam.id] ??
+        createDefaultRotation(awayPlayers),
     },
     availability: createAvailability(league),
     coaching: {
@@ -149,7 +154,10 @@ function updateStandings(
   const awayPoints = getTeamPoints(result, result.awayTeamId)
 
   return standings.map((standing) => {
-    if (standing.teamId !== result.homeTeamId && standing.teamId !== result.awayTeamId) {
+    if (
+      standing.teamId !== result.homeTeamId &&
+      standing.teamId !== result.awayTeamId
+    ) {
       return standing
     }
 
@@ -161,8 +169,10 @@ function updateStandings(
       ...standing,
       wins: standing.wins + (won ? 1 : 0),
       losses: standing.losses + (won ? 0 : 1),
-      gamesPlayed: (standing.gamesPlayed ?? standing.wins + standing.losses) + 1,
-      pointDifferential: (standing.pointDifferential ?? 0) + points - opponentPoints,
+      gamesPlayed:
+        (standing.gamesPlayed ?? standing.wins + standing.losses) + 1,
+      pointDifferential:
+        (standing.pointDifferential ?? 0) + points - opponentPoints,
     }
   })
 }
@@ -260,7 +270,8 @@ export function getLifecycleActionState(
         id,
         label: "Next game",
         enabled: false,
-        reason: "Next game simulation will use the same lifecycle command path.",
+        reason:
+          "Next game simulation will use the same lifecycle command path.",
       }
     case "next-key-date":
       return {
@@ -331,7 +342,10 @@ export function advanceLeagueDay(
       kind: scheduleEntry.kind,
       result,
     })
-    events.push(gameEvent(league, scheduleEntry, result), ...injuryEvents(league, scheduleEntry, result))
+    events.push(
+      gameEvent(league, scheduleEntry, result),
+      ...injuryEvents(league, scheduleEntry, result)
+    )
     nextLeague.projections.standings = updateStandings(
       nextLeague.projections.standings,
       result

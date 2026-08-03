@@ -554,6 +554,7 @@ export type LeagueDocument = {
     offseasonPhase?: OffseasonPhase
     leagueDay: number
     userTeamId: string | null
+    rotations?: Record<string, GameRotationInput>
     structure?: LeagueStructure
     calendar: LeagueCalendar
     phaseTasks: PhaseTaskState[]
@@ -636,6 +637,12 @@ export type LeagueCommand =
       commandId: string
       teamId: string
       playerId: string
+    }
+  | {
+      type: "SetRotation"
+      commandId: string
+      teamId: string
+      rotation: GameRotationInput
     }
 
 export type ValidationIssue = {

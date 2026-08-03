@@ -60,6 +60,12 @@ describe("release player command", () => {
     expect(
       releasedLeague.entities.teams[teamId]?.rosterPlayerIds
     ).not.toContain(playerId)
+    expect(releasedLeague.state.rotations?.[teamId]?.starters).not.toContain(
+      playerId
+    )
+    expect(releasedLeague.state.rotations?.[teamId]?.depthOrder).not.toContain(
+      playerId
+    )
     expect(releasedContract?.status).toBe("released")
     expect(releasedContract?.releasedFromTeamId).toBe(teamId)
     expect(after.seasons[0]?.deadMoney).toBe(annualSalary[0])

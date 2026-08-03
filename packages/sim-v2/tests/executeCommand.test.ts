@@ -90,9 +90,7 @@ describe("executeLeagueCommand", () => {
 
     expect(result.status).toBe("completed")
     expect(result.progress).toMatchObject({ completed: 0, total: 0 })
-    expect(result.league?.state.calendar.currentDate).toBe(
-      "2026-10-22"
-    )
+    expect(result.league?.state.calendar.currentDate).toBe("2026-10-22")
   })
 
   it("records the selected team on a generated league", () => {
@@ -125,6 +123,75 @@ describe("executeLeagueCommand", () => {
       type: "command.completed",
       entityRefs: [{ type: "team", id: "team:01" }],
     })
+  })
+
+  it("persists a valid team rotation", () => {
+    const league = createLeague({
+      id: "league-rotation",
+      name: "Rotation League",
+      seed: "rotation-seed",
+      mode: "deterministic-lab",
+      createdWithEntropy: false,
+      now: "2026-08-02T00:00:00.000Z",
+    }).document
+    const teamId = "team:01"
+    const currentRotation = league.state.rotations?.[teamId]
+    expect(currentRotation).toBeDefined()
+
+    const rotation = structuredClone(currentRotation!)
+    const firstBenchPlayer = rotation.depthOrder.find(
+      (playerId) => !rotation.starters.includes(playerId)
+    )!
+    rotation.targetMinutes[firstBenchPlayer] = 18
+    rotation.targetMinutes[rotation.starters[0]!] = 30
+
+    const result = executeLeagueCommand({
+      requestId: "request-rotation",
+      command: {
+        type: "SetRotation",
+        commandId: "command-rotation",
+        teamId,
+        rotation,
+      },
+      league,
+    })
+
+    expect(result.status).toBe("completed")
+    expect(result.league?.state.rotations?.[teamId]).toEqual(rotation)
+    expect(result.events[0]).toMatchObject({
+      type: "command.completed",
+      entityRefs: [{ type: "team", id: teamId }],
+    })
+    expect(validateLeagueDocument(result.league)).toMatchObject({
+      valid: true,
+    })
+  })
+
+  it("rejects a rotation with an invalid starter count", () => {
+    const league = createLeague({
+      id: "league-invalid-rotation",
+      name: "Invalid Rotation League",
+      seed: "invalid-rotation-seed",
+      mode: "deterministic-lab",
+      createdWithEntropy: false,
+      now: "2026-08-02T00:00:00.000Z",
+    }).document
+    const rotation = structuredClone(league.state.rotations?.["team:01"]!)
+    rotation.starters.pop()
+
+    const result = executeLeagueCommand({
+      requestId: "request-invalid-rotation",
+      command: {
+        type: "SetRotation",
+        commandId: "command-invalid-rotation",
+        teamId: "team:01",
+        rotation,
+      },
+      league,
+    })
+
+    expect(result.status).toBe("rejected")
+    expect(result.reason?.code).toBe("invalid_starter_count")
   })
 
   it("rejects malformed league documents", () => {
