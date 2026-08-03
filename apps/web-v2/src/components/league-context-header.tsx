@@ -136,7 +136,6 @@ export function LeagueContextHeader({
   isSimulating,
   onAdvanceDay,
 }: LeagueContextHeaderProps) {
-  const team = league.entities.teams[teamId]
   const record = getRecord(league, teamId)
   const conference = getConferenceName(league, teamId)
   const nextGame = getNextGame(league, teamId)
@@ -157,12 +156,7 @@ export function LeagueContextHeader({
         <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3">
           <div className="flex min-w-0 items-center gap-3">
             <SidebarTrigger className="lg:hidden" />
-            <div className="min-w-0">
-              <p className="truncate text-[10px] font-medium text-muted-foreground">
-                {pageLabel}
-              </p>
-              <p className="truncate text-sm font-semibold">{team.name}</p>
-            </div>
+            <p className="truncate text-sm font-semibold">{pageLabel}</p>
           </div>
           <ContextMetric
             label="Record"

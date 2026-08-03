@@ -69,22 +69,6 @@ export function clampSidebarWidth(width: number): number {
   return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width))
 }
 
-function getTeamGroupNames(league: LeagueDocument, teamId: string) {
-  const team = league.entities.teams[teamId]
-  const division = team.divisionId
-    ? league.state.structure?.divisions.find(
-        (item) => item.id === team.divisionId
-      )
-    : undefined
-  const conference = division?.conferenceId
-    ? league.state.structure?.conferences.find(
-        (item) => item.id === division.conferenceId
-      )
-    : undefined
-
-  return { division, conference }
-}
-
 function SidebarResizeHandle({
   width,
   onChange,
@@ -192,8 +176,6 @@ export function LeagueSidebar({
 }) {
   const { pathname } = useLocation()
   const team = league.entities.teams[teamId]
-  const { conference, division } = getTeamGroupNames(league, teamId)
-  const teamMark = team.name.slice(0, 2).toUpperCase()
   const isDashboard = pathname === "/league" || pathname === "/league/"
   const isRoster = pathname === "/league/roster"
 
@@ -203,40 +185,12 @@ export function LeagueSidebar({
       collapsible="offcanvas"
     >
       <SidebarHeader className="gap-0 border-b border-border px-4 py-3">
-        <Link
-          to="/"
-          className="truncate text-[13px] font-semibold tracking-[-0.02em] transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-        >
-          Front Office Hoops <span className="text-muted-foreground">/ V2</span>
-        </Link>
+        <p className="truncate text-sm font-semibold tracking-[-0.02em]">
+          {team.name}
+        </p>
       </SidebarHeader>
 
       <SidebarContent>
-        <div className="border-b border-border px-4 py-4">
-          <p className="text-[11px] font-medium text-muted-foreground">
-            League
-          </p>
-          <div className="mt-2 flex min-w-0 items-center gap-3">
-            <div
-              aria-hidden="true"
-              className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-[10px] font-semibold tracking-[0.04em] text-primary-foreground"
-            >
-              {teamMark}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">
-                {league.metadata.name}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {team.name} · {conference?.name ?? "Conference"}
-              </p>
-            </div>
-          </div>
-          <p className="mt-3 truncate text-[11px] text-muted-foreground">
-            {division?.name ?? "Division not set"}
-          </p>
-        </div>
-
         <SidebarGroup className="px-2 py-3">
           <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
             Workspace
