@@ -21,7 +21,10 @@ import type {
   PlayerPosition,
 } from "@workspace/domain-v2"
 import { V2LeagueRepository } from "@workspace/db-v2"
-import { getPlayerCurrentAbility } from "@workspace/sim-v2"
+import {
+  getLifecycleActionState,
+  getPlayerCurrentAbility,
+} from "@workspace/sim-v2"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -63,8 +66,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { LeagueContextHeader } from "@/components/league-context-header"
+import { useLeagueSimulation } from "@/lib/leagueLifecycle"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Table,
@@ -98,25 +102,6 @@ const SORT_OPTIONS = ["overall", "name", "salary"] as const
 type PositionFilter = (typeof POSITION_FILTERS)[number]
 type SortOption = (typeof SORT_OPTIONS)[number]
 
-function phaseLabel(phase: LeagueDocument["state"]["phase"]): string {
-  return {
-    foundation: "Foundation",
-    preseason: "Preseason",
-    "regular-season": "Regular season",
-    playoffs: "Playoffs",
-    offseason: "Offseason",
-  }[phase]
-}
-
-function formatDate(dateKey: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${dateKey}T00:00:00Z`))
-}
-
 function formatMoney(value: number | null): string {
   if (value === null) return "—"
 
@@ -136,39 +121,6 @@ function fullName(player: PlayerEntity): string {
   return [player.identity.firstName, player.identity.lastName]
     .filter(Boolean)
     .join(" ")
-}
-
-function getRecord(league: LeagueDocument, teamId: string) {
-  const standing = league.projections.standings.find(
-    (row) => row.teamId === teamId
-  )
-
-  return {
-    wins: standing?.wins ?? 0,
-    losses: standing?.losses ?? 0,
-    rank:
-      [...league.projections.standings]
-        .sort((left, right) => {
-          if (right.wins !== left.wins) return right.wins - left.wins
-          return left.losses - right.losses
-        })
-        .findIndex((row) => row.teamId === teamId) + 1,
-  }
-}
-
-function getTeamGroupNames(league: LeagueDocument, teamId: string) {
-  const team = league.entities.teams[teamId]
-  const division = league.state.structure?.divisions.find(
-    (item) => item.id === team.divisionId
-  )
-  const conference = league.state.structure?.conferences.find(
-    (item) => item.id === division?.conferenceId
-  )
-
-  return {
-    conference: conference?.name ?? "Conference not set",
-    division: division?.name ?? "Division not set",
-  }
 }
 
 function numericField(
@@ -272,6 +224,22 @@ function titleCase(value: string): string {
     .join(" ")
 }
 
+function getTeamGroupNames(league: LeagueDocument, teamId: string) {
+  const team = league.entities.teams[teamId]
+  const division = team.divisionId
+    ? league.state.structure?.divisions.find(
+        (item) => item.id === team.divisionId
+      )
+    : undefined
+  const conference = division?.conferenceId
+    ? league.state.structure?.conferences.find(
+        (item) => item.id === division.conferenceId
+      )
+    : undefined
+
+  return { division, conference }
+}
+
 function SidebarNav({
   league,
   teamId,
@@ -314,12 +282,12 @@ function SidebarNav({
                 {league.metadata.name}
               </p>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {team.name} · {conference}
+                {team.name} · {conference?.name ?? "Conference"}
               </p>
             </div>
           </div>
           <p className="mt-3 truncate text-[11px] text-muted-foreground">
-            {division}
+            {division?.name ?? "Division not set"}
           </p>
         </div>
 
@@ -475,36 +443,7 @@ function SidebarNav({
   )
 }
 
-function RosterTopBar({ league }: { league: LeagueDocument }) {
-  return (
-    <header className="border-b border-border px-5 py-3 sm:px-8 lg:px-10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <SidebarTrigger className="lg:hidden" />
-          <p className="truncate text-sm text-muted-foreground">
-            Team <span className="px-1 text-border">/</span>{" "}
-            <span className="font-medium text-foreground">Roster</span>
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
-          <Badge variant="outline">
-            Season {league.state.season} · {phaseLabel(league.state.phase)}
-          </Badge>
-          <span className="text-muted-foreground">
-            {formatDate(league.state.calendar.currentDate)}
-          </span>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/league" search={{ saveId: league.metadata.id }}>
-              Dashboard
-            </Link>
-          </Button>
-        </div>
-      </div>
-    </header>
-  )
-}
-
-function TeamSummary({
+function RosterSummary({
   league,
   teamId,
 }: {
@@ -515,16 +454,9 @@ function TeamSummary({
   const roster = (team.rosterPlayerIds ?? [])
     .map((playerId) => league.entities.players[playerId])
     .filter((player): player is PlayerEntity => Boolean(player))
-  const record = getRecord(league, teamId)
   const payroll = getPayroll(league, teamId)
-  const { conference, division } = getTeamGroupNames(league, teamId)
 
   const metrics = [
-    { label: "Record", value: `${record.wins}-${record.losses}` },
-    {
-      label: "Conference rank",
-      value: record.rank > 0 ? `#${record.rank}` : "—",
-    },
     { label: "Payroll", value: formatMillions(payroll) },
     { label: "Roster spots", value: `${roster.length} / 15` },
     { label: "Two-way", value: "—" },
@@ -532,43 +464,26 @@ function TeamSummary({
   ]
 
   return (
-    <section aria-labelledby="team-roster-heading">
-      <div className="flex flex-col gap-4 border-b border-border pb-5 lg:flex-row lg:items-end lg:justify-between">
+    <section aria-labelledby="roster-heading">
+      <div className="border-b border-border pb-4">
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground">
-            {conference} · {division}
+            Team operations
           </p>
           <h1
-            id="team-roster-heading"
-            className="mt-2 truncate text-3xl font-semibold tracking-[-0.04em] sm:text-4xl"
+            id="roster-heading"
+            className="mt-1 text-2xl font-semibold tracking-[-0.03em]"
           >
-            {team.name}
+            Roster
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Manage the roster, review player context, and keep the team ready
-            for the next league decision.
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            Review the active roster, player context, and current team
+            readiness.
           </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled
-            title="Rotation commands are not enabled in the current league slice."
-          >
-            Set rotation
-          </Button>
-          <Button
-            size="sm"
-            disabled
-            title="Transaction commands are not enabled in the current league slice."
-          >
-            Make trade
-          </Button>
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 divide-x divide-y divide-border border-b border-border sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
+      <dl className="grid grid-cols-2 divide-x divide-y divide-border border-b border-border sm:grid-cols-4 sm:divide-y-0">
         {metrics.map((metric) => (
           <div
             key={metric.label}
@@ -1207,6 +1122,8 @@ function TeamRosterPage() {
   const [league, setLeague] = React.useState<LeagueDocument | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const { handleAdvanceDay, isSimulating, simulationError } =
+    useLeagueSimulation({ league, repository, setLeague })
 
   React.useEffect(() => {
     let active = true
@@ -1291,6 +1208,8 @@ function TeamRosterPage() {
     )
   }
 
+  const advanceAction = getLifecycleActionState(league, "advance-day")
+
   const rosterPlayerIds = league.entities.teams[teamId].rosterPlayerIds ?? []
   const selectedPlayer =
     playerId && rosterPlayerIds.includes(playerId)
@@ -1314,9 +1233,23 @@ function TeamRosterPage() {
       <SidebarProvider className="min-h-svh">
         <SidebarNav league={league} teamId={teamId} />
         <SidebarInset className="min-h-0">
-          <RosterTopBar league={league} />
+          <LeagueContextHeader
+            league={league}
+            teamId={teamId}
+            pageLabel="Team / Roster"
+            advanceAction={advanceAction}
+            isSimulating={isSimulating}
+            onAdvanceDay={() => void handleAdvanceDay()}
+          />
+          {simulationError ? (
+            <div className="border-b border-border px-5 py-2 sm:px-8 lg:px-10">
+              <Alert variant="destructive" className="py-2">
+                <AlertDescription>{simulationError}</AlertDescription>
+              </Alert>
+            </div>
+          ) : null}
           <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6 lg:px-8">
-            <TeamSummary league={league} teamId={teamId} />
+            <RosterSummary league={league} teamId={teamId} />
             <RosterAlert league={league} teamId={teamId} />
             <TeamTabs />
             <RosterTable

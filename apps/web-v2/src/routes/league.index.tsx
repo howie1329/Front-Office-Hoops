@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router"
 import * as React from "react"
 
 import {
-  ArrowRight01Icon,
   Calendar01Icon,
   ChartLineIcon,
   DashboardSquare01Icon,
@@ -23,17 +22,9 @@ import {
   getLifecycleActionState,
   getPlayerCurrentAbility,
 } from "@workspace/sim-v2"
-import type { LifecycleActionState } from "@workspace/sim-v2"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
@@ -62,27 +53,17 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { LeagueContextHeader } from "@/components/league-context-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { runAndCommitLeagueCommand } from "@/lib/leagueLifecycle"
+import { useLeagueSimulation } from "@/lib/leagueLifecycle"
 
 export const Route = createFileRoute("/league/")({
   component: LeagueShellPage,
 })
 
 const repository = new V2LeagueRepository()
-
-function phaseLabel(phase: LeagueDocument["state"]["phase"]): string {
-  return {
-    foundation: "Foundation",
-    preseason: "Preseason",
-    "regular-season": "Regular season",
-    playoffs: "Playoffs",
-    offseason: "Offseason",
-  }[phase]
-}
 
 function formatDate(dateKey: string, options: Intl.DateTimeFormatOptions = {}) {
   return new Intl.DateTimeFormat(undefined, {
@@ -91,10 +72,6 @@ function formatDate(dateKey: string, options: Intl.DateTimeFormatOptions = {}) {
     timeZone: "UTC",
     ...options,
   }).format(new Date(`${dateKey}T00:00:00Z`))
-}
-
-function formatRecord(wins: number, losses: number): string {
-  return `${wins}-${losses}`
 }
 
 function numericValue(value: unknown): number {
@@ -115,20 +92,6 @@ function getDivisionAndConference(league: LeagueDocument, teamId: string) {
     : undefined
 
   return { division, conference }
-}
-
-function getNextGames(
-  league: LeagueDocument,
-  teamId: string
-): Array<LeagueScheduleEntry> {
-  return league.state.calendar.schedule
-    .filter(
-      (game) =>
-        game.status === "scheduled" &&
-        game.date >= league.state.calendar.currentDate &&
-        (game.homeTeamId === teamId || game.awayTeamId === teamId)
-    )
-    .slice(0, 5)
 }
 
 function getStandingRows(league: LeagueDocument) {
@@ -174,6 +137,21 @@ function gameOpponent(
     name: league.entities.teams[opponentId].name,
     home,
   }
+}
+
+function getNextGames(
+  league: LeagueDocument,
+  teamId: string
+): Array<LeagueScheduleEntry> {
+  return league.state.calendar.schedule
+    .filter(
+      (game) =>
+        game.status === "scheduled" &&
+        game.date >= league.state.calendar.currentDate &&
+        (game.homeTeamId === teamId || game.awayTeamId === teamId)
+    )
+    .sort((left, right) => left.date.localeCompare(right.date))
+    .slice(0, 5)
 }
 
 type LeaderCategoryId =
@@ -352,12 +330,6 @@ const MIN_SIDEBAR_WIDTH = 208
 const MAX_SIDEBAR_WIDTH = 296
 const SIDEBAR_WIDTH_STORAGE_KEY = "foh-v2-sidebar-width"
 
-type SimulationControlProps = {
-  advanceAction: LifecycleActionState
-  isSimulating: boolean
-  onAdvanceDay: () => void
-}
-
 function clampSidebarWidth(width: number): number {
   return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width))
 }
@@ -377,7 +349,11 @@ function SidebarResizeHandle({
     if (!isDragging) return
 
     const handlePointerMove = (event: PointerEvent) => {
-      onChange(clampSidebarWidth(dragStartWidth.current + event.clientX - dragStartX.current))
+      onChange(
+        clampSidebarWidth(
+          dragStartWidth.current + event.clientX - dragStartX.current
+        )
+      )
     }
     const handlePointerUp = () => setIsDragging(false)
     const previousCursor = document.body.style.cursor
@@ -442,10 +418,11 @@ function SidebarResizeHandle({
         size={12}
         strokeWidth={2}
         aria-hidden="true"
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-sidebar p-0.5 text-muted-foreground opacity-0 transition-opacity group-hover/resize:opacity-100 group-focus-visible/resize:opacity-100"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-sidebar p-0.5 text-muted-foreground opacity-0 transition-opacity group-hover/resize:opacity-100 group-focus-visible/resize:opacity-100"
       />
       <span className="sr-only">
-        Use the left and right arrow keys to resize. Hold Shift for larger steps.
+        Use the left and right arrow keys to resize. Hold Shift for larger
+        steps.
       </span>
     </button>
   )
@@ -456,21 +433,21 @@ function DashboardSidebar({
   teamId,
   width,
   onWidthChange,
-  advanceAction,
-  isSimulating,
-  onAdvanceDay,
 }: {
   league: LeagueDocument
   teamId: string
   width: number
   onWidthChange: (width: number) => void
-} & SimulationControlProps) {
+}) {
   const team = league.entities.teams[teamId]
   const { conference, division } = getDivisionAndConference(league, teamId)
   const teamMark = team.name.slice(0, 2).toUpperCase()
 
   return (
-    <Sidebar className="relative border-r border-border bg-muted/20" collapsible="offcanvas">
+    <Sidebar
+      className="relative border-r border-border bg-muted/20"
+      collapsible="offcanvas"
+    >
       <SidebarHeader className="gap-0 border-b border-border px-4 py-3">
         <Link
           to="/"
@@ -482,7 +459,9 @@ function DashboardSidebar({
 
       <SidebarContent>
         <div className="border-b border-border px-4 py-4">
-          <p className="text-[11px] font-medium text-muted-foreground">League</p>
+          <p className="text-[11px] font-medium text-muted-foreground">
+            League
+          </p>
           <div className="mt-2 flex min-w-0 items-center gap-3">
             <div
               aria-hidden="true"
@@ -491,7 +470,9 @@ function DashboardSidebar({
               {teamMark}
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">{league.metadata.name}</p>
+              <p className="truncate text-sm font-semibold">
+                {league.metadata.name}
+              </p>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 {team.name} · {conference?.name ?? "—"}
               </p>
@@ -533,7 +514,10 @@ function DashboardSidebar({
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild size="sm" className="h-8">
-                  <Link to="/league/roster" search={{ saveId: league.metadata.id }}>
+                  <Link
+                    to="/league/roster"
+                    search={{ saveId: league.metadata.id }}
+                  >
                     <HugeiconsIcon
                       icon={UserGroupIcon}
                       size={15}
@@ -545,7 +529,11 @@ function DashboardSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton disabled size="sm" className="h-8 justify-between">
+                <SidebarMenuButton
+                  disabled
+                  size="sm"
+                  className="h-8 justify-between"
+                >
                   <span className="flex min-w-0 items-center gap-2">
                     <HugeiconsIcon
                       icon={Calendar01Icon}
@@ -569,7 +557,11 @@ function DashboardSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton disabled size="sm" className="h-8 justify-between">
+                <SidebarMenuButton
+                  disabled
+                  size="sm"
+                  className="h-8 justify-between"
+                >
                   <span className="flex min-w-0 items-center gap-2">
                     <HugeiconsIcon
                       icon={ChartLineIcon}
@@ -583,7 +575,11 @@ function DashboardSidebar({
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton disabled size="sm" className="h-8 justify-between">
+                <SidebarMenuButton
+                  disabled
+                  size="sm"
+                  className="h-8 justify-between"
+                >
                   <span className="flex min-w-0 items-center gap-2">
                     <HugeiconsIcon
                       icon={SaveIcon}
@@ -602,218 +598,21 @@ function DashboardSidebar({
       </SidebarContent>
 
       <SidebarFooter className="gap-3 border-t border-border px-4 py-3">
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-muted-foreground/50" />
-          <span className="truncate">
-            {isSimulating
-              ? "Simulation running"
-              : advanceAction.enabled
-                ? "Simulation ready"
-                : "Simulation paused"}
-          </span>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          className="h-8 w-full justify-between"
-          disabled={isSimulating || !advanceAction.enabled}
-          title={advanceAction.reason}
-          onClick={onAdvanceDay}
-        >
-          {isSimulating ? "Simulating…" : advanceAction.label}
-          <HugeiconsIcon icon={ArrowRight01Icon} size={15} strokeWidth={2} aria-hidden="true" />
-        </Button>
         <Link
           to="/league/start"
           className="inline-flex min-h-7 items-center gap-2 text-xs font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
         >
-          <HugeiconsIcon icon={SaveIcon} size={14} strokeWidth={2} aria-hidden="true" />
+          <HugeiconsIcon
+            icon={SaveIcon}
+            size={14}
+            strokeWidth={2}
+            aria-hidden="true"
+          />
           Manage saves
         </Link>
       </SidebarFooter>
       <SidebarResizeHandle width={width} onChange={onWidthChange} />
     </Sidebar>
-  )
-}
-
-function MobileDashboardHeader({
-  league,
-  advanceAction,
-  isSimulating,
-  onAdvanceDay,
-}: { league: LeagueDocument } & SimulationControlProps) {
-  return (
-    <div className="border-b border-border px-5 py-4 lg:hidden">
-      <div className="flex items-center justify-between gap-4">
-        <SidebarTrigger className="lg:hidden" />
-        <Link
-          to="/"
-          className="text-sm font-semibold tracking-[-0.02em] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-        >
-          Front Office Hoops <span className="text-muted-foreground">/ V2</span>
-        </Link>
-        <Link
-          to="/league/start"
-          className="text-xs font-medium text-muted-foreground underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-        >
-          Saves
-        </Link>
-      </div>
-      <div className="mt-5 flex items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Your league
-          </p>
-          <p className="mt-1 truncate text-sm font-semibold">
-            {league.metadata.name}
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          disabled={isSimulating || !advanceAction.enabled}
-          title={advanceAction.reason}
-          onClick={onAdvanceDay}
-        >
-          {isSimulating ? "Simulating…" : advanceAction.label}
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function CommandHeader({
-  league,
-  advanceAction,
-  isSimulating,
-  onAdvanceDay,
-}: { league: LeagueDocument } & SimulationControlProps) {
-  return (
-    <header className="border-b border-border px-5 py-4 sm:px-8 lg:px-10">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <p className="text-sm font-semibold">
-            {formatDate(league.state.calendar.currentDate, { year: "numeric" })}
-          </p>
-          <Badge variant="outline">
-            Season {league.state.season} · {phaseLabel(league.state.phase)}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            Trade deadline{" "}
-            {formatDate(league.state.calendar.milestones.tradeDeadline)}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            size="sm"
-            disabled={isSimulating || !advanceAction.enabled}
-            title={advanceAction.reason}
-            onClick={onAdvanceDay}
-          >
-            {isSimulating ? "Simulating…" : advanceAction.label}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled
-            title="Coming with the lifecycle worker."
-          >
-            Next game
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled
-            title="Coming with the lifecycle worker."
-          >
-            Next key date
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="outline" size="sm">
-                More simulation
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem disabled>Simulate to deadline</DropdownMenuItem>
-              <DropdownMenuItem disabled>Simulate to season end</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-    </header>
-  )
-}
-
-function TeamStatusBar({
-  league,
-  teamId,
-  nextGame,
-  record,
-}: {
-  league: LeagueDocument
-  teamId: string
-  nextGame?: LeagueScheduleEntry
-  record: { wins: number; losses: number; rank: number }
-}) {
-  const team = league.entities.teams[teamId]
-  const { conference, division } = getDivisionAndConference(league, teamId)
-  const opponent = nextGame ? gameOpponent(league, nextGame, teamId) : null
-
-  return (
-    <section
-      aria-labelledby="team-status-heading"
-      className="flex-none border-y border-border bg-muted/20"
-    >
-      <div className="grid gap-4 px-4 py-4 sm:px-5 xl:grid-cols-[minmax(14rem,1.35fr)_repeat(3,minmax(7rem,0.7fr))_minmax(12rem,1fr)] xl:items-center">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium text-muted-foreground">
-            Team status
-          </p>
-          <h1
-            id="team-status-heading"
-            className="mt-1 truncate text-lg font-semibold tracking-[-0.02em]"
-          >
-            {team.name}
-          </h1>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            {conference?.name ?? "Conference not set"} · {division?.name ?? "Division not set"}
-          </p>
-        </div>
-        <div>
-          <p className="text-[11px] text-muted-foreground">Record</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums">
-            {formatRecord(record.wins, record.losses)}
-          </p>
-        </div>
-        <div>
-          <p className="text-[11px] text-muted-foreground">League rank</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums">
-            {record.rank > 0 ? `#${record.rank}` : "—"}
-          </p>
-        </div>
-        <div>
-          <p className="text-[11px] text-muted-foreground">Roster</p>
-          <p className="mt-1 text-sm font-semibold tabular-nums">
-            {team.rosterPlayerIds?.length ?? 0}
-          </p>
-        </div>
-        <div className="min-w-0">
-          <p className="text-[11px] text-muted-foreground">Next game</p>
-          <p className="mt-1 truncate text-sm font-semibold">
-            {opponent
-              ? `${opponent.home ? "vs." : "at"} ${opponent.name}`
-              : "No game scheduled"}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {nextGame ? formatDate(nextGame.date) : "Calendar clear"}
-          </p>
-        </div>
-      </div>
-    </section>
   )
 }
 
@@ -849,35 +648,35 @@ function RosterWatchPanel({
       </div>
       <div className="min-h-0 overflow-auto">
         <Table>
-        <TableCaption className="sr-only">
-          Top five players on the selected team's roster.
-        </TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Player</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead className="text-right">OVR</TableHead>
-            <TableHead className="text-right">Age</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {players.map((player) => (
-            <TableRow key={player.id}>
-              <TableCell className="font-medium">
-                {player.identity.firstName} {player.identity.lastName}
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {player.profile.role.primaryPosition}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {Math.round(getPlayerCurrentAbility(player))}
-              </TableCell>
-              <TableCell className="text-right text-muted-foreground tabular-nums">
-                {player.age}
-              </TableCell>
+          <TableCaption className="sr-only">
+            Top five players on the selected team's roster.
+          </TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Player</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead className="text-right">OVR</TableHead>
+              <TableHead className="text-right">Age</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
+          </TableHeader>
+          <TableBody>
+            {players.map((player) => (
+              <TableRow key={player.id}>
+                <TableCell className="font-medium">
+                  {player.identity.firstName} {player.identity.lastName}
+                </TableCell>
+                <TableCell className="text-muted-foreground">
+                  {player.profile.role.primaryPosition}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {Math.round(getPlayerCurrentAbility(player))}
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground tabular-nums">
+                  {player.age}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
         </Table>
       </div>
     </section>
@@ -898,7 +697,10 @@ function StandingsPanel({
   )
   const selectedRows = rows.filter((row) => {
     if (selectedConferenceId === "all") return true
-    return getDivisionAndConference(league, row.team.id).conference?.id === selectedConferenceId
+    return (
+      getDivisionAndConference(league, row.team.id).conference?.id ===
+      selectedConferenceId
+    )
   })
 
   return (
@@ -955,7 +757,10 @@ function StandingsPanel({
           </TableHeader>
           <TableBody>
             {selectedRows.map((row, index) => {
-              const { conference } = getDivisionAndConference(league, row.team.id)
+              const { conference } = getDivisionAndConference(
+                league,
+                row.team.id
+              )
               return (
                 <TableRow
                   key={row.team.id}
@@ -1108,7 +913,8 @@ function LeagueLeadersPanel({ league }: { league: LeagueDocument }) {
         {selectedRows.length > 0 ? (
           <Table>
             <TableCaption className="sr-only">
-              Top five league leaders for {selectedCategory?.label ?? "this category"}.
+              Top five league leaders for{" "}
+              {selectedCategory?.label ?? "this category"}.
             </TableCaption>
             <TableHeader className="sticky top-0 z-10 bg-background">
               <TableRow>
@@ -1167,7 +973,9 @@ function RecentActivityPanel({ league }: { league: LeagueDocument }) {
             Recent activity
           </h2>
         </div>
-        <span className="text-xs text-muted-foreground">Latest completed games</span>
+        <span className="text-xs text-muted-foreground">
+          Latest completed games
+        </span>
       </div>
       <div className="min-h-0 overflow-auto">
         {games.length > 0 ? (
@@ -1186,8 +994,10 @@ function RecentActivityPanel({ league }: { league: LeagueDocument }) {
               {games.map((game) => {
                 const homeTeam = league.entities.teams[game.result.homeTeamId]
                 const awayTeam = league.entities.teams[game.result.awayTeamId]
-                const homePoints = game.result.teams[game.result.homeTeamId].points
-                const awayPoints = game.result.teams[game.result.awayTeamId].points
+                const homePoints =
+                  game.result.teams[game.result.homeTeamId].points
+                const awayPoints =
+                  game.result.teams[game.result.awayTeamId].points
                 return (
                   <TableRow key={game.scheduleId}>
                     <TableCell className="font-medium">
@@ -1216,16 +1026,30 @@ function RecentActivityPanel({ league }: { league: LeagueDocument }) {
 
 function KeyDatesPanel({ league }: { league: LeagueDocument }) {
   const milestones = [
-    { label: "Trade deadline", date: league.state.calendar.milestones.tradeDeadline },
-    { label: "Regular season ends", date: league.state.calendar.regularSeasonEnd },
-    { label: "Playoffs begin", date: league.state.calendar.milestones.playoffsStart },
+    {
+      label: "Trade deadline",
+      date: league.state.calendar.milestones.tradeDeadline,
+    },
+    {
+      label: "Regular season ends",
+      date: league.state.calendar.regularSeasonEnd,
+    },
+    {
+      label: "Playoffs begin",
+      date: league.state.calendar.milestones.playoffsStart,
+    },
   ].filter((milestone) => milestone.date >= league.state.calendar.currentDate)
 
   return (
-    <section aria-labelledby="key-dates-heading" className="border-y border-border">
+    <section
+      aria-labelledby="key-dates-heading"
+      className="border-y border-border"
+    >
       <div className="flex items-end justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div>
-          <p className="text-[11px] font-medium text-muted-foreground">Calendar</p>
+          <p className="text-[11px] font-medium text-muted-foreground">
+            Calendar
+          </p>
           <h2
             id="key-dates-heading"
             className="mt-1 text-lg font-semibold tracking-[-0.02em]"
@@ -1244,9 +1068,14 @@ function KeyDatesPanel({ league }: { league: LeagueDocument }) {
       <div className="grid divide-y divide-border">
         {milestones.length > 0 ? (
           milestones.map((milestone) => (
-            <div key={milestone.label} className="flex items-center justify-between gap-4 px-4 py-3 text-sm sm:px-5">
+            <div
+              key={milestone.label}
+              className="flex items-center justify-between gap-4 px-4 py-3 text-sm sm:px-5"
+            >
               <span className="text-muted-foreground">{milestone.label}</span>
-              <span className="font-medium tabular-nums">{formatDate(milestone.date)}</span>
+              <span className="font-medium tabular-nums">
+                {formatDate(milestone.date)}
+              </span>
             </div>
           ))
         ) : (
@@ -1265,16 +1094,18 @@ function LeagueShellPage() {
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [sidebarWidth, setSidebarWidth] = React.useState(DEFAULT_SIDEBAR_WIDTH)
-  const [isSidebarWidthHydrated, setIsSidebarWidthHydrated] = React.useState(false)
-  const [isSimulating, setIsSimulating] = React.useState(false)
-  const [simulationError, setSimulationError] = React.useState<string | null>(
-    null
-  )
+  const [isSidebarWidthHydrated, setIsSidebarWidthHydrated] =
+    React.useState(false)
+  const { handleAdvanceDay, isSimulating, simulationError } =
+    useLeagueSimulation({ league, repository, setLeague })
 
   React.useEffect(() => {
     try {
-      const storedWidth = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY))
-      if (Number.isFinite(storedWidth)) setSidebarWidth(clampSidebarWidth(storedWidth))
+      const storedWidth = Number(
+        window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
+      )
+      if (Number.isFinite(storedWidth))
+        setSidebarWidth(clampSidebarWidth(storedWidth))
     } catch {
       // Local storage is optional; the default width remains usable.
     }
@@ -1284,7 +1115,10 @@ function LeagueShellPage() {
   React.useEffect(() => {
     if (!isSidebarWidthHydrated) return
     try {
-      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth))
+      window.localStorage.setItem(
+        SIDEBAR_WIDTH_STORAGE_KEY,
+        String(sidebarWidth)
+      )
     } catch {
       // Local storage is optional; resizing still works for this session.
     }
@@ -1317,45 +1151,6 @@ function LeagueShellPage() {
       active = false
     }
   }, [saveId])
-
-  async function handleAdvanceDay() {
-    if (!league || isSimulating) return
-
-    const action = getLifecycleActionState(league, "advance-day")
-    if (!action.enabled) return
-
-    const commandId = `command:advance-day:${crypto.randomUUID()}`
-    setIsSimulating(true)
-    setSimulationError(null)
-
-    try {
-      const result = await runAndCommitLeagueCommand(
-        {
-          requestId: `request:${crypto.randomUUID()}`,
-          command: { type: "AdvanceDay", commandId },
-          league,
-        },
-        repository
-      )
-
-      if (result.status !== "completed" || !result.league) {
-        setSimulationError(
-          result.reason?.message ?? "The simulation could not be completed."
-        )
-        return
-      }
-
-      setLeague(result.league)
-    } catch (caughtError) {
-      setSimulationError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "The simulation could not be completed."
-      )
-    } finally {
-      setIsSimulating(false)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -1419,40 +1214,27 @@ function LeagueShellPage() {
     )
   }
 
-  const standing = getStandingRows(league).find(
-    (row) => row.team.id === teamId
-  ) ?? {
-    wins: 0,
-    losses: 0,
-    rank: 0,
-  }
-  const nextGames = getNextGames(league, teamId)
   const advanceAction = getLifecycleActionState(league, "advance-day")
 
   return (
     <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground xl:h-dvh xl:overflow-hidden">
       <SidebarProvider
         className="min-h-svh xl:h-dvh"
-        style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}
+        style={
+          { "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties
+        }
       >
         <DashboardSidebar
           league={league}
           teamId={teamId}
           width={sidebarWidth}
           onWidthChange={setSidebarWidth}
-          advanceAction={advanceAction}
-          isSimulating={isSimulating}
-          onAdvanceDay={() => void handleAdvanceDay()}
         />
         <SidebarInset className="min-h-0 xl:overflow-hidden">
-          <MobileDashboardHeader
+          <LeagueContextHeader
             league={league}
-            advanceAction={advanceAction}
-            isSimulating={isSimulating}
-            onAdvanceDay={() => void handleAdvanceDay()}
-          />
-          <CommandHeader
-            league={league}
+            teamId={teamId}
+            pageLabel="Dashboard"
             advanceAction={advanceAction}
             isSimulating={isSimulating}
             onAdvanceDay={() => void handleAdvanceDay()}
@@ -1467,13 +1249,6 @@ function LeagueShellPage() {
           )}
 
           <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col gap-3 overflow-y-auto px-4 py-3 sm:px-6 lg:px-8 xl:overflow-hidden">
-            <TeamStatusBar
-              league={league}
-              teamId={teamId}
-              nextGame={nextGames[0]}
-              record={standing}
-            />
-
             <div className="grid min-h-0 gap-3 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
               <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_minmax(10rem,0.32fr)]">
                 <StandingsPanel league={league} teamId={teamId} />
