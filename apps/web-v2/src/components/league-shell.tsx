@@ -184,7 +184,7 @@ export function LeagueSidebar({
       className="relative border-r border-border bg-muted/20"
       collapsible="offcanvas"
     >
-      <SidebarHeader className="gap-0 border-b border-border px-4 py-3">
+      <SidebarHeader className="h-14 shrink-0 justify-center gap-0 border-b border-border px-4 py-0">
         <p className="truncate text-sm font-semibold tracking-[-0.02em]">
           {team.name}
         </p>

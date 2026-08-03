@@ -151,8 +151,8 @@ export function LeagueContextHeader({
     : "No game scheduled"
 
   return (
-    <header className="border-b border-border bg-background">
-      <div className="mx-auto flex w-full max-w-[96rem] flex-col gap-3 px-4 py-3 sm:px-6 lg:px-8 xl:flex-row xl:items-center xl:justify-between">
+    <header className="min-h-14 border-b border-border bg-background">
+      <div className="mx-auto flex min-h-14 w-full max-w-[96rem] flex-col gap-3 px-4 py-3 sm:px-6 lg:px-8 xl:h-14 xl:flex-row xl:items-center xl:justify-between xl:gap-4 xl:py-0">
         <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3">
           <div className="flex min-w-0 items-center gap-3">
             <SidebarTrigger className="lg:hidden" />
