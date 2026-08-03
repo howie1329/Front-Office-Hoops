@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import type { LeagueDocument } from "@workspace/domain-v2"
+import type { LeagueCommand, LeagueDocument } from "@workspace/domain-v2"
 import type { V2LeagueRepository } from "@workspace/db-v2"
 import type { WorkerRequest, WorkerResult } from "@workspace/sim-v2"
 import { getLifecycleActionState } from "@workspace/sim-v2"
@@ -34,46 +34,74 @@ export function useLeagueSimulation({
     null
   )
 
+  const runCommand = React.useCallback(
+    async (command: LeagueCommand): Promise<boolean> => {
+      if (!league || isSimulating) return false
+
+      setIsSimulating(true)
+      setSimulationError(null)
+
+      try {
+        const result = await runAndCommitLeagueCommand(
+          {
+            requestId: `request:${crypto.randomUUID()}`,
+            command,
+            league,
+          },
+          repository
+        )
+
+        if (result.status !== "completed" || !result.league) {
+          setSimulationError(
+            result.reason?.message ??
+              "The league command could not be completed."
+          )
+          return false
+        }
+
+        setLeague(result.league)
+        return true
+      } catch (caughtError) {
+        setSimulationError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "The league command could not be completed."
+        )
+        return false
+      } finally {
+        setIsSimulating(false)
+      }
+    },
+    [isSimulating, league, repository, setLeague]
+  )
+
   const handleAdvanceDay = React.useCallback(async () => {
     if (!league || isSimulating) return
 
     const action = getLifecycleActionState(league, "advance-day")
     if (!action.enabled) return
 
-    setIsSimulating(true)
-    setSimulationError(null)
+    await runCommand({
+      type: "AdvanceDay",
+      commandId: `command:advance-day:${crypto.randomUUID()}`,
+    })
+  }, [isSimulating, league, runCommand])
 
-    try {
-      const result = await runAndCommitLeagueCommand(
-        {
-          requestId: `request:${crypto.randomUUID()}`,
-          command: {
-            type: "AdvanceDay",
-            commandId: `command:advance-day:${crypto.randomUUID()}`,
-          },
-          league,
-        },
-        repository
-      )
+  const handleReleasePlayer = React.useCallback(
+    (teamId: string, playerId: string) =>
+      runCommand({
+        type: "ReleasePlayer",
+        commandId: `command:release-player:${crypto.randomUUID()}`,
+        teamId,
+        playerId,
+      }),
+    [runCommand]
+  )
 
-      if (result.status !== "completed" || !result.league) {
-        setSimulationError(
-          result.reason?.message ?? "The simulation could not be completed."
-        )
-        return
-      }
-
-      setLeague(result.league)
-    } catch (caughtError) {
-      setSimulationError(
-        caughtError instanceof Error
-          ? caughtError.message
-          : "The simulation could not be completed."
-      )
-    } finally {
-      setIsSimulating(false)
-    }
-  }, [isSimulating, league, repository, setLeague])
-
-  return { handleAdvanceDay, isSimulating, simulationError }
+  return {
+    handleAdvanceDay,
+    handleReleasePlayer,
+    isSimulating,
+    simulationError,
+  }
 }

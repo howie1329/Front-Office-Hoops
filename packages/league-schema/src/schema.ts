@@ -1676,6 +1676,9 @@ export const contractEntitySchema = z
       "extension",
       "manual",
     ]),
+    status: z.enum(["active", "released"]).optional(),
+    releasedAtSeason: z.number().int().positive().optional(),
+    releasedFromTeamId: z.string().min(1).optional(),
   })
   .superRefine((contract, context) => {
     if (contract.annualSalary.length !== contract.years) {

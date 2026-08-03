@@ -13,6 +13,7 @@ import {
   getContractSalary,
   getContractYearsRemaining,
   getPlayerCurrentAbility,
+  projectTeamFinance,
 } from "@workspace/sim-v2"
 
 import { Badge } from "@/components/ui/badge"
@@ -27,6 +28,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Sheet,
   SheetContent,
@@ -126,13 +137,6 @@ function getPlayerContract(
   )
 }
 
-function getPayroll(league: LeagueDocument, teamId: string): number | null {
-  const payroll = league.projections.payroll.find(
-    (row) => row.teamId === teamId
-  )
-  return numericField(payroll, "payroll")
-}
-
 function getRosterPlayers(
   league: LeagueDocument,
   teamId: string
@@ -188,6 +192,12 @@ function titleCase(value: string): string {
     .join(" ")
 }
 
+function average(values: Array<number>): number {
+  return values.length
+    ? values.reduce((sum, value) => sum + value, 0) / values.length
+    : 0
+}
+
 function RosterSummary({
   league,
   teamId,
@@ -195,8 +205,14 @@ function RosterSummary({
   league: LeagueDocument
   teamId: string
 }) {
-  const rosterCount = getRosterPlayers(league, teamId).length
-  const payroll = getPayroll(league, teamId)
+  const rosterPlayers = getRosterPlayers(league, teamId)
+  const rosterCount = rosterPlayers.length
+  const finance = projectTeamFinance(league, teamId, 1)
+  const current = finance.seasons[0]
+  const teamOverall = Math.round(
+    average(rosterPlayers.map(getPlayerCurrentAbility))
+  )
+  const averageAge = average(rosterPlayers.map((player) => player.age))
   const hasRosterIssue = rosterCount > ROSTER_LIMIT
   const rosterMessage = hasRosterIssue
     ? `Roster exceeds the ${ROSTER_LIMIT}-player limit. Remove a player before advancing.`
@@ -211,14 +227,32 @@ function RosterSummary({
         Roster
       </h1>
       <TooltipProvider>
-        <dl className="grid max-w-md grid-cols-2 divide-x divide-border">
-          <div className="py-3 pr-6">
-            <dt className="text-[11px] text-muted-foreground">Payroll</dt>
-            <dd className="mt-1 text-sm font-semibold tabular-nums">
-              {formatMillions(payroll)}
-            </dd>
-          </div>
-          <div className="py-3 pl-6">
+        <dl className="grid grid-cols-2 divide-x divide-border sm:grid-cols-5">
+          {[
+            [
+              "Payroll",
+              formatMillions(current.payroll),
+              "Active salary + dead money",
+            ],
+            [
+              "Dead money",
+              formatMillions(current.deadMoney),
+              "Released contracts",
+            ],
+            ["Team OVR", String(teamOverall), "Average current ability"],
+            ["Average age", averageAge.toFixed(1), "Years"],
+          ].map(([label, value, detail], index) => (
+            <div key={label} className={cn("py-3 pr-4", index > 0 && "pl-4")}>
+              <dt className="text-[11px] text-muted-foreground">{label}</dt>
+              <dd className="mt-1 text-sm font-semibold tabular-nums">
+                {value}
+              </dd>
+              <p className="truncate text-[10px] text-muted-foreground">
+                {detail}
+              </p>
+            </div>
+          ))}
+          <div className="col-span-2 py-3 pr-4 sm:col-span-1 sm:pl-4">
             <dt className="text-[11px] text-muted-foreground">Roster spots</dt>
             <dd className="mt-1 text-sm font-semibold tabular-nums">
               {hasRosterIssue ? (
@@ -240,6 +274,9 @@ function RosterSummary({
                 </span>
               )}
             </dd>
+            <p className="truncate text-[10px] text-muted-foreground">
+              Standard roster
+            </p>
           </div>
         </dl>
       </TooltipProvider>
@@ -339,11 +376,15 @@ function RosterTable({
   teamId,
   selectedPlayerId,
   onSelectPlayer,
+  onReleasePlayer,
+  isSimulating,
 }: {
   league: LeagueDocument
   teamId: string
   selectedPlayerId?: string
   onSelectPlayer: (playerId: string) => void
+  onReleasePlayer: (player: PlayerEntity) => void
+  isSimulating: boolean
 }) {
   const [query, setQuery] = React.useState("")
   const [positionFilter, setPositionFilter] =
@@ -533,7 +574,7 @@ function RosterTable({
 
       <div className="min-h-0 flex-1 overflow-auto">
         {visiblePlayers.length > 0 ? (
-          <Table className="min-w-[760px]">
+          <Table className="min-w-[860px]">
             <TableCaption className="sr-only">
               Team roster. Select a player to open their detail sheet.
             </TableCaption>
@@ -582,6 +623,9 @@ function RosterTable({
                   onSort={handleSort}
                   align="right"
                 />
+                <TableHead className="pr-3 text-right sm:pr-4">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -651,6 +695,22 @@ function RosterTable({
                         contract,
                         league.state.season
                       ) ?? "—"}
+                    </TableCell>
+                    <TableCell className="pr-3 text-right sm:pr-4">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={isSimulating}
+                        className="text-destructive hover:text-destructive"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onReleasePlayer(player)
+                        }}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        Release
+                      </Button>
                     </TableCell>
                   </TableRow>
                 )
@@ -959,10 +1019,83 @@ function PlayerSheet({
   )
 }
 
+function getRemainingContractValue(
+  league: LeagueDocument,
+  playerId: string
+): number {
+  const contract = getPlayerContract(league, playerId)
+  const yearsRemaining = getContractYearsRemaining(
+    contract,
+    league.state.season
+  )
+
+  const years = typeof yearsRemaining === "number" ? yearsRemaining : 0
+  if (!contract || years <= 0) return 0
+
+  return Array.from(
+    { length: years },
+    (_, index) => getContractSalary(contract, league.state.season + index) ?? 0
+  ).reduce((sum, salary) => sum + salary, 0)
+}
+
+function ReleasePlayerDialog({
+  league,
+  player,
+  isReleasing,
+  onOpenChange,
+  onConfirm,
+}: {
+  league: LeagueDocument
+  player?: PlayerEntity
+  isReleasing: boolean
+  onOpenChange: (open: boolean) => void
+  onConfirm: () => void | Promise<void>
+}) {
+  const remainingSalary = player
+    ? getRemainingContractValue(league, player.id)
+    : 0
+
+  return (
+    <AlertDialog open={Boolean(player)} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Release {player ? fullName(player) : "this player"}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            This immediately removes the player from your roster and makes them
+            a free agent. Their remaining contract stays on your books as dead
+            money until another team signs them.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="flex items-center justify-between gap-4 rounded-md bg-muted px-3 py-2 text-xs">
+          <span className="text-muted-foreground">
+            Remaining contract value
+          </span>
+          <span className="font-semibold tabular-nums">
+            {formatMillions(remainingSalary)}
+          </span>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isReleasing}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={isReleasing}
+            onClick={onConfirm}
+          >
+            Release player
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
 function TeamRosterPage() {
   const { playerId } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
-  const { league, teamId } = useLeagueShell()
+  const { league, teamId, handleReleasePlayer, isSimulating } = useLeagueShell()
+  const [releasePlayer, setReleasePlayer] = React.useState<PlayerEntity>()
   const rosterPlayerIds = league.entities.teams[teamId].rosterPlayerIds ?? []
   const selectedPlayer =
     playerId && rosterPlayerIds.includes(playerId)
@@ -981,6 +1114,13 @@ function TeamRosterPage() {
     })
   }
 
+  async function confirmRelease() {
+    if (!releasePlayer) return
+
+    const completed = await handleReleasePlayer(releasePlayer.id)
+    if (completed) setReleasePlayer(undefined)
+  }
+
   return (
     <>
       <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-6 lg:overflow-hidden lg:px-8">
@@ -990,6 +1130,8 @@ function TeamRosterPage() {
           teamId={teamId}
           selectedPlayerId={selectedPlayer?.id}
           onSelectPlayer={selectPlayer}
+          onReleasePlayer={setReleasePlayer}
+          isSimulating={isSimulating}
         />
       </div>
 
@@ -999,6 +1141,15 @@ function TeamRosterPage() {
         onOpenChange={(open) => {
           if (!open) closePlayer()
         }}
+      />
+      <ReleasePlayerDialog
+        league={league}
+        player={releasePlayer}
+        isReleasing={isSimulating}
+        onOpenChange={(open) => {
+          if (!open && !isSimulating) setReleasePlayer(undefined)
+        }}
+        onConfirm={confirmRelease}
       />
     </>
   )

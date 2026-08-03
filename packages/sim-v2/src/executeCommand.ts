@@ -6,10 +6,8 @@ import type {
 import { validateLeagueDocument } from "@workspace/league-schema"
 
 import type { WorkerResult } from "./protocol"
-import {
-  advanceLeagueDay,
-  LifecycleCommandError,
-} from "./lifecycle"
+import { advanceLeagueDay, LifecycleCommandError } from "./lifecycle"
+import { releasePlayer, ReleasePlayerCommandError } from "./rosterTransactions"
 
 function rejection(
   request: RuntimeWorkerRequest,
@@ -100,6 +98,7 @@ function isSupportedCommandType(type: string): boolean {
     "SimulateToDate",
     "SimulateToDeadline",
     "SimulateToRegularSeasonEnd",
+    "ReleasePlayer",
   ].includes(type)
 }
 
@@ -141,6 +140,26 @@ function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
         }
       } catch (error) {
         if (error instanceof LifecycleCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
+    case "ReleasePlayer": {
+      try {
+        const result = releasePlayer(
+          validation.data,
+          request.command as Extract<LeagueCommand, { type: "ReleasePlayer" }>
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: [result.event],
+          diagnostics: [],
+        }
+      } catch (error) {
+        if (error instanceof ReleasePlayerCommandError) {
           return rejection(request, error.reason)
         }
         throw error

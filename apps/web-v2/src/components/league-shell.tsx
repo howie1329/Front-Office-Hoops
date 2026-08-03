@@ -37,6 +37,7 @@ export type LeagueShellContextValue = {
   isSimulating: boolean
   simulationError: string | null
   handleAdvanceDay: () => Promise<void>
+  handleReleasePlayer: (playerId: string) => Promise<boolean>
 }
 
 const LeagueShellContext = React.createContext<LeagueShellContextValue | null>(

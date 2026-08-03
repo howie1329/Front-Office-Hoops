@@ -720,11 +720,22 @@ function CapOutlook({
             )
           })}
         </svg>
-        <div className="grid grid-cols-3 gap-2 border-t border-border pt-2 text-[10px]">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-border pt-2 text-[10px] sm:grid-cols-4">
           <div>
             <p className="text-muted-foreground">Current payroll</p>
             <p className="mt-0.5 font-medium tabular-nums">
               {formatMoney(seasons[0]?.payroll ?? 0)}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Dead money</p>
+            <p
+              className={cn(
+                "mt-0.5 font-medium tabular-nums",
+                (seasons[0]?.deadMoney ?? 0) > 0 && "text-destructive"
+              )}
+            >
+              {formatMoney(seasons[0]?.deadMoney ?? 0)}
             </p>
           </div>
           <div>
@@ -765,6 +776,9 @@ function FinanceAttention({
   const largest = [...rows]
     .sort((left, right) => (right.salaries[0] ?? 0) - (left.salaries[0] ?? 0))
     .slice(0, 3)
+  const deadMoneySeasons = projection.seasons.filter(
+    (season) => season.deadMoney > 0
+  )
 
   return (
     <section
@@ -828,9 +842,35 @@ function FinanceAttention({
           )}
         </div>
         <div className="py-2.5">
-          <p className="text-xs font-medium">Options and dead money</p>
-          <p className="mt-1.5 text-xs text-muted-foreground">
-            No option years or dead-money obligations are recorded yet.
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium">Dead money</p>
+            <Badge variant={deadMoneySeasons.length > 0 ? "secondary" : "outline"}>
+              {formatMoney(projection.seasons[0]?.deadMoney ?? 0)} now
+            </Badge>
+          </div>
+          {deadMoneySeasons.length > 0 ? (
+            <ul className="mt-1.5 divide-y divide-border text-xs">
+              {deadMoneySeasons.map((season) => (
+                <li
+                  key={season.season}
+                  className="flex items-center justify-between gap-3 py-1.5"
+                >
+                  <span className="text-muted-foreground">
+                    {formatSeasonLabel(league, season.season)}
+                  </span>
+                  <span className="font-medium tabular-nums">
+                    {formatMoney(season.deadMoney)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              No dead-money obligations are recorded in the current projection.
+            </p>
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Option years are not modeled yet.
           </p>
         </div>
       </div>

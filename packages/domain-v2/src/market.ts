@@ -21,6 +21,8 @@ export type ContractSource =
 
 export type BirdRightsLevel = "none" | "non-bird" | "early-bird" | "bird"
 
+export type ContractLifecycleStatus = "active" | "released"
+
 export type FreeAgencyRights = {
   level: BirdRightsLevel
   teamId: string | null
@@ -39,6 +41,9 @@ export type ContractEntity = {
   fullyGuaranteed: true
   rights: FreeAgencyRights
   source: ContractSource
+  status?: ContractLifecycleStatus
+  releasedAtSeason?: number
+  releasedFromTeamId?: string
 }
 
 export type EconomyGrowthConfig = {

@@ -138,6 +138,7 @@ export type {
   ContractDemandBreakdown,
   ContractDemandResult,
   ContractEntity,
+  ContractLifecycleStatus,
   ContractLegalityResult,
   ContractMarketConfig,
   ContractMarketFixture,

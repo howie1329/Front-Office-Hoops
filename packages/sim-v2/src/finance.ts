@@ -1,4 +1,5 @@
 import type {
+  ContractLifecycleStatus,
   ContractEntity,
   JsonRecord,
   LeagueDocument,
@@ -40,6 +41,7 @@ export type TeamFinanceProjection = {
 
 type NormalizedContract = FinanceContractProjection & {
   teamId: string | null
+  status: ContractLifecycleStatus
 }
 
 function numberField(record: JsonRecord, key: string): number | null {
@@ -50,6 +52,12 @@ function numberField(record: JsonRecord, key: string): number | null {
 function stringField(record: JsonRecord, key: string): string | null {
   const value = record[key]
   return typeof value === "string" && value.length > 0 ? value : null
+}
+
+function isReleasedContract(
+  contract: Pick<NormalizedContract, "status">
+): boolean {
+  return contract.status === "released"
 }
 
 function isTypedContract(
@@ -90,6 +98,7 @@ function normalizeContract(
       totalValue: annualSalary.reduce((sum, salary) => sum + salary, 0),
       source: contract.source,
       expiringSeason: contract.endSeason,
+      status: contract.status ?? "active",
     }
   }
 
@@ -114,6 +123,7 @@ function normalizeContract(
     totalValue: annualSalary.reduce((sum, value) => sum + value, 0),
     source: stringField(contract, "source"),
     expiringSeason: endSeason,
+    status: "active",
   }
 }
 
@@ -126,12 +136,27 @@ function getTeamContracts(
   teamId: string
 ): NormalizedContract[] {
   const currentSeason = league.state.season
+  const rosterPlayerIds = new Set(playerIdsForTeam(league, teamId))
+  const freeAgentIds = new Set(
+    Object.values(league.entities.players)
+      .filter((player) => player.leagueStatus.kind === "free-agent")
+      .map((player) => player.id)
+  )
 
   return Object.entries(league.entities.contracts)
     .map(([id, contract]) => normalizeContract(id, contract, currentSeason))
     .filter((contract): contract is NormalizedContract =>
       Boolean(contract && contract.teamId === teamId)
     )
+    .map((contract) => {
+      const isLegacyRelease =
+        !rosterPlayerIds.has(contract.playerId) &&
+        freeAgentIds.has(contract.playerId)
+
+      return isLegacyRelease && contract.status !== "released"
+        ? { ...contract, status: "released" as const }
+        : contract
+    })
 }
 
 function salaryForSeason(contract: NormalizedContract, season: number): number {
@@ -160,6 +185,7 @@ function emptyContract(playerId: string): NormalizedContract {
     totalValue: 0,
     source: null,
     expiringSeason: null,
+    status: "active",
   }
 }
 
@@ -170,23 +196,28 @@ export function projectTeamFinance(
 ): TeamFinanceProjection {
   const safeHorizon = Math.max(1, Math.floor(horizon))
   const currentSeason = league.state.season
+  const teamContracts = getTeamContracts(league, teamId)
   const contractByPlayerId = new Map(
-    getTeamContracts(league, teamId).map((contract) => [
-      contract.playerId,
-      contract,
-    ])
+    teamContracts
+      .filter((contract) => !isReleasedContract(contract))
+      .map((contract) => [contract.playerId, contract])
   )
+  const deadMoneyContracts = teamContracts.filter(isReleasedContract)
   const contracts = playerIdsForTeam(league, teamId).map(
     (playerId) => contractByPlayerId.get(playerId) ?? emptyContract(playerId)
   )
   const seasons = Array.from({ length: safeHorizon }, (_, index) => {
     const season = currentSeason + index
     const economy = createEconomySnapshot(season, STANDARD_ECONOMY_CONFIG)
-    const payroll = contracts.reduce(
+    const activePayroll = contracts.reduce(
       (sum, contract) => sum + salaryForSeason(contract, season),
       0
     )
-    const deadMoney = 0
+    const deadMoney = deadMoneyContracts.reduce(
+      (sum, contract) => sum + salaryForSeason(contract, season),
+      0
+    )
+    const payroll = activePayroll + deadMoney
 
     return {
       season,

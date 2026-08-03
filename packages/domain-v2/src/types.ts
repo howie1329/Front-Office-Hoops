@@ -631,6 +631,12 @@ export type LeagueCommand =
       commandId: string
       teamId: string
     }
+  | {
+      type: "ReleasePlayer"
+      commandId: string
+      teamId: string
+      playerId: string
+    }
 
 export type ValidationIssue = {
   code: string

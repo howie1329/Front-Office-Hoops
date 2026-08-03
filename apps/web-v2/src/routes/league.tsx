@@ -47,12 +47,16 @@ function LeagueLayout() {
   const [sidebarWidth, setSidebarWidth] = React.useState(DEFAULT_SIDEBAR_WIDTH)
   const [isSidebarWidthHydrated, setIsSidebarWidthHydrated] =
     React.useState(false)
-  const { handleAdvanceDay, isSimulating, simulationError } =
-    useLeagueSimulation({
-      league,
-      repository,
-      setLeague,
-    })
+  const {
+    handleAdvanceDay,
+    handleReleasePlayer,
+    isSimulating,
+    simulationError,
+  } = useLeagueSimulation({
+    league,
+    repository,
+    setLeague,
+  })
 
   React.useEffect(() => {
     try {
@@ -192,6 +196,8 @@ function LeagueLayout() {
         isSimulating,
         simulationError,
         handleAdvanceDay,
+        handleReleasePlayer: (playerId) =>
+          handleReleasePlayer(teamId, playerId),
       }}
     >
       <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground xl:h-dvh xl:overflow-hidden">

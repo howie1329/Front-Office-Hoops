@@ -145,6 +145,7 @@ function createContract(player: PlayerEntity): ContractEntity {
       Math.round(salary * (1 + STANDARD_ECONOMY_CONFIG.standardRaiseRate)),
     ],
     fullyGuaranteed: true,
+    status: "active",
     rights: {
       level: "none",
       teamId:
