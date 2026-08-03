@@ -175,7 +175,11 @@ function LeagueLayout() {
 
   const advanceAction = getLifecycleActionState(league, "advance-day")
   const pageLabel =
-    pathname === "/league/roster" ? "Team / Roster" : "Dashboard"
+    pathname === "/league/roster"
+      ? "Team / Roster"
+      : pathname === "/league/finance"
+        ? "Team / Finance"
+        : "Dashboard"
 
   return (
     <LeagueShellProvider

@@ -9,7 +9,11 @@ import type {
   LeagueDocument,
   PlayerEntity,
 } from "@workspace/domain-v2"
-import { getPlayerCurrentAbility } from "@workspace/sim-v2"
+import {
+  getContractSalary,
+  getContractYearsRemaining,
+  getPlayerCurrentAbility,
+} from "@workspace/sim-v2"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -271,11 +275,14 @@ function getPlayerSortValue(
     case "overall":
       return getPlayerCurrentAbility(player)
     case "salary":
-      return numericField(getPlayerContract(league, player.id), "salary")
-    case "years":
-      return numericField(
+      return getContractSalary(
         getPlayerContract(league, player.id),
-        "yearsRemaining"
+        league.state.season
+      )
+    case "years":
+      return getContractYearsRemaining(
+        getPlayerContract(league, player.id),
+        league.state.season
       )
   }
 }
@@ -635,10 +642,15 @@ function RosterTable({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {formatMoney(numericField(contract, "salary"))}
+                      {formatMoney(
+                        getContractSalary(contract, league.state.season)
+                      )}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {numericField(contract, "yearsRemaining") ?? "—"}
+                      {getContractYearsRemaining(
+                        contract,
+                        league.state.season
+                      ) ?? "—"}
                     </TableCell>
                   </TableRow>
                 )
@@ -842,11 +854,18 @@ function PlayerSheet({
                 <dl className="mt-3 divide-y divide-border text-xs">
                   <DetailMetric
                     label="Salary"
-                    value={formatMoney(numericField(contract, "salary"))}
+                    value={formatMoney(
+                      getContractSalary(contract, league.state.season)
+                    )}
                   />
                   <DetailMetric
                     label="Years remaining"
-                    value={numericField(contract, "yearsRemaining") ?? "—"}
+                    value={
+                      getContractYearsRemaining(
+                        contract,
+                        league.state.season
+                      ) ?? "—"
+                    }
                   />
                   <DetailMetric
                     label="Contract source"

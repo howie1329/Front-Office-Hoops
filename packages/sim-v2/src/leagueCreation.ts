@@ -1,4 +1,5 @@
 import type {
+  ContractEntity,
   JsonRecord,
   LeagueDocument,
   PlayerEntity,
@@ -14,6 +15,7 @@ import {
   createLeagueCalendar,
   createStandardLeagueStructure,
 } from "./leagueSchedule"
+import { STANDARD_ECONOMY_CONFIG } from "./marketConfig"
 
 const TEAM_NAMES = [
   "Baltimore Foundry",
@@ -126,19 +128,33 @@ function createStaff(team: TeamEntity): JsonRecord[] {
   )
 }
 
-function createContract(player: PlayerEntity): JsonRecord {
+function createContract(player: PlayerEntity): ContractEntity {
   const ability = getPlayerCurrentAbility(player)
+  const salary = Math.max(1_000_000, Math.round(ability * 100_000))
 
   return {
     id: `contract:${player.id}`,
     playerId: player.id,
     teamId:
-      player.leagueStatus.kind === "rostered"
-        ? player.leagueStatus.teamId
-        : null,
-    salary: Math.max(1_000_000, Math.round(ability * 100_000)),
-    yearsRemaining: 2,
-    source: "initial-league",
+      player.leagueStatus.kind === "rostered" ? player.leagueStatus.teamId : "",
+    startSeason: 1,
+    endSeason: 2,
+    years: 2,
+    annualSalary: [
+      salary,
+      Math.round(salary * (1 + STANDARD_ECONOMY_CONFIG.standardRaiseRate)),
+    ],
+    fullyGuaranteed: true,
+    rights: {
+      level: "none",
+      teamId:
+        player.leagueStatus.kind === "rostered"
+          ? player.leagueStatus.teamId
+          : null,
+      seasonsWithTeam: 0,
+      lastContractId: null,
+    },
+    source: "manual",
   }
 }
 
@@ -236,7 +252,7 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
     teamId: team.id,
     payroll: contracts
       .filter((contract) => contract.teamId === team.id)
-      .reduce((sum, contract) => sum + Number(contract.salary ?? 0), 0),
+      .reduce((sum, contract) => sum + (contract.annualSalary[0] ?? 0), 0),
   }))
   const document: LeagueDocument = {
     schema: {

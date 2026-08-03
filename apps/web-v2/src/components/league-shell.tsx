@@ -178,6 +178,7 @@ export function LeagueSidebar({
   const team = league.entities.teams[teamId]
   const isDashboard = pathname === "/league" || pathname === "/league/"
   const isRoster = pathname === "/league/roster"
+  const isFinance = pathname === "/league/finance"
 
   return (
     <Sidebar
@@ -243,6 +244,27 @@ export function LeagueSidebar({
                       aria-hidden="true"
                     />
                     Roster
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isFinance}
+                  size="sm"
+                  className="h-8"
+                >
+                  <Link
+                    to="/league/finance"
+                    search={{ saveId: league.metadata.id }}
+                  >
+                    <HugeiconsIcon
+                      icon={Wallet01Icon}
+                      size={15}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    Finance
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

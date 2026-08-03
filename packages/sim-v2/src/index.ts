@@ -135,6 +135,16 @@ export {
   runEconomySimulation,
   runFreeAgencySimulation,
 } from "./marketSimulation"
+export {
+  getContractSalary,
+  getContractYearsRemaining,
+  projectTeamFinance,
+} from "./finance"
+export type {
+  FinanceContractProjection,
+  FinanceSeasonProjection,
+  TeamFinanceProjection,
+} from "./finance"
 export type { RandomSource, RandomSourceOptions } from "./randomness"
 export type {
   GameNumericSettingPath,

@@ -15,6 +15,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeagueIndexRouteImport } from './routes/league.index'
 import { Route as LeagueStartRouteImport } from './routes/league.start'
 import { Route as LeagueRosterRouteImport } from './routes/league.roster'
+import { Route as LeagueFinanceRouteImport } from './routes/league.finance'
 import { Route as DeveloperLabsTeamAssemblyRouteImport } from './routes/developer-labs.team-assembly'
 import { Route as DeveloperLabsProductionValueRouteImport } from './routes/developer-labs.production-value'
 import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
@@ -51,6 +52,11 @@ const LeagueStartRoute = LeagueStartRouteImport.update({
 const LeagueRosterRoute = LeagueRosterRouteImport.update({
   id: '/roster',
   path: '/roster',
+  getParentRoute: () => LeagueRoute,
+} as any)
+const LeagueFinanceRoute = LeagueFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
   getParentRoute: () => LeagueRoute,
 } as any)
 const DeveloperLabsTeamAssemblyRoute =
@@ -107,6 +113,7 @@ export interface FileRoutesByFullPath {
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
+  '/league/finance': typeof LeagueFinanceRoute
   '/league/roster': typeof LeagueRosterRoute
   '/league/start': typeof LeagueStartRoute
   '/league/': typeof LeagueIndexRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
+  '/league/finance': typeof LeagueFinanceRoute
   '/league/roster': typeof LeagueRosterRoute
   '/league/start': typeof LeagueStartRoute
   '/league': typeof LeagueIndexRoute
@@ -137,6 +145,7 @@ export interface FileRoutesById {
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
+  '/league/finance': typeof LeagueFinanceRoute
   '/league/roster': typeof LeagueRosterRoute
   '/league/start': typeof LeagueStartRoute
   '/league/': typeof LeagueIndexRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
+    | '/league/finance'
     | '/league/roster'
     | '/league/start'
     | '/league/'
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
+    | '/league/finance'
     | '/league/roster'
     | '/league/start'
     | '/league'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
+    | '/league/finance'
     | '/league/roster'
     | '/league/start'
     | '/league/'
@@ -236,6 +248,13 @@ declare module '@tanstack/react-router' {
       path: '/roster'
       fullPath: '/league/roster'
       preLoaderRoute: typeof LeagueRosterRouteImport
+      parentRoute: typeof LeagueRoute
+    }
+    '/league/finance': {
+      id: '/league/finance'
+      path: '/finance'
+      fullPath: '/league/finance'
+      preLoaderRoute: typeof LeagueFinanceRouteImport
       parentRoute: typeof LeagueRoute
     }
     '/developer-labs/team-assembly': {
@@ -315,12 +334,14 @@ const DeveloperLabsRouteWithChildren = DeveloperLabsRoute._addFileChildren(
 )
 
 interface LeagueRouteChildren {
+  LeagueFinanceRoute: typeof LeagueFinanceRoute
   LeagueRosterRoute: typeof LeagueRosterRoute
   LeagueStartRoute: typeof LeagueStartRoute
   LeagueIndexRoute: typeof LeagueIndexRoute
 }
 
 const LeagueRouteChildren: LeagueRouteChildren = {
+  LeagueFinanceRoute: LeagueFinanceRoute,
   LeagueRosterRoute: LeagueRosterRoute,
   LeagueStartRoute: LeagueStartRoute,
   LeagueIndexRoute: LeagueIndexRoute,
