@@ -1,14 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute } from "@tanstack/react-router"
 import * as React from "react"
-
-import {
-  Calendar01Icon,
-  ChartLineIcon,
-  DashboardSquare01Icon,
-  Resize01Icon,
-  SaveIcon,
-  UserGroupIcon,
-} from "@hugeicons/core-free-icons"
+import { Calendar01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
 import type {
@@ -17,20 +9,8 @@ import type {
   LeagueGameRecord,
   LeagueScheduleEntry,
 } from "@workspace/domain-v2"
-import { V2LeagueRepository } from "@workspace/db-v2"
-import {
-  getLifecycleActionState,
-  getPlayerCurrentAbility,
-} from "@workspace/sim-v2"
+import { getPlayerCurrentAbility } from "@workspace/sim-v2"
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty"
 import {
   Table,
   TableBody,
@@ -40,30 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import { LeagueContextHeader } from "@/components/league-context-header"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useLeagueSimulation } from "@/lib/leagueLifecycle"
+import { useLeagueShell } from "@/components/league-shell"
 
 export const Route = createFileRoute("/league/")({
-  component: LeagueShellPage,
+  component: DashboardPage,
 })
-
-const repository = new V2LeagueRepository()
 
 function formatDate(dateKey: string, options: Intl.DateTimeFormatOptions = {}) {
   return new Intl.DateTimeFormat(undefined, {
@@ -323,297 +285,6 @@ function getRecentGameRows(league: LeagueDocument): Array<LeagueGameRecord> {
       return right.scheduleId.localeCompare(left.scheduleId)
     })
     .slice(0, 8)
-}
-
-const DEFAULT_SIDEBAR_WIDTH = 224
-const MIN_SIDEBAR_WIDTH = 208
-const MAX_SIDEBAR_WIDTH = 296
-const SIDEBAR_WIDTH_STORAGE_KEY = "foh-v2-sidebar-width"
-
-function clampSidebarWidth(width: number): number {
-  return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width))
-}
-
-function SidebarResizeHandle({
-  width,
-  onChange,
-}: {
-  width: number
-  onChange: (width: number) => void
-}) {
-  const [isDragging, setIsDragging] = React.useState(false)
-  const dragStartX = React.useRef(0)
-  const dragStartWidth = React.useRef(width)
-
-  React.useEffect(() => {
-    if (!isDragging) return
-
-    const handlePointerMove = (event: PointerEvent) => {
-      onChange(
-        clampSidebarWidth(
-          dragStartWidth.current + event.clientX - dragStartX.current
-        )
-      )
-    }
-    const handlePointerUp = () => setIsDragging(false)
-    const previousCursor = document.body.style.cursor
-    const previousUserSelect = document.body.style.userSelect
-
-    document.body.style.cursor = "col-resize"
-    document.body.style.userSelect = "none"
-    window.addEventListener("pointermove", handlePointerMove)
-    window.addEventListener("pointerup", handlePointerUp)
-
-    return () => {
-      document.body.style.cursor = previousCursor
-      document.body.style.userSelect = previousUserSelect
-      window.removeEventListener("pointermove", handlePointerMove)
-      window.removeEventListener("pointerup", handlePointerUp)
-    }
-  }, [isDragging, onChange])
-
-  function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
-    const step = event.shiftKey ? 32 : 8
-    if (event.key === "ArrowLeft") {
-      event.preventDefault()
-      onChange(clampSidebarWidth(width - step))
-    } else if (event.key === "ArrowRight") {
-      event.preventDefault()
-      onChange(clampSidebarWidth(width + step))
-    } else if (event.key === "Home") {
-      event.preventDefault()
-      onChange(MIN_SIDEBAR_WIDTH)
-    } else if (event.key === "End") {
-      event.preventDefault()
-      onChange(MAX_SIDEBAR_WIDTH)
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      role="separator"
-      aria-label="Resize sidebar"
-      aria-orientation="vertical"
-      aria-valuemin={MIN_SIDEBAR_WIDTH}
-      aria-valuemax={MAX_SIDEBAR_WIDTH}
-      aria-valuenow={width}
-      aria-valuetext={`${width} pixels wide`}
-      title="Resize sidebar"
-      className="group/resize absolute inset-y-0 -right-1 z-30 hidden w-2 cursor-col-resize lg:block"
-      onKeyDown={handleKeyDown}
-      onPointerDown={(event) => {
-        event.preventDefault()
-        dragStartX.current = event.clientX
-        dragStartWidth.current = width
-        setIsDragging(true)
-      }}
-    >
-      <span
-        aria-hidden="true"
-        className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-transparent transition-colors group-hover/resize:bg-border group-focus-visible/resize:bg-ring"
-      />
-      <HugeiconsIcon
-        icon={Resize01Icon}
-        size={12}
-        strokeWidth={2}
-        aria-hidden="true"
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-sm bg-sidebar p-0.5 text-muted-foreground opacity-0 transition-opacity group-hover/resize:opacity-100 group-focus-visible/resize:opacity-100"
-      />
-      <span className="sr-only">
-        Use the left and right arrow keys to resize. Hold Shift for larger
-        steps.
-      </span>
-    </button>
-  )
-}
-
-function DashboardSidebar({
-  league,
-  teamId,
-  width,
-  onWidthChange,
-}: {
-  league: LeagueDocument
-  teamId: string
-  width: number
-  onWidthChange: (width: number) => void
-}) {
-  const team = league.entities.teams[teamId]
-  const { conference, division } = getDivisionAndConference(league, teamId)
-  const teamMark = team.name.slice(0, 2).toUpperCase()
-
-  return (
-    <Sidebar
-      className="relative border-r border-border bg-muted/20"
-      collapsible="offcanvas"
-    >
-      <SidebarHeader className="gap-0 border-b border-border px-4 py-3">
-        <Link
-          to="/"
-          className="truncate text-[13px] font-semibold tracking-[-0.02em] transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-        >
-          Front Office Hoops <span className="text-muted-foreground">/ V2</span>
-        </Link>
-      </SidebarHeader>
-
-      <SidebarContent>
-        <div className="border-b border-border px-4 py-4">
-          <p className="text-[11px] font-medium text-muted-foreground">
-            League
-          </p>
-          <div className="mt-2 flex min-w-0 items-center gap-3">
-            <div
-              aria-hidden="true"
-              className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-[10px] font-semibold tracking-[0.04em] text-primary-foreground"
-            >
-              {teamMark}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">
-                {league.metadata.name}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {team.name} · {conference?.name ?? "—"}
-              </p>
-            </div>
-          </div>
-          <p className="mt-3 truncate text-[11px] text-muted-foreground">
-            {division?.name ?? "Division not set"}
-          </p>
-        </div>
-
-        <SidebarGroup className="px-2 py-3">
-          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
-            Workspace
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive size="sm" className="h-8">
-                  <Link to="/league" search={{ saveId: league.metadata.id }}>
-                    <HugeiconsIcon
-                      icon={DashboardSquare01Icon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    Dashboard
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="px-2 py-1">
-          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
-            Team
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild size="sm" className="h-8">
-                  <Link
-                    to="/league/roster"
-                    search={{ saveId: league.metadata.id }}
-                  >
-                    <HugeiconsIcon
-                      icon={UserGroupIcon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    Roster
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  disabled
-                  size="sm"
-                  className="h-8 justify-between"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <HugeiconsIcon
-                      icon={Calendar01Icon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    <span className="truncate">Schedule</span>
-                  </span>
-                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="px-2 py-1">
-          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
-            League
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  disabled
-                  size="sm"
-                  className="h-8 justify-between"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <HugeiconsIcon
-                      icon={ChartLineIcon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    <span className="truncate">Standings</span>
-                  </span>
-                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  disabled
-                  size="sm"
-                  className="h-8 justify-between"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <HugeiconsIcon
-                      icon={SaveIcon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    <span className="truncate">Transactions</span>
-                  </span>
-                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="gap-3 border-t border-border px-4 py-3">
-        <Link
-          to="/league/start"
-          className="inline-flex min-h-7 items-center gap-2 text-xs font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-        >
-          <HugeiconsIcon
-            icon={SaveIcon}
-            size={14}
-            strokeWidth={2}
-            aria-hidden="true"
-          />
-          Manage saves
-        </Link>
-      </SidebarFooter>
-      <SidebarResizeHandle width={width} onChange={onWidthChange} />
-    </Sidebar>
-  )
 }
 
 function RosterWatchPanel({
@@ -1088,186 +759,27 @@ function KeyDatesPanel({ league }: { league: LeagueDocument }) {
   )
 }
 
-function LeagueShellPage() {
-  const { saveId } = Route.useSearch()
-  const [league, setLeague] = React.useState<LeagueDocument | null>(null)
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [sidebarWidth, setSidebarWidth] = React.useState(DEFAULT_SIDEBAR_WIDTH)
-  const [isSidebarWidthHydrated, setIsSidebarWidthHydrated] =
-    React.useState(false)
-  const { handleAdvanceDay, isSimulating, simulationError } =
-    useLeagueSimulation({ league, repository, setLeague })
-
-  React.useEffect(() => {
-    try {
-      const storedWidth = Number(
-        window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY)
-      )
-      if (Number.isFinite(storedWidth))
-        setSidebarWidth(clampSidebarWidth(storedWidth))
-    } catch {
-      // Local storage is optional; the default width remains usable.
-    }
-    setIsSidebarWidthHydrated(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!isSidebarWidthHydrated) return
-    try {
-      window.localStorage.setItem(
-        SIDEBAR_WIDTH_STORAGE_KEY,
-        String(sidebarWidth)
-      )
-    } catch {
-      // Local storage is optional; resizing still works for this session.
-    }
-  }, [isSidebarWidthHydrated, sidebarWidth])
-
-  React.useEffect(() => {
-    let active = true
-
-    async function loadLeague() {
-      try {
-        const id = saveId ?? (await repository.list())[0]?.id
-        const document = id ? await repository.load(id) : null
-
-        if (!active) return
-        if (!document) {
-          setError("That league could not be found in this browser.")
-        } else {
-          setLeague(document)
-        }
-      } catch {
-        if (active)
-          setError("That league could not be loaded from this browser.")
-      } finally {
-        if (active) setIsLoading(false)
-      }
-    }
-
-    void loadLeague()
-    return () => {
-      active = false
-    }
-  }, [saveId])
-
-  if (isLoading) {
-    return (
-      <main className="grid min-h-svh place-items-center bg-background px-5 text-sm text-muted-foreground">
-        <div className="grid w-full max-w-sm gap-3">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-24 w-full" />
-        </div>
-      </main>
-    )
-  }
-
-  if (error || !league) {
-    return (
-      <main className="min-h-svh bg-background px-5 py-8 text-foreground sm:px-8 lg:px-12">
-        <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-10">
-          <Link
-            to="/league/start"
-            className="w-fit text-sm text-muted-foreground underline underline-offset-8 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-          >
-            Back to saves
-          </Link>
-          <Empty className="items-start rounded-none border-y border-border px-0 py-12 text-left">
-            <EmptyHeader className="items-start text-left">
-              <EmptyTitle>Dashboard unavailable.</EmptyTitle>
-              <EmptyDescription>
-                {error ?? "No league is selected."}
-              </EmptyDescription>
-            </EmptyHeader>
-            {error ? (
-              <Alert variant="destructive" className="mt-4 w-full max-w-xl">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
-          </Empty>
-        </div>
-      </main>
-    )
-  }
-
-  const teamId = league.state.userTeamId
-  if (!teamId) {
-    return (
-      <main className="min-h-svh bg-background px-5 py-8 text-foreground sm:px-8 lg:px-12">
-        <div className="mx-auto flex min-h-[80vh] w-full max-w-[88rem] items-center">
-          <Empty className="items-start rounded-none border-y border-border px-0 py-12 text-left">
-            <EmptyHeader className="items-start text-left">
-              <EmptyTitle>Select a team to open the dashboard.</EmptyTitle>
-              <EmptyDescription>
-                This league is generated, but it does not have an active team
-                yet.
-              </EmptyDescription>
-            </EmptyHeader>
-            <Button asChild className="mt-4">
-              <Link to="/league/start">Back to saves</Link>
-            </Button>
-          </Empty>
-        </div>
-      </main>
-    )
-  }
-
-  const advanceAction = getLifecycleActionState(league, "advance-day")
+function DashboardPage() {
+  const { league, teamId } = useLeagueShell()
 
   return (
-    <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground xl:h-dvh xl:overflow-hidden">
-      <SidebarProvider
-        className="min-h-svh xl:h-dvh"
-        style={
-          { "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties
-        }
-      >
-        <DashboardSidebar
-          league={league}
-          teamId={teamId}
-          width={sidebarWidth}
-          onWidthChange={setSidebarWidth}
-        />
-        <SidebarInset className="min-h-0 xl:overflow-hidden">
-          <LeagueContextHeader
-            league={league}
-            teamId={teamId}
-            pageLabel="Dashboard"
-            advanceAction={advanceAction}
-            isSimulating={isSimulating}
-            onAdvanceDay={() => void handleAdvanceDay()}
-          />
-
-          {simulationError && (
-            <div className="flex-none border-b border-border px-5 py-2 sm:px-8 lg:px-10">
-              <Alert variant="destructive" className="py-2">
-                <AlertDescription>{simulationError}</AlertDescription>
-              </Alert>
-            </div>
-          )}
-
-          <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col gap-3 overflow-y-auto px-4 py-3 sm:px-6 lg:px-8 xl:overflow-hidden">
-            <div className="grid min-h-0 gap-3 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
-              <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_minmax(10rem,0.32fr)]">
-                <StandingsPanel league={league} teamId={teamId} />
-                <div className="grid min-h-0 gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(13rem,0.75fr)]">
-                  <RecentActivityPanel league={league} />
-                  <KeyDatesPanel league={league} />
-                </div>
-              </div>
-              <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_minmax(10rem,0.32fr)]">
-                <LeagueLeadersPanel league={league} />
-                <div className="grid min-h-0 gap-3 lg:grid-cols-2">
-                  <UpcomingSchedulePanel league={league} teamId={teamId} />
-                  <RosterWatchPanel league={league} teamId={teamId} />
-                </div>
-              </div>
-            </div>
+    <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col gap-3 overflow-y-auto px-4 py-3 sm:px-6 lg:px-8 xl:overflow-hidden">
+      <div className="grid min-h-0 gap-3 xl:flex-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(22rem,0.8fr)]">
+        <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_minmax(10rem,0.32fr)]">
+          <StandingsPanel league={league} teamId={teamId} />
+          <div className="grid min-h-0 gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(13rem,0.75fr)]">
+            <RecentActivityPanel league={league} />
+            <KeyDatesPanel league={league} />
           </div>
-        </SidebarInset>
-      </SidebarProvider>
-    </main>
+        </div>
+        <div className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_minmax(10rem,0.32fr)]">
+          <LeagueLeadersPanel league={league} />
+          <div className="grid min-h-0 gap-3 lg:grid-cols-2">
+            <UpcomingSchedulePanel league={league} teamId={teamId} />
+            <RosterWatchPanel league={league} teamId={teamId} />
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

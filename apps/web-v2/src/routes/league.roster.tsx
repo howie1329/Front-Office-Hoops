@@ -1,17 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import * as React from "react"
 
-import {
-  ArrowRight01Icon,
-  Calendar01Icon,
-  ChartLineIcon,
-  DashboardSquare01Icon,
-  FilterHorizontalIcon,
-  Search02Icon,
-  SaveIcon,
-  UserGroupIcon,
-  Wallet01Icon,
-} from "@hugeicons/core-free-icons"
+import { FilterHorizontalIcon, Search02Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
 import type {
@@ -20,11 +10,7 @@ import type {
   PlayerEntity,
   PlayerPosition,
 } from "@workspace/domain-v2"
-import { V2LeagueRepository } from "@workspace/db-v2"
-import {
-  getLifecycleActionState,
-  getPlayerCurrentAbility,
-} from "@workspace/sim-v2"
+import { getPlayerCurrentAbility } from "@workspace/sim-v2"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -38,12 +24,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import {
   Sheet,
@@ -54,23 +34,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
-import { LeagueContextHeader } from "@/components/league-context-header"
-import { useLeagueSimulation } from "@/lib/leagueLifecycle"
-import { Skeleton } from "@/components/ui/skeleton"
-import {
   Table,
   TableCaption,
   TableHead,
@@ -78,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useLeagueShell } from "@/components/league-shell"
 import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/league/roster")({
@@ -92,8 +56,6 @@ export const Route = createFileRoute("/league/roster")({
   },
   component: TeamRosterPage,
 })
-
-const repository = new V2LeagueRepository()
 
 const POSITION_ORDER: Array<PlayerPosition> = ["PG", "SG", "SF", "PF", "C"]
 const POSITION_FILTERS = ["all", "guards", "wings", "bigs"] as const
@@ -222,225 +184,6 @@ function titleCase(value: string): string {
     .split("_")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ")
-}
-
-function getTeamGroupNames(league: LeagueDocument, teamId: string) {
-  const team = league.entities.teams[teamId]
-  const division = team.divisionId
-    ? league.state.structure?.divisions.find(
-        (item) => item.id === team.divisionId
-      )
-    : undefined
-  const conference = division?.conferenceId
-    ? league.state.structure?.conferences.find(
-        (item) => item.id === division.conferenceId
-      )
-    : undefined
-
-  return { division, conference }
-}
-
-function SidebarNav({
-  league,
-  teamId,
-}: {
-  league: LeagueDocument
-  teamId: string
-}) {
-  const team = league.entities.teams[teamId]
-  const { conference, division } = getTeamGroupNames(league, teamId)
-  const teamMark = team.name.slice(0, 2).toUpperCase()
-
-  return (
-    <Sidebar
-      className="relative border-r border-border bg-muted/20"
-      collapsible="offcanvas"
-    >
-      <SidebarHeader className="gap-0 border-b border-border px-4 py-3">
-        <Link
-          to="/"
-          className="truncate text-[13px] font-semibold tracking-[-0.02em] transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-        >
-          Front Office Hoops <span className="text-muted-foreground">/ V2</span>
-        </Link>
-      </SidebarHeader>
-
-      <SidebarContent>
-        <div className="border-b border-border px-4 py-4">
-          <p className="text-[11px] font-medium text-muted-foreground">
-            League
-          </p>
-          <div className="mt-2 flex min-w-0 items-center gap-3">
-            <div
-              aria-hidden="true"
-              className="grid size-8 shrink-0 place-items-center rounded-md bg-primary text-[10px] font-semibold tracking-[0.04em] text-primary-foreground"
-            >
-              {teamMark}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">
-                {league.metadata.name}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {team.name} · {conference?.name ?? "Conference"}
-              </p>
-            </div>
-          </div>
-          <p className="mt-3 truncate text-[11px] text-muted-foreground">
-            {division?.name ?? "Division not set"}
-          </p>
-        </div>
-
-        <SidebarGroup className="px-2 py-3">
-          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
-            Workspace
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild size="sm" className="h-8">
-                  <Link to="/league" search={{ saveId: league.metadata.id }}>
-                    <HugeiconsIcon
-                      icon={DashboardSquare01Icon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    Dashboard
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="px-2 py-1">
-          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
-            Team
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive size="sm" className="h-8">
-                  <Link
-                    to="/league/roster"
-                    search={{ saveId: league.metadata.id }}
-                  >
-                    <HugeiconsIcon
-                      icon={UserGroupIcon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    Roster
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  disabled
-                  size="sm"
-                  className="h-8 justify-between"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <HugeiconsIcon
-                      icon={Calendar01Icon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    <span className="truncate">Schedule</span>
-                  </span>
-                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="px-2 py-1">
-          <SidebarGroupLabel className="h-6 px-2 text-[11px] font-semibold text-sidebar-foreground/60">
-            League
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  disabled
-                  size="sm"
-                  className="h-8 justify-between"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <HugeiconsIcon
-                      icon={ChartLineIcon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    <span className="truncate">Standings</span>
-                  </span>
-                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  disabled
-                  size="sm"
-                  className="h-8 justify-between"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <HugeiconsIcon
-                      icon={Wallet01Icon}
-                      size={15}
-                      strokeWidth={2}
-                      aria-hidden="true"
-                    />
-                    <span className="truncate">Transactions</span>
-                  </span>
-                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="gap-3 border-t border-border px-4 py-3">
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span
-            aria-hidden="true"
-            className="size-1.5 rounded-full bg-muted-foreground/50"
-          />
-          <span className="truncate">League saved locally</span>
-        </div>
-        <Link
-          to="/league"
-          search={{ saveId: league.metadata.id }}
-          className="inline-flex min-h-7 items-center gap-2 text-xs font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-        >
-          <HugeiconsIcon
-            icon={ArrowRight01Icon}
-            size={14}
-            strokeWidth={2}
-            aria-hidden="true"
-          />
-          Return to dashboard
-        </Link>
-        <Link
-          to="/league/start"
-          className="inline-flex min-h-7 items-center gap-2 text-xs font-medium text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-        >
-          <HugeiconsIcon
-            icon={SaveIcon}
-            size={14}
-            strokeWidth={2}
-            aria-hidden="true"
-          />
-          Manage saves
-        </Link>
-      </SidebarFooter>
-    </Sidebar>
-  )
 }
 
 function RosterSummary({
@@ -1117,99 +860,9 @@ function PlayerSheet({
 }
 
 function TeamRosterPage() {
-  const { saveId, playerId } = Route.useSearch()
+  const { playerId } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
-  const [league, setLeague] = React.useState<LeagueDocument | null>(null)
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const { handleAdvanceDay, isSimulating, simulationError } =
-    useLeagueSimulation({ league, repository, setLeague })
-
-  React.useEffect(() => {
-    let active = true
-
-    async function loadLeague() {
-      try {
-        const id = saveId ?? (await repository.list())[0]?.id
-        const document = id ? await repository.load(id) : null
-
-        if (!active) return
-        if (!document)
-          setError("That league could not be found in this browser.")
-        else setLeague(document)
-      } catch {
-        if (active)
-          setError("That league could not be loaded from this browser.")
-      } finally {
-        if (active) setIsLoading(false)
-      }
-    }
-
-    void loadLeague()
-    return () => {
-      active = false
-    }
-  }, [saveId])
-
-  if (isLoading) {
-    return (
-      <main className="grid min-h-svh place-items-center bg-background px-5 text-sm text-muted-foreground">
-        <div className="grid w-full max-w-sm gap-3">
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      </main>
-    )
-  }
-
-  if (error || !league) {
-    return (
-      <main className="min-h-svh bg-background px-5 py-8 text-foreground sm:px-8 lg:px-12">
-        <div className="mx-auto flex w-full max-w-[88rem] flex-col gap-10">
-          <Link
-            to="/league/start"
-            className="w-fit text-sm text-muted-foreground underline underline-offset-8 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-          >
-            Back to saves
-          </Link>
-          <Empty className="items-start rounded-none border-y border-border px-0 py-12 text-left">
-            <EmptyHeader className="items-start text-left">
-              <EmptyTitle>Roster unavailable.</EmptyTitle>
-              <EmptyDescription>
-                {error ?? "No league is selected."}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
-      </main>
-    )
-  }
-
-  const teamId = league.state.userTeamId
-  if (!teamId) {
-    return (
-      <main className="min-h-svh bg-background px-5 py-8 text-foreground sm:px-8 lg:px-12">
-        <div className="mx-auto flex min-h-[80vh] w-full max-w-[88rem] items-center">
-          <Empty className="items-start rounded-none border-y border-border px-0 py-12 text-left">
-            <EmptyHeader className="items-start text-left">
-              <EmptyTitle>Select a team to open the roster.</EmptyTitle>
-              <EmptyDescription>
-                This league is generated, but it does not have an active team
-                yet.
-              </EmptyDescription>
-            </EmptyHeader>
-            <Button asChild className="mt-4">
-              <Link to="/league/start">Back to saves</Link>
-            </Button>
-          </Empty>
-        </div>
-      </main>
-    )
-  }
-
-  const advanceAction = getLifecycleActionState(league, "advance-day")
-
+  const { league, teamId } = useLeagueShell()
   const rosterPlayerIds = league.entities.teams[teamId].rosterPlayerIds ?? []
   const selectedPlayer =
     playerId && rosterPlayerIds.includes(playerId)
@@ -1229,39 +882,19 @@ function TeamRosterPage() {
   }
 
   return (
-    <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-      <SidebarProvider className="min-h-svh">
-        <SidebarNav league={league} teamId={teamId} />
-        <SidebarInset className="min-h-0">
-          <LeagueContextHeader
-            league={league}
-            teamId={teamId}
-            pageLabel="Team / Roster"
-            advanceAction={advanceAction}
-            isSimulating={isSimulating}
-            onAdvanceDay={() => void handleAdvanceDay()}
-          />
-          {simulationError ? (
-            <div className="border-b border-border px-5 py-2 sm:px-8 lg:px-10">
-              <Alert variant="destructive" className="py-2">
-                <AlertDescription>{simulationError}</AlertDescription>
-              </Alert>
-            </div>
-          ) : null}
-          <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6 lg:px-8">
-            <RosterSummary league={league} teamId={teamId} />
-            <RosterAlert league={league} teamId={teamId} />
-            <TeamTabs />
-            <RosterTable
-              league={league}
-              teamId={teamId}
-              selectedPlayerId={selectedPlayer?.id}
-              onSelectPlayer={selectPlayer}
-            />
-            <RotationPreview league={league} teamId={teamId} />
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
+    <>
+      <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6 lg:px-8">
+        <RosterSummary league={league} teamId={teamId} />
+        <RosterAlert league={league} teamId={teamId} />
+        <TeamTabs />
+        <RosterTable
+          league={league}
+          teamId={teamId}
+          selectedPlayerId={selectedPlayer?.id}
+          onSelectPlayer={selectPlayer}
+        />
+        <RotationPreview league={league} teamId={teamId} />
+      </div>
 
       <PlayerSheet
         league={league}
@@ -1270,6 +903,6 @@ function TeamRosterPage() {
           if (!open) closePlayer()
         }}
       />
-    </main>
+    </>
   )
 }
