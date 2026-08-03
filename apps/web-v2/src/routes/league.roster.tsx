@@ -8,11 +8,9 @@ import type {
   JsonRecord,
   LeagueDocument,
   PlayerEntity,
-  PlayerPosition,
 } from "@workspace/domain-v2"
 import { getPlayerCurrentAbility } from "@workspace/sim-v2"
 
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -35,12 +33,19 @@ import {
 } from "@/components/ui/sheet"
 import {
   Table,
+  TableBody,
   TableCaption,
+  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useLeagueShell } from "@/components/league-shell"
 import { cn } from "@/lib/utils"
 
@@ -57,12 +62,25 @@ export const Route = createFileRoute("/league/roster")({
   component: TeamRosterPage,
 })
 
-const POSITION_ORDER: Array<PlayerPosition> = ["PG", "SG", "SF", "PF", "C"]
-const POSITION_FILTERS = ["all", "guards", "wings", "bigs"] as const
-const SORT_OPTIONS = ["overall", "name", "salary"] as const
+const ROSTER_LIMIT = 15
+const POSITION_FILTERS = ["all", "PG", "SG", "SF", "PF", "C"] as const
+const HEALTH_FILTERS = ["all", "available", "out"] as const
+const CONTRACT_FILTERS = ["all", "signed", "missing"] as const
+const SORT_KEYS = [
+  "name",
+  "position",
+  "age",
+  "overall",
+  "salary",
+  "years",
+] as const
 
 type PositionFilter = (typeof POSITION_FILTERS)[number]
-type SortOption = (typeof SORT_OPTIONS)[number]
+type HealthFilter = (typeof HEALTH_FILTERS)[number]
+type ContractFilter = (typeof CONTRACT_FILTERS)[number]
+type SortKey = (typeof SORT_KEYS)[number]
+type SortDirection = "asc" | "desc"
+type SortState = { key: SortKey; direction: SortDirection }
 
 function formatMoney(value: number | null): string {
   if (value === null) return "—"
@@ -111,6 +129,15 @@ function getPayroll(league: LeagueDocument, teamId: string): number | null {
   return numericField(payroll, "payroll")
 }
 
+function getRosterPlayers(
+  league: LeagueDocument,
+  teamId: string
+): Array<PlayerEntity> {
+  return (league.entities.teams[teamId].rosterPlayerIds ?? [])
+    .map((playerId) => league.entities.players[playerId])
+    .filter((player): player is PlayerEntity => Boolean(player))
+}
+
 function getPlayerHealth(
   league: LeagueDocument,
   playerId: string
@@ -140,35 +167,6 @@ function getPlayerHealth(
   return { label: "Available", unavailable: false }
 }
 
-function getPositionGroup(
-  position: PlayerPosition
-): Exclude<PositionFilter, "all"> {
-  if (position === "PG" || position === "SG") return "guards"
-  if (position === "SF" || position === "PF") return "wings"
-  return "bigs"
-}
-
-function getProjectedRotation(players: Array<PlayerEntity>) {
-  const sorted = [...players].sort(
-    (left, right) =>
-      getPlayerCurrentAbility(right) - getPlayerCurrentAbility(left)
-  )
-  const used = new Set<string>()
-
-  return POSITION_ORDER.map((position) => {
-    const player =
-      sorted.find(
-        (candidate) =>
-          !used.has(candidate.id) &&
-          (candidate.profile.role.primaryPosition === position ||
-            candidate.profile.role.secondaryPosition === position)
-      ) ?? sorted.find((candidate) => !used.has(candidate.id))
-
-    if (player) used.add(player.id)
-    return { position, player }
-  })
-}
-
 function ratingGrade(value: number): string {
   if (value >= 90) return "A+"
   if (value >= 85) return "A"
@@ -193,110 +191,139 @@ function RosterSummary({
   league: LeagueDocument
   teamId: string
 }) {
-  const team = league.entities.teams[teamId]
-  const roster = (team.rosterPlayerIds ?? [])
-    .map((playerId) => league.entities.players[playerId])
-    .filter((player): player is PlayerEntity => Boolean(player))
+  const rosterCount = getRosterPlayers(league, teamId).length
   const payroll = getPayroll(league, teamId)
-
-  const metrics = [
-    { label: "Payroll", value: formatMillions(payroll) },
-    { label: "Roster spots", value: `${roster.length} / 15` },
-    { label: "Two-way", value: "—" },
-    { label: "Legality", value: "Legal" },
-  ]
+  const hasRosterIssue = rosterCount > ROSTER_LIMIT
+  const rosterMessage = hasRosterIssue
+    ? `Roster exceeds the ${ROSTER_LIMIT}-player limit. Remove a player before advancing.`
+    : ""
 
   return (
-    <section aria-labelledby="roster-heading">
-      <div className="border-b border-border pb-4">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">
-            Team operations
-          </p>
-          <h1
-            id="roster-heading"
-            className="mt-1 text-2xl font-semibold tracking-[-0.03em]"
-          >
-            Roster
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Review the active roster, player context, and current team
-            readiness.
-          </p>
-        </div>
-      </div>
-
-      <dl className="grid grid-cols-2 divide-x divide-y divide-border border-b border-border sm:grid-cols-4 sm:divide-y-0">
-        {metrics.map((metric) => (
-          <div
-            key={metric.label}
-            className="min-w-0 px-3 py-3 first:pl-0 sm:px-4 lg:first:pl-0"
-          >
-            <dt className="truncate text-[11px] text-muted-foreground">
-              {metric.label}
-            </dt>
-            <dd
-              className={cn(
-                "mt-1 text-sm font-semibold tabular-nums",
-                metric.label === "Legality" && "text-foreground"
-              )}
-            >
-              {metric.value}
+    <section
+      aria-labelledby="roster-heading"
+      className="shrink-0 border-b border-border"
+    >
+      <h1 id="roster-heading" className="sr-only">
+        Roster
+      </h1>
+      <TooltipProvider>
+        <dl className="grid max-w-md grid-cols-2 divide-x divide-border">
+          <div className="py-3 pr-6">
+            <dt className="text-[11px] text-muted-foreground">Payroll</dt>
+            <dd className="mt-1 text-sm font-semibold tabular-nums">
+              {formatMillions(payroll)}
             </dd>
           </div>
-        ))}
-      </dl>
+          <div className="py-3 pl-6">
+            <dt className="text-[11px] text-muted-foreground">Roster spots</dt>
+            <dd className="mt-1 text-sm font-semibold tabular-nums">
+              {hasRosterIssue ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      tabIndex={0}
+                      aria-label={`${rosterCount} of ${ROSTER_LIMIT} roster spots. ${rosterMessage}`}
+                      className="text-destructive underline decoration-dotted underline-offset-4"
+                    >
+                      {rosterCount} / {ROSTER_LIMIT}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{rosterMessage}</TooltipContent>
+                </Tooltip>
+              ) : (
+                <span>
+                  {rosterCount} / {ROSTER_LIMIT}
+                </span>
+              )}
+            </dd>
+          </div>
+        </dl>
+      </TooltipProvider>
     </section>
   )
 }
 
-function RosterAlert({
-  league,
-  teamId,
-}: {
-  league: LeagueDocument
-  teamId: string
-}) {
-  const rosterCount = league.entities.teams[teamId].rosterPlayerIds?.length ?? 0
-  const message =
-    rosterCount > 15
-      ? "This roster exceeds the standard 15-player limit. Transactions are blocked until it is legal."
-      : "The roster is legal. The rotation preview is projected from current players until rotation commands are enabled."
-
-  return (
-    <Alert className="mt-4 rounded-md border-border bg-muted/20 px-3 py-2.5">
-      <AlertDescription className="flex flex-wrap items-center justify-between gap-3 text-foreground">
-        <span>{message}</span>
-        <Badge variant="outline">
-          {rosterCount > 15 ? "Action needed" : "Roster legal"}
-        </Badge>
-      </AlertDescription>
-    </Alert>
-  )
+function compareSortValues(
+  left: string | number | null,
+  right: string | number | null
+): number {
+  if (left === null && right === null) return 0
+  if (left === null) return 1
+  if (right === null) return -1
+  if (typeof left === "string" && typeof right === "string") {
+    return left.localeCompare(right)
+  }
+  return Number(left) - Number(right)
 }
 
-function TeamTabs() {
+function getPlayerSortValue(
+  league: LeagueDocument,
+  player: PlayerEntity,
+  key: SortKey
+): string | number | null {
+  switch (key) {
+    case "name":
+      return fullName(player)
+    case "position":
+      return player.profile.role.primaryPosition
+    case "age":
+      return player.age
+    case "overall":
+      return getPlayerCurrentAbility(player)
+    case "salary":
+      return numericField(getPlayerContract(league, player.id), "salary")
+    case "years":
+      return numericField(
+        getPlayerContract(league, player.id),
+        "yearsRemaining"
+      )
+  }
+}
+
+function SortableTableHead({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  align = "left",
+  className,
+}: {
+  label: string
+  sortKey: SortKey
+  sort: SortState
+  onSort: (key: SortKey) => void
+  align?: "left" | "right"
+  className?: string
+}) {
+  const active = sort.key === sortKey
+  const direction = active ? sort.direction : undefined
+
   return (
-    <Tabs defaultValue="roster" className="mt-5">
-      <TabsList
-        variant="line"
-        className="w-full justify-start overflow-x-auto sm:w-fit"
+    <TableHead
+      aria-sort={
+        direction === "asc"
+          ? "ascending"
+          : direction === "desc"
+            ? "descending"
+            : "none"
+      }
+      className={cn(align === "right" && "text-right", className)}
+    >
+      <button
+        type="button"
+        className={cn(
+          "inline-flex min-h-10 items-center gap-1.5 text-xs font-medium hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          align === "right" && "ml-auto"
+        )}
+        aria-label={`${label}: ${active ? `sorted ${direction === "asc" ? "ascending" : "descending"}` : "not sorted"}. Activate to sort.`}
+        onClick={() => onSort(sortKey)}
       >
-        <TabsTrigger value="roster">Roster</TabsTrigger>
-        <TabsTrigger value="rotation" disabled>
-          Rotation
-        </TabsTrigger>
-        <TabsTrigger value="contracts" disabled>
-          Contracts
-        </TabsTrigger>
-        <TabsTrigger value="staff" disabled>
-          Staff
-        </TabsTrigger>
-        <TabsTrigger value="owner-goals" disabled>
-          Owner Goals
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
+        <span>{label}</span>
+        <span aria-hidden="true" className="text-[10px] text-muted-foreground">
+          {active ? (direction === "asc" ? "↑" : "↓") : "↕"}
+        </span>
+      </button>
+    </TableHead>
   )
 }
 
@@ -314,57 +341,87 @@ function RosterTable({
   const [query, setQuery] = React.useState("")
   const [positionFilter, setPositionFilter] =
     React.useState<PositionFilter>("all")
-  const [sortBy, setSortBy] = React.useState<SortOption>("overall")
-  const team = league.entities.teams[teamId]
-  const players = (team.rosterPlayerIds ?? [])
-    .map((playerId) => league.entities.players[playerId])
-    .filter((player): player is PlayerEntity => Boolean(player))
+  const [healthFilter, setHealthFilter] = React.useState<HealthFilter>("all")
+  const [contractFilter, setContractFilter] =
+    React.useState<ContractFilter>("all")
+  const [sort, setSort] = React.useState<SortState>({
+    key: "overall",
+    direction: "desc",
+  })
+  const players = React.useMemo(
+    () => getRosterPlayers(league, teamId),
+    [league, teamId]
+  )
 
   const visiblePlayers = React.useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
     const filtered = players.filter((player) => {
       const name = fullName(player).toLowerCase()
       const position = player.profile.role.primaryPosition
+      const health = getPlayerHealth(league, player.id)
+      const hasContract = Boolean(getPlayerContract(league, player.id))
       const matchesQuery = !normalizedQuery || name.includes(normalizedQuery)
       const matchesPosition =
-        positionFilter === "all" ||
-        getPositionGroup(position) === positionFilter
-      return matchesQuery && matchesPosition
+        positionFilter === "all" || position === positionFilter
+      const matchesHealth =
+        healthFilter === "all" ||
+        (healthFilter === "out" ? health.unavailable : !health.unavailable)
+      const matchesContract =
+        contractFilter === "all" ||
+        (contractFilter === "signed" ? hasContract : !hasContract)
+
+      return matchesQuery && matchesPosition && matchesHealth && matchesContract
     })
 
     return filtered.sort((left, right) => {
-      if (sortBy === "name")
-        return fullName(left).localeCompare(fullName(right))
-      if (sortBy === "salary") {
-        const leftSalary =
-          numericField(getPlayerContract(league, left.id), "salary") ?? 0
-        const rightSalary =
-          numericField(getPlayerContract(league, right.id), "salary") ?? 0
-        return rightSalary - leftSalary
-      }
-      return getPlayerCurrentAbility(right) - getPlayerCurrentAbility(left)
+      const comparison = compareSortValues(
+        getPlayerSortValue(league, left, sort.key),
+        getPlayerSortValue(league, right, sort.key)
+      )
+      return sort.direction === "asc" ? comparison : -comparison
     })
-  }, [league, players, positionFilter, query, sortBy])
+  }, [
+    contractFilter,
+    healthFilter,
+    league,
+    players,
+    positionFilter,
+    query,
+    sort,
+  ])
+
+  const activeFilterCount = [
+    positionFilter !== "all",
+    healthFilter !== "all",
+    contractFilter !== "all",
+  ].filter(Boolean).length
+
+  function handleSort(key: SortKey) {
+    setSort((current) =>
+      current.key === key
+        ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
+        : { key, direction: "asc" }
+    )
+  }
+
+  function clearFilters() {
+    setPositionFilter("all")
+    setHealthFilter("all")
+    setContractFilter("all")
+  }
 
   return (
     <section
       aria-labelledby="roster-table-heading"
-      className="mt-5 border-y border-border"
+      className="flex min-h-0 flex-1 flex-col border-y border-border"
     >
-      <div className="flex flex-col gap-3 border-b border-border px-0 py-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Current players
-          </p>
-          <h2
-            id="roster-table-heading"
-            className="mt-1 text-lg font-semibold tracking-[-0.02em]"
-          >
-            Standard roster
-          </h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-52 flex-1 sm:flex-none">
+      <h2 id="roster-table-heading" className="sr-only">
+        Team roster players
+      </h2>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-3 py-2.5 sm:px-4">
+        <p className="text-sm font-semibold">Players</p>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
+          <div className="relative min-w-48 flex-1 sm:max-w-60">
             <HugeiconsIcon
               icon={Search02Icon}
               size={14}
@@ -377,7 +434,7 @@ function RosterTable({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search players"
               aria-label="Search roster players"
-              className="h-8 pl-8 sm:w-52"
+              className="h-8 pl-8"
             />
           </div>
           <DropdownMenu>
@@ -390,10 +447,15 @@ function RosterTable({
                   aria-hidden="true"
                 />
                 Filters
+                {activeFilterCount > 0 ? (
+                  <span className="ml-0.5 text-muted-foreground">
+                    · {activeFilterCount}
+                  </span>
+                ) : null}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Position group</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Position</DropdownMenuLabel>
               <DropdownMenuRadioGroup
                 value={positionFilter}
                 onValueChange={(value) =>
@@ -401,130 +463,220 @@ function RosterTable({
                 }
               >
                 <DropdownMenuRadioItem value="all">
-                  All players
+                  All positions
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="guards">
-                  Guards
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="wings">
-                  Wings
-                </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="bigs">Bigs</DropdownMenuRadioItem>
+                {POSITION_FILTERS.slice(1).map((position) => (
+                  <DropdownMenuRadioItem key={position} value={position}>
+                    {position}
+                  </DropdownMenuRadioItem>
+                ))}
               </DropdownMenuRadioGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuLabel>Health</DropdownMenuLabel>
               <DropdownMenuRadioGroup
-                value={sortBy}
-                onValueChange={(value) => setSortBy(value as SortOption)}
+                value={healthFilter}
+                onValueChange={(value) =>
+                  setHealthFilter(value as HealthFilter)
+                }
               >
-                <DropdownMenuRadioItem value="overall">
-                  Overall
+                <DropdownMenuRadioItem value="all">
+                  All health statuses
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="name">Name</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="salary">
-                  Salary
+                <DropdownMenuRadioItem value="available">
+                  Available
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="out">Out</DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Contract</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={contractFilter}
+                onValueChange={(value) =>
+                  setContractFilter(value as ContractFilter)
+                }
+              >
+                <DropdownMenuRadioItem value="all">
+                  All contracts
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="signed">
+                  Signed
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="missing">
+                  Missing
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
+              {activeFilterCount > 0 ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start px-2 text-xs"
+                    onClick={clearFilters}
+                  >
+                    Clear filters
+                  </Button>
+                </>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <Table className="min-w-[760px]">
-          <TableCaption className="sr-only">
-            Team roster. Select a player to open their detail sheet.
-          </TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[28%]">Player</TableHead>
-              <TableHead>Pos</TableHead>
-              <TableHead className="text-right">Age</TableHead>
-              <TableHead className="text-right">OVR</TableHead>
-              <TableHead>Production</TableHead>
-              <TableHead>Health</TableHead>
-              <TableHead className="text-right">Salary</TableHead>
-              <TableHead className="text-right">Years</TableHead>
-              <TableHead>Role</TableHead>
-            </TableRow>
-          </TableHeader>
-          <tbody>
-            {visiblePlayers.map((player) => {
-              const contract = getPlayerContract(league, player.id)
-              const health = getPlayerHealth(league, player.id)
-              const selected = player.id === selectedPlayerId
+      <div className="min-h-0 flex-1 overflow-auto">
+        {visiblePlayers.length > 0 ? (
+          <Table className="min-w-[760px]">
+            <TableCaption className="sr-only">
+              Team roster. Select a player to open their detail sheet.
+            </TableCaption>
+            <TableHeader className="sticky top-0 z-10 bg-background">
+              <TableRow>
+                <SortableTableHead
+                  label="Player"
+                  sortKey="name"
+                  sort={sort}
+                  onSort={handleSort}
+                  className="sticky left-0 z-20 w-[28%] bg-background"
+                />
+                <SortableTableHead
+                  label="Pos"
+                  sortKey="position"
+                  sort={sort}
+                  onSort={handleSort}
+                />
+                <SortableTableHead
+                  label="Age"
+                  sortKey="age"
+                  sort={sort}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableTableHead
+                  label="OVR"
+                  sortKey="overall"
+                  sort={sort}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <TableHead>Production</TableHead>
+                <TableHead>Health</TableHead>
+                <SortableTableHead
+                  label="Salary"
+                  sortKey="salary"
+                  sort={sort}
+                  onSort={handleSort}
+                  align="right"
+                />
+                <SortableTableHead
+                  label="Years"
+                  sortKey="years"
+                  sort={sort}
+                  onSort={handleSort}
+                  align="right"
+                />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visiblePlayers.map((player) => {
+                const contract = getPlayerContract(league, player.id)
+                const health = getPlayerHealth(league, player.id)
+                const selected = player.id === selectedPlayerId
 
-              return (
-                <tr
-                  key={player.id}
-                  tabIndex={0}
-                  aria-selected={selected}
-                  data-state={selected ? "selected" : undefined}
-                  className={cn(
-                    "cursor-pointer border-b transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
-                    selected && "bg-muted"
-                  )}
-                  onClick={() => onSelectPlayer(player.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault()
-                      onSelectPlayer(player.id)
-                    }
-                  }}
-                >
-                  <td className="p-2 align-middle whitespace-nowrap">
-                    <span className="font-medium">{fullName(player)}</span>
-                    <span className="ml-2 text-[11px] text-muted-foreground">
-                      {player.profile.role.primaryArchetype.replaceAll(
-                        "_",
-                        " "
-                      )}
-                    </span>
-                  </td>
-                  <td className="p-2 align-middle whitespace-nowrap text-muted-foreground">
-                    {player.profile.role.primaryPosition}
-                  </td>
-                  <td className="p-2 text-right align-middle whitespace-nowrap tabular-nums">
-                    {player.age}
-                  </td>
-                  <td className="p-2 text-right align-middle font-medium whitespace-nowrap tabular-nums">
-                    {Math.round(getPlayerCurrentAbility(player))}
-                  </td>
-                  <td
-                    className="p-2 align-middle whitespace-nowrap text-muted-foreground"
-                    title="Production data will populate after games are simulated"
+                return (
+                  <TableRow
+                    key={player.id}
+                    tabIndex={0}
+                    aria-selected={selected}
+                    data-state={selected ? "selected" : undefined}
+                    className={cn(
+                      "cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
+                      selected && "bg-muted"
+                    )}
+                    onClick={() => onSelectPlayer(player.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault()
+                        onSelectPlayer(player.id)
+                      }
+                    }}
                   >
-                    —
-                  </td>
-                  <td className="p-2 align-middle whitespace-nowrap">
-                    <Badge
-                      variant="outline"
-                      className={cn(health.unavailable && "text-destructive")}
+                    <TableCell
+                      className={cn(
+                        "sticky left-0 z-[1] bg-background font-medium",
+                        selected && "bg-muted"
+                      )}
                     >
-                      {health.label}
-                    </Badge>
-                  </td>
-                  <td className="p-2 text-right align-middle whitespace-nowrap tabular-nums">
-                    {formatMoney(numericField(contract, "salary"))}
-                  </td>
-                  <td className="p-2 text-right align-middle whitespace-nowrap tabular-nums">
-                    {numericField(contract, "yearsRemaining") ?? "—"}
-                  </td>
-                  <td className="p-2 align-middle whitespace-nowrap text-muted-foreground">
-                    {getRoleLabel(player)}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </Table>
+                      {fullName(player)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {player.profile.role.primaryPosition}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {player.age}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {Math.round(getPlayerCurrentAbility(player))}
+                    </TableCell>
+                    <TableCell
+                      className="text-muted-foreground"
+                      title="Production data is not available yet."
+                      aria-label="Production data is not available yet"
+                    >
+                      —
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        title={health.detail}
+                        className={cn(health.unavailable && "text-destructive")}
+                      >
+                        {health.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatMoney(numericField(contract, "salary"))}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {numericField(contract, "yearsRemaining") ?? "—"}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="flex min-h-48 items-center justify-center px-4 text-center">
+            <div>
+              <p className="text-sm font-medium">
+                No players match these filters.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Clear a filter or search for another player.
+              </p>
+              {activeFilterCount > 0 ? (
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="mt-2 h-auto p-0 text-xs"
+                  onClick={clearFilters}
+                >
+                  Clear filters
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-0 py-3 text-xs text-muted-foreground">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border px-3 py-2.5 text-xs text-muted-foreground sm:px-4">
         <span>
           {visiblePlayers.length} of {players.length} players shown
         </span>
-        <span>Click a row or press Enter to inspect a player.</span>
+        <span className="hidden sm:inline">
+          Select a row to inspect a player.
+        </span>
       </div>
     </section>
   )
@@ -536,77 +688,6 @@ function getRoleLabel(player: PlayerEntity): string {
   if (ability >= 78) return "Starter"
   if (ability >= 70) return "Rotation"
   return "Depth"
-}
-
-function RotationPreview({
-  league,
-  teamId,
-}: {
-  league: LeagueDocument
-  teamId: string
-}) {
-  const players = (league.entities.teams[teamId].rosterPlayerIds ?? [])
-    .map((playerId) => league.entities.players[playerId])
-    .filter((player): player is PlayerEntity => Boolean(player))
-  const rotation = getProjectedRotation(players)
-
-  return (
-    <section
-      aria-labelledby="rotation-preview-heading"
-      className="mt-5 border-y border-border"
-    >
-      <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border py-3">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Projected from current roster
-          </p>
-          <h2
-            id="rotation-preview-heading"
-            className="mt-1 text-lg font-semibold tracking-[-0.02em]"
-          >
-            Rotation preview
-          </h2>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          No rotation command saved
-        </p>
-      </div>
-      <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-5 sm:divide-y-0">
-        {rotation.map(({ position, player }) => (
-          <div key={position} className="min-h-24 px-3 py-3 sm:px-4">
-            <p className="text-[11px] font-medium text-muted-foreground">
-              {position}
-            </p>
-            {player ? (
-              <>
-                <p className="mt-3 truncate text-sm font-medium">
-                  {fullName(player)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  OVR {Math.round(getPlayerCurrentAbility(player))}
-                </p>
-              </>
-            ) : (
-              <p className="mt-3 text-sm text-muted-foreground">No player</p>
-            )}
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border py-3 text-xs text-muted-foreground">
-        <span>
-          Minutes will be assigned when rotation management is enabled.
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled
-          title="Rotation commands are not enabled in the current league slice."
-        >
-          Configure rotation
-        </Button>
-      </div>
-    </section>
-  )
 }
 
 function DetailMetric({
@@ -883,17 +964,14 @@ function TeamRosterPage() {
 
   return (
     <>
-      <div className="mx-auto w-full max-w-[96rem] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-6 lg:overflow-hidden lg:px-8">
         <RosterSummary league={league} teamId={teamId} />
-        <RosterAlert league={league} teamId={teamId} />
-        <TeamTabs />
         <RosterTable
           league={league}
           teamId={teamId}
           selectedPlayerId={selectedPlayer?.id}
           onSelectPlayer={selectPlayer}
         />
-        <RotationPreview league={league} teamId={teamId} />
       </div>
 
       <PlayerSheet
