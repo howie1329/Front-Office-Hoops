@@ -88,9 +88,8 @@ export type SeasonFixture = {
 
 export type SeasonRunStatus = "completed" | "cancelled" | "failed"
 
-export type PlayerSeasonProduction = {
+export type PlayerSeasonProductionBase = {
   playerId: string
-  teamId: string | null
   population: SeasonPopulationKind
   gamesScheduled: number
   gamesPlayed: number
@@ -126,6 +125,21 @@ export type PlayerSeasonProduction = {
   }
   role: string
   sampleState: ProductionSampleState
+}
+
+export type PlayerTeamSeasonSplit = PlayerSeasonProductionBase & {
+  teamId: string
+}
+
+export type PlayerSeasonProduction = PlayerSeasonProductionBase & {
+  season?: number
+  throughDate?: string
+  teamId: string | null
+  minutesPerGame?: number
+  fieldGoalPercentage?: number
+  threePointPercentage?: number
+  freeThrowPercentage?: number
+  teamSplits?: Record<string, PlayerTeamSeasonSplit>
 }
 
 export type TeamSeasonProduction = {
@@ -207,6 +221,8 @@ export type UniversalPlayerValue = {
 }
 
 export type SeasonCheckpointReport = {
+  season?: number
+  throughDate?: string
   gamesPerTeam: number
   gamesCompleted: number
   playerProduction: Record<string, PlayerSeasonProduction>

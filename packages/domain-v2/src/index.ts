@@ -60,6 +60,15 @@ export type {
   UniversalPlayerValue,
   UniversalPlayerValueConfig,
 } from "./seasonProduction"
+export type {
+  LeagueSeasonArchive,
+  PlayerContractSummary,
+  PlayerGameLogEntry,
+  PlayerInformationView,
+  PlayerInjuryHistoryEntry,
+  PlayerRatingSnapshot,
+  PlayerSeasonLog,
+} from "./playerHistory"
 export {
   createPlayerPopulationPreset,
   createStandardPlayerGenerationConfig,

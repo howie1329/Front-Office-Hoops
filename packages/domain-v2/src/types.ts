@@ -559,6 +559,8 @@ export type LeagueEventType =
   | "injury.recorded"
   | "availability.updated"
   | "production.updated"
+  | "development.updated"
+  | "season.archived"
   | "lifecycle.target-reached"
   | "phase.transitioned"
   | "migration.applied"
@@ -640,8 +642,9 @@ export type LeagueDocument = {
   }
   history: {
     events: LeagueEvent[]
-    seasonArchives: JsonRecord[]
+    seasonArchives: import("./playerHistory").LeagueSeasonArchive[]
     records: JsonRecord[]
+    injuries?: import("./playerHistory").PlayerInjuryHistoryEntry[]
   }
   optionalData?: {
     games?: LeagueGameRecord[]
@@ -717,6 +720,10 @@ export type LeagueCommand =
       commandId: string
       teamId: string
       rotation: GameRotationInput
+    }
+  | {
+      type: "AdvanceToNextSeason"
+      commandId: string
     }
 
 export type ValidationIssue = {

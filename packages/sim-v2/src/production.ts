@@ -5,6 +5,7 @@ import type {
   LeagueProductionSummary,
   PlayerEntity,
   PlayerSeasonProduction,
+  PlayerTeamSeasonSplit,
   ProductionSampleState,
   SeasonFixture,
   TeamSeasonProduction,
@@ -49,11 +50,7 @@ function populationFor(
   return "rostered"
 }
 
-type MutablePlayerProduction = {
-  playerId: string
-  teamId: string | null
-  population: PlayerSeasonProduction["population"]
-  gamesScheduled: number
+type MutablePlayerTotals = {
   gamesPlayed: number
   starts: number
   minutes: number
@@ -81,6 +78,14 @@ type MutablePlayerProduction = {
     threePointAttempts: number
   }
   roleMinutes: Record<string, number>
+}
+
+type MutablePlayerProduction = MutablePlayerTotals & {
+  playerId: string
+  teamId: string | null
+  population: PlayerSeasonProduction["population"]
+  gamesScheduled: number
+  teamSplits: Record<string, MutablePlayerTotals>
 }
 
 type MutableTeamProduction = {
@@ -119,6 +124,13 @@ function createPlayerProduction(
     teamId,
     population: populationFor(player.id, freeAgentIds, draftProspectIds),
     gamesScheduled: teamId ? gamesPerTeam : 0,
+    teamSplits: {},
+    ...createPlayerTotals(),
+  }
+}
+
+function createPlayerTotals(): MutablePlayerTotals {
+  return {
     gamesPlayed: 0,
     starts: 0,
     minutes: 0,
@@ -175,7 +187,7 @@ function createTeamProduction(teamId: string): MutableTeamProduction {
 }
 
 function applyPlayerBoxScore(
-  target: MutablePlayerProduction,
+  target: MutablePlayerTotals,
   player: GamePlayerBoxScore
 ): void {
   if (player.minutes <= 0) return

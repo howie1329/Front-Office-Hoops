@@ -381,6 +381,8 @@ const eventSchema = z.strictObject({
     "injury.recorded",
     "availability.updated",
     "production.updated",
+    "development.updated",
+    "season.archived",
     "lifecycle.target-reached",
     "phase.transitioned",
     "migration.applied",
@@ -722,9 +724,8 @@ export const seasonFixtureSchema = z.strictObject({
   config: seasonProductionConfigSchema,
 })
 
-const playerSeasonProductionSchema = z.strictObject({
+const playerSeasonProductionBaseSchema = z.strictObject({
   playerId: z.string().min(1),
-  teamId: z.string().min(1).nullable(),
   population: z.enum(["rostered", "free-agent", "draft-prospect"]),
   gamesScheduled: z.number().int().nonnegative(),
   gamesPlayed: z.number().int().nonnegative(),
@@ -760,6 +761,23 @@ const playerSeasonProductionSchema = z.strictObject({
   }),
   role: z.string().min(1),
   sampleState: z.enum(["provisional", "early", "established", "full"]),
+})
+
+const playerTeamSeasonSplitSchema = playerSeasonProductionBaseSchema.extend({
+  teamId: z.string().min(1),
+})
+
+const playerSeasonProductionSchema = playerSeasonProductionBaseSchema.extend({
+  season: z.number().int().positive().optional(),
+  throughDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  teamId: z.string().min(1).nullable(),
+  minutesPerGame: z.number().nonnegative().optional(),
+  fieldGoalPercentage: z.number().nonnegative().optional(),
+  threePointPercentage: z.number().nonnegative().optional(),
+  freeThrowPercentage: z.number().nonnegative().optional(),
+  teamSplits: z
+    .record(z.string().min(1), playerTeamSeasonSplitSchema)
+    .optional(),
 })
 
 const teamSeasonProductionSchema = z.strictObject({
@@ -838,12 +856,60 @@ const universalPlayerValueSchema = z.strictObject({
 })
 
 export const seasonCheckpointReportSchema = z.strictObject({
+  season: z.number().int().positive().optional(),
+  throughDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   gamesPerTeam: z.number().int().nonnegative(),
   gamesCompleted: z.number().int().nonnegative(),
   playerProduction: z.record(z.string().min(1), playerSeasonProductionSchema),
   teamProduction: z.record(z.string().min(1), teamSeasonProductionSchema),
   leagueSummary: leagueProductionSummarySchema,
   values: z.record(z.string().min(1), universalPlayerValueSchema),
+})
+
+const playerRatingSnapshotSchema = z.strictObject({
+  season: z.number().int().positive(),
+  age: z.number().int().min(18).max(80),
+  overall: ratingSchema,
+  skills: playerSkillsSchema,
+  phase: z.enum(["growth", "plateau", "decline"]),
+})
+
+const playerInjuryHistoryEntrySchema = z.strictObject({
+  id: z.string().min(1),
+  playerId: z.string().min(1),
+  season: z.number().int().positive(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  expectedReturnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  returnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  description: z.string().optional(),
+  gamesMissed: z.number().int().nonnegative(),
+  sourceScheduleId: z.string().min(1).optional(),
+})
+
+const leagueSeasonArchiveSchema = z.strictObject({
+  season: z.number().int().positive(),
+  completedAt: z.string().datetime({ offset: true }),
+  games: z.array(leagueGameRecordSchema),
+  playerProduction: z.record(
+    z.string().min(1),
+    playerSeasonProductionSchema
+  ),
+  teamProduction: z.record(z.string().min(1), teamSeasonProductionSchema),
+  leagueSummary: leagueProductionSummarySchema,
+  playerValues: z.record(z.string().min(1), universalPlayerValueSchema),
+  ratingSnapshots: z.record(
+    z.string().min(1),
+    playerRatingSnapshotSchema
+  ),
+  injuries: z.array(playerInjuryHistoryEntrySchema),
+  modelVersions: z
+    .strictObject({
+      game: z.number().int().positive(),
+      production: z.number().int().positive(),
+      value: z.number().int().positive(),
+      development: z.number().int().positive(),
+    })
+    .optional(),
 })
 
 const seasonRunFailureSchema = z.strictObject({
@@ -1547,8 +1613,9 @@ const leagueDocumentShape = z.strictObject({
   }),
   history: z.strictObject({
     events: z.array(eventSchema),
-    seasonArchives: z.array(jsonRecordSchema),
+    seasonArchives: z.array(leagueSeasonArchiveSchema),
     records: z.array(jsonRecordSchema),
+    injuries: z.array(playerInjuryHistoryEntrySchema).optional(),
   }),
   optionalData: z
     .strictObject({
