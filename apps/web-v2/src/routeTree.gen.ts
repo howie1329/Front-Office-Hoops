@@ -14,6 +14,7 @@ import { Route as DeveloperLabsRouteImport } from './routes/developer-labs'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeagueIndexRouteImport } from './routes/league.index'
 import { Route as LeagueStartRouteImport } from './routes/league.start'
+import { Route as LeagueRosterRouteImport } from './routes/league.roster'
 import { Route as DeveloperLabsTeamAssemblyRouteImport } from './routes/developer-labs.team-assembly'
 import { Route as DeveloperLabsProductionValueRouteImport } from './routes/developer-labs.production-value'
 import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
@@ -45,6 +46,11 @@ const LeagueIndexRoute = LeagueIndexRouteImport.update({
 const LeagueStartRoute = LeagueStartRouteImport.update({
   id: '/start',
   path: '/start',
+  getParentRoute: () => LeagueRoute,
+} as any)
+const LeagueRosterRoute = LeagueRosterRouteImport.update({
+  id: '/roster',
+  path: '/roster',
   getParentRoute: () => LeagueRoute,
 } as any)
 const DeveloperLabsTeamAssemblyRoute =
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
+  '/league/roster': typeof LeagueRosterRoute
   '/league/start': typeof LeagueStartRoute
   '/league/': typeof LeagueIndexRoute
 }
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
+  '/league/roster': typeof LeagueRosterRoute
   '/league/start': typeof LeagueStartRoute
   '/league': typeof LeagueIndexRoute
 }
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
+  '/league/roster': typeof LeagueRosterRoute
   '/league/start': typeof LeagueStartRoute
   '/league/': typeof LeagueIndexRoute
 }
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
+    | '/league/roster'
     | '/league/start'
     | '/league/'
   fileRoutesByTo: FileRoutesByTo
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
+    | '/league/roster'
     | '/league/start'
     | '/league'
   id:
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
+    | '/league/roster'
     | '/league/start'
     | '/league/'
   fileRoutesById: FileRoutesById
@@ -217,6 +229,13 @@ declare module '@tanstack/react-router' {
       path: '/start'
       fullPath: '/league/start'
       preLoaderRoute: typeof LeagueStartRouteImport
+      parentRoute: typeof LeagueRoute
+    }
+    '/league/roster': {
+      id: '/league/roster'
+      path: '/roster'
+      fullPath: '/league/roster'
+      preLoaderRoute: typeof LeagueRosterRouteImport
       parentRoute: typeof LeagueRoute
     }
     '/developer-labs/team-assembly': {
@@ -296,11 +315,13 @@ const DeveloperLabsRouteWithChildren = DeveloperLabsRoute._addFileChildren(
 )
 
 interface LeagueRouteChildren {
+  LeagueRosterRoute: typeof LeagueRosterRoute
   LeagueStartRoute: typeof LeagueStartRoute
   LeagueIndexRoute: typeof LeagueIndexRoute
 }
 
 const LeagueRouteChildren: LeagueRouteChildren = {
+  LeagueRosterRoute: LeagueRosterRoute,
   LeagueStartRoute: LeagueStartRoute,
   LeagueIndexRoute: LeagueIndexRoute,
 }

@@ -532,17 +532,16 @@ function DashboardSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton disabled size="sm" className="h-8 justify-between">
-                  <span className="flex min-w-0 items-center gap-2">
+                <SidebarMenuButton asChild size="sm" className="h-8">
+                  <Link to="/league/roster" search={{ saveId: league.metadata.id }}>
                     <HugeiconsIcon
                       icon={UserGroupIcon}
                       size={15}
                       strokeWidth={2}
                       aria-hidden="true"
                     />
-                    <span className="truncate">Roster</span>
-                  </span>
-                  <span className="shrink-0 text-[10px] font-medium">Soon</span>
+                    Roster
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>

@@ -135,8 +135,20 @@ rotation visible immediately.
 
 ### 5. Selected-player detail
 
-Selecting a player should open a detail drawer or navigate to the Player Profile
-screen. The first-v2 profile should expose:
+Selecting a player should open a right-side Shadcn `Sheet`. The roster table
+remains the primary context while the selected row stays visible underneath the
+sheet overlay. On smaller screens, the sheet expands to the full viewport width.
+
+The sheet should:
+
+- Open from a row click, Enter key, or equivalent accessible row action.
+- Close with the standard Sheet close control, Escape, or a click outside.
+- Preserve the selected player in the URL when practical so refresh and back/forward navigation do not lose context.
+- Keep destructive actions behind an explicit confirmation dialog.
+- Use the existing global CSS tokens and Shadcn primitives rather than introducing route-specific visual styles.
+
+Selecting a player should open the sheet rather than immediately navigating away
+to a full Player Profile screen. The first-v2 profile should expose:
 
 - Ratings and skills.
 - Overall, percentile, and rank where appropriate.
@@ -148,7 +160,7 @@ screen. The first-v2 profile should expose:
 - Contract terms and market context.
 - Relevant events.
 
-The profile should provide contextual actions such as rotation assignment,
+The sheet should provide contextual actions such as rotation assignment,
 extension, trade inclusion, and contract review. It should not expose hidden
 exact ratings for players outside the user's permitted information view.
 
@@ -211,7 +223,7 @@ The Team & Roster screen does not need to include:
 
 Those systems may link from the page, but they should remain separate decision
 surfaces. Player comparison can begin as a multi-select table action, and
-contract detail can begin as a drawer or Contracts tab rather than a separate
+contract detail can begin as a Sheet or Contracts tab rather than a separate
 top-level route.
 
 ## First-version acceptance criteria
