@@ -1740,7 +1740,9 @@ function TeamRosterPage() {
 
   function selectPlayer(nextPlayerId: string) {
     void navigate({
-      search: (previous) => ({ ...previous, playerId: nextPlayerId }),
+      to: "/league/players/$playerId",
+      params: { playerId: nextPlayerId },
+      search: { saveId: league.metadata.id, tab: "overview" },
     })
   }
 

@@ -198,7 +198,9 @@ function LeagueLayout() {
   const pageLabel =
     pathname === "/league/roster"
       ? "Team / Roster"
-      : pathname === "/league/finance"
+      : pathname.startsWith("/league/players/")
+        ? "Team / Player"
+        : pathname === "/league/finance"
         ? "Team / Finance"
         : pathname === "/league/free-agents"
           ? "Team / Free Agents"
@@ -230,9 +232,9 @@ function LeagueLayout() {
         handleSetRotation: (rotation) => handleSetRotation(teamId, rotation),
       }}
     >
-      <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground xl:h-dvh xl:overflow-hidden">
+      <main className="h-dvh min-h-0 overflow-hidden bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
         <SidebarProvider
-          className="min-h-svh xl:h-dvh"
+          className="h-dvh min-h-0"
           style={
             { "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties
           }

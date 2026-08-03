@@ -1,6 +1,6 @@
 # Front Office Hoops V2 — Player Detail Page Brief
 
-**Status:** Proposed first-version product brief  
+**Status:** Shaped high-fidelity direction — confirmation required
 **Scope:** Dedicated player information page for the V2 management surface  
 **Proposed route:** `/league/players/:playerId`  
 **Related:** [V2 UI Information Architecture](./foh-v2-ui-information-architecture.md), [Team & Roster Screen Brief](./foh-v2-team-roster-screen-brief.md), [Player Information Data Foundation](../plans/foh-v2-player-information-data-foundation-implementation-plan.md)
@@ -41,6 +41,181 @@ scouting reveal, news feed, or simulation control panel.
   Contract, Add to Trade, and Release Player behind confirmation.
 - The page must use the existing V2 shell, Shadcn primitives, CSS tokens, and
   data selectors. It should not invent a separate visual language.
+
+## High-fidelity shape pass 2
+
+### 1. Feature summary
+
+This is a dedicated player-evaluation workspace for a front-office user
+reviewing one individual player. It combines current identity, skill strength,
+development trajectory, production, health, contract, and value context in a
+fixed full-page route.
+
+The page should feel like a serious league-office review tool: dense enough for
+repeat use, calm enough to trust, and structured so a user can move from “who
+is this player?” to “what should I do with him?” without leaving the page.
+
+### 2. Primary user action
+
+The primary action is reviewing one player and forming a roster decision. The
+Overview tab should answer the current-state question immediately; the other
+tabs provide evidence for deeper evaluation.
+
+Success means the user can understand the player's current ability, trajectory,
+availability, production, contract, and value without opening a second screen
+or losing the player context.
+
+### 3. Design direction
+
+Use the existing V2 product register and a **Restrained** color strategy:
+
+- true product surfaces and existing global tokens;
+- one accent for active tabs, primary actions, and meaningful status;
+- neutral separators and dense table hierarchy;
+- system sans typography;
+- no gradients, decorative illustrations, sports-media treatments, or repeated
+  dashboard cards.
+
+Scene sentence: a front-office operator is reviewing a player on a large
+monitor in a quiet league office during a focused morning roster review, with
+the current season state visible but no presentation noise competing with the
+evidence.
+
+Named anchors:
+
+- Linear for fixed workspace hierarchy and persistent navigation context;
+- Stripe Dashboard for restrained data density and readable financial tables;
+- Baseball Savant for evidence-first sports data presentation, without copying
+  its public-media styling.
+
+The selected visual probe is **Direction 1 — Compact Evaluation Workspace**.
+Direction 2's extra sidebar, expanded tab set, and portrait-first header are
+intentionally rejected.
+
+### 4. Scope
+
+- Fidelity: high-fidelity responsive design brief;
+- Breadth: one player route with five tab states;
+- Interactivity: tab switching, internal scrolling, table controls, chart
+  inspection, player navigation, and action-menu flows;
+- Time intent: shape for production implementation, with code deferred until
+  this direction is explicitly confirmed.
+
+### 5. Layout strategy
+
+The route owns a fixed viewport. The document body does not scroll.
+
+Spatial hierarchy:
+
+1. Global league shell remains visible and supplies season, phase, date, save,
+   and navigation context.
+2. A compact player header stays pinned beneath the shell. It contains the
+   initials avatar, identity, OVR, development phase, availability, team link,
+   previous/next controls, and Actions menu.
+3. A five-tab strip stays pinned beneath the player header. The active tab is
+   represented by the existing V2 tab treatment.
+4. The active tab panel owns the scroll container. Long content scrolls inside
+   the panel, never at the page level.
+
+Overview topology on desktop:
+
+- left column: ratings and skills, with the numeric value aligned to each
+  progress bar;
+- right column: overall-rating history graph above the compact availability
+  summary;
+- full-width lower region: current production summary table and recent events.
+
+This establishes a clear evaluation sequence: ability → trajectory and health
+→ evidence from current production.
+
+On smaller screens, the header compresses, the tab strip scrolls horizontally,
+and the Overview columns stack in this order: current snapshot, ratings and
+skills, development graph, availability summary, current production, recent
+events. The active panel remains the only vertical scroll region.
+
+### 6. Key states
+
+- Default: complete player data with Overview selected.
+- Loading: skeleton identity header, tab strip, progress bars, chart region,
+  and table rows; no page spinner.
+- No archive: chart region explains that an overall-rating history appears
+  after the first season archive.
+- No current production: show the player identity and ratings with an explicit
+  “No current-season games recorded” message.
+- No contract: show “No active contract” and a link to the appropriate roster
+  or market context.
+- No injury history: show “No recorded injuries” while still showing current
+  availability.
+- Out or restricted: use a semantic status label, games remaining, expected
+  return, and restriction details; never rely on color alone.
+- Empty filtered log: keep the controls visible and explain that no rows match
+  the selected filters.
+- Player not found: explain that the player is unavailable in the selected
+  save and provide Back to Roster.
+- Stale snapshot: show the last committed state and a clear refresh/retry path.
+- Worker/save failure: preserve the player context and explain whether the
+  action was committed.
+- Destructive action: release confirmation names the player, team, and impact.
+
+### 7. Interaction model
+
+- Active tab is URL-addressable and survives refresh, previous/next navigation,
+  and return from an action workflow.
+- Previous/next changes the player while preserving the active tab and origin
+  roster context.
+- The player header remains visible while the active panel scrolls.
+- Game Log and Season Log use fixed table viewports with independent vertical
+  and horizontal overflow, sticky table headers, and visible scroll affordance.
+- Rating bars expose their values as text and accessible progress semantics.
+- The development graph provides point inspection plus a text trend summary.
+- Actions menu opens standard product controls: Edit Rotation, Review Contract,
+  Add to Trade, and Release Player with confirmation.
+- Tab changes should be immediate and quiet; no decorative page transitions.
+
+### 8. Content requirements
+
+Realistic data ranges:
+
+- one player identity;
+- eight primary skill bars plus physical, role, archetype, and trait metadata;
+- zero to many seasons;
+- zero to thousands of game-log rows over a long career;
+- zero to many injury records;
+- zero or one active contract;
+- one current value record when a projection exists.
+
+The content source is the typed `PlayerInformationView`; React formats and
+labels values but does not recalculate ratings, production, value, contract
+normalization, or injury history.
+
+Required empty-state copy should be specific, such as:
+
+- “No current-season games recorded.”
+- “Overall history will appear after the first archived season.”
+- “No active contract is recorded for this player.”
+- “No recorded injuries for this player.”
+- “No games match these filters.”
+
+No portrait asset is required for this pass. The initials avatar is the accepted
+placeholder and must preserve a future portrait slot.
+
+### 9. Recommended implementation references
+
+Implementation should consult:
+
+- `reference/layout.md` for the fixed viewport, two-column Overview topology,
+  table regions, and responsive stacking;
+- `reference/adapt.md` for mobile tab overflow and internal scrolling;
+- `reference/interaction-design.md` for tab, chart, table, and action feedback;
+- `reference/typeset.md` for dense product hierarchy and table readability;
+- `reference/harden.md` for stale, loading, empty, permission, and worker-error
+  states.
+
+### 10. Open questions
+
+No material design questions remain for this shape pass. The remaining gate is
+explicit confirmation of the Direction 1 layout and the fixed-viewport behavior
+before implementation begins.
 
 ## Page shell and navigation
 

@@ -201,7 +201,8 @@ export function LeagueSidebar({
   const { pathname } = useLocation()
   const team = league.entities.teams[teamId]
   const isDashboard = pathname === "/league" || pathname === "/league/"
-  const isRoster = pathname === "/league/roster"
+  const isRoster =
+    pathname === "/league/roster" || pathname.startsWith("/league/players/")
   const isFinance = pathname === "/league/finance"
 
   return (
