@@ -1159,7 +1159,7 @@ function RotationEditor({
   return (
     <section
       aria-labelledby="rotation-editor-heading"
-      className="flex min-h-0 flex-1 flex-col border-y border-border"
+      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden border-y border-border"
     >
       <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border px-3 py-3 sm:px-4">
         <div>
@@ -1636,7 +1636,7 @@ function TeamRosterPage() {
         <Tabs
           value={tab}
           onValueChange={changeTab}
-          className="flex min-h-0 flex-1 flex-col gap-0"
+          className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
         >
           <div className="shrink-0 border-b border-border">
             <TabsList variant="line" className="h-10 px-1 sm:px-2">
@@ -1648,7 +1648,10 @@ function TeamRosterPage() {
               </TabsTrigger>
             </TabsList>
           </div>
-          <TabsContent value="roster" className="mt-0 min-h-0 flex-1">
+          <TabsContent
+            value="roster"
+            className="mt-0 min-h-0 flex-1 overflow-hidden"
+          >
             <RosterTable
               league={league}
               teamId={teamId}
@@ -1658,7 +1661,10 @@ function TeamRosterPage() {
               isSimulating={isSimulating}
             />
           </TabsContent>
-          <TabsContent value="rotation" className="mt-0 min-h-0 flex-1">
+          <TabsContent
+            value="rotation"
+            className="mt-0 min-h-0 flex-1 overflow-hidden"
+          >
             <RotationEditor
               league={league}
               teamId={teamId}

@@ -1,6 +1,6 @@
 # Front Office Hoops V2 — Regular-Season Simulation Vertical Slice
 
-**Status:** Planned — next gameplay-first implementation slice  
+**Status:** In progress — rotation slice implemented; simulation-target slice next
 **Scope:** Saved rotations, first-game simulation, target-date controls, and
 post-game state review after the user selects a team at the start of the
 regular season.
@@ -49,16 +49,25 @@ The current V2 branch already provides:
 - a dashboard with date, phase, record, standings, leaders, team statistics,
   and upcoming schedule;
 - roster, finance, and free-agent read surfaces;
+- persisted default rotations for every generated team;
+- a `SetRotation` command with schema validation and command events;
+- a roster rotation editor with starters, bench order, target minutes,
+  validation feedback, save/reset behavior, and deep-linkable tabs;
+- roster-release behavior that removes released players from saved rotations and
+  preserves dead-money/payroll projections;
 - a first `AdvanceDay` lifecycle command;
 - completed game records containing final team and player box scores;
 - seeded game, production/value, market, and draft lab modules.
 
 The current gaps are:
 
-- rotations and coaching plans are recreated as defaults instead of persisted;
+- coaching plans are still created as neutral defaults rather than persisted;
 - only `AdvanceDay` is enabled in the authoritative worker;
 - next-game, key-date, deadline, regular-season-end, and next-phase controls are
   disabled or rejected;
+- the rotation command does not yet enforce every gameplay-only rule at the
+  command boundary, including selected-team ownership, exact 240-minute
+  normalization, and persisted availability restrictions;
 - availability and injuries are not yet carried reliably from one date to the
   next;
 - production/value promotion and player-history selectors are not yet part of
@@ -124,6 +133,10 @@ not create a second competing league history.
 
 ## Phase 0 — Freeze contracts and target metadata
 
+**Status:** Partially implemented. The saved rotation shape, `SetRotation`
+command, schema validation, default creation, and worker routing are now in
+place. Target metadata and target commands remain future work.
+
 ### Domain and schema
 
 Update `packages/domain-v2` and `packages/league-schema` with typed contracts
@@ -151,9 +164,12 @@ The exact field name may follow the existing domain naming, but rotations must
 be part of the saved league document rather than React state or a temporary
 fixture.
 
-Add the commands:
+The following command is implemented in the current slice:
 
-- `SetTeamRotation`;
+- `SetRotation`;
+
+The remaining lifecycle commands are defined or reserved but not enabled:
+
 - `SetTeamCoaching` when coaching controls are exposed;
 - `AdvanceDay`;
 - `SimulateToNextGame`;
@@ -208,21 +224,25 @@ Add validation for:
 
 ## Phase 1 — Persist and edit rotations
 
+**Status:** Mostly implemented in the current working slice.
+
 ### League creation defaults
 
-During league creation:
+Completed:
 
 1. Build a legal default rotation for every team.
-2. Assign neutral/default coaching settings for every team.
-3. Store both in the authoritative league document.
-4. Validate the generated document before it is offered for team selection.
+2. Store rotations in the authoritative league document.
+3. Validate the generated document before it is offered for team selection.
+4. Expose the rotation editor from the roster route.
+5. Save the edited rotation through the worker and repository.
+6. Remove released players from their saved rotation.
 
-AI teams may retain those defaults for this slice. The selected user team must
-be editable.
+AI teams may retain the generated defaults for this slice. Coaching settings
+remain neutral defaults until their own saved team-plan contract is added.
 
 ### Rotation command
 
-Implement `SetTeamRotation` in `packages/sim-v2`:
+The current implementation is `SetRotation` in `packages/sim-v2`:
 
 - accept the selected team ID and a complete rotation payload;
 - reject unknown players, duplicate players, and invalid minute plans;
@@ -235,7 +255,18 @@ Implement `SetTeamRotation` in `packages/sim-v2`:
 The command should replace the complete rotation atomically. Avoid partial
 starter/depth/minute writes that can leave a team temporarily invalid.
 
+Remaining hardening for this slice:
+
+- enforce selected-user-team ownership at the command boundary;
+- enforce the exact 240-minute regulation total in the command, not only in
+  the UI;
+- reject unavailable starters using authoritative persisted availability;
+- add explicit persistence/reload coverage for the browser workflow.
+
 ### Rotation UI
+
+The first playable rotation UI is now implemented in the roster route. The
+remaining UI work is limited to polish and end-to-end verification:
 
 Add the first playable rotation route or panel:
 
@@ -569,22 +600,22 @@ This plan is complete when:
 
 Implement in this order:
 
-1. Add team-plan and availability contracts.
-2. Generate and persist default rotations.
-3. Add `SetTeamRotation` with validation.
-4. Add the rotation UI.
-5. Extract `simulateOneLeagueDate` from the current day command.
-6. Wire saved plans, availability, settings, and seeds into fixtures.
-7. Add `SimulateToNextGame`.
-8. Promote game facts into production/value and player-history selectors.
-9. Build the post-game review state.
-10. Add the generic target runner.
-11. Enable next game, next key date, selected date, deadline, and regular-season
-    end controls.
-12. Add recovery checkpoints and cancellation behavior.
-13. Add phase-boundary metadata and the first supported next-phase transition.
-14. Run the full focused validation and update the current-state audit.
+1. Harden `SetRotation` with ownership, exact-minute, availability, and reload
+   validation.
+2. Persist coaching/availability state or define the smallest authoritative
+   representation needed by the fixture adapter.
+3. Extract `simulateOneLeagueDate` from the current day command.
+4. Wire saved plans, availability, settings, and seeds into fixtures.
+5. Add `SimulateToNextGame`.
+6. Promote game facts into production/value and player-history selectors.
+7. Build the post-game review state.
+8. Add the generic target runner.
+9. Enable next game, next key date, selected date, deadline, and regular-season
+   end controls.
+10. Add recovery checkpoints and cancellation behavior.
+11. Add phase-boundary metadata and the first supported next-phase transition.
+12. Run the full focused validation and update the current-state audit.
 
-Do not start draft, free agency, or broad dashboard polish before steps 1–9
+Do not start draft, free agency, or broad dashboard polish before steps 1–7
 work end to end. Those systems should plug into the same target and persistence
 contracts when their gameplay phases are implemented.
