@@ -5,8 +5,12 @@ import type {
 } from "@workspace/domain-v2"
 import { validateLeagueDocument } from "@workspace/league-schema"
 
-import type { WorkerResult } from "./protocol"
-import { advanceLeagueDay, LifecycleCommandError } from "./lifecycle"
+import type { WorkerProgressMessage, WorkerResult } from "./protocol"
+import {
+  advanceLeagueDay,
+  LifecycleCommandError,
+  simulateLifecycleTarget,
+} from "./lifecycle"
 import { releasePlayer, ReleasePlayerCommandError } from "./rosterTransactions"
 import { setRotation, SetRotationCommandError } from "./rotationTransactions"
 
@@ -97,14 +101,23 @@ function isSupportedCommandType(type: string): boolean {
     "SelectUserTeam",
     "SimulateToNextGame",
     "SimulateToDate",
+    "SimulateToNextKeyDate",
     "SimulateToDeadline",
     "SimulateToRegularSeasonEnd",
+    "SimulateToNextPhase",
     "ReleasePlayer",
     "SetRotation",
   ].includes(type)
 }
 
-function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
+type ExecuteLeagueCommandOptions = {
+  onProgress?: (message: WorkerProgressMessage) => void
+}
+
+function executeValidatedCommand(
+  request: RuntimeWorkerRequest,
+  options: ExecuteLeagueCommandOptions = {}
+): WorkerResult {
   const validation = validateLeagueDocument(request.league)
 
   if (!validation.valid) {
@@ -237,12 +250,51 @@ function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
     }
     case "SimulateToNextGame":
     case "SimulateToDate":
+    case "SimulateToNextKeyDate":
     case "SimulateToDeadline":
     case "SimulateToRegularSeasonEnd":
-      return rejection(request, {
-        code: "command_not_implemented",
-        message: `${request.command.type} is defined but not enabled yet.`,
-      })
+    case "SimulateToNextPhase": {
+      try {
+        const result = simulateLifecycleTarget(
+          validation.data,
+          request.command as Extract<
+            LeagueCommand,
+            {
+              type:
+                | "SimulateToNextGame"
+                | "SimulateToDate"
+                | "SimulateToNextKeyDate"
+                | "SimulateToDeadline"
+                | "SimulateToRegularSeasonEnd"
+                | "SimulateToNextPhase"
+            }
+          >,
+          ({ progress, checkpoint }) => {
+            options.onProgress?.({
+              type: "progress",
+              requestId: request.requestId,
+              commandId: request.command.commandId,
+              progress,
+              checkpoint,
+            })
+          }
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: result.events,
+          diagnostics: [],
+          progress: result.progress,
+          target: result.target,
+        }
+      } catch (error) {
+        if (error instanceof LifecycleCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
     default:
       return failure(
         request,
@@ -251,7 +303,10 @@ function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
   }
 }
 
-export function executeLeagueCommand(request: unknown): WorkerResult {
+export function executeLeagueCommand(
+  request: unknown,
+  options: ExecuteLeagueCommandOptions = {}
+): WorkerResult {
   try {
     if (!isRuntimeWorkerRequest(request)) {
       return failure(request, new Error("The worker request is malformed."))
@@ -264,7 +319,7 @@ export function executeLeagueCommand(request: unknown): WorkerResult {
       )
     }
 
-    return executeValidatedCommand(request)
+    return executeValidatedCommand(request, options)
   } catch (error) {
     return failure(request, error)
   }

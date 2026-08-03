@@ -9,6 +9,7 @@ import type {
 import { validateLeagueDocument } from "@workspace/league-schema"
 
 import { projectTeamFinance } from "./finance"
+import { createDefaultRotation } from "./seasonFixture"
 
 type ReleasePlayerCommand = Extract<LeagueCommand, { type: "ReleasePlayer" }>
 
@@ -176,6 +177,26 @@ export function releasePlayer(
     )
     delete rotation.targetMinutes[command.playerId]
   }
+  const gamePlan = nextLeague.state.gamePlans?.[command.teamId]
+  if (gamePlan) {
+    gamePlan.rotation.starters = gamePlan.rotation.starters.filter(
+      (playerId) => playerId !== command.playerId
+    )
+    gamePlan.rotation.depthOrder = gamePlan.rotation.depthOrder.filter(
+      (playerId) => playerId !== command.playerId
+    )
+    delete gamePlan.rotation.targetMinutes[command.playerId]
+    if (gamePlan.rotation.starters.length < 5) {
+      gamePlan.rotation = createDefaultRotation(
+        nextTeam.rosterPlayerIds
+          .map((playerId) => nextLeague.entities.players[playerId])
+          .filter((player): player is NonNullable<typeof player> =>
+            Boolean(player)
+          )
+      )
+    }
+  }
+  delete nextLeague.state.availability?.[command.playerId]
   nextPlayer.leagueStatus = { kind: "free-agent" }
 
   if (contractEntry) {

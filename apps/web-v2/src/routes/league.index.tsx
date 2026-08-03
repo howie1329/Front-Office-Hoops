@@ -10,6 +10,12 @@ import type {
   LeagueGameRecord,
   LeagueScheduleEntry,
 } from "@workspace/domain-v2"
+import {
+  getCompletedGamesForTeam,
+  getCurrentSeasonPlayerProduction,
+  getCurrentSeasonPlayerValue,
+  getPlayerAvailability,
+} from "@workspace/sim-v2"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -214,6 +220,111 @@ function playerName(league: LeagueDocument, playerId: string): string {
 
 function getCompletedGames(league: LeagueDocument): Array<LeagueGameRecord> {
   return league.optionalData?.games ?? []
+}
+
+function LatestGamePanel({
+  league,
+  teamId,
+}: {
+  league: LeagueDocument
+  teamId: string
+}) {
+  const latestGame = getCompletedGamesForTeam(league, teamId).at(-1)
+  if (!latestGame || latestGame.result.status !== "completed") return null
+
+  const result = latestGame.result
+  const opponentTeamId =
+    result.homeTeamId === teamId ? result.awayTeamId : result.homeTeamId
+  const teamScore = result.teams[teamId].points
+  const opponentScore = result.teams[opponentTeamId].points
+  const won = result.winnerTeamId === teamId
+  const topPlayers = Object.values(result.players)
+    .filter((player) => player.teamId === teamId)
+    .sort((left, right) => right.points - left.points)
+    .slice(0, 4)
+  const injuries = result.events.filter((event) => event.teamId === teamId)
+
+  return (
+    <section
+      className="flex-none border-y border-border"
+      aria-labelledby="latest-game-heading"
+    >
+      <div className="flex flex-wrap items-end justify-between gap-3 px-4 py-3 sm:px-5">
+        <div>
+          <p className="text-[11px] font-medium text-muted-foreground">
+            Latest result · {formatDate(latestGame.date)}
+          </p>
+          <h2 id="latest-game-heading" className="mt-1 text-base font-semibold">
+            {league.entities.teams[teamId].name} {teamScore} · {opponentScore}{" "}
+            {league.entities.teams[opponentTeamId].name}
+          </h2>
+        </div>
+        <span className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          {won ? "Win" : "Loss"}
+        </span>
+      </div>
+      <div className="grid divide-y border-t border-border text-xs md:grid-cols-[1.25fr_1fr_1fr] md:divide-x md:divide-y-0">
+        <div className="px-4 py-3 sm:px-5">
+          <p className="font-medium text-muted-foreground">Player box score</p>
+          <div className="mt-2 grid gap-1.5">
+            {topPlayers.map((player) => (
+              <div key={player.playerId} className="flex justify-between gap-3">
+                <span className="truncate">
+                  {playerName(league, player.playerId)}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {player.points} PTS · {player.rebounds} REB · {player.assists}{" "}
+                  AST
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="px-4 py-3 sm:px-5">
+          <p className="font-medium text-muted-foreground">Season review</p>
+          <p className="mt-2">
+            {league.projections.currentSeason?.gamesCompleted ?? 0} games saved
+            {league.projections.currentSeason?.gamesPerTeam
+              ? " · " +
+                league.projections.currentSeason.gamesPerTeam +
+                " per team"
+              : ""}
+          </p>
+          {topPlayers[0] ? (
+            <p className="mt-1 text-muted-foreground">
+              {getCurrentSeasonPlayerProduction(
+                league,
+                topPlayers[0].playerId
+              )?.pointsPerGame.toFixed(1) ?? "—"}{" "}
+              PPG · value{" "}
+              {Math.round(
+                getCurrentSeasonPlayerValue(league, topPlayers[0].playerId)
+                  ?.rawValue ?? 0
+              )}
+            </p>
+          ) : null}
+        </div>
+        <div className="px-4 py-3 sm:px-5">
+          <p className="font-medium text-muted-foreground">Availability</p>
+          {injuries.length > 0 ? (
+            <div className="mt-2 grid gap-1.5">
+              {injuries.map((event) => (
+                <p key={event.id}>
+                  {playerName(league, event.playerId)} ·{" "}
+                  {getPlayerAvailability(league, event.playerId).gamesRemaining}{" "}
+                  games remaining
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-2 text-muted-foreground">
+              No new injuries recorded.
+            </p>
+          )}
+        </div>
+      </div>
+    </section>
+  )
 }
 
 function getPlayerStatLines(league: LeagueDocument): Array<PlayerStatLine> {
@@ -1019,6 +1130,7 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-[96rem] flex-1 flex-col overflow-y-auto px-4 py-3 sm:px-6 lg:overflow-hidden lg:px-8">
+      <LatestGamePanel league={league} teamId={teamId} />
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,1.28fr)_minmax(20rem,0.92fr)]">
         <div className="grid min-h-0 gap-3 lg:grid-rows-[minmax(0,1.34fr)_minmax(0,0.96fr)]">
           <StandingsPanel

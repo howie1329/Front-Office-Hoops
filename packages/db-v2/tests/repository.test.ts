@@ -77,7 +77,7 @@ describe("V2LeagueRepository", () => {
 
   it("does not save invalid documents", async () => {
     await expect(repository.save({} as never)).rejects.toThrow(
-      LeagueRepositoryError,
+      LeagueRepositoryError
     )
     expect(await repository.list()).toEqual([])
   })
@@ -102,8 +102,33 @@ describe("V2LeagueRepository", () => {
     putSpy.mockRestore()
 
     expect((await repository.load(original.metadata.id))?.metadata.name).toBe(
-      "Original",
+      "Original"
     )
+  })
+
+  it("round-trips and removes a validated recovery checkpoint", async () => {
+    const league = createFoundationLeague({ id: "league-checkpoint" })
+    const checkpoint = {
+      id: "league-checkpoint:command-1",
+      leagueId: league.metadata.id,
+      commandId: "command-1",
+      currentDate: league.state.calendar.currentDate,
+      completedGames: 0,
+      createdAt: "2026-08-02T00:00:00.000Z",
+      league,
+    }
+
+    await repository.saveCheckpoint(checkpoint)
+
+    expect(
+      await repository.loadCheckpoint(league.metadata.id, checkpoint.commandId)
+    ).toEqual(checkpoint)
+
+    await repository.removeCheckpoint(league.metadata.id, checkpoint.commandId)
+
+    expect(
+      await repository.loadCheckpoint(league.metadata.id, checkpoint.commandId)
+    ).toBeNull()
   })
 
   it("removes documents by id", async () => {

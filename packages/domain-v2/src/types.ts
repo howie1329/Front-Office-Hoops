@@ -1,3 +1,8 @@
+import type {
+  SeasonCheckpointReport,
+  SeasonProductionConfig,
+} from "./seasonProduction"
+
 export type JsonRecord = Record<string, unknown>
 
 export type LeaguePhase =
@@ -56,6 +61,37 @@ export type LeagueCalendar = {
     playoffsStart: string
   }
   schedule: LeagueScheduleEntry[]
+}
+
+export type LifecycleTarget =
+  | { kind: "next-game"; teamId: string; scheduleId: string; date: string }
+  | { kind: "date"; date: string }
+  | { kind: "key-date"; date: string; label: string }
+  | { kind: "deadline"; date: string; label: string }
+  | { kind: "regular-season-end"; date: string }
+  | { kind: "next-phase"; phase: LeaguePhase; date: string }
+
+export type LifecycleTargetMetadata = {
+  target: LifecycleTarget
+  enabled: boolean
+  label: string
+  targetDate?: string
+  scheduleId?: string
+  blockedReason?: string
+  expectedDates?: number
+  expectedGames?: number
+  currentPhase: LeaguePhase
+  requiredPhase?: LeaguePhase
+}
+
+export type LeagueRecoveryCheckpoint = {
+  id: string
+  leagueId: string
+  commandId: string
+  currentDate: string
+  completedGames: number
+  createdAt: string
+  league: LeagueDocument
 }
 
 export type RandomMode = "normal" | "deterministic-lab"
@@ -143,12 +179,27 @@ export type PlayerAvailability = {
   minutesLimit?: number
 }
 
+export type LeaguePlayerAvailability = PlayerAvailability & {
+  gamesMissed: number
+  injury?: {
+    startedDate: string
+    expectedReturnDate?: string
+    sourceScheduleId?: string
+    description?: string
+  }
+}
+
 export type GameCoachingProfile = {
   pace: number
   offensiveStyle: number
   defensivePressure: number
   shotSelection: number
   rotationDepth: number
+}
+
+export type TeamGamePlan = {
+  rotation: GameRotationInput
+  coaching: GameCoachingProfile
 }
 
 export type GameMatchupFixture = {
@@ -506,6 +557,10 @@ export type LeagueEventType =
   | "command.completed"
   | "game.completed"
   | "injury.recorded"
+  | "availability.updated"
+  | "production.updated"
+  | "lifecycle.target-reached"
+  | "phase.transitioned"
   | "migration.applied"
 
 export type LeagueEvent = {
@@ -541,6 +596,8 @@ export type LeagueDocument = {
     standardPresetId: string
     resolvedConfig: SimulationConfig
     advancedOverrides: JsonRecord
+    gameConfig?: GameSimulationConfig
+    productionConfig?: SeasonProductionConfig
   }
   randomness: {
     mode: RandomMode
@@ -555,6 +612,14 @@ export type LeagueDocument = {
     leagueDay: number
     userTeamId: string | null
     rotations?: Record<string, GameRotationInput>
+    gamePlans?: Record<string, TeamGamePlan>
+    availability?: Record<string, LeaguePlayerAvailability>
+    lifecycleBoundary?: {
+      kind: "management" | "phase"
+      date: string
+      label: string
+      commandId: string
+    }
     structure?: LeagueStructure
     calendar: LeagueCalendar
     phaseTasks: PhaseTaskState[]
@@ -571,6 +636,7 @@ export type LeagueDocument = {
   projections: {
     standings: LeagueStanding[]
     payroll: JsonRecord[]
+    currentSeason?: SeasonCheckpointReport
   }
   history: {
     events: LeagueEvent[]
@@ -620,11 +686,19 @@ export type LeagueCommand =
       targetDate: string
     }
   | {
+      type: "SimulateToNextKeyDate"
+      commandId: string
+    }
+  | {
       type: "SimulateToDeadline"
       commandId: string
     }
   | {
       type: "SimulateToRegularSeasonEnd"
+      commandId: string
+    }
+  | {
+      type: "SimulateToNextPhase"
       commandId: string
     }
   | {

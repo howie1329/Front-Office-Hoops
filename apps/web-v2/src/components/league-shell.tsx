@@ -34,9 +34,30 @@ export type LeagueShellContextValue = {
   league: LeagueDocument
   teamId: string
   advanceAction: LifecycleActionState
+  nextGameAction: LifecycleActionState
+  nextKeyDateAction: LifecycleActionState
+  deadlineAction: LifecycleActionState
+  seasonEndAction: LifecycleActionState
+  nextPhaseAction: LifecycleActionState
   isSimulating: boolean
+  cancelSimulation: () => void
   simulationError: string | null
+  simulationProgress:
+    | {
+        completed: number
+        total?: number
+        label: string
+        datesProcessed?: number
+        gamesCompleted?: number
+        currentDate?: string
+      }
+    | undefined
   handleAdvanceDay: () => Promise<void>
+  handleSimulateToNextGame: () => Promise<boolean>
+  handleSimulateToNextKeyDate: () => Promise<boolean>
+  handleSimulateToDate: (targetDate: string) => Promise<boolean>
+  handleSimulateToDeadline: () => Promise<boolean>
+  handleSimulateToRegularSeasonEnd: () => Promise<boolean>
   handleReleasePlayer: (playerId: string) => Promise<boolean>
   handleSetRotation: (rotation: GameRotationInput) => Promise<boolean>
 }

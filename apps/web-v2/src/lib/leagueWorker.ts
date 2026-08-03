@@ -1,7 +1,12 @@
-import type { WorkerRequest, WorkerResult } from "@workspace/sim-v2"
+import type {
+  WorkerProgressMessage,
+  WorkerRequest,
+  WorkerResult,
+} from "@workspace/sim-v2"
 
 export type RunLeagueCommandOptions = {
   signal?: AbortSignal
+  onProgress?: (message: WorkerProgressMessage) => void
 }
 
 export function runLeagueCommand(
@@ -27,7 +32,13 @@ export function runLeagueCommand(
       )
     }
 
-    worker.onmessage = (event: MessageEvent<WorkerResult>) => {
+    worker.onmessage = (
+      event: MessageEvent<WorkerResult | WorkerProgressMessage>
+    ) => {
+      if ("type" in event.data) {
+        options.onProgress?.(event.data)
+        return
+      }
       cleanup()
       resolve(event.data)
     }

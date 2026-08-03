@@ -16,6 +16,8 @@ import {
   createStandardLeagueStructure,
 } from "./leagueSchedule"
 import { STANDARD_ECONOMY_CONFIG } from "./marketConfig"
+import { createStandardGameSimulationConfig } from "./gameConfig"
+import { createStandardSeasonProductionConfig } from "./seasonConfig"
 import { createDefaultRotation } from "./seasonFixture"
 
 const TEAM_NAMES = [
@@ -256,6 +258,32 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
       ),
     ])
   )
+  const gamePlans = Object.fromEntries(
+    teamsWithRosters.map((team) => [
+      team.id,
+      {
+        rotation: structuredClone(rotations[team.id]),
+        coaching: {
+          pace: 50,
+          offensiveStyle: 50,
+          defensivePressure: 50,
+          shotSelection: 50,
+          rotationDepth: 50,
+        },
+      },
+    ])
+  )
+  const availability = Object.fromEntries(
+    Object.keys(universe.players).map((playerId) => [
+      playerId,
+      {
+        available: true,
+        gamesRemaining: 0,
+        restriction: "none" as const,
+        gamesMissed: 0,
+      },
+    ])
+  )
   const rosteredPlayers = Object.values(universe.players).filter(
     (player) => player.leagueStatus.kind === "rostered"
   )
@@ -284,6 +312,15 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
       standardPresetId: "standard",
       resolvedConfig: { presetId: "standard", version: 1 },
       advancedOverrides: input.advancedOverrides ?? {},
+      gameConfig: createStandardGameSimulationConfig(),
+      productionConfig: {
+        ...createStandardSeasonProductionConfig("full"),
+        schedule: {
+          ...createStandardSeasonProductionConfig("full").schedule,
+          teamCount: teamIds.length,
+          scheduleSeed: `${input.seed}:production`,
+        },
+      },
     },
     randomness: {
       mode: input.mode ?? "normal",
@@ -296,6 +333,8 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
       leagueDay: 0,
       userTeamId: null,
       rotations,
+      gamePlans,
+      availability,
       structure,
       calendar,
       phaseTasks: [],

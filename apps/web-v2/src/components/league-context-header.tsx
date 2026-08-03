@@ -1,5 +1,6 @@
 import { ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
+import * as React from "react"
 
 import type { LeagueDocument, LeagueScheduleEntry } from "@workspace/domain-v2"
 import type { LifecycleActionState } from "@workspace/sim-v2"
@@ -20,9 +21,20 @@ type LeagueContextHeaderProps = {
   league: LeagueDocument
   teamId: string
   pageLabel: string
-  advanceAction: LifecycleActionState
+  primaryAction: LifecycleActionState
+  nextGameAction: LifecycleActionState
+  nextKeyDateAction: LifecycleActionState
+  deadlineAction: LifecycleActionState
+  seasonEndAction: LifecycleActionState
+  nextPhaseAction: LifecycleActionState
   isSimulating: boolean
+  onCancelSimulation: () => void
   onAdvanceDay: () => void
+  onSimulateToNextGame: () => void
+  onSimulateToNextKeyDate: () => void
+  onSimulateToDate: (targetDate: string) => void
+  onSimulateToDeadline: () => void
+  onSimulateToSeasonEnd: () => void
 }
 
 function phaseLabel(phase: LeagueDocument["state"]["phase"]): string {
@@ -132,10 +144,22 @@ export function LeagueContextHeader({
   league,
   teamId,
   pageLabel,
-  advanceAction,
+  primaryAction,
+  nextGameAction,
+  nextKeyDateAction,
+  deadlineAction,
+  seasonEndAction,
+  nextPhaseAction,
   isSimulating,
   onAdvanceDay,
+  onSimulateToNextGame,
+  onSimulateToNextKeyDate,
+  onSimulateToDate,
+  onSimulateToDeadline,
+  onSimulateToSeasonEnd,
+  onCancelSimulation,
 }: LeagueContextHeaderProps) {
+  const [targetDate, setTargetDate] = React.useState("")
   const record = getRecord(league, teamId)
   const conference = getConferenceName(league, teamId)
   const nextGame = getNextGame(league, teamId)
@@ -183,16 +207,27 @@ export function LeagueContextHeader({
             </Badge>
           </div>
 
+          {isSimulating ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={onCancelSimulation}
+            >
+              Cancel
+            </Button>
+          ) : null}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
                 size="sm"
                 disabled={isSimulating}
-                title={advanceAction.enabled ? undefined : advanceAction.reason}
+                title={primaryAction.enabled ? undefined : primaryAction.reason}
                 className="gap-1.5"
               >
-                {isSimulating ? "Simulating…" : advanceAction.label}
+                {isSimulating ? "Simulating…" : primaryAction.label}
                 <HugeiconsIcon
                   icon={ArrowDown01Icon}
                   size={14}
@@ -204,10 +239,14 @@ export function LeagueContextHeader({
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Advance</DropdownMenuLabel>
               <DropdownMenuItem
-                disabled={isSimulating || !advanceAction.enabled}
-                onSelect={onAdvanceDay}
+                disabled={isSimulating || !primaryAction.enabled}
+                onSelect={
+                  primaryAction.id === "next-game"
+                    ? onSimulateToNextGame
+                    : onAdvanceDay
+                }
               >
-                {advanceAction.label}
+                {primaryAction.label}
                 <HugeiconsIcon
                   icon={ArrowRight01Icon}
                   size={13}
@@ -219,30 +258,76 @@ export function LeagueContextHeader({
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Simulate to</DropdownMenuLabel>
               <DropdownMenuItem
-                disabled
-                title="The lifecycle worker does not expose this command yet."
+                disabled={isSimulating || !nextGameAction.enabled}
+                title={
+                  nextGameAction.enabled ? undefined : nextGameAction.reason
+                }
+                onSelect={onSimulateToNextGame}
               >
-                Next game
+                <span>Next game</span>
+                {nextGameAction.target?.kind === "next-game" ? (
+                  <span className="ml-auto text-[11px] text-muted-foreground">
+                    {nextGameAction.target.date}
+                  </span>
+                ) : null}
               </DropdownMenuItem>
               <DropdownMenuItem
-                disabled
-                title="The lifecycle worker does not expose this command yet."
+                disabled={isSimulating || !nextKeyDateAction.enabled}
+                title={
+                  nextKeyDateAction.enabled
+                    ? undefined
+                    : nextKeyDateAction.reason
+                }
+                onSelect={onSimulateToNextKeyDate}
               >
                 Next key date
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuLabel>Selected date</DropdownMenuLabel>
+              <div className="flex items-center gap-2 px-2 pb-2">
+                <input
+                  type="date"
+                  aria-label="Simulation target date"
+                  value={targetDate}
+                  min={league.state.calendar.currentDate}
+                  max={league.state.calendar.regularSeasonEnd}
+                  onChange={(event) => setTargetDate(event.target.value)}
+                  className="h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isSimulating || !targetDate}
+                  onClick={() => {
+                    onSimulateToDate(targetDate)
+                    setTargetDate("")
+                  }}
+                >
+                  Run
+                </Button>
+              </div>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel>More simulation</DropdownMenuLabel>
               <DropdownMenuItem
-                disabled
-                title="The lifecycle worker does not expose this command yet."
+                disabled={isSimulating || !deadlineAction.enabled}
+                title={
+                  deadlineAction.enabled ? undefined : deadlineAction.reason
+                }
+                onSelect={onSimulateToDeadline}
               >
                 Trade deadline
               </DropdownMenuItem>
               <DropdownMenuItem
-                disabled
-                title="The lifecycle worker does not expose this command yet."
+                disabled={isSimulating || !seasonEndAction.enabled}
+                title={
+                  seasonEndAction.enabled ? undefined : seasonEndAction.reason
+                }
+                onSelect={onSimulateToSeasonEnd}
               >
                 Regular-season end
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled title={nextPhaseAction.reason}>
+                Next phase
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

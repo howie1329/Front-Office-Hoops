@@ -5,6 +5,10 @@ export {
   advanceLeagueDay,
   getLifecycleActionState,
   LifecycleCommandError,
+  resolveNextKeyDate,
+  resolveNextUserGame,
+  simulateLifecycleTarget,
+  simulateOneLeagueDate,
 } from "./lifecycle"
 export {
   createLeague,
@@ -78,6 +82,16 @@ export {
 export { aggregateSeasonProduction } from "./production"
 export { calculateUniversalPlayerValues } from "./playerValue"
 export { runSeason } from "./seasonRunner"
+export {
+  getCompletedGames,
+  getCompletedGamesForPlayer,
+  getCompletedGamesForTeam,
+  getCurrentSeasonPlayerProduction,
+  getCurrentSeasonPlayerValue,
+  getPlayerAvailability,
+  getPlayerGameHistory,
+  getRecentLeagueEvents,
+} from "./leagueSelectors"
 export {
   advancePlayerCareerYear,
   getCareerPhase,
@@ -169,11 +183,17 @@ export type {
   GameTeamSimulationTelemetry,
 } from "./gameSimulation"
 export type { PlayerPopulationContextKind } from "@workspace/domain-v2"
-export type { WorkerRequest, WorkerResult } from "./protocol"
+export type {
+  WorkerProgress,
+  WorkerProgressMessage,
+  WorkerRequest,
+  WorkerResult,
+} from "./protocol"
 export type {
   LifecycleActionId,
   LifecycleActionState,
   LifecycleAdvanceResult,
+  LeagueDateSimulationResult,
 } from "./lifecycle"
 export type {
   LeagueCreationInput,
@@ -202,6 +222,7 @@ export type {
 } from "./playerUniverse"
 export type { ProductionAggregation } from "./production"
 export type { SeasonRunnerOptions } from "./seasonRunner"
+export type { PlayerGameHistoryEntry } from "./leagueSelectors"
 export type { ValueSettingDescriptor, ValueSettingPath } from "./seasonConfig"
 export type {
   MarketNumericSettingPath,

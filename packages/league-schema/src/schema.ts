@@ -317,6 +317,21 @@ const gameAvailabilitySchema = z.strictObject({
   minutesLimit: z.number().min(0).max(48).optional(),
 })
 
+const leaguePlayerAvailabilitySchema = gameAvailabilitySchema.extend({
+  gamesMissed: z.number().int().nonnegative(),
+  injury: z
+    .strictObject({
+      startedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      expectedReturnDate: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      sourceScheduleId: z.string().min(1).optional(),
+      description: z.string().optional(),
+    })
+    .optional(),
+})
+
 const gameRotationSchema = z.strictObject({
   starters: z.array(z.string().min(1)),
   depthOrder: z.array(z.string().min(1)),
@@ -329,6 +344,11 @@ const gameCoachingProfileSchema = z.strictObject({
   defensivePressure: z.number().min(0).max(100),
   shotSelection: z.number().min(0).max(100),
   rotationDepth: z.number().min(0).max(100),
+})
+
+const teamGamePlanSchema = z.strictObject({
+  rotation: gameRotationSchema,
+  coaching: gameCoachingProfileSchema,
 })
 
 export const gameMatchupFixtureSchema = z.strictObject({
@@ -359,6 +379,10 @@ const eventSchema = z.strictObject({
     "command.completed",
     "game.completed",
     "injury.recorded",
+    "availability.updated",
+    "production.updated",
+    "lifecycle.target-reached",
+    "phase.transitioned",
     "migration.applied",
   ]),
   season: z.number().int().nonnegative(),
@@ -1426,6 +1450,8 @@ const leagueDocumentShape = z.strictObject({
       version: z.number().int().positive(),
     }),
     advancedOverrides: jsonRecordSchema,
+    gameConfig: gameSimulationConfigSchema.optional(),
+    productionConfig: seasonProductionConfigSchema.optional(),
   }),
   randomness: z.strictObject({
     mode: z.enum(["normal", "deterministic-lab"]),
@@ -1456,6 +1482,18 @@ const leagueDocumentShape = z.strictObject({
     leagueDay: z.number().int().nonnegative(),
     userTeamId: z.string().min(1).nullable(),
     rotations: z.record(z.string().min(1), gameRotationSchema).optional(),
+    gamePlans: z.record(z.string().min(1), teamGamePlanSchema).optional(),
+    availability: z
+      .record(z.string().min(1), leaguePlayerAvailabilitySchema)
+      .optional(),
+    lifecycleBoundary: z
+      .strictObject({
+        kind: z.enum(["management", "phase"]),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        label: z.string().min(1),
+        commandId: z.string().min(1),
+      })
+      .optional(),
     structure: leagueStructureSchema,
     calendar: z.strictObject({
       kind: z.enum([
@@ -1505,6 +1543,7 @@ const leagueDocumentShape = z.strictObject({
   projections: z.strictObject({
     standings: z.array(leagueStandingSchema),
     payroll: z.array(jsonRecordSchema),
+    currentSeason: seasonCheckpointReportSchema.optional(),
   }),
   history: z.strictObject({
     events: z.array(eventSchema),
@@ -1635,6 +1674,172 @@ export const leagueDocumentSchema = leagueDocumentShape.superRefine(
           code: "custom",
           message: "The player league status references a missing team.",
           path: ["entities", "players", playerKey, "leagueStatus", "teamId"],
+        })
+      }
+    }
+
+    if (league.state.gamePlans) {
+      for (const teamId of Object.keys(league.entities.teams)) {
+        const plan = league.state.gamePlans[teamId]
+        if (!plan) {
+          context.addIssue({
+            code: "custom",
+            message: "Every team must have a persisted game plan.",
+            path: ["state", "gamePlans", teamId],
+          })
+        }
+      }
+
+      for (const [teamId, plan] of Object.entries(league.state.gamePlans)) {
+        const team = league.entities.teams[teamId]
+        if (!team) {
+          context.addIssue({
+            code: "custom",
+            message: "A game plan must reference an existing team.",
+            path: ["state", "gamePlans", teamId],
+          })
+          continue
+        }
+        const rosterIds = new Set(team.rosterPlayerIds ?? [])
+        const starterIds = new Set(plan.rotation.starters)
+        if (
+          starterIds.size !== plan.rotation.starters.length ||
+          new Set(plan.rotation.depthOrder).size !==
+            plan.rotation.depthOrder.length
+        ) {
+          context.addIssue({
+            code: "custom",
+            message: "A persisted rotation cannot contain duplicate players.",
+            path: ["state", "gamePlans", teamId, "rotation"],
+          })
+        }
+        if (plan.rotation.starters.length !== 5 || starterIds.size !== 5) {
+          context.addIssue({
+            code: "custom",
+            message: "A persisted rotation must contain five unique starters.",
+            path: ["state", "gamePlans", teamId, "rotation", "starters"],
+          })
+        }
+        for (const playerId of plan.rotation.depthOrder) {
+          if (!rosterIds.has(playerId) || !league.entities.players[playerId]) {
+            context.addIssue({
+              code: "custom",
+              message: "Every persisted rotation player must be on the roster.",
+              path: [
+                "state",
+                "gamePlans",
+                teamId,
+                "rotation",
+                "depthOrder",
+                playerId,
+              ],
+            })
+          }
+        }
+        for (const playerId of plan.rotation.starters) {
+          if (!plan.rotation.depthOrder.includes(playerId)) {
+            context.addIssue({
+              code: "custom",
+              message:
+                "Every starter must appear in the persisted rotation order.",
+              path: ["state", "gamePlans", teamId, "rotation", "depthOrder"],
+            })
+          }
+          const availability = league.state.availability?.[playerId]
+          if (availability && !availability.available) {
+            context.addIssue({
+              code: "custom",
+              message: "An unavailable player cannot be a persisted starter.",
+              path: [
+                "state",
+                "gamePlans",
+                teamId,
+                "rotation",
+                "starters",
+                playerId,
+              ],
+            })
+          }
+        }
+
+        const starterPlayers = plan.rotation.starters
+          .map((playerId) => league.entities.players[playerId])
+          .filter((player): player is NonNullable<typeof player> =>
+            Boolean(player)
+          )
+        const positions = ["PG", "SG", "SF", "PF", "C"]
+        function canCover(positionIndex: number, used: Set<string>): boolean {
+          if (positionIndex === positions.length) return true
+          return starterPlayers.some((player) => {
+            const eligible =
+              player.profile.role.primaryPosition ===
+                positions[positionIndex] ||
+              player.profile.role.secondaryPosition === positions[positionIndex]
+            if (!eligible || used.has(player.id)) return false
+            used.add(player.id)
+            const covered = canCover(positionIndex + 1, used)
+            used.delete(player.id)
+            return covered
+          })
+        }
+        if (starterPlayers.length === 5 && !canCover(0, new Set())) {
+          context.addIssue({
+            code: "custom",
+            message: "Persisted starters must cover all five positions.",
+            path: ["state", "gamePlans", teamId, "rotation", "starters"],
+          })
+        }
+      }
+    }
+
+    if (league.state.availability) {
+      for (const playerId of Object.keys(league.state.availability)) {
+        if (!league.entities.players[playerId]) {
+          context.addIssue({
+            code: "custom",
+            message: "Availability must reference an existing player.",
+            path: ["state", "availability", playerId],
+          })
+        }
+      }
+    }
+
+    const storedGames = league.optionalData?.games ?? []
+    const storedGameIds = new Set<string>()
+    for (const game of storedGames) {
+      if (storedGameIds.has(game.scheduleId)) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "A schedule entry cannot have more than one stored game record.",
+          path: ["optionalData", "games", game.scheduleId],
+        })
+      }
+      storedGameIds.add(game.scheduleId)
+      const scheduleEntry = league.state.calendar.schedule.find(
+        (entry) => entry.id === game.scheduleId
+      )
+      if (!scheduleEntry) {
+        context.addIssue({
+          code: "custom",
+          message: "Every stored game must reference a schedule entry.",
+          path: ["optionalData", "games", game.scheduleId],
+        })
+      } else if (scheduleEntry.status !== "completed") {
+        context.addIssue({
+          code: "custom",
+          message: "A stored game requires a completed schedule entry.",
+          path: ["optionalData", "games", game.scheduleId],
+        })
+      }
+    }
+    for (const entry of league.state.calendar.schedule) {
+      if (entry.status === "completed" && !storedGameIds.has(entry.id)) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "Every completed schedule entry must have one stored game record.",
+          path: ["state", "calendar", "schedule", entry.id],
         })
       }
     }

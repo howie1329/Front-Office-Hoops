@@ -49,10 +49,17 @@ function LeagueLayout() {
     React.useState(false)
   const {
     handleAdvanceDay,
+    handleSimulateToDeadline,
+    handleSimulateToDate,
+    handleSimulateToNextGame,
+    handleSimulateToNextKeyDate,
+    handleSimulateToRegularSeasonEnd,
     handleReleasePlayer,
     handleSetRotation,
+    cancelSimulation,
     isSimulating,
     simulationError,
+    simulationProgress,
   } = useLeagueSimulation({
     league,
     repository,
@@ -179,6 +186,15 @@ function LeagueLayout() {
   }
 
   const advanceAction = getLifecycleActionState(league, "advance-day")
+  const nextGameAction = getLifecycleActionState(league, "next-game")
+  const nextKeyDateAction = getLifecycleActionState(league, "next-key-date")
+  const deadlineAction = getLifecycleActionState(league, "simulate-to-deadline")
+  const seasonEndAction = getLifecycleActionState(
+    league,
+    "simulate-to-season-end"
+  )
+  const nextPhaseAction = getLifecycleActionState(league, "next-phase")
+  const primaryAction = nextGameAction.enabled ? nextGameAction : advanceAction
   const pageLabel =
     pathname === "/league/roster"
       ? "Team / Roster"
@@ -194,9 +210,21 @@ function LeagueLayout() {
         league,
         teamId,
         advanceAction,
+        nextGameAction,
+        nextKeyDateAction,
+        deadlineAction,
+        seasonEndAction,
+        nextPhaseAction,
         isSimulating,
+        cancelSimulation,
         simulationError,
+        simulationProgress,
         handleAdvanceDay,
+        handleSimulateToNextGame,
+        handleSimulateToNextKeyDate,
+        handleSimulateToDeadline,
+        handleSimulateToDate,
+        handleSimulateToRegularSeasonEnd,
         handleReleasePlayer: (playerId) =>
           handleReleasePlayer(teamId, playerId),
         handleSetRotation: (rotation) => handleSetRotation(teamId, rotation),
@@ -220,15 +248,41 @@ function LeagueLayout() {
               league={league}
               teamId={teamId}
               pageLabel={pageLabel}
-              advanceAction={advanceAction}
+              primaryAction={primaryAction}
+              nextGameAction={nextGameAction}
+              nextKeyDateAction={nextKeyDateAction}
+              deadlineAction={deadlineAction}
+              seasonEndAction={seasonEndAction}
+              nextPhaseAction={nextPhaseAction}
               isSimulating={isSimulating}
+              onCancelSimulation={cancelSimulation}
               onAdvanceDay={() => void handleAdvanceDay()}
+              onSimulateToNextGame={() => void handleSimulateToNextGame()}
+              onSimulateToNextKeyDate={() => void handleSimulateToNextKeyDate()}
+              onSimulateToDate={(targetDate) =>
+                void handleSimulateToDate(targetDate)
+              }
+              onSimulateToDeadline={() => void handleSimulateToDeadline()}
+              onSimulateToSeasonEnd={() =>
+                void handleSimulateToRegularSeasonEnd()
+              }
             />
             {simulationError ? (
               <div className="flex-none border-b border-border px-5 py-2 sm:px-8 lg:px-10">
                 <Alert variant="destructive" className="py-2">
                   <AlertDescription>{simulationError}</AlertDescription>
                 </Alert>
+              </div>
+            ) : null}
+            {simulationProgress && !simulationError ? (
+              <div className="flex-none border-b border-border px-5 py-2 text-xs text-muted-foreground sm:px-8 lg:px-10">
+                {simulationProgress.label}
+                {simulationProgress.datesProcessed
+                  ? ` · ${simulationProgress.datesProcessed} date${simulationProgress.datesProcessed === 1 ? "" : "s"}`
+                  : ""}
+                {simulationProgress.currentDate
+                  ? ` · Current date ${simulationProgress.currentDate}`
+                  : ""}
               </div>
             ) : null}
             <Outlet />

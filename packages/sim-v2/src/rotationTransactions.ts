@@ -74,6 +74,17 @@ function validateRotation(
   const rosterIds = new Set(team.rosterPlayerIds ?? [])
   const rotation = command.rotation
 
+  if (
+    league.state.userTeamId !== null &&
+    league.state.userTeamId !== command.teamId
+  ) {
+    fail(
+      "rotation_team_not_selected",
+      "Only the selected user team can change its gameplay rotation.",
+      ["command", "teamId"]
+    )
+  }
+
   if (rotation.starters.length !== 5) {
     fail(
       "invalid_starter_count",
@@ -142,6 +153,17 @@ function validateRotation(
     return player
   })
 
+  for (const playerId of rotation.starters) {
+    const availability = league.state.availability?.[playerId]
+    if (availability && !availability.available) {
+      fail(
+        "unavailable_starter",
+        "An unavailable player cannot be listed as a starter.",
+        ["command", "rotation", "starters", playerId]
+      )
+    }
+  }
+
   if (!canCoverLineup(starters)) {
     fail(
       "invalid_starter_coverage",
@@ -167,6 +189,20 @@ function validateRotation(
     }
   }
 
+  if (league.state.userTeamId !== null) {
+    const totalMinutes = Object.values(rotation.targetMinutes).reduce(
+      (sum, minutes) => sum + minutes,
+      0
+    )
+    if (Math.abs(totalMinutes - 240) > 0.001) {
+      fail(
+        "invalid_rotation_minutes_total",
+        `Target minutes must total exactly 240 regulation minutes (received ${totalMinutes}).`,
+        ["command", "rotation", "targetMinutes"]
+      )
+    }
+  }
+
   if (rotationPlayers.length < 5) {
     fail(
       "insufficient_rotation_players",
@@ -185,6 +221,18 @@ export function setRotation(
   const nextLeague = structuredClone(league)
   nextLeague.state.rotations ??= {}
   nextLeague.state.rotations[command.teamId] = structuredClone(command.rotation)
+  if (nextLeague.state.gamePlans) {
+    nextLeague.state.gamePlans[command.teamId] = {
+      rotation: structuredClone(command.rotation),
+      coaching: nextLeague.state.gamePlans[command.teamId]?.coaching ?? {
+        pace: 50,
+        offensiveStyle: 50,
+        defensivePressure: 50,
+        shotSelection: 50,
+        rotationDepth: 50,
+      },
+    }
+  }
   nextLeague.metadata.updatedAt = new Date().toISOString()
 
   const team = nextLeague.entities.teams[command.teamId]!

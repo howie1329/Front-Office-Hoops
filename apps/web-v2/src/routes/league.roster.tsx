@@ -19,6 +19,10 @@ import {
   createDefaultRotation,
   getContractSalary,
   getContractYearsRemaining,
+  getCurrentSeasonPlayerProduction,
+  getCurrentSeasonPlayerValue,
+  getPlayerAvailability,
+  getPlayerGameHistory,
   getPlayerCurrentAbility,
   projectTeamFinance,
 } from "@workspace/sim-v2"
@@ -1284,7 +1288,17 @@ function PlayerSheet({
 }) {
   const contract = player ? getPlayerContract(league, player.id) : undefined
   const health = player ? getPlayerHealth(league, player.id) : undefined
+  const availability = player
+    ? getPlayerAvailability(league, player.id)
+    : undefined
   const ability = player ? Math.round(getPlayerCurrentAbility(player)) : null
+  const production = player
+    ? getCurrentSeasonPlayerProduction(league, player.id)
+    : null
+  const value = player ? getCurrentSeasonPlayerValue(league, player.id) : null
+  const gameHistory = player
+    ? getPlayerGameHistory(league, player.id).slice(-8).reverse()
+    : []
   const playerEvents = player
     ? league.history.events
         .filter((event) =>
@@ -1367,14 +1381,14 @@ function PlayerSheet({
                     ["Defense", player.profile.skills.defense],
                     ["Basketball IQ", player.profile.skills.basketballIQ],
                     ["Stamina", player.profile.skills.stamina],
-                  ].map(([label, value]) => (
+                  ].map(([label, skillValue]) => (
                     <div
                       key={label as string}
                       className="flex items-center justify-between gap-3"
                     >
                       <dt className="text-muted-foreground">{label}</dt>
                       <dd className="font-medium tabular-nums">
-                        {ratingGrade(value as number)}
+                        {ratingGrade(skillValue as number)}
                       </dd>
                     </div>
                   ))}
@@ -1391,10 +1405,31 @@ function PlayerSheet({
                 >
                   Recent production
                 </h2>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  No game sample yet. Production will populate after the league
-                  simulates games.
-                </p>
+                {production ? (
+                  <dl className="mt-3 divide-y divide-border text-xs">
+                    <DetailMetric
+                      label="Games / minutes"
+                      value={`${production.gamesPlayed} / ${production.minutes.toFixed(1)}`}
+                    />
+                    <DetailMetric
+                      label="Points / rebounds / assists"
+                      value={`${production.pointsPerGame.toFixed(1)} / ${production.reboundsPerGame.toFixed(1)} / ${production.assistsPerGame.toFixed(1)}`}
+                    />
+                    <DetailMetric
+                      label="True shooting"
+                      value={`${(production.trueShootingPercentage * 100).toFixed(1)}%`}
+                    />
+                    <DetailMetric
+                      label="Availability"
+                      value={`${(production.availabilityRate * 100).toFixed(1)}%`}
+                    />
+                  </dl>
+                ) : (
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    No game sample yet. Production will populate after the
+                    league simulates games.
+                  </p>
+                )}
               </section>
 
               <section
@@ -1447,6 +1482,14 @@ function PlayerSheet({
                     value={ability ?? "—"}
                   />
                   <DetailMetric
+                    label="Universal value"
+                    value={value ? value.rawValue.toFixed(1) : "—"}
+                  />
+                  <DetailMetric
+                    label="Value confidence"
+                    value={value ? titleCase(value.confidence) : "—"}
+                  />
+                  <DetailMetric
                     label="Market signal"
                     value={
                       ability !== null
@@ -1459,6 +1502,102 @@ function PlayerSheet({
                   <DetailMetric
                     label="Durability"
                     value={player.profile.injuryResistance}
+                  />
+                </dl>
+              </section>
+
+              <section
+                className="border-b border-border py-5"
+                aria-labelledby="player-game-history-heading"
+              >
+                <h2
+                  id="player-game-history-heading"
+                  className="text-xs font-semibold"
+                >
+                  Recent game log
+                </h2>
+                {gameHistory.length > 0 ? (
+                  <div className="mt-3 overflow-x-auto">
+                    <Table className="min-w-[28rem] text-xs">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Opponent</TableHead>
+                          <TableHead className="text-right">MIN</TableHead>
+                          <TableHead className="text-right">PTS</TableHead>
+                          <TableHead className="text-right">REB</TableHead>
+                          <TableHead className="text-right">AST</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {gameHistory.map((game) => (
+                          <TableRow key={game.scheduleId}>
+                            <TableCell className="whitespace-nowrap">
+                              <span
+                                className={cn(
+                                  "mr-1 font-semibold",
+                                  game.won
+                                    ? "text-emerald-600"
+                                    : "text-destructive"
+                                )}
+                              >
+                                {game.won ? "W" : "L"}
+                              </span>
+                              {game.date}
+                            </TableCell>
+                            <TableCell>
+                              {league.entities.teams[game.opponentTeamId].name}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {game.boxScore.minutes.toFixed(1)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {game.boxScore.points}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {game.boxScore.rebounds}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {game.boxScore.assists}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    No completed games recorded for this player.
+                  </p>
+                )}
+              </section>
+
+              <section
+                className="border-b border-border py-5"
+                aria-labelledby="player-availability-heading"
+              >
+                <h2
+                  id="player-availability-heading"
+                  className="text-xs font-semibold"
+                >
+                  Availability
+                </h2>
+                <dl className="mt-3 divide-y divide-border text-xs">
+                  <DetailMetric
+                    label="Status"
+                    value={availability?.available ? "Available" : "Out"}
+                  />
+                  <DetailMetric
+                    label="Games missed"
+                    value={availability?.gamesMissed ?? 0}
+                  />
+                  <DetailMetric
+                    label="Games remaining"
+                    value={availability?.gamesRemaining ?? 0}
+                  />
+                  <DetailMetric
+                    label="Return date"
+                    value={availability?.injury?.expectedReturnDate ?? "—"}
                   />
                 </dl>
               </section>

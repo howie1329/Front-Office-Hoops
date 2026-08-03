@@ -194,6 +194,133 @@ describe("executeLeagueCommand", () => {
     expect(result.reason?.code).toBe("invalid_starter_count")
   })
 
+  it("simulates the selected team's next game through the shared runner", () => {
+    const league = createLeague({
+      id: "league-next-game",
+      name: "Next Game League",
+      seed: "selection-seed",
+      mode: "deterministic-lab",
+      createdWithEntropy: false,
+      now: "2026-08-02T00:00:00.000Z",
+    }).document
+    const selected = executeLeagueCommand({
+      requestId: "request-next-game-select",
+      command: {
+        type: "SelectUserTeam",
+        commandId: "command-next-game-select",
+        teamId: "team:01",
+      },
+      league,
+    })
+    expect(selected.status).toBe("completed")
+
+    const result = executeLeagueCommand({
+      requestId: "request-next-game",
+      command: {
+        type: "SimulateToNextGame",
+        commandId: "command-next-game",
+      },
+      league: selected.league!,
+    })
+
+    expect(result.status).toBe("completed")
+    expect(result.target).toMatchObject({
+      kind: "next-game",
+      teamId: "team:01",
+    })
+    expect(result.progress?.datesProcessed).toBeGreaterThan(0)
+    expect(result.progress?.gamesCompleted).toBeGreaterThan(0)
+    expect(result.league?.optionalData?.games).toHaveLength(
+      result.progress?.gamesCompleted ?? 0
+    )
+    expect(result.league?.projections.currentSeason?.gamesCompleted).toBe(
+      result.progress?.gamesCompleted
+    )
+    expect(result.league?.state.calendar.currentDate).toBe("2026-10-22")
+    expect(validateLeagueDocument(result.league)).toMatchObject({ valid: true })
+  })
+
+  it("rejects selected-team rotation edits outside the 240-minute contract", () => {
+    const league = createLeague({
+      id: "league-rotation-contract",
+      name: "Rotation Contract League",
+      seed: "rotation-contract-seed",
+      mode: "deterministic-lab",
+      createdWithEntropy: false,
+      now: "2026-08-02T00:00:00.000Z",
+    }).document
+    const selected = executeLeagueCommand({
+      requestId: "request-rotation-contract-select",
+      command: {
+        type: "SelectUserTeam",
+        commandId: "command-rotation-contract-select",
+        teamId: "team:01",
+      },
+      league,
+    })
+    const rotation = structuredClone(
+      selected.league?.state.rotations?.["team:01"]!
+    )
+    rotation.targetMinutes[rotation.starters[0]!] += 1
+
+    const result = executeLeagueCommand({
+      requestId: "request-rotation-contract",
+      command: {
+        type: "SetRotation",
+        commandId: "command-rotation-contract",
+        teamId: "team:01",
+        rotation,
+      },
+      league: selected.league!,
+    })
+
+    expect(result.status).toBe("rejected")
+    expect(result.reason?.code).toBe("invalid_rotation_minutes_total")
+  })
+
+  it("simulates selected dates without overshooting and emits recovery checkpoints", () => {
+    const league = createLeague({
+      id: "league-target-date",
+      name: "Target Date League",
+      seed: "selection-seed",
+      mode: "deterministic-lab",
+      createdWithEntropy: false,
+      now: "2026-08-02T00:00:00.000Z",
+    }).document
+    const checkpoints: Array<{
+      currentDate: string
+      completedGames: number
+    }> = []
+
+    const result = executeLeagueCommand(
+      {
+        requestId: "request-target-date",
+        command: {
+          type: "SimulateToDate",
+          commandId: "command-target-date",
+          targetDate: "2026-10-22",
+        },
+        league,
+      },
+      {
+        onProgress: (message) => {
+          checkpoints.push({
+            currentDate: message.checkpoint.currentDate,
+            completedGames: message.checkpoint.completedGames,
+          })
+        },
+      }
+    )
+
+    expect(result.status).toBe("completed")
+    expect(result.target).toEqual({ kind: "date", date: "2026-10-22" })
+    expect(result.league?.state.calendar.currentDate).toBe("2026-10-23")
+    expect(checkpoints).toHaveLength(2)
+    expect(checkpoints.at(-1)?.currentDate).toBe("2026-10-23")
+    expect(result.progress?.datesProcessed).toBe(2)
+    expect(validateLeagueDocument(result.league)).toMatchObject({ valid: true })
+  })
+
   it("rejects malformed league documents", () => {
     const result = executeLeagueCommand({
       requestId: "request-3",

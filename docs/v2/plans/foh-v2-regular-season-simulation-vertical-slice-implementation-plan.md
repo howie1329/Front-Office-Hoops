@@ -1,6 +1,6 @@
 # Front Office Hoops V2 — Regular-Season Simulation Vertical Slice
 
-**Status:** In progress — rotation slice implemented; simulation-target slice next
+**Status:** Implemented — authoritative regular-season vertical slice
 **Scope:** Saved rotations, first-game simulation, target-date controls, and
 post-game state review after the user selects a team at the start of the
 regular season.
@@ -39,6 +39,19 @@ agency, offseason development, and full playoff management remain later
 destinations. The target-control framework is built now so those destinations
 can be added without creating separate simulation paths.
 
+## Implementation status
+
+The plan is implemented across the V2 domain, schema, simulation worker,
+repository, and management UI. The supported slice now covers saved team game
+plans, selected-team rotation editing, date-by-date regular-season simulation,
+injury/availability carry-forward, standings and production/value promotion,
+player game history, target-date controls, management boundaries, and separate
+recovery checkpoints for multi-date worker runs.
+
+`SimulateToNextPhase` remains intentionally blocked because no authoritative
+phase-transition command or playoff schedule exists yet. That is the honest
+state required by this plan; it is not a simulated transition.
+
 ## Current baseline
 
 The current V2 branch already provides:
@@ -59,21 +72,8 @@ The current V2 branch already provides:
 - completed game records containing final team and player box scores;
 - seeded game, production/value, market, and draft lab modules.
 
-The current gaps are:
-
-- coaching plans are still created as neutral defaults rather than persisted;
-- only `AdvanceDay` is enabled in the authoritative worker;
-- next-game, key-date, deadline, regular-season-end, and next-phase controls are
-  disabled or rejected;
-- the rotation command does not yet enforce every gameplay-only rule at the
-  command boundary, including selected-team ownership, exact 240-minute
-  normalization, and persisted availability restrictions;
-- availability and injuries are not yet carried reliably from one date to the
-  next;
-- production/value promotion and player-history selectors are not yet part of
-  the completed command snapshot;
-- the dashboard can display derived facts but does not yet complete the full
-  simulate-review-reload workflow.
+The remaining work is outside this vertical slice: a supported phase
+transition, playoff management, and a dedicated automated browser workflow.
 
 ## Product decisions
 
@@ -133,9 +133,7 @@ not create a second competing league history.
 
 ## Phase 0 — Freeze contracts and target metadata
 
-**Status:** Partially implemented. The saved rotation shape, `SetRotation`
-command, schema validation, default creation, and worker routing are now in
-place. Target metadata and target commands remain future work.
+**Status:** Complete for the regular-season slice.
 
 ### Domain and schema
 
@@ -164,26 +162,17 @@ The exact field name may follow the existing domain naming, but rotations must
 be part of the saved league document rather than React state or a temporary
 fixture.
 
-The following command is implemented in the current slice:
-
-- `SetRotation`;
-
-The remaining lifecycle commands are defined or reserved but not enabled:
-
-- `SetTeamCoaching` when coaching controls are exposed;
-- `AdvanceDay`;
-- `SimulateToNextGame`;
-- `SimulateToDate`;
-- `SimulateToNextKeyDate`;
-- `SimulateToDeadline`;
-- `SimulateToRegularSeasonEnd`;
-- `SimulateToNextPhase`.
+The regular-season slice implements `SetRotation`, `AdvanceDay`,
+`SimulateToNextGame`, `SimulateToDate`, `SimulateToNextKeyDate`,
+`SimulateToDeadline`, and `SimulateToRegularSeasonEnd`. `SetTeamCoaching` is
+reserved for exposed coaching controls. `SimulateToNextPhase` is defined and
+returns an explicit blocked reason until a supported phase transition exists.
 
 Add typed lifecycle metadata:
 
 ```ts
 type LifecycleTarget =
-  | { kind: "next-game"; teamId: string; scheduleId: string }
+  | { kind: "next-game"; teamId: string; scheduleId: string; date: string }
   | { kind: "date"; date: string }
   | { kind: "key-date"; date: string; label: string }
   | { kind: "deadline"; date: string; label: string }
@@ -224,7 +213,7 @@ Add validation for:
 
 ## Phase 1 — Persist and edit rotations
 
-**Status:** Mostly implemented in the current working slice.
+**Status:** Complete.
 
 ### League creation defaults
 
@@ -255,13 +244,10 @@ The current implementation is `SetRotation` in `packages/sim-v2`:
 The command should replace the complete rotation atomically. Avoid partial
 starter/depth/minute writes that can leave a team temporarily invalid.
 
-Remaining hardening for this slice:
-
-- enforce selected-user-team ownership at the command boundary;
-- enforce the exact 240-minute regulation total in the command, not only in
-  the UI;
-- reject unavailable starters using authoritative persisted availability;
-- add explicit persistence/reload coverage for the browser workflow.
+The command enforces selected-user-team ownership, the exact 240-minute
+regulation contract for the selected team, and authoritative availability
+restrictions. Repository and worker tests cover validated save/reload and
+recovery behavior.
 
 ### Rotation UI
 
@@ -290,6 +276,8 @@ rotation. The next simulated game consumes that rotation, and a deterministic
 run with the same league, rotation, and seed remains reproducible.
 
 ## Phase 2 — Extract the shared daily runner
+
+**Status:** Complete.
 
 Move orchestration out of the command dispatcher and keep the worker command
 switch thin. Add a focused lifecycle module with a pure internal operation such
@@ -344,6 +332,8 @@ simulation version inputs.
 
 ## Phase 3 — Implement `SimulateToNextGame`
 
+**Status:** Complete.
+
 This is the first complete user-facing simulation milestone.
 
 ### Target resolution
@@ -390,6 +380,8 @@ Wire the existing header CTA and menu:
 
 ## Phase 4 — Persist and review the first game result
 
+**Status:** Complete.
+
 After `SimulateToNextGame`, the dashboard and player surfaces must read the
 saved result.
 
@@ -434,6 +426,8 @@ The first review surface must support:
 - production and player value updates.
 
 ## Phase 5 — Add target-date and milestone commands
+
+**Status:** Complete for the supported regular-season targets.
 
 Once one-game simulation is reliable, add the generic target runner. Each
 target calls `simulateOneLeagueDate` repeatedly and uses the same save,
@@ -488,6 +482,8 @@ commands exist.
 
 ## Phase 6 — Phase-boundary scaffold
 
+**Status:** Complete as a blocked transition scaffold.
+
 To support honest next-phase controls, add explicit phase-boundary handling:
 
 - detect the final regular-season game;
@@ -502,6 +498,8 @@ This slice does not implement the full draft, free agency, or offseason. It
 does ensure `SimulateToNextPhase` cannot falsely claim that a phase exists.
 
 ## Phase 7 — Persistence and recovery
+
+**Status:** Complete for worker checkpoints and canonical commits.
 
 Extend the worker/repository boundary for long-running target commands.
 
@@ -528,6 +526,9 @@ the user chooses recovery. Debug diagnostics remain optional and must not bloat
 normal league exports.
 
 ## Phase 8 — Tests and acceptance
+
+**Status:** Focused domain, schema, simulation, repository, and worker tests
+are complete. A dedicated browser automation suite remains follow-up work.
 
 ### Domain and schema tests
 
