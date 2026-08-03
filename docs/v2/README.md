@@ -47,6 +47,7 @@ gates.
 - [League Lifecycle Implementation](./plans/foh-v2-league-lifecycle-implementation-plan.md)
 - [Game & Matchup Lab](./plans/foh-v2-game-matchup-lab-implementation-plan.md)
 - [Production & Value Lab](./plans/foh-v2-production-value-lab-implementation-plan.md)
+- [Production & Value League State](./plans/foh-v2-production-value-league-state-implementation-plan.md)
 - [Career Cohort Calibration](./plans/foh-v2-career-cohort-calibration-plan.md)
 - [Market & Rules](./plans/foh-v2-contract-market-and-negotiation-plan.md)
 - [Draft & Decision Lab](./plans/foh-v2-draft-decision-lab-implementation-plan.md)
