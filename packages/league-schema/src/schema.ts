@@ -761,6 +761,10 @@ const playerSeasonProductionBaseSchema = z.strictObject({
   }),
   role: z.string().min(1),
   sampleState: z.enum(["provisional", "early", "established", "full"]),
+  minutesPerGame: z.number().nonnegative().optional(),
+  fieldGoalPercentage: z.number().nonnegative().optional(),
+  threePointPercentage: z.number().nonnegative().optional(),
+  freeThrowPercentage: z.number().nonnegative().optional(),
 })
 
 const playerTeamSeasonSplitSchema = playerSeasonProductionBaseSchema.extend({
@@ -769,12 +773,11 @@ const playerTeamSeasonSplitSchema = playerSeasonProductionBaseSchema.extend({
 
 const playerSeasonProductionSchema = playerSeasonProductionBaseSchema.extend({
   season: z.number().int().positive().optional(),
-  throughDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  throughDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   teamId: z.string().min(1).nullable(),
-  minutesPerGame: z.number().nonnegative().optional(),
-  fieldGoalPercentage: z.number().nonnegative().optional(),
-  threePointPercentage: z.number().nonnegative().optional(),
-  freeThrowPercentage: z.number().nonnegative().optional(),
   teamSplits: z
     .record(z.string().min(1), playerTeamSeasonSplitSchema)
     .optional(),
@@ -857,7 +860,10 @@ const universalPlayerValueSchema = z.strictObject({
 
 export const seasonCheckpointReportSchema = z.strictObject({
   season: z.number().int().positive().optional(),
-  throughDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  throughDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   gamesPerTeam: z.number().int().nonnegative(),
   gamesCompleted: z.number().int().nonnegative(),
   playerProduction: z.record(z.string().min(1), playerSeasonProductionSchema),
@@ -879,9 +885,15 @@ const playerInjuryHistoryEntrySchema = z.strictObject({
   playerId: z.string().min(1),
   season: z.number().int().positive(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  expectedReturnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  returnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  description: z.string().optional(),
+  expectedReturnDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  returnDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  description: z.string(),
   gamesMissed: z.number().int().nonnegative(),
   sourceScheduleId: z.string().min(1).optional(),
 })
@@ -890,17 +902,11 @@ const leagueSeasonArchiveSchema = z.strictObject({
   season: z.number().int().positive(),
   completedAt: z.string().datetime({ offset: true }),
   games: z.array(leagueGameRecordSchema),
-  playerProduction: z.record(
-    z.string().min(1),
-    playerSeasonProductionSchema
-  ),
+  playerProduction: z.record(z.string().min(1), playerSeasonProductionSchema),
   teamProduction: z.record(z.string().min(1), teamSeasonProductionSchema),
   leagueSummary: leagueProductionSummarySchema,
   playerValues: z.record(z.string().min(1), universalPlayerValueSchema),
-  ratingSnapshots: z.record(
-    z.string().min(1),
-    playerRatingSnapshotSchema
-  ),
+  ratingSnapshots: z.record(z.string().min(1), playerRatingSnapshotSchema),
   injuries: z.array(playerInjuryHistoryEntrySchema),
   modelVersions: z
     .strictObject({
@@ -1907,6 +1913,70 @@ export const leagueDocumentSchema = leagueDocumentShape.superRefine(
           message:
             "Every completed schedule entry must have one stored game record.",
           path: ["state", "calendar", "schedule", entry.id],
+        })
+      }
+    }
+
+    const archivedSeasons = new Set<number>()
+    const archivedGameKeys = new Set<string>()
+    for (const [archiveIndex, archive] of league.history.seasonArchives.entries()) {
+      if (archivedSeasons.has(archive.season)) {
+        context.addIssue({
+          code: "custom",
+          message: "A season cannot have more than one archive.",
+          path: ["history", "seasonArchives", archiveIndex, "season"],
+        })
+      }
+      archivedSeasons.add(archive.season)
+      for (const [gameIndex, game] of archive.games.entries()) {
+        const key = `${game.season}:${game.scheduleId}`
+        if (game.season !== archive.season) {
+          context.addIssue({
+            code: "custom",
+            message: "An archived game must belong to its archive season.",
+            path: ["history", "seasonArchives", archiveIndex, "games", gameIndex],
+          })
+        }
+        if (archivedGameKeys.has(key)) {
+          context.addIssue({
+            code: "custom",
+            message: "A completed game cannot be archived more than once.",
+            path: ["history", "seasonArchives", archiveIndex, "games", gameIndex],
+          })
+        }
+        archivedGameKeys.add(key)
+      }
+      for (const injury of archive.injuries) {
+        if (!league.entities.players[injury.playerId]) {
+          context.addIssue({
+            code: "custom",
+            message: "An archived injury must reference an existing player.",
+            path: ["history", "seasonArchives", archiveIndex, "injuries"],
+          })
+        }
+      }
+      for (const playerId of Object.keys(archive.ratingSnapshots)) {
+        if (!league.entities.players[playerId]) {
+          context.addIssue({
+            code: "custom",
+            message: "A rating snapshot must reference an existing player.",
+            path: [
+              "history",
+              "seasonArchives",
+              archiveIndex,
+              "ratingSnapshots",
+              playerId,
+            ],
+          })
+        }
+      }
+    }
+    for (const [gameIndex, game] of storedGames.entries()) {
+      if (archivedGameKeys.has(`${game.season}:${game.scheduleId}`)) {
+        context.addIssue({
+          code: "custom",
+          message: "A game cannot exist in both current storage and an archive.",
+          path: ["optionalData", "games", gameIndex],
         })
       }
     }

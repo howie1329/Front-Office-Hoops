@@ -3,6 +3,7 @@ export { releasePlayer, ReleasePlayerCommandError } from "./rosterTransactions"
 export { setRotation, SetRotationCommandError } from "./rotationTransactions"
 export {
   advanceLeagueDay,
+  advanceToNextSeason,
   getLifecycleActionState,
   LifecycleCommandError,
   resolveNextKeyDate,
@@ -88,8 +89,13 @@ export {
   getCompletedGamesForTeam,
   getCurrentSeasonPlayerProduction,
   getCurrentSeasonPlayerValue,
+  getPlayerContractSummary,
   getPlayerAvailability,
   getPlayerGameHistory,
+  getPlayerInformationView,
+  getPlayerInjuryHistory,
+  getPlayerRatingHistory,
+  getPlayerSeasonHistory,
   getRecentLeagueEvents,
 } from "./leagueSelectors"
 export {
@@ -223,6 +229,7 @@ export type {
 export type { ProductionAggregation } from "./production"
 export type { SeasonRunnerOptions } from "./seasonRunner"
 export type { PlayerGameHistoryEntry } from "./leagueSelectors"
+export type { PlayerGameHistoryFilter } from "./leagueSelectors"
 export type { ValueSettingDescriptor, ValueSettingPath } from "./seasonConfig"
 export type {
   MarketNumericSettingPath,

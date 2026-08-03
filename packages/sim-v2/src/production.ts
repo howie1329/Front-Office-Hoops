@@ -253,6 +253,75 @@ function finalizePlayerProduction(
     Object.entries(target.roleMinutes).sort(
       (left, right) => right[1] - left[1]
     )[0]?.[0] ?? "Projected"
+  const finalizeTotals = (
+    totals: MutablePlayerTotals,
+    teamId: string | null,
+    gamesScheduled: number
+  ): PlayerTeamSeasonSplit => ({
+    playerId: target.playerId,
+    teamId: teamId!,
+    population: target.population,
+    gamesScheduled,
+    gamesPlayed: totals.gamesPlayed,
+    starts: totals.starts,
+    minutes: round(totals.minutes),
+    minutesPerGame: safePerGame(totals.minutes, totals.gamesPlayed),
+    opportunities: totals.opportunities,
+    usageRate:
+      totals.usageWeight > 0
+        ? round(totals.usageWeighted / totals.usageWeight)
+        : 0,
+    points: totals.points,
+    pointsPerGame: safePerGame(totals.points, totals.gamesPlayed),
+    fieldGoalsMade: totals.fieldGoalsMade,
+    fieldGoalsAttempted: totals.fieldGoalsAttempted,
+    threePointersMade: totals.threePointersMade,
+    threePointersAttempted: totals.threePointersAttempted,
+    freeThrowsMade: totals.freeThrowsMade,
+    freeThrowsAttempted: totals.freeThrowsAttempted,
+    fieldGoalPercentage: safeRate(
+      totals.fieldGoalsMade,
+      totals.fieldGoalsAttempted
+    ),
+    threePointPercentage: safeRate(
+      totals.threePointersMade,
+      totals.threePointersAttempted
+    ),
+    freeThrowPercentage: safeRate(
+      totals.freeThrowsMade,
+      totals.freeThrowsAttempted
+    ),
+    trueShootingPercentage: safeRate(
+      totals.points,
+      2 * (totals.fieldGoalsAttempted + 0.44 * totals.freeThrowsAttempted)
+    ),
+    offensiveRebounds: totals.offensiveRebounds,
+    defensiveRebounds: totals.defensiveRebounds,
+    rebounds: totals.rebounds,
+    reboundsPerGame: safePerGame(totals.rebounds, totals.gamesPlayed),
+    assists: totals.assists,
+    assistsPerGame: safePerGame(totals.assists, totals.gamesPlayed),
+    turnovers: totals.turnovers,
+    turnoversPerGame: safePerGame(totals.turnovers, totals.gamesPlayed),
+    steals: totals.steals,
+    blocks: totals.blocks,
+    fouls: totals.fouls,
+    availabilityRate: safeRate(totals.gamesPlayed, gamesScheduled),
+    shotProfile: totals.shotProfile,
+    role:
+      Object.entries(totals.roleMinutes).sort(
+        (left, right) => right[1] - left[1]
+      )[0]?.[0] ?? "Projected",
+    sampleState: sampleState(totals.gamesPlayed, gamesScheduled),
+  })
+
+  const teamSplits = Object.fromEntries(
+    Object.entries(target.teamSplits).map(([teamId, totals]) => [
+      teamId,
+      finalizeTotals(totals, teamId, target.gamesScheduled),
+    ])
+  )
+
   return {
     playerId: target.playerId,
     teamId: target.teamId,
@@ -261,6 +330,7 @@ function finalizePlayerProduction(
     gamesPlayed: target.gamesPlayed,
     starts: target.starts,
     minutes: round(target.minutes),
+    minutesPerGame: safePerGame(target.minutes, target.gamesPlayed),
     opportunities: target.opportunities,
     usageRate:
       target.usageWeight > 0
@@ -274,6 +344,18 @@ function finalizePlayerProduction(
     threePointersAttempted: target.threePointersAttempted,
     freeThrowsMade: target.freeThrowsMade,
     freeThrowsAttempted: target.freeThrowsAttempted,
+    fieldGoalPercentage: safeRate(
+      target.fieldGoalsMade,
+      target.fieldGoalsAttempted
+    ),
+    threePointPercentage: safeRate(
+      target.threePointersMade,
+      target.threePointersAttempted
+    ),
+    freeThrowPercentage: safeRate(
+      target.freeThrowsMade,
+      target.freeThrowsAttempted
+    ),
     trueShootingPercentage: safeRate(
       target.points,
       2 * (target.fieldGoalsAttempted + 0.44 * target.freeThrowsAttempted)
@@ -293,6 +375,7 @@ function finalizePlayerProduction(
     shotProfile: target.shotProfile,
     role,
     sampleState: sampleState(target.gamesPlayed, target.gamesScheduled),
+    teamSplits,
   }
 }
 
@@ -385,7 +468,13 @@ export function aggregateSeasonProduction(
     )
     for (const player of Object.values(result.players)) {
       const target = players[player.playerId]
-      if (target) applyPlayerBoxScore(target, player)
+      if (target) {
+        applyPlayerBoxScore(target, player)
+        const split =
+          target.teamSplits[player.teamId] ??
+          (target.teamSplits[player.teamId] = createPlayerTotals())
+        applyPlayerBoxScore(split, player)
+      }
     }
   }
 

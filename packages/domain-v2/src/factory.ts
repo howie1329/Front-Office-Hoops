@@ -140,6 +140,7 @@ export function createFoundationLeague(
       events: [],
       seasonArchives: [],
       records: [],
+      injuries: [],
     },
   }
 }

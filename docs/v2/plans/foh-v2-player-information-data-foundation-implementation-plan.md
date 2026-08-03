@@ -1,6 +1,6 @@
 # Front Office Hoops V2 — Player Information Data Foundation
 
-**Status:** Planned  
+**Status:** Implemented
 **Scope:** Canonical data, lifecycle, selectors, and tests required before building the Player Information UI.  
 **Roadmap position:** Phase 4–6 data integration; UI follows in the Phase 7 management surface.  
 **V1 scope:** None. Keep V1 unchanged.

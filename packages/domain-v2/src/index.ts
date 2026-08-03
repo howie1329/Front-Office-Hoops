@@ -43,6 +43,8 @@ export type {
 export type {
   LeagueProductionSummary,
   PlayerSeasonProduction,
+  PlayerSeasonProductionBase,
+  PlayerTeamSeasonSplit,
   PlayerValueConfidence,
   ProductionSampleState,
   SeasonCheckpointReport,

@@ -1,5 +1,4 @@
 import type {
-  CareerPhase,
   PlayerEntity,
   PlayerSkills,
   LeagueEvent,
@@ -7,6 +6,8 @@ import type {
   LeaguePlayerAvailability,
   GameRotationInput,
 } from "./types"
+import type { CareerPhase } from "./career"
+import type { ContractLifecycleStatus } from "./market"
 import type {
   PlayerSeasonProduction,
   PlayerTeamSeasonSplit,
@@ -41,7 +42,7 @@ export type PlayerInjuryHistoryEntry = {
   startDate: string
   expectedReturnDate?: string
   returnDate?: string
-  description?: string
+  description: string
   gamesMissed: number
   sourceScheduleId?: string
 }
@@ -84,6 +85,9 @@ export type PlayerContractSummary = {
   totalValue: number
   source: string | null
   expiringSeason: number | null
+  status: ContractLifecycleStatus
+  yearsRemaining: number
+  remainingValue: number
 }
 
 export type PlayerInformationView = {

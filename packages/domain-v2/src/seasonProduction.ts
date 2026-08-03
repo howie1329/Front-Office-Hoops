@@ -125,6 +125,10 @@ export type PlayerSeasonProductionBase = {
   }
   role: string
   sampleState: ProductionSampleState
+  minutesPerGame?: number
+  fieldGoalPercentage?: number
+  threePointPercentage?: number
+  freeThrowPercentage?: number
 }
 
 export type PlayerTeamSeasonSplit = PlayerSeasonProductionBase & {
@@ -135,10 +139,6 @@ export type PlayerSeasonProduction = PlayerSeasonProductionBase & {
   season?: number
   throughDate?: string
   teamId: string | null
-  minutesPerGame?: number
-  fieldGoalPercentage?: number
-  threePointPercentage?: number
-  freeThrowPercentage?: number
   teamSplits?: Record<string, PlayerTeamSeasonSplit>
 }
 

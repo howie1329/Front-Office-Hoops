@@ -11,6 +11,8 @@ import type {
   LeaguePlayerAvailability,
   LeagueScheduleEntry,
   LeagueStanding,
+  LeagueSeasonArchive,
+  PlayerRatingSnapshot,
   LifecycleTarget,
   PlayerAvailability,
   SeasonCheckpointReport,
@@ -35,6 +37,10 @@ import {
   resolveSeasonProductionConfig,
 } from "./seasonConfig"
 import { calculateUniversalPlayerValues } from "./playerValue"
+import { advancePlayerCareerYear, getCareerPhase } from "./careerDevelopment"
+import { createDeterministicRandom } from "./randomness"
+import { getPlayerCurrentAbility } from "./playerGeneration"
+import { createLeagueCalendar } from "./leagueSchedule"
 
 export type LifecycleActionId =
   | "advance-day"
@@ -474,6 +480,7 @@ function applyAvailabilityAfterGame(
   result: GameResult
 ): void {
   ensureAvailability(league)
+  league.history.injuries ??= []
   const injuredIds = new Set(result.events.map((event) => event.playerId))
   const activeIds = [
     ...(league.entities.teams[scheduleEntry.homeTeamId]?.rosterPlayerIds ?? []),
@@ -485,11 +492,19 @@ function applyAvailabilityAfterGame(
     if (availability.available || injuredIds.has(playerId)) continue
     availability.gamesRemaining = Math.max(0, availability.gamesRemaining - 1)
     availability.gamesMissed += 1
+    const injury = league.history.injuries.find(
+      (entry) =>
+        entry.playerId === playerId &&
+        entry.id === `injury:${entry.sourceScheduleId}:${playerId}` &&
+        !entry.returnDate
+    )
+    if (injury) injury.gamesMissed += 1
     if (availability.gamesRemaining === 0) {
       availability.available = true
       availability.restriction = "none"
       delete availability.minutesLimit
       delete availability.injury
+      if (injury) injury.returnDate = scheduleEntry.date
     }
   }
 
@@ -504,6 +519,19 @@ function applyAvailabilityAfterGame(
       expectedReturnDate: addDays(scheduleEntry.date, event.gamesRemaining),
       sourceScheduleId: scheduleEntry.id,
       description: event.description,
+    }
+    const id = `injury:${scheduleEntry.id}:${event.playerId}`
+    if (!league.history.injuries.some((injury) => injury.id === id)) {
+      league.history.injuries.push({
+        id,
+        playerId: event.playerId,
+        season: league.state.season,
+        startDate: scheduleEntry.date,
+        expectedReturnDate: addDays(scheduleEntry.date, event.gamesRemaining),
+        description: event.description,
+        gamesMissed: 0,
+        sourceScheduleId: scheduleEntry.id,
+      })
     }
   }
 }
@@ -610,15 +638,21 @@ function updateCurrentSeason(
   league: LeagueDocument,
   games: LeagueGameRecord[]
 ): SeasonCheckpointReport {
+  const currentSeasonGames = games
+    .filter((game) => game.season === league.state.season)
+    .sort((left, right) => left.date.localeCompare(right.date))
   const availability = league.state.availability ?? {}
   const fixture = createLeagueSeasonFixture(league, availability)
-  const gamesPerTeam = getGamesPerTeam(league, games)
+  const gamesPerTeam = getGamesPerTeam(league, currentSeasonGames)
   const aggregation = aggregateSeasonProduction(
     fixture,
-    games.map((game) => game.result),
+    currentSeasonGames.map((game) => game.result),
     gamesPerTeam
   )
   return {
+    season: league.state.season,
+    throughDate:
+      currentSeasonGames.at(-1)?.date ?? league.state.calendar.currentDate,
     gamesPerTeam,
     gamesCompleted: aggregation.league.gamesCompleted,
     playerProduction: aggregation.players,
@@ -636,6 +670,263 @@ function updateCurrentSeason(
 
 function getStoredGames(league: LeagueDocument): LeagueGameRecord[] {
   return league.optionalData?.games ?? []
+}
+
+function createRatingSnapshot(
+  league: LeagueDocument,
+  playerId: string,
+  season: number
+): PlayerRatingSnapshot | null {
+  const player = league.entities.players[playerId]
+  if (!player || player.leagueStatus.kind === "retired") return null
+  return {
+    season,
+    age: player.age,
+    overall: getPlayerCurrentAbility(player),
+    skills: structuredClone(player.profile.skills),
+    phase: getCareerPhase(
+      player.age,
+      player.profile.development.peakAge,
+      player.profile.development.declineStartAge
+    ),
+  }
+}
+
+function createSeasonArchive(
+  league: LeagueDocument,
+  report: SeasonCheckpointReport,
+  games: LeagueGameRecord[]
+): LeagueSeasonArchive {
+  const ratingSnapshots = Object.fromEntries(
+    Object.keys(league.entities.players).flatMap((playerId) => {
+      const snapshot = createRatingSnapshot(
+        league,
+        playerId,
+        league.state.season
+      )
+      return snapshot ? [[playerId, snapshot] as const] : []
+    })
+  )
+  const playerProduction = Object.fromEntries(
+    Object.entries(report.playerProduction).map(([playerId, production]) => [
+      playerId,
+      {
+        ...production,
+        season: league.state.season,
+        throughDate: report.throughDate,
+      },
+    ])
+  )
+  return {
+    season: league.state.season,
+    completedAt: `${league.state.calendar.regularSeasonEnd}T23:59:59.999Z`,
+    games: structuredClone(games),
+    playerProduction,
+    teamProduction: structuredClone(report.teamProduction),
+    leagueSummary: structuredClone(report.leagueSummary),
+    playerValues: structuredClone(report.values),
+    ratingSnapshots,
+    injuries: structuredClone(
+      (league.history.injuries ?? []).filter(
+        (injury) => injury.season === league.state.season
+      )
+    ),
+    modelVersions: {
+      game: 1,
+      production: 1,
+      value: 1,
+      development: 1,
+    },
+  }
+}
+
+function resetSeasonAvailability(league: LeagueDocument): void {
+  league.state.availability = Object.fromEntries(
+    Object.keys(league.entities.players).map((playerId) => [
+      playerId,
+      defaultAvailability(),
+    ])
+  )
+}
+
+export function advanceToNextSeason(
+  league: LeagueDocument,
+  command: Extract<LeagueCommand, { type: "AdvanceToNextSeason" }>
+): {
+  league: LeagueDocument
+  events: LeagueEvent[]
+  archive: LeagueSeasonArchive
+} {
+  if (league.state.phase !== "regular-season") {
+    fail(
+      "phase_command_blocked",
+      "A season can only be closed from the regular season.",
+      ["state", "phase"]
+    )
+  }
+  if (hasRemainingRegularSeasonGames(league)) {
+    fail(
+      "season_not_complete",
+      "Complete every regular-season game before advancing to the next season.",
+      ["state", "calendar", "schedule"]
+    )
+  }
+  const currentSeason = league.state.season
+  if (
+    league.history.seasonArchives.some(
+      (archive) => archive.season === currentSeason
+    )
+  ) {
+    fail(
+      "season_already_archived",
+      `Season ${currentSeason} has already been archived.`,
+      ["history", "seasonArchives"]
+    )
+  }
+
+  const currentGames = getStoredGames(league).filter(
+    (game) => game.season === currentSeason
+  )
+  const report =
+    league.projections.currentSeason ??
+    updateCurrentSeason(league, currentGames)
+  const archive = createSeasonArchive(league, report, currentGames)
+  const nextLeague = structuredClone(league)
+  nextLeague.history.seasonArchives.push(archive)
+  nextLeague.history.injuries ??= []
+  const developmentEvents: LeagueEvent[] = []
+
+  for (const player of Object.values(league.entities.players)) {
+    if (player.leagueStatus.kind === "retired") continue
+    const production = report.playerProduction[player.id]
+    const gamesScheduled = Math.max(1, production?.gamesScheduled ?? 0)
+    const gamesPlayed = Math.min(gamesScheduled, production?.gamesPlayed ?? 0)
+    const gamesMissed = archive.injuries
+      .filter((injury) => injury.playerId === player.id)
+      .reduce((sum, injury) => sum + injury.gamesMissed, 0)
+    const context = {
+      season: currentSeason,
+      minutes: production?.minutes ?? 0,
+      gamesPlayed,
+      gamesScheduled,
+      injuryDevelopmentPenalty: Math.min(1, gamesMissed / gamesScheduled),
+      coachingDevelopmentEmphasis: 50,
+    }
+    const transition = advancePlayerCareerYear({
+      player,
+      context,
+      random: createDeterministicRandom(
+        `${league.randomness.seed ?? league.metadata.id}:development:${currentSeason}:${player.id}`
+      ),
+    })
+    nextLeague.entities.players[player.id] = transition.player
+    developmentEvents.push({
+      id: `event:development:${currentSeason}:${player.id}`,
+      type: "development.updated",
+      season: currentSeason,
+      phase: league.state.phase,
+      leagueDay: league.state.leagueDay,
+      entityRefs: [{ type: "player", id: player.id }],
+      payload: {
+        phase: transition.phase,
+        skillDeltas: transition.skillDeltas,
+        gamesPlayed,
+        gamesScheduled,
+        injuryDevelopmentPenalty: context.injuryDevelopmentPenalty,
+      },
+      summary: `Applied ${transition.phase} development for ${player.identity.firstName ?? "Player"} ${player.identity.lastName ?? player.id}.`,
+      importance: "routine",
+      storyTags: ["development", transition.phase],
+      source: { kind: "simulation", id: command.commandId },
+    })
+  }
+
+  const nextSeason = currentSeason + 1
+  const teamIds = Object.keys(nextLeague.entities.teams).sort()
+  nextLeague.state.season = nextSeason
+  nextLeague.state.phase = "regular-season"
+  delete nextLeague.state.offseasonPhase
+  delete nextLeague.state.lifecycleBoundary
+  nextLeague.state.leagueDay = 0
+  nextLeague.state.calendar = createLeagueCalendar(
+    teamIds,
+    nextLeague.state.structure!,
+    `${nextLeague.randomness.seed ?? nextLeague.metadata.id}:season:${nextSeason}`,
+    new Date(
+      `${league.state.calendar.regularSeasonStart}T00:00:00Z`
+    ).getUTCFullYear() + 1
+  )
+  const nextSeasonStart = nextLeague.state.calendar.regularSeasonStart
+  for (const injury of nextLeague.history.injuries ?? []) {
+    if (!injury.returnDate) injury.returnDate = nextSeasonStart
+  }
+  for (const injury of archive.injuries) {
+    if (!injury.returnDate) injury.returnDate = nextSeasonStart
+  }
+  nextLeague.state.rotations = Object.fromEntries(
+    teamIds.map((teamId) => {
+      const players = (nextLeague.entities.teams[teamId]?.rosterPlayerIds ?? [])
+        .map((playerId) => nextLeague.entities.players[playerId])
+        .filter((player): player is NonNullable<typeof player> =>
+          Boolean(player)
+        )
+      return [teamId, createDefaultRotation(players)]
+    })
+  )
+  if (nextLeague.state.gamePlans) {
+    nextLeague.state.gamePlans = Object.fromEntries(
+      teamIds.map((teamId) => [
+        teamId,
+        {
+          ...nextLeague.state.gamePlans![teamId]!,
+          rotation: structuredClone(nextLeague.state.rotations![teamId]),
+        },
+      ])
+    )
+  }
+  nextLeague.projections.standings = teamIds.map((teamId) => ({
+    teamId,
+    wins: 0,
+    losses: 0,
+  }))
+  delete nextLeague.projections.currentSeason
+  resetSeasonAvailability(nextLeague)
+  nextLeague.optionalData = {
+    ...nextLeague.optionalData,
+    games: [],
+  }
+  nextLeague.metadata.updatedAt = new Date().toISOString()
+
+  const archiveEvent: LeagueEvent = {
+    id: `event:season-archive:${currentSeason}`,
+    type: "season.archived",
+    season: currentSeason,
+    phase: league.state.phase,
+    leagueDay: league.state.leagueDay,
+    entityRefs: [],
+    payload: {
+      season: currentSeason,
+      games: archive.games.length,
+      playersDeveloped: developmentEvents.length,
+      nextSeason,
+    },
+    summary: `Archived season ${currentSeason} and advanced the league to season ${nextSeason}.`,
+    importance: "major",
+    storyTags: ["season", "archive", "development"],
+    source: { kind: "command", id: command.commandId },
+  }
+  const events = [archiveEvent, ...developmentEvents]
+  nextLeague.history.events.push(...events)
+  const validation = validateLeagueDocument(nextLeague)
+  if (!validation.valid) {
+    fail(
+      "invalid_season_transition",
+      validation.issues[0]?.message ??
+        "The season transition produced an invalid league snapshot.",
+      validation.issues[0]?.path
+    )
+  }
+  return { league: validation.data, events, archive }
 }
 
 export function simulateOneLeagueDate(

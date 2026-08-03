@@ -370,6 +370,7 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
       events: [],
       seasonArchives: [],
       records: [],
+      injuries: [],
     },
   }
 

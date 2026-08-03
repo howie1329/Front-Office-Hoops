@@ -8,6 +8,7 @@ import { validateLeagueDocument } from "@workspace/league-schema"
 import type { WorkerProgressMessage, WorkerResult } from "./protocol"
 import {
   advanceLeagueDay,
+  advanceToNextSeason,
   LifecycleCommandError,
   simulateLifecycleTarget,
 } from "./lifecycle"
@@ -107,6 +108,7 @@ function isSupportedCommandType(type: string): boolean {
     "SimulateToNextPhase",
     "ReleasePlayer",
     "SetRotation",
+    "AdvanceToNextSeason",
   ].includes(type)
 }
 
@@ -195,6 +197,29 @@ function executeValidatedCommand(
         }
       } catch (error) {
         if (error instanceof SetRotationCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
+    case "AdvanceToNextSeason": {
+      try {
+        const result = advanceToNextSeason(
+          validation.data,
+          request.command as Extract<
+            LeagueCommand,
+            { type: "AdvanceToNextSeason" }
+          >
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: result.events,
+          diagnostics: [],
+        }
+      } catch (error) {
+        if (error instanceof LifecycleCommandError) {
           return rejection(request, error.reason)
         }
         throw error

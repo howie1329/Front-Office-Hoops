@@ -21,6 +21,7 @@ export type FinanceSeasonProjection = {
 export type FinanceContractProjection = {
   contractId: string | null
   playerId: string
+  teamId: string | null
   annualSalary: number[]
   years: number
   startSeason: number | null
@@ -28,6 +29,7 @@ export type FinanceContractProjection = {
   totalValue: number
   source: string | null
   expiringSeason: number | null
+  status?: ContractLifecycleStatus
 }
 
 export type TeamFinanceProjection = {

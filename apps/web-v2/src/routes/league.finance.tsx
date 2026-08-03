@@ -131,6 +131,7 @@ function getRows(
       const contract = contractByPlayerId.get(player.id) ?? {
         contractId: null,
         playerId: player.id,
+        teamId,
         annualSalary: [],
         years: 0,
         startSeason: null,
