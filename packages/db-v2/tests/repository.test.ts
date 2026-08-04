@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { createFoundationLeague } from "@workspace/domain-v2"
+import {
+  createFoundationLeague,
+  type GameSimulationConfig,
+} from "@workspace/domain-v2"
 
 import {
   LeagueRepositoryError,
@@ -11,6 +14,62 @@ import {
 
 describe("V2LeagueRepository", () => {
   const repository = new V2LeagueRepository()
+
+  function createCustomGameConfig(): GameSimulationConfig {
+    return {
+      version: 2,
+      presetId: "custom",
+      environment: {
+        pace: 80,
+        scoringEnvironment: 50,
+        gameVariance: 50,
+        talentSeparation: 50,
+        homeCourtAdvantage: 50,
+      },
+      offense: {
+        threePointRate: 50,
+        rimRate: 50,
+        midrangeRate: 50,
+        shotSelectionDiscipline: 50,
+        starUsage: 50,
+        ballMovement: 50,
+        isolationRate: 50,
+        transitionRate: 50,
+        offensiveRebounding: 50,
+      },
+      defense: {
+        pressure: 50,
+        helpDefense: 50,
+        switching: 50,
+        doubleTeamRate: 50,
+        turnoverPressure: 50,
+        foulDiscipline: 50,
+      },
+      rotation: {
+        adherence: 50,
+        benchUsage: 50,
+        starterWorkload: 50,
+        fatigueImpact: 50,
+      },
+      coaching: {
+        influence: 50,
+        paceInfluence: 50,
+        shotSelectionInfluence: 50,
+        defensiveInfluence: 50,
+      },
+      injuries: {
+        frequency: "off",
+        severity: "minor",
+        maxGamesOut: 6,
+        inGameInjuries: false,
+      },
+      overtime: {
+        enabled: false,
+        segmentMinutes: 5,
+        maxSegments: 6,
+      },
+    }
+  }
 
   beforeEach(async () => {
     await resetDbForTests()
@@ -73,6 +132,22 @@ describe("V2LeagueRepository", () => {
       status: "ready",
       documentId: league.metadata.id,
     })
+  })
+
+  it("persists custom game settings through save, load, export, and import", async () => {
+    const league = createFoundationLeague({ id: "league-custom-settings" })
+    league.settings.gameConfig = createCustomGameConfig()
+
+    await repository.save(league)
+
+    expect((await repository.load(league.metadata.id))?.settings.gameConfig).toEqual(
+      league.settings.gameConfig
+    )
+
+    const imported = await repository.import(
+      await repository.export(league.metadata.id)
+    )
+    expect(imported.settings.gameConfig).toEqual(league.settings.gameConfig)
   })
 
   it("does not save invalid documents", async () => {

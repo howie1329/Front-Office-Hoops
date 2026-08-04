@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest"
 
-import { validateLeagueDocument } from "@workspace/league-schema"
+import {
+  deserializeLeagueDocument,
+  serializeLeagueDocument,
+  validateLeagueDocument,
+} from "@workspace/league-schema"
 
-import { createLeague, LEAGUE_TEAM_COUNT } from "../src"
+import {
+  createLeague,
+  createStandardGameSimulationConfig,
+  LEAGUE_TEAM_COUNT,
+} from "../src"
 
 describe("league creation", () => {
   const input = {
@@ -18,6 +26,11 @@ describe("league creation", () => {
     const result = createLeague(input)
 
     expect(result.document.state.phase).toBe("regular-season")
+    expect(result.document.settings.resolvedConfig).toEqual({
+      presetId: "standard",
+      version: 2,
+    })
+    expect(result.document.settings.gameConfig?.presetId).toBe("standard")
     expect(result.document.state.calendar.currentDate).toBe("2026-10-21")
     expect(result.document.state.structure?.conferences).toHaveLength(2)
     expect(result.document.state.structure?.divisions).toHaveLength(6)
@@ -79,5 +92,42 @@ describe("league creation", () => {
 
   it("is reproducible when the creation seed is fixed", () => {
     expect(createLeague(input)).toEqual(createLeague(input))
+  })
+
+  it("persists a resolved custom game config and round-trips it through JSON", () => {
+    const gameConfig = createStandardGameSimulationConfig()
+    gameConfig.presetId = "custom"
+    gameConfig.environment.pace = 80
+    gameConfig.environment.homeCourtAdvantage = 20
+    gameConfig.injuries.frequency = "off"
+    gameConfig.injuries.inGameInjuries = false
+    gameConfig.overtime.enabled = false
+
+    const result = createLeague({
+      ...input,
+      id: "league-custom-settings",
+      gameConfig,
+    })
+
+    expect(result.document.settings.gameConfig).toEqual(gameConfig)
+    expect(result.document.settings.resolvedConfig).toEqual({
+      presetId: "custom",
+      version: 2,
+    })
+
+    const loaded = deserializeLeagueDocument(
+      serializeLeagueDocument(result.document)
+    )
+    expect(loaded.settings.gameConfig).toEqual(gameConfig)
+    expect(validateLeagueDocument(loaded)).toMatchObject({ valid: true })
+  })
+
+  it("rejects an invalid game config before creating a league", () => {
+    const gameConfig = createStandardGameSimulationConfig()
+    gameConfig.environment.pace = 101
+
+    expect(() => createLeague({ ...input, gameConfig })).toThrow(
+      "Invalid league game configuration at environment.pace"
+    )
   })
 })

@@ -11,7 +11,17 @@ import { HugeiconsIcon } from "@hugeicons/react"
 
 import { V2LeagueRepository } from "@workspace/db-v2"
 import type { LeagueSummary } from "@workspace/db-v2"
-import type { LeagueCreationResult, LeagueTeamPreview } from "@workspace/sim-v2"
+import type { GameSimulationConfig } from "@workspace/domain-v2"
+import {
+  createStandardGameSimulationConfig,
+  getGameNumericSetting,
+  updateGameNumericSetting,
+} from "@workspace/sim-v2"
+import type {
+  GameNumericSettingPath,
+  LeagueCreationResult,
+  LeagueTeamPreview,
+} from "@workspace/sim-v2"
 
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -25,6 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Empty,
   EmptyDescription,
@@ -51,6 +62,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 
 import { runLeagueCreation } from "@/lib/leagueCreationWorker"
@@ -110,6 +122,213 @@ function LeagueStartHeader({
   )
 }
 
+type LeaguePreset = "standard" | "custom"
+
+const primaryCustomSettings = [
+  {
+    path: "environment.pace",
+    label: "Pace",
+    description: "How many possessions shape a typical game.",
+  },
+  {
+    path: "environment.scoringEnvironment",
+    label: "Scoring environment",
+    description: "The league-wide baseline for scoring output.",
+  },
+  {
+    path: "environment.gameVariance",
+    label: "Game variance",
+    description: "How much results can move around player skill.",
+  },
+  {
+    path: "environment.talentSeparation",
+    label: "Talent separation",
+    description: "How clearly ability differences show up in games.",
+  },
+  {
+    path: "environment.homeCourtAdvantage",
+    label: "Home-court advantage",
+    description: "The edge given to the team playing at home.",
+  },
+] satisfies Array<{
+  path: GameNumericSettingPath
+  label: string
+  description: string
+}>
+
+function CustomNumericSetting({
+  config,
+  path,
+  label,
+  description,
+  disabled,
+  onChange,
+}: {
+  config: GameSimulationConfig
+  path: GameNumericSettingPath
+  label: string
+  description: string
+  disabled: boolean
+  onChange: (path: GameNumericSettingPath, value: number) => void
+}) {
+  const value = getGameNumericSetting(config, path)
+
+  return (
+    <div className="grid gap-2 border-b border-border/70 pb-5 last:border-0 last:pb-0">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <Label htmlFor={`custom-setting-${path}`}>{label}</Label>
+          <p className="mt-1 max-w-md text-xs leading-5 text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        <output
+          htmlFor={`custom-setting-${path}`}
+          className="shrink-0 text-sm font-semibold tabular-nums"
+        >
+          {value}
+        </output>
+      </div>
+      <Slider
+        id={`custom-setting-${path}`}
+        min={0}
+        max={100}
+        step={1}
+        value={[value]}
+        aria-label={label}
+        disabled={disabled}
+        onValueChange={(values) => {
+          const nextValue = values[0]
+          if (typeof nextValue === "number" && Number.isFinite(nextValue)) {
+            onChange(path, nextValue)
+          }
+        }}
+      />
+      <div className="flex justify-between text-[11px] text-muted-foreground">
+        <span>Lower</span>
+        <span>Higher</span>
+      </div>
+    </div>
+  )
+}
+
+function CustomAdvancedSettings({
+  config,
+  disabled,
+  onChange,
+}: {
+  config: GameSimulationConfig
+  disabled: boolean
+  onChange: (nextConfig: GameSimulationConfig) => void
+}) {
+  return (
+    <div className="grid gap-5 border-t border-border pt-5">
+      <div className="grid gap-1">
+        <h3 className="text-sm font-semibold">Advanced settings</h3>
+        <p className="text-xs leading-5 text-muted-foreground">
+          Tune availability and late-game rules. These defaults are a good
+          starting point for a first league.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-2">
+          <Label htmlFor="injury-frequency">Injury frequency</Label>
+          <Select
+            value={config.injuries.frequency}
+            onValueChange={(value) =>
+              onChange({
+                ...config,
+                presetId: "custom",
+                injuries: {
+                  ...config.injuries,
+                  frequency:
+                    value as GameSimulationConfig["injuries"]["frequency"],
+                },
+              })
+            }
+            disabled={disabled}
+          >
+            <SelectTrigger id="injury-frequency" className="h-9 w-full text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">Off</SelectItem>
+              <SelectItem value="rare">Rare</SelectItem>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="frequent">Frequent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="injury-severity">Injury severity</Label>
+          <Select
+            value={config.injuries.severity}
+            onValueChange={(value) =>
+              onChange({
+                ...config,
+                presetId: "custom",
+                injuries: {
+                  ...config.injuries,
+                  severity:
+                    value as GameSimulationConfig["injuries"]["severity"],
+                },
+              })
+            }
+            disabled={disabled}
+          >
+            <SelectTrigger id="injury-severity" className="h-9 w-full text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="minor">Minor</SelectItem>
+              <SelectItem value="mixed">Mixed</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Label className="flex min-h-11 items-center gap-3 border border-border px-3 text-sm font-normal">
+          <Checkbox
+            checked={config.injuries.inGameInjuries}
+            onCheckedChange={(checked) =>
+              onChange({
+                ...config,
+                presetId: "custom",
+                injuries: {
+                  ...config.injuries,
+                  inGameInjuries: checked === true,
+                },
+              })
+            }
+            disabled={disabled}
+          />
+          In-game injuries
+        </Label>
+        <Label className="flex min-h-11 items-center gap-3 border border-border px-3 text-sm font-normal">
+          <Checkbox
+            checked={config.overtime.enabled}
+            onCheckedChange={(checked) =>
+              onChange({
+                ...config,
+                presetId: "custom",
+                overtime: {
+                  ...config.overtime,
+                  enabled: checked === true,
+                },
+              })
+            }
+            disabled={disabled}
+          />
+          Enable overtime
+        </Label>
+      </div>
+    </div>
+  )
+}
+
 function CreateLeagueFlow({
   onBack,
   onCreated,
@@ -119,6 +338,15 @@ function CreateLeagueFlow({
 }) {
   const [step, setStep] = React.useState<"setup" | "team-selection">("setup")
   const [name, setName] = React.useState("My Front Office League")
+  const [preset, setPreset] = React.useState<LeaguePreset>("standard")
+  const [customConfig, setCustomConfig] = React.useState(() =>
+    createStandardGameSimulationConfig()
+  )
+  const standardConfig = React.useMemo(
+    () => createStandardGameSimulationConfig(),
+    []
+  )
+  const [isAdvancedOpen, setIsAdvancedOpen] = React.useState(false)
   const [result, setResult] = React.useState<LeagueCreationResult | null>(null)
   const [selectedTeamId, setSelectedTeamId] = React.useState<string | null>(
     null
@@ -126,6 +354,25 @@ function CreateLeagueFlow({
   const [isGenerating, setIsGenerating] = React.useState(false)
   const [isSelecting, setIsSelecting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+
+  function handlePresetChange(value: string) {
+    const nextPreset: LeaguePreset = value === "custom" ? "custom" : "standard"
+    setPreset(nextPreset)
+    if (nextPreset === "custom") {
+      setCustomConfig((current) => ({ ...current, presetId: "custom" }))
+    }
+  }
+
+  function handleCustomNumericChange(
+    path: GameNumericSettingPath,
+    value: number
+  ) {
+    setCustomConfig((current) => updateGameNumericSetting(current, path, value))
+  }
+
+  function handleAdvancedChange(nextConfig: GameSimulationConfig) {
+    setCustomConfig({ ...nextConfig, presetId: "custom" })
+  }
 
   async function handleGenerate() {
     const trimmedName = name.trim()
@@ -144,6 +391,7 @@ function CreateLeagueFlow({
         seed: createId("seed"),
         mode: "normal",
         createdWithEntropy: true,
+        gameConfig: preset === "custom" ? customConfig : standardConfig,
       })
       setResult(nextResult)
       setSelectedTeamId(nextResult.teamPreviews[0]?.teamId ?? null)
@@ -217,15 +465,15 @@ function CreateLeagueFlow({
   }
 
   return (
-    <main className="min-h-svh bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-      <div className="mx-auto flex min-h-svh w-full max-w-[88rem] flex-col px-5 sm:px-8 lg:px-12">
+    <main className="h-[100dvh] overflow-hidden bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+      <div className="mx-auto flex h-full w-full max-w-[88rem] flex-col px-5 sm:px-8 lg:px-12">
         <LeagueStartHeader onBack={onBack} isCreateFlow />
 
         <section
           aria-labelledby="create-heading"
-          className="grid flex-1 content-center gap-12 py-14 sm:py-16 lg:grid-cols-[minmax(0,0.7fr)_minmax(28rem,1.3fr)] lg:gap-24 lg:py-12"
+          className="grid min-h-0 flex-1 gap-8 overflow-hidden py-8 sm:py-10 lg:grid-cols-[minmax(0,0.7fr)_minmax(28rem,1.3fr)] lg:gap-20 lg:py-10"
         >
-          <div className="max-w-xl">
+          <div className="hidden max-w-xl self-center lg:block">
             <p className="mb-6 text-sm font-medium text-muted-foreground">
               Create a league
             </p>
@@ -241,69 +489,240 @@ function CreateLeagueFlow({
             </p>
           </div>
 
-          <section aria-labelledby="create-step-heading" className="min-w-0">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground">
-                  {step === "setup" ? "League setup" : "Team selection"}
+          <section
+            aria-labelledby="create-step-heading"
+            className="flex min-h-0 min-w-0 flex-col"
+          >
+            <div className="shrink-0">
+              <div className="lg:hidden">
+                <p className="mb-4 text-sm font-medium text-muted-foreground">
+                  Create a league
                 </p>
-                <h2
-                  id="create-step-heading"
-                  className="mt-2 text-2xl font-semibold tracking-[-0.03em]"
+                <h1
+                  id="create-heading"
+                  className="max-w-xl text-4xl leading-[0.98] font-semibold tracking-[-0.04em] text-balance sm:text-5xl"
                 >
-                  {step === "setup"
-                    ? "Name your league."
-                    : "Choose your franchise."}
-                </h2>
+                  Build the league you want to run.
+                </h1>
+                <p className="mt-4 max-w-xl text-sm leading-6 text-muted-foreground">
+                  Name your save, then tune the parts of the league that shape
+                  how it plays.
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                {step === "setup" ? "1 of 2" : "2 of 2"}
-              </p>
+              <div className="mt-8 flex flex-wrap items-end justify-between gap-3 lg:mt-0">
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">
+                    League setup
+                  </p>
+                  <h2
+                    id="create-step-heading"
+                    className="mt-2 text-2xl font-semibold tracking-[-0.03em]"
+                  >
+                    Name your league.
+                  </h2>
+                </div>
+                <p className="text-sm text-muted-foreground">1 of 2</p>
+              </div>
+              <Separator className="my-7" />
             </div>
 
-            <Separator className="my-7" />
-
             {step === "setup" && (
-              <div className="flex flex-col gap-7">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="league-name">League name</Label>
-                  <Input
-                    id="league-name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    disabled={isGenerating}
-                    autoComplete="off"
-                    className="h-11 text-base md:text-base"
-                  />
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Standard settings are applied automatically. Deeper league
-                    controls will be available here as V2 expands.
-                  </p>
+              <>
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                  <div className="flex flex-col gap-8 pb-6">
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="league-name">League name</Label>
+                      <Input
+                        id="league-name"
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
+                        disabled={isGenerating}
+                        autoComplete="off"
+                        className="h-11 text-base md:text-base"
+                      />
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        This is the name shown in your saved leagues.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4">
+                      <div className="flex items-end justify-between gap-4">
+                        <div>
+                          <h3 className="text-sm font-semibold">
+                            League preset
+                          </h3>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            Start with recommended defaults or shape the game
+                            environment yourself.
+                          </p>
+                        </div>
+                      </div>
+
+                      <RadioGroup
+                        value={preset}
+                        onValueChange={handlePresetChange}
+                        className="grid gap-3 sm:grid-cols-2"
+                        aria-label="Choose league preset"
+                      >
+                        {[
+                          {
+                            value: "standard" as const,
+                            label: "Standard",
+                            description:
+                              "Recommended settings for a balanced first league.",
+                          },
+                          {
+                            value: "custom" as const,
+                            label: "Custom",
+                            description:
+                              "Tune the environment, availability, and rules.",
+                          },
+                        ].map((option) => (
+                          <Label
+                            key={option.value}
+                            htmlFor={`preset-${option.value}`}
+                            className={cn(
+                              "flex min-h-20 cursor-pointer items-start gap-3 border border-border px-4 py-3 transition-colors hover:bg-muted/50",
+                              preset === option.value &&
+                                "border-primary bg-muted/60"
+                            )}
+                          >
+                            <RadioGroupItem
+                              id={`preset-${option.value}`}
+                              value={option.value}
+                              disabled={isGenerating}
+                              className="mt-0.5"
+                            />
+                            <span className="grid gap-1">
+                              <span className="text-sm font-semibold">
+                                {option.label}
+                              </span>
+                              <span className="text-xs leading-5 text-muted-foreground">
+                                {option.description}
+                              </span>
+                            </span>
+                          </Label>
+                        ))}
+                      </RadioGroup>
+                    </div>
+
+                    {preset === "standard" && (
+                      <div className="flex items-start justify-between gap-4 border-y border-border py-4">
+                        <div>
+                          <p className="text-sm font-semibold">
+                            Standard V2 rules
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            Balanced league environment with the recommended
+                            defaults.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="mt-0.5 h-auto shrink-0 px-0 text-xs text-muted-foreground"
+                          onClick={() => handlePresetChange("custom")}
+                          disabled={isGenerating}
+                        >
+                          Customize settings
+                        </Button>
+                      </div>
+                    )}
+
+                    {preset === "custom" && (
+                      <div className="grid gap-6 border-y border-border py-5">
+                        <div className="grid gap-1">
+                          <h3 className="text-sm font-semibold">
+                            Game environment
+                          </h3>
+                          <p className="text-xs leading-5 text-muted-foreground">
+                            These controls shape the league feel without
+                            changing player generation or team structure.
+                          </p>
+                        </div>
+
+                        <div className="grid gap-5">
+                          {primaryCustomSettings.map((setting) => (
+                            <CustomNumericSetting
+                              key={setting.path}
+                              config={customConfig}
+                              path={setting.path}
+                              label={setting.label}
+                              description={setting.description}
+                              disabled={isGenerating}
+                              onChange={handleCustomNumericChange}
+                            />
+                          ))}
+                        </div>
+
+                        <div className="grid gap-3">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-auto justify-between border border-border px-3 py-3 text-left hover:bg-muted/50"
+                            aria-expanded={isAdvancedOpen}
+                            aria-controls="advanced-settings-content"
+                            onClick={() => setIsAdvancedOpen((open) => !open)}
+                            disabled={isGenerating}
+                          >
+                            <span className="grid gap-1">
+                              <span className="text-sm font-semibold">
+                                Advanced settings
+                              </span>
+                              <span className="text-xs font-normal text-muted-foreground">
+                                Injuries and overtime behavior
+                              </span>
+                            </span>
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                "text-muted-foreground transition-transform",
+                                isAdvancedOpen && "rotate-180"
+                              )}
+                            >
+                              ↓
+                            </span>
+                          </Button>
+                          {isAdvancedOpen && (
+                            <div id="advanced-settings-content">
+                              <CustomAdvancedSettings
+                                config={customConfig}
+                                disabled={isGenerating}
+                                onChange={handleAdvancedChange}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {error && (
-                  <Alert variant="destructive">
-                    <AlertDescription>{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <p className="text-sm text-muted-foreground">
-                    Generation creates the complete 30-team league.
-                  </p>
-                  <Button
-                    type="button"
-                    size="lg"
-                    onClick={() => void handleGenerate()}
-                    disabled={isGenerating || !name.trim()}
-                  >
-                    {isGenerating ? "Generating…" : "Generate league"}
-                    <span aria-hidden="true" className="ml-3">
-                      ↗
-                    </span>
-                  </Button>
+                <div className="shrink-0 border-t border-border pt-5">
+                  {error && (
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <p className="text-sm text-muted-foreground">
+                      Generation creates the complete 30-team league.
+                    </p>
+                    <Button
+                      type="button"
+                      size="lg"
+                      onClick={() => void handleGenerate()}
+                      disabled={isGenerating || !name.trim()}
+                    >
+                      {isGenerating ? "Generating…" : "Generate league"}
+                      <span aria-hidden="true" className="ml-3">
+                        ↗
+                      </span>
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
           </section>
@@ -311,7 +730,7 @@ function CreateLeagueFlow({
 
         <footer className="flex shrink-0 flex-col gap-2 border-t border-border py-5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <p>Front Office Hoops V2</p>
-          <p>Standard settings · local save</p>
+          <p>{preset === "custom" ? "Custom settings" : "Standard settings"} · local save</p>
         </footer>
       </div>
     </main>

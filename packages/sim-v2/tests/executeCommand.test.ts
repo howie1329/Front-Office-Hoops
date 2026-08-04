@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest"
 import { createFoundationLeague } from "@workspace/domain-v2"
 import { validateLeagueDocument } from "@workspace/league-schema"
 
-import { createLeague, executeLeagueCommand } from "../src"
+import {
+  createLeague,
+  createStandardGameSimulationConfig,
+  executeLeagueCommand,
+} from "../src"
 
 describe("executeLeagueCommand", () => {
   it("round-trips a no-op command without changing facts", () => {
@@ -62,6 +66,40 @@ describe("executeLeagueCommand", () => {
         (event) => event.type === "game.completed"
       )
     ).toBe(true)
+    expect(validateLeagueDocument(result.league)).toMatchObject({ valid: true })
+  })
+
+  it("uses the saved custom game config during lifecycle simulation", () => {
+    const gameConfig = createStandardGameSimulationConfig()
+    gameConfig.presetId = "custom"
+    gameConfig.injuries.frequency = "off"
+    gameConfig.injuries.inGameInjuries = false
+    gameConfig.overtime.enabled = false
+
+    const league = createLeague({
+      id: "league-custom-runtime-settings",
+      name: "Custom Runtime Settings League",
+      seed: "custom-runtime-settings-seed",
+      mode: "deterministic-lab",
+      createdWithEntropy: false,
+      now: "2026-08-02T00:00:00.000Z",
+      gameConfig,
+    }).document
+
+    const result = executeLeagueCommand({
+      requestId: "request-custom-runtime-settings",
+      command: {
+        type: "AdvanceDay",
+        commandId: "command-custom-runtime-settings",
+      },
+      league,
+    })
+
+    expect(result.status).toBe("completed")
+    expect(result.league?.settings.gameConfig).toEqual(gameConfig)
+    expect(
+      result.events.some((event) => event.type === "injury.recorded")
+    ).toBe(false)
     expect(validateLeagueDocument(result.league)).toMatchObject({ valid: true })
   })
 

@@ -1,10 +1,12 @@
 import type {
   ContractEntity,
+  GameSimulationConfig,
   JsonRecord,
   LeagueDocument,
   PlayerEntity,
   TeamEntity,
 } from "@workspace/domain-v2"
+import { gameSimulationConfigSchema } from "@workspace/league-schema"
 
 import { getPlayerCurrentAbility } from "./playerGeneration"
 import {
@@ -16,7 +18,10 @@ import {
   createStandardLeagueStructure,
 } from "./leagueSchedule"
 import { STANDARD_ECONOMY_CONFIG } from "./marketConfig"
-import { createStandardGameSimulationConfig } from "./gameConfig"
+import {
+  createStandardGameSimulationConfig,
+  resolveGameSimulationConfig,
+} from "./gameConfig"
 import { createStandardSeasonProductionConfig } from "./seasonConfig"
 import { createDefaultRotation } from "./seasonFixture"
 
@@ -64,6 +69,7 @@ export type LeagueCreationInput = {
   createdWithEntropy?: boolean
   now?: string
   advancedOverrides?: JsonRecord
+  gameConfig?: GameSimulationConfig
 }
 
 export type LeagueTeamPreview = {
@@ -201,12 +207,30 @@ function createTeamPreview(
   }
 }
 
+function resolveCreationGameConfig(
+  config: GameSimulationConfig | undefined
+): GameSimulationConfig {
+  if (!config) return createStandardGameSimulationConfig()
+
+  const parsed = gameSimulationConfigSchema.safeParse(config)
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]
+    const path = issue?.path.length ? issue.path.join(".") : "gameConfig"
+    throw new Error(
+      `Invalid league game configuration at ${path}: ${issue?.message ?? "Invalid value."}`
+    )
+  }
+
+  return resolveGameSimulationConfig(parsed.data)
+}
+
 export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
   if (!input.id.trim()) throw new Error("League ID must not be empty.")
   if (!input.name.trim()) throw new Error("League name must not be empty.")
   if (!input.seed.trim()) throw new Error("League seed must not be empty.")
 
   const now = input.now ?? new Date().toISOString()
+  const gameConfig = resolveCreationGameConfig(input.gameConfig)
   const teams = createTeams()
   const teamIds = teams.map((team) => team.id)
   const structure = createStandardLeagueStructure(teamIds)
@@ -310,9 +334,12 @@ export function createLeague(input: LeagueCreationInput): LeagueCreationResult {
     },
     settings: {
       standardPresetId: "standard",
-      resolvedConfig: { presetId: "standard", version: 1 },
+      resolvedConfig: {
+        presetId: gameConfig.presetId,
+        version: gameConfig.version,
+      },
       advancedOverrides: input.advancedOverrides ?? {},
-      gameConfig: createStandardGameSimulationConfig(),
+      gameConfig,
       productionConfig: {
         ...createStandardSeasonProductionConfig("full"),
         schedule: {

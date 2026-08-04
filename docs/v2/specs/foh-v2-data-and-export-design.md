@@ -33,6 +33,8 @@ type LeagueDocument = {
     standardPresetId: string
     resolvedConfig: SimulationConfig
     advancedOverrides: Record<string, unknown>
+    gameConfig?: GameSimulationConfig
+    productionConfig?: SeasonProductionConfig
   }
   randomness: {
     mode: "normal" | "deterministic-lab"
@@ -73,6 +75,20 @@ type LeagueDocument = {
 ```
 
 The exact schema belongs in `packages/league-schema` and should produce JSON Schema plus TypeScript types. Entity maps use stable IDs. Projections are derived and rebuildable; they are not the only copy of a fact.
+
+## League creation settings boundary
+
+League creation accepts an optional typed `GameSimulationConfig`. When omitted,
+creation resolves the standard game preset. When supplied, creation validates
+and normalizes the config once, then persists the complete resolved object in
+`LeagueDocument.settings.gameConfig`.
+
+The first custom setup screen may edit only a bounded subset of that config;
+all other fields remain at standard defaults until a later advanced-settings
+surface exposes them. `advancedOverrides` is retained for compatibility and
+diagnostics but is not authoritative for supported creation settings. Legacy
+documents without `gameConfig` continue to resolve to the standard game
+configuration at runtime.
 
 ## Snapshot plus event history
 

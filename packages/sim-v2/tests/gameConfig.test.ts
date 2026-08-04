@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   createStandardGameSimulationConfig,
   getGameNumericSetting,
+  resolveGameSimulationConfig,
   updateGameNumericSetting,
 } from "../src"
 
@@ -27,5 +28,17 @@ describe("numeric game setting helpers", () => {
         "injuries.maxGamesOut"
       )
     ).toBe(20)
+  })
+
+  it("preserves the custom preset when resolving a custom config", () => {
+    const config = createStandardGameSimulationConfig()
+    config.presetId = "custom"
+    config.environment.pace = 80
+
+    const resolved = resolveGameSimulationConfig(config)
+
+    expect(resolved.presetId).toBe("custom")
+    expect(resolved.environment.pace).toBe(80)
+    expect(resolved.version).toBe(2)
   })
 })

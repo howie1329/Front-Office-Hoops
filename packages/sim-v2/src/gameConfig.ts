@@ -397,7 +397,7 @@ export function createStandardGameSimulationConfig(): GameSimulationConfig {
 
 export function resolveGameSimulationConfig(
   config: GameSimulationConfig | undefined,
-  presetId: GameSimulationPresetId = "standard"
+  presetId: GameSimulationPresetId = config?.presetId ?? "standard"
 ): GameSimulationConfig {
   const source = config ?? STANDARD_GAME_SIMULATION_CONFIG
 
