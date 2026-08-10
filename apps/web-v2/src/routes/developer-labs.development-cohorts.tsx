@@ -17,6 +17,7 @@ import type {
 import { serializeCareerCohortReport } from "@workspace/calibration"
 import { getPlayerCurrentAbility } from "@workspace/sim-v2"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   runCareerCohortInWorker,
   runMatchedCareerCohortInWorker,
@@ -34,17 +35,18 @@ import type {
   CareerMatchedSettingPath,
   DevelopmentCohortPresetId,
 } from "@/lib/developmentCohortLab"
-import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@workspace/ui/components/select"
+} from "@/components/ui/select"
+import { Progress } from "@/components/ui/progress"
 import {
   Table,
   TableBody,
@@ -52,7 +54,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@workspace/ui/components/table"
+} from "@/components/ui/table"
 
 export const Route = createFileRoute("/developer-labs/development-cohorts")({
   component: DevelopmentCohortsPage,
@@ -380,22 +382,19 @@ function DevelopmentCohortsPage() {
             </Button>
           </div>
           {runState === "running" ? (
-            <div className="col-span-full h-1 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full bg-primary transition-[width] duration-200"
-                style={{ width: `${Math.max(3, progressPercent)}%` }}
-              />
-            </div>
+            <Progress
+              className="col-span-full"
+              value={Math.max(3, progressPercent)}
+              aria-label="Cohort run progress"
+            />
           ) : null}
         </section>
 
         {runError ? (
-          <div
-            role="alert"
-            className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs leading-5 text-destructive"
-          >
-            <span className="font-medium">Run failed.</span> {runError}
-          </div>
+          <Alert variant="destructive">
+            <AlertTitle>Run failed.</AlertTitle>
+            <AlertDescription>{runError}</AlertDescription>
+          </Alert>
         ) : null}
 
         <div className="grid items-start gap-5 xl:grid-cols-[13rem_minmax(0,1fr)_17rem]">
@@ -1021,17 +1020,16 @@ function ConfigurationRail({
         </details>
 
         {errors.length > 0 ? (
-          <div
-            role="alert"
-            className="rounded-md border border-destructive/30 bg-destructive/5 p-2.5 text-[0.6875rem] leading-5 text-destructive"
-          >
-            <p className="font-semibold">Configuration error</p>
-            <ul className="mt-1 grid gap-1">
-              {errors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
-          </div>
+          <Alert variant="destructive">
+            <AlertTitle>Configuration error</AlertTitle>
+            <AlertDescription>
+              <ul className="grid gap-1">
+                {errors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
+            </AlertDescription>
+          </Alert>
         ) : null}
 
         <div className="grid gap-2">
@@ -1210,14 +1208,16 @@ function PlayerIndexPanel({
                 }
               >
                 <TableCell className="p-0">
-                  <button
+                  <Button
                     type="button"
-                    className="flex w-full items-center px-2 py-2 text-left text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto w-full justify-start rounded-none px-2 py-2 text-left text-xs font-medium"
                     onClick={() => onSelectPlayer(player.playerId)}
                     aria-pressed={player.playerId === selectedPlayerId}
                   >
                     {formatIndexPlayerId(player.playerId)}
-                  </button>
+                  </Button>
                 </TableCell>
                 <TableCell className="text-xs tabular-nums">
                   {player.startingAge}
@@ -1869,14 +1869,16 @@ function InspectorPanel({
                       }
                     >
                       <TableCell className="p-0">
-                        <button
+                        <Button
                           type="button"
-                          className="flex w-full items-center px-2 py-2 text-left text-xs tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                          variant="ghost"
+                          size="sm"
+                          className="h-auto w-full justify-start rounded-none px-2 py-2 text-left text-xs tabular-nums"
                           onClick={() => onSelectSeason(snapshot.season)}
                           aria-pressed={snapshot.season === selectedSeason}
                         >
                           {snapshot.season}
-                        </button>
+                        </Button>
                       </TableCell>
                       <TableCell className="px-2 py-2 text-xs tabular-nums">
                         {snapshot.ageAtSeasonStart}

@@ -1,4 +1,21 @@
 export { executeLeagueCommand } from "./executeCommand"
+export { releasePlayer, ReleasePlayerCommandError } from "./rosterTransactions"
+export { setRotation, SetRotationCommandError } from "./rotationTransactions"
+export {
+  advanceLeagueDay,
+  advanceToNextSeason,
+  getLifecycleActionState,
+  LifecycleCommandError,
+  resolveNextKeyDate,
+  resolveNextUserGame,
+  simulateLifecycleTarget,
+  simulateOneLeagueDate,
+} from "./lifecycle"
+export {
+  createLeague,
+  LEAGUE_CREATION_VERSION,
+  LEAGUE_TEAM_COUNT,
+} from "./leagueCreation"
 export {
   simulateGameMatchup,
   simulateGameMatchupWithTelemetry,
@@ -47,6 +64,11 @@ export {
   createSeasonGameFixture,
 } from "./seasonFixture"
 export {
+  createLeagueCalendar,
+  createStandardLeagueStructure,
+  STANDARD_CONFERENCES,
+} from "./leagueSchedule"
+export {
   createStandardSeasonProductionConfig,
   createStandardUniversalPlayerValueConfig,
   getValueSetting,
@@ -61,6 +83,21 @@ export {
 export { aggregateSeasonProduction } from "./production"
 export { calculateUniversalPlayerValues } from "./playerValue"
 export { runSeason } from "./seasonRunner"
+export {
+  getCompletedGames,
+  getCompletedGamesForPlayer,
+  getCompletedGamesForTeam,
+  getCurrentSeasonPlayerProduction,
+  getCurrentSeasonPlayerValue,
+  getPlayerContractSummary,
+  getPlayerAvailability,
+  getPlayerGameHistory,
+  getPlayerInformationView,
+  getPlayerInjuryHistory,
+  getPlayerRatingHistory,
+  getPlayerSeasonHistory,
+  getRecentLeagueEvents,
+} from "./leagueSelectors"
 export {
   advancePlayerCareerYear,
   getCareerPhase,
@@ -120,6 +157,26 @@ export {
   runEconomySimulation,
   runFreeAgencySimulation,
 } from "./marketSimulation"
+export {
+  getContractSalary,
+  getContractYearsRemaining,
+  projectTeamFinance,
+} from "./finance"
+export {
+  getCurrentFreeAgents,
+  getFreeAgencyWindowStatus,
+  projectCurrentFreeAgent,
+  projectCurrentFreeAgents,
+} from "./freeAgency"
+export type {
+  FinanceContractProjection,
+  FinanceSeasonProjection,
+  TeamFinanceProjection,
+} from "./finance"
+export type {
+  CurrentFreeAgentProjection,
+  FreeAgencyWindowStatus,
+} from "./freeAgency"
 export type { RandomSource, RandomSourceOptions } from "./randomness"
 export type {
   GameNumericSettingPath,
@@ -132,7 +189,23 @@ export type {
   GameTeamSimulationTelemetry,
 } from "./gameSimulation"
 export type { PlayerPopulationContextKind } from "@workspace/domain-v2"
-export type { WorkerRequest, WorkerResult } from "./protocol"
+export type {
+  WorkerProgress,
+  WorkerProgressMessage,
+  WorkerRequest,
+  WorkerResult,
+} from "./protocol"
+export type {
+  LifecycleActionId,
+  LifecycleActionState,
+  LifecycleAdvanceResult,
+  LeagueDateSimulationResult,
+} from "./lifecycle"
+export type {
+  LeagueCreationInput,
+  LeagueCreationResult,
+  LeagueTeamPreview,
+} from "./leagueCreation"
 export type {
   PlayerGenerationDiagnostics,
   PlayerGenerationInput,
@@ -155,6 +228,8 @@ export type {
 } from "./playerUniverse"
 export type { ProductionAggregation } from "./production"
 export type { SeasonRunnerOptions } from "./seasonRunner"
+export type { PlayerGameHistoryEntry } from "./leagueSelectors"
+export type { PlayerGameHistoryFilter } from "./leagueSelectors"
 export type { ValueSettingDescriptor, ValueSettingPath } from "./seasonConfig"
 export type {
   MarketNumericSettingPath,

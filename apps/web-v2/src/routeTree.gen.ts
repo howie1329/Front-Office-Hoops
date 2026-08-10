@@ -9,8 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LeagueRouteImport } from './routes/league'
 import { Route as DeveloperLabsRouteImport } from './routes/developer-labs'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LeagueIndexRouteImport } from './routes/league.index'
+import { Route as LeagueStartRouteImport } from './routes/league.start'
+import { Route as LeagueRosterRouteImport } from './routes/league.roster'
+import { Route as LeagueFreeAgentsRouteImport } from './routes/league.free-agents'
+import { Route as LeagueFinanceRouteImport } from './routes/league.finance'
 import { Route as DeveloperLabsTeamAssemblyRouteImport } from './routes/developer-labs.team-assembly'
 import { Route as DeveloperLabsProductionValueRouteImport } from './routes/developer-labs.production-value'
 import { Route as DeveloperLabsPlayerGenerationRouteImport } from './routes/developer-labs.player-generation'
@@ -18,7 +24,13 @@ import { Route as DeveloperLabsMarketRulesRouteImport } from './routes/developer
 import { Route as DeveloperLabsGameMatchupRouteImport } from './routes/developer-labs.game-matchup'
 import { Route as DeveloperLabsDraftDecisionRouteImport } from './routes/developer-labs.draft-decision'
 import { Route as DeveloperLabsDevelopmentCohortsRouteImport } from './routes/developer-labs.development-cohorts'
+import { Route as LeaguePlayersPlayerIdRouteImport } from './routes/league.players.$playerId'
 
+const LeagueRoute = LeagueRouteImport.update({
+  id: '/league',
+  path: '/league',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DeveloperLabsRoute = DeveloperLabsRouteImport.update({
   id: '/developer-labs',
   path: '/developer-labs',
@@ -28,6 +40,31 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const LeagueIndexRoute = LeagueIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => LeagueRoute,
+} as any)
+const LeagueStartRoute = LeagueStartRouteImport.update({
+  id: '/start',
+  path: '/start',
+  getParentRoute: () => LeagueRoute,
+} as any)
+const LeagueRosterRoute = LeagueRosterRouteImport.update({
+  id: '/roster',
+  path: '/roster',
+  getParentRoute: () => LeagueRoute,
+} as any)
+const LeagueFreeAgentsRoute = LeagueFreeAgentsRouteImport.update({
+  id: '/free-agents',
+  path: '/free-agents',
+  getParentRoute: () => LeagueRoute,
+} as any)
+const LeagueFinanceRoute = LeagueFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => LeagueRoute,
 } as any)
 const DeveloperLabsTeamAssemblyRoute =
   DeveloperLabsTeamAssemblyRouteImport.update({
@@ -71,10 +108,16 @@ const DeveloperLabsDevelopmentCohortsRoute =
     path: '/development-cohorts',
     getParentRoute: () => DeveloperLabsRoute,
   } as any)
+const LeaguePlayersPlayerIdRoute = LeaguePlayersPlayerIdRouteImport.update({
+  id: '/players/$playerId',
+  path: '/players/$playerId',
+  getParentRoute: () => LeagueRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
+  '/league': typeof LeagueRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/draft-decision': typeof DeveloperLabsDraftDecisionRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
@@ -82,6 +125,12 @@ export interface FileRoutesByFullPath {
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
+  '/league/finance': typeof LeagueFinanceRoute
+  '/league/free-agents': typeof LeagueFreeAgentsRoute
+  '/league/roster': typeof LeagueRosterRoute
+  '/league/start': typeof LeagueStartRoute
+  '/league/': typeof LeagueIndexRoute
+  '/league/players/$playerId': typeof LeaguePlayersPlayerIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,11 +142,18 @@ export interface FileRoutesByTo {
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
+  '/league/finance': typeof LeagueFinanceRoute
+  '/league/free-agents': typeof LeagueFreeAgentsRoute
+  '/league/roster': typeof LeagueRosterRoute
+  '/league/start': typeof LeagueStartRoute
+  '/league': typeof LeagueIndexRoute
+  '/league/players/$playerId': typeof LeaguePlayersPlayerIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/developer-labs': typeof DeveloperLabsRouteWithChildren
+  '/league': typeof LeagueRouteWithChildren
   '/developer-labs/development-cohorts': typeof DeveloperLabsDevelopmentCohortsRoute
   '/developer-labs/draft-decision': typeof DeveloperLabsDraftDecisionRoute
   '/developer-labs/game-matchup': typeof DeveloperLabsGameMatchupRoute
@@ -105,12 +161,19 @@ export interface FileRoutesById {
   '/developer-labs/player-generation': typeof DeveloperLabsPlayerGenerationRoute
   '/developer-labs/production-value': typeof DeveloperLabsProductionValueRoute
   '/developer-labs/team-assembly': typeof DeveloperLabsTeamAssemblyRoute
+  '/league/finance': typeof LeagueFinanceRoute
+  '/league/free-agents': typeof LeagueFreeAgentsRoute
+  '/league/roster': typeof LeagueRosterRoute
+  '/league/start': typeof LeagueStartRoute
+  '/league/': typeof LeagueIndexRoute
+  '/league/players/$playerId': typeof LeaguePlayersPlayerIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/developer-labs'
+    | '/league'
     | '/developer-labs/development-cohorts'
     | '/developer-labs/draft-decision'
     | '/developer-labs/game-matchup'
@@ -118,6 +181,12 @@ export interface FileRouteTypes {
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
+    | '/league/finance'
+    | '/league/free-agents'
+    | '/league/roster'
+    | '/league/start'
+    | '/league/'
+    | '/league/players/$playerId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -129,10 +198,17 @@ export interface FileRouteTypes {
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
+    | '/league/finance'
+    | '/league/free-agents'
+    | '/league/roster'
+    | '/league/start'
+    | '/league'
+    | '/league/players/$playerId'
   id:
     | '__root__'
     | '/'
     | '/developer-labs'
+    | '/league'
     | '/developer-labs/development-cohorts'
     | '/developer-labs/draft-decision'
     | '/developer-labs/game-matchup'
@@ -140,15 +216,29 @@ export interface FileRouteTypes {
     | '/developer-labs/player-generation'
     | '/developer-labs/production-value'
     | '/developer-labs/team-assembly'
+    | '/league/finance'
+    | '/league/free-agents'
+    | '/league/roster'
+    | '/league/start'
+    | '/league/'
+    | '/league/players/$playerId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DeveloperLabsRoute: typeof DeveloperLabsRouteWithChildren
+  LeagueRoute: typeof LeagueRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/league': {
+      id: '/league'
+      path: '/league'
+      fullPath: '/league'
+      preLoaderRoute: typeof LeagueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/developer-labs': {
       id: '/developer-labs'
       path: '/developer-labs'
@@ -162,6 +252,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/league/': {
+      id: '/league/'
+      path: '/'
+      fullPath: '/league/'
+      preLoaderRoute: typeof LeagueIndexRouteImport
+      parentRoute: typeof LeagueRoute
+    }
+    '/league/start': {
+      id: '/league/start'
+      path: '/start'
+      fullPath: '/league/start'
+      preLoaderRoute: typeof LeagueStartRouteImport
+      parentRoute: typeof LeagueRoute
+    }
+    '/league/roster': {
+      id: '/league/roster'
+      path: '/roster'
+      fullPath: '/league/roster'
+      preLoaderRoute: typeof LeagueRosterRouteImport
+      parentRoute: typeof LeagueRoute
+    }
+    '/league/free-agents': {
+      id: '/league/free-agents'
+      path: '/free-agents'
+      fullPath: '/league/free-agents'
+      preLoaderRoute: typeof LeagueFreeAgentsRouteImport
+      parentRoute: typeof LeagueRoute
+    }
+    '/league/finance': {
+      id: '/league/finance'
+      path: '/finance'
+      fullPath: '/league/finance'
+      preLoaderRoute: typeof LeagueFinanceRouteImport
+      parentRoute: typeof LeagueRoute
     }
     '/developer-labs/team-assembly': {
       id: '/developer-labs/team-assembly'
@@ -212,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeveloperLabsDevelopmentCohortsRouteImport
       parentRoute: typeof DeveloperLabsRoute
     }
+    '/league/players/$playerId': {
+      id: '/league/players/$playerId'
+      path: '/players/$playerId'
+      fullPath: '/league/players/$playerId'
+      preLoaderRoute: typeof LeaguePlayersPlayerIdRouteImport
+      parentRoute: typeof LeagueRoute
+    }
   }
 }
 
@@ -239,9 +371,31 @@ const DeveloperLabsRouteWithChildren = DeveloperLabsRoute._addFileChildren(
   DeveloperLabsRouteChildren,
 )
 
+interface LeagueRouteChildren {
+  LeagueFinanceRoute: typeof LeagueFinanceRoute
+  LeagueFreeAgentsRoute: typeof LeagueFreeAgentsRoute
+  LeagueRosterRoute: typeof LeagueRosterRoute
+  LeagueStartRoute: typeof LeagueStartRoute
+  LeagueIndexRoute: typeof LeagueIndexRoute
+  LeaguePlayersPlayerIdRoute: typeof LeaguePlayersPlayerIdRoute
+}
+
+const LeagueRouteChildren: LeagueRouteChildren = {
+  LeagueFinanceRoute: LeagueFinanceRoute,
+  LeagueFreeAgentsRoute: LeagueFreeAgentsRoute,
+  LeagueRosterRoute: LeagueRosterRoute,
+  LeagueStartRoute: LeagueStartRoute,
+  LeagueIndexRoute: LeagueIndexRoute,
+  LeaguePlayersPlayerIdRoute: LeaguePlayersPlayerIdRoute,
+}
+
+const LeagueRouteWithChildren =
+  LeagueRoute._addFileChildren(LeagueRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DeveloperLabsRoute: DeveloperLabsRouteWithChildren,
+  LeagueRoute: LeagueRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

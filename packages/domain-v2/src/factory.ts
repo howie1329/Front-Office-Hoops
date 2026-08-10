@@ -1,8 +1,4 @@
-import type {
-  LeagueDocument,
-  PlayerEntity,
-  PlayerMarketProfile,
-} from "./types"
+import type { LeagueDocument, PlayerEntity, PlayerMarketProfile } from "./types"
 
 export function createPlayerContractFixture(
   input: Partial<
@@ -112,7 +108,19 @@ export function createFoundationLeague(
       phase: "foundation",
       leagueDay: 0,
       userTeamId: null,
-      calendar: { kind: "foundation" },
+      structure: { conferences: [], divisions: [] },
+      calendar: {
+        kind: "foundation",
+        currentDate: now.slice(0, 10),
+        preseasonStart: now.slice(0, 10),
+        regularSeasonStart: now.slice(0, 10),
+        regularSeasonEnd: now.slice(0, 10),
+        milestones: {
+          tradeDeadline: now.slice(0, 10),
+          playoffsStart: now.slice(0, 10),
+        },
+        schedule: [],
+      },
       phaseTasks: [],
     },
     entities: {
@@ -132,6 +140,7 @@ export function createFoundationLeague(
       events: [],
       seasonArchives: [],
       records: [],
+      injuries: [],
     },
   }
 }

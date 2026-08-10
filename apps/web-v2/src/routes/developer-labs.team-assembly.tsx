@@ -26,17 +26,18 @@ import type {
   InitialPlayerUniverse,
   TeamAssemblyDiagnostics,
 } from "@workspace/sim-v2"
-import { Badge } from "@workspace/ui/components/badge"
-import { Button } from "@workspace/ui/components/button"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@workspace/ui/components/card"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+} from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Table,
   TableBody,
@@ -44,8 +45,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@workspace/ui/components/table"
-import { cn } from "@workspace/ui/lib/utils"
+} from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 
 export const Route = createFileRoute("/developer-labs/team-assembly")({
   component: TeamAssemblyLabPage,
@@ -483,12 +484,9 @@ function TeamAssemblyLabPage() {
               {assemblyStatus}
             </p>
             {error ? (
-              <div
-                role="alert"
-                className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
-              >
-                {error}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             ) : null}
 
             {!universe ? (
@@ -571,19 +569,16 @@ function TeamAssemblyLabPage() {
                 </div>
 
                 {universe.validationIssues.length > 0 ? (
-                  <div
-                    role="alert"
-                    className="rounded-md border border-destructive/30 bg-destructive/5 p-4"
-                  >
-                    <h2 className="text-sm font-medium text-destructive">
-                      Universe validation failed
-                    </h2>
-                    <ul className="mt-2 grid gap-1 text-xs text-destructive">
-                      {universe.validationIssues.map((issue, index) => (
-                        <li key={`${issue.code}-${index}`}>{issue.message}</li>
-                      ))}
-                    </ul>
-                  </div>
+                  <Alert variant="destructive">
+                    <AlertTitle>Universe validation failed</AlertTitle>
+                    <AlertDescription>
+                      <ul className="grid gap-1">
+                        {universe.validationIssues.map((issue, index) => (
+                          <li key={`${issue.code}-${index}`}>{issue.message}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
                 ) : null}
 
                 <Card className="gap-0 py-0 ring-border">
@@ -634,13 +629,15 @@ function TeamAssemblyLabPage() {
                                 }
                               >
                                 {header.isPlaceholder ? null : (
-                                  <button
+                                  <Button
                                     type="button"
+                                    variant="ghost"
+                                    size="sm"
                                     aria-label={
                                       "Sort by " +
                                       String(header.column.columnDef.header)
                                     }
-                                    className="rounded-sm font-medium hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                    className="h-auto rounded-sm px-0 font-medium"
                                     onClick={header.column.getToggleSortingHandler()}
                                   >
                                     {flexRender(
@@ -654,7 +651,7 @@ function TeamAssemblyLabPage() {
                                       >
                                     )[header.column.getIsSorted() as string] ??
                                       "↕"}
-                                  </button>
+                                  </Button>
                                 )}
                               </TableHead>
                             ))}

@@ -1,6 +1,98 @@
+import type {
+  SeasonCheckpointReport,
+  SeasonProductionConfig,
+} from "./seasonProduction"
+
 export type JsonRecord = Record<string, unknown>
 
-export type LeaguePhase = "foundation"
+export type LeaguePhase =
+  "foundation" | "preseason" | "regular-season" | "playoffs" | "offseason"
+
+export type OffseasonPhase =
+  | "season-review"
+  | "staff"
+  | "re-signing"
+  | "draft"
+  | "free-agency-1"
+  | "free-agency-2"
+  | "free-agency-3"
+
+export type LeagueGameKind =
+  "preseason" | "regular-season" | "play-in" | "playoffs" | "finals"
+
+export type LeagueGameStatus = "scheduled" | "completed" | "cancelled"
+
+export type LeagueScheduleEntry = {
+  id: string
+  date: string
+  kind: LeagueGameKind
+  round: number
+  homeTeamId: string
+  awayTeamId: string
+  status: LeagueGameStatus
+}
+
+export type LeagueConference = {
+  id: string
+  name: string
+  divisionIds: string[]
+}
+
+export type LeagueDivision = {
+  id: string
+  name: string
+  conferenceId: string
+  teamIds: string[]
+}
+
+export type LeagueStructure = {
+  conferences: LeagueConference[]
+  divisions: LeagueDivision[]
+}
+
+export type LeagueCalendar = {
+  kind: LeaguePhase
+  currentDate: string
+  preseasonStart: string
+  regularSeasonStart: string
+  regularSeasonEnd: string
+  milestones: {
+    tradeDeadline: string
+    playoffsStart: string
+  }
+  schedule: LeagueScheduleEntry[]
+}
+
+export type LifecycleTarget =
+  | { kind: "next-game"; teamId: string; scheduleId: string; date: string }
+  | { kind: "date"; date: string }
+  | { kind: "key-date"; date: string; label: string }
+  | { kind: "deadline"; date: string; label: string }
+  | { kind: "regular-season-end"; date: string }
+  | { kind: "next-phase"; phase: LeaguePhase; date: string }
+
+export type LifecycleTargetMetadata = {
+  target: LifecycleTarget
+  enabled: boolean
+  label: string
+  targetDate?: string
+  scheduleId?: string
+  blockedReason?: string
+  expectedDates?: number
+  expectedGames?: number
+  currentPhase: LeaguePhase
+  requiredPhase?: LeaguePhase
+}
+
+export type LeagueRecoveryCheckpoint = {
+  id: string
+  leagueId: string
+  commandId: string
+  currentDate: string
+  completedGames: number
+  createdAt: string
+  league: LeagueDocument
+}
 
 export type RandomMode = "normal" | "deterministic-lab"
 
@@ -87,12 +179,27 @@ export type PlayerAvailability = {
   minutesLimit?: number
 }
 
+export type LeaguePlayerAvailability = PlayerAvailability & {
+  gamesMissed: number
+  injury?: {
+    startedDate: string
+    expectedReturnDate?: string
+    sourceScheduleId?: string
+    description?: string
+  }
+}
+
 export type GameCoachingProfile = {
   pace: number
   offensiveStyle: number
   defensivePressure: number
   shotSelection: number
   rotationDepth: number
+}
+
+export type TeamGamePlan = {
+  rotation: GameRotationInput
+  coaching: GameCoachingProfile
 }
 
 export type GameMatchupFixture = {
@@ -248,6 +355,10 @@ export type PhaseTaskState = {
 export type TeamEntity = {
   id: string
   name: string
+  conferenceId?: string
+  divisionId?: string
+  rosterPlayerIds?: string[]
+  marketSize?: "small" | "medium" | "large"
 }
 
 export type PlayerTrait = string
@@ -441,7 +552,18 @@ export type PlayerEntity = {
   marketPreferences?: PlayerMarketProfile
 }
 
-export type LeagueEventType = "command.completed" | "migration.applied"
+export type LeagueEventType =
+  | "calendar.advanced"
+  | "command.completed"
+  | "game.completed"
+  | "injury.recorded"
+  | "availability.updated"
+  | "production.updated"
+  | "development.updated"
+  | "season.archived"
+  | "lifecycle.target-reached"
+  | "phase.transitioned"
+  | "migration.applied"
 
 export type LeagueEvent = {
   id: string
@@ -476,20 +598,32 @@ export type LeagueDocument = {
     standardPresetId: string
     resolvedConfig: SimulationConfig
     advancedOverrides: JsonRecord
+    gameConfig?: GameSimulationConfig
+    productionConfig?: SeasonProductionConfig
   }
   randomness: {
     mode: RandomMode
     createdWithEntropy: boolean
+    seed?: string
     debugScopes?: Record<string, string>
   }
   state: {
     season: number
     phase: LeaguePhase
+    offseasonPhase?: OffseasonPhase
     leagueDay: number
     userTeamId: string | null
-    calendar: {
-      kind: "foundation"
+    rotations?: Record<string, GameRotationInput>
+    gamePlans?: Record<string, TeamGamePlan>
+    availability?: Record<string, LeaguePlayerAvailability>
+    lifecycleBoundary?: {
+      kind: "management" | "phase"
+      date: string
+      label: string
+      commandId: string
     }
+    structure?: LeagueStructure
+    calendar: LeagueCalendar
     phaseTasks: PhaseTaskState[]
   }
   entities: {
@@ -502,20 +636,38 @@ export type LeagueDocument = {
     offers: Record<string, JsonRecord>
   }
   projections: {
-    standings: JsonRecord[]
+    standings: LeagueStanding[]
     payroll: JsonRecord[]
+    currentSeason?: SeasonCheckpointReport
   }
   history: {
     events: LeagueEvent[]
-    seasonArchives: JsonRecord[]
+    seasonArchives: import("./playerHistory").LeagueSeasonArchive[]
     records: JsonRecord[]
+    injuries?: import("./playerHistory").PlayerInjuryHistoryEntry[]
   }
   optionalData?: {
-    games?: JsonRecord[]
+    games?: LeagueGameRecord[]
     playerGameLogs?: JsonRecord[]
     labDiagnostics?: JsonRecord[]
     scoutingDiagnostics?: JsonRecord[]
   }
+}
+
+export type LeagueGameRecord = {
+  scheduleId: string
+  season: number
+  date: string
+  kind: LeagueGameKind
+  result: GameResult
+}
+
+export type LeagueStanding = {
+  teamId: string
+  wins: number
+  losses: number
+  gamesPlayed?: number
+  pointDifferential?: number
 }
 
 export type LeagueCommand =
@@ -525,6 +677,52 @@ export type LeagueCommand =
     }
   | {
       type: "AdvanceDay"
+      commandId: string
+    }
+  | {
+      type: "SimulateToNextGame"
+      commandId: string
+    }
+  | {
+      type: "SimulateToDate"
+      commandId: string
+      targetDate: string
+    }
+  | {
+      type: "SimulateToNextKeyDate"
+      commandId: string
+    }
+  | {
+      type: "SimulateToDeadline"
+      commandId: string
+    }
+  | {
+      type: "SimulateToRegularSeasonEnd"
+      commandId: string
+    }
+  | {
+      type: "SimulateToNextPhase"
+      commandId: string
+    }
+  | {
+      type: "SelectUserTeam"
+      commandId: string
+      teamId: string
+    }
+  | {
+      type: "ReleasePlayer"
+      commandId: string
+      teamId: string
+      playerId: string
+    }
+  | {
+      type: "SetRotation"
+      commandId: string
+      teamId: string
+      rotation: GameRotationInput
+    }
+  | {
+      type: "AdvanceToNextSeason"
       commandId: string
     }
 

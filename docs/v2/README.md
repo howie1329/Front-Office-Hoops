@@ -5,15 +5,22 @@ playable application and is intentionally kept runnable beside it.
 
 ## Current state
 
-V2 currently provides the foundation worker/schema/repository round trip and
-five active developer-lab surfaces: Population & Roster, Game & Matchup,
-Production & Value, Career Cohort, and Market & Rules. The six routes behind
-those surfaces are calibration tools, not a complete playable league.
+V2 currently provides the foundation worker/schema/repository round trip, the
+first authoritative league-creation slice, and five active developer-lab
+surfaces: Population & Roster, Game & Matchup, Production & Value, Career
+Cohort, and Market & Rules. The start flow can generate a league, select a
+team, save it locally, reload it, and delete it.
 
-The authoritative league document is still foundation-only. Full league
-creation, lifecycle commands, the management shell, Draft & Decision, and the
-League Loop remain future work. Market & Rules is the latest active calibration
-area, with acceptance and league integration still pending.
+The authoritative league document now supports deterministic conference and
+division assignment, dated schedules, team selection, regular-season
+simulation targets, rotations, injuries, standings, production/value updates,
+recovery checkpoints, and season archives. Playoffs, the full offseason
+sequence, Draft & Decision promotion, and the integrated League Loop remain
+future work.
+
+The isolated standard Market & Rules gate now has accepted 100-seed market and
+30-season line-growth/tax-boundary evidence. Typed market promotion and
+turnover/tax-incidence validation remain part of the authoritative League Loop.
 
 Read the [V2 current state](./current-state.md) for the implementation matrix,
 route inventory, package boundaries, and validation snapshot. Read the
@@ -31,17 +38,26 @@ gates.
 ### 2. Product and technical contracts
 
 - [Product Brief](./specs/foh-v2-product-brief.md) — approved product direction and first-v2 target
+- [Calendar and Season Lifecycle](./specs/foh-v2-calendar-and-season-lifecycle.md) — agreed calendar, phase, development-report, and simulation-control contract
 - [Simulation Architecture](./specs/foh-v2-simulation-architecture.md) — workers, packages, randomness, and simulation boundaries
 - [Data and Export Design](./specs/foh-v2-data-and-export-design.md) — canonical document, persistence, events, and portability
 - [UI Information Architecture](./specs/foh-v2-ui-information-architecture.md) — target management shell and developer-lab structure
+- [Dashboard UI Brief](./specs/foh-v2-dashboard-ui-brief.md) — official dashboard shell, snapshots, tables, and simulation controls
 - [Career Cohort Explorer UI Brief](./specs/foh-v2-career-cohort-explorer-ui-brief.md) — current career-lab interaction contract
 
 ### 3. Active implementation and calibration plans
 
+- [Regular-Season Simulation Vertical Slice](./plans/foh-v2-regular-season-simulation-vertical-slice-implementation-plan.md)
+- [Lifecycle and Dashboard Controls](./plans/foh-v2-lifecycle-and-dashboard-controls-implementation-plan.md)
+- [League Lifecycle Implementation](./plans/foh-v2-league-lifecycle-implementation-plan.md)
 - [Game & Matchup Lab](./plans/foh-v2-game-matchup-lab-implementation-plan.md)
 - [Production & Value Lab](./plans/foh-v2-production-value-lab-implementation-plan.md)
+- [Production & Value League State](./plans/foh-v2-production-value-league-state-implementation-plan.md)
+- [Player Information Data Foundation](./plans/foh-v2-player-information-data-foundation-implementation-plan.md)
+- [Player Detail Page Brief](./specs/foh-v2-player-detail-page-brief.md)
 - [Career Cohort Calibration](./plans/foh-v2-career-cohort-calibration-plan.md)
 - [Market & Rules](./plans/foh-v2-contract-market-and-negotiation-plan.md)
+- [Trade Rules Lab Brief](./plans/foh-v2-trade-rules-lab-brief.md)
 - [Draft & Decision Lab](./plans/foh-v2-draft-decision-lab-implementation-plan.md)
 - [Draft Board Decision Calibration](./plans/foh-v2-draft-board-decision-calibration-plan.md)
 - [Migration and Coexistence](./plans/foh-v2-migration-plan.md)
@@ -50,6 +66,8 @@ gates.
 
 - [Game Calibration Baseline](./audits/foh-v2-game-calibration-baseline.md)
 - [Slider Sensitivity Baseline](./audits/foh-v2-slider-sensitivity-baseline.md)
+- [Market Calibration Baseline](./audits/foh-v2-market-calibration-baseline.md)
+- [Multi-Season Economy Baseline](./audits/foh-v2-market-economy-calibration-baseline.md)
 - [Basketball Simulation Reference Study](./research/basketball-sim-reference-study.md)
 
 ### 5. Archive

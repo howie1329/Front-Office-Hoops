@@ -1,13 +1,13 @@
 # Front Office Hoops v2 Roadmap
 
 **Purpose:** sequenced development plan for the first rewrite.  
-**Status:** Phase 0/1 foundations and the Phase 2 calibration workbenches are implemented in slices; calibration acceptance and authoritative league integration remain incomplete. The latest active implementation area is Market & Rules.
+**Status:** Phase 0/1 foundations, the authoritative regular-season slice, and the isolated Market & Rules standard baseline are implemented. Cross-lab acceptance and playoff/offseason league integration remain incomplete.
 **Principle:** build the smallest complete vertical slice only after the contracts and calibration boundaries are clear.
 
 The [V2 lab strategy](./foh-v2-lab-strategy.md) defines the permanent lab surfaces, headless batch harnesses, fixture boundaries, and promotion rules for this roadmap. This roadmap remains the delivery sequence; it does not require a separate visual route for every simulation subsystem.
 The [V2 current state](../current-state.md) is the implementation-status source of truth.
 
-## Current execution position — August 1, 2026
+## Current execution position — August 10, 2026
 
 Completed or substantially complete:
 
@@ -19,18 +19,25 @@ Completed or substantially complete:
 - Initial Production & Value season runner, production aggregation, universal player value, and worker-backed lab.
 - Initial Career Cohort harness with development, decline, retirement, matched runs, settings, reports, and explorer UI.
 - Initial Market & Rules implementation with economy, contract demand, offer utility, free-agency simulation, target boards, activity reporting, roster capacity, and cleanup behavior.
+- Reproducible Market & Rules acceptance evidence: 100 standard 30-team
+  markets and 30-season stable, standard, high-growth, and tax-line scenario
+  arms.
+- Authoritative regular-season simulation with saved rotations, date targets,
+  recovery checkpoints, injuries, standings, production/value updates, player
+  history, and season archives.
 
-The project is currently in Phase 2 calibration. Existing workbenches are
-available for evidence, but their standard gameplay behavior is not accepted
-until benchmark ranges and promotion gates pass. The immediate sequence is:
+The project is completing the remaining Phase 2 acceptance gates while the
+first Phase 3/4 authoritative slices are already implemented. The isolated
+standard Market & Rules gate is accepted; its integrated turnover and tax
+incidence checks remain League Loop evidence. The immediate sequence is:
 
-1. Market & Rules calibration and multi-season economy evidence.
-2. Cross-lab acceptance review for game, production/value, career, and population distributions.
-3. League-creation adapter and the first authoritative lifecycle slice.
+1. Cross-lab acceptance review for production/value, career, population, and draft distributions.
+2. Authoritative playoff/offseason lifecycle and typed market/draft promotion.
+3. Integrated multi-season League Loop evidence and management completion.
 
-The full Phase 3 league shell follows those gates. The current lab routes are
-fixture and calibration workbenches, not the authoritative league-creation
-flow. V1 remains runnable while V2 progresses.
+The current lab routes remain fixture and calibration workbenches; the
+authoritative league-creation and regular-season flows now live in the league
+shell. V1 remains runnable while V2 progresses.
 
 ## v2 outcome
 

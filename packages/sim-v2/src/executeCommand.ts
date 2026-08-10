@@ -1,7 +1,19 @@
-import type { DiagnosticEntry, ValidationIssue } from "@workspace/domain-v2"
+import type {
+  DiagnosticEntry,
+  LeagueCommand,
+  ValidationIssue,
+} from "@workspace/domain-v2"
 import { validateLeagueDocument } from "@workspace/league-schema"
 
-import type { WorkerResult } from "./protocol"
+import type { WorkerProgressMessage, WorkerResult } from "./protocol"
+import {
+  advanceLeagueDay,
+  advanceToNextSeason,
+  LifecycleCommandError,
+  simulateLifecycleTarget,
+} from "./lifecycle"
+import { releasePlayer, ReleasePlayerCommandError } from "./rosterTransactions"
+import { setRotation, SetRotationCommandError } from "./rotationTransactions"
 
 function rejection(
   request: RuntimeWorkerRequest,
@@ -84,10 +96,30 @@ function isRuntimeWorkerRequest(
 }
 
 function isSupportedCommandType(type: string): boolean {
-  return type === "NoOp" || type === "AdvanceDay"
+  return [
+    "NoOp",
+    "AdvanceDay",
+    "SelectUserTeam",
+    "SimulateToNextGame",
+    "SimulateToDate",
+    "SimulateToNextKeyDate",
+    "SimulateToDeadline",
+    "SimulateToRegularSeasonEnd",
+    "SimulateToNextPhase",
+    "ReleasePlayer",
+    "SetRotation",
+    "AdvanceToNextSeason",
+  ].includes(type)
 }
 
-function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
+type ExecuteLeagueCommandOptions = {
+  onProgress?: (message: WorkerProgressMessage) => void
+}
+
+function executeValidatedCommand(
+  request: RuntimeWorkerRequest,
+  options: ExecuteLeagueCommandOptions = {}
+): WorkerResult {
   const validation = validateLeagueDocument(request.league)
 
   if (!validation.valid) {
@@ -109,12 +141,185 @@ function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
         events: [],
         diagnostics: [],
       }
-    case "AdvanceDay":
-      return rejection(request, {
-        code: "command_not_implemented",
-        message:
-          "AdvanceDay is reserved for the lifecycle implementation phase.",
-      })
+    case "AdvanceDay": {
+      try {
+        const result = advanceLeagueDay(
+          validation.data,
+          request.command as Extract<LeagueCommand, { type: "AdvanceDay" }>
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: result.events,
+          diagnostics: [],
+          progress: result.progress,
+        }
+      } catch (error) {
+        if (error instanceof LifecycleCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
+    case "ReleasePlayer": {
+      try {
+        const result = releasePlayer(
+          validation.data,
+          request.command as Extract<LeagueCommand, { type: "ReleasePlayer" }>
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: [result.event],
+          diagnostics: [],
+        }
+      } catch (error) {
+        if (error instanceof ReleasePlayerCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
+    case "SetRotation": {
+      try {
+        const result = setRotation(
+          validation.data,
+          request.command as Extract<LeagueCommand, { type: "SetRotation" }>
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: [result.event],
+          diagnostics: [],
+        }
+      } catch (error) {
+        if (error instanceof SetRotationCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
+    case "AdvanceToNextSeason": {
+      try {
+        const result = advanceToNextSeason(
+          validation.data,
+          request.command as Extract<
+            LeagueCommand,
+            { type: "AdvanceToNextSeason" }
+          >
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: result.events,
+          diagnostics: [],
+        }
+      } catch (error) {
+        if (error instanceof LifecycleCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
+    case "SelectUserTeam": {
+      const teamId = (request.command as { teamId?: unknown }).teamId
+      if (typeof teamId !== "string" || !teamId) {
+        return rejection(request, {
+          code: "invalid_team_selection",
+          message: "A team must be selected before the league can be entered.",
+          path: ["command", "teamId"],
+        })
+      }
+
+      if (!validation.data.entities.teams[teamId]) {
+        return rejection(request, {
+          code: "unknown_team_selection",
+          message: "The selected team does not exist in this league.",
+          path: ["command", "teamId"],
+        })
+      }
+
+      const now = new Date().toISOString()
+      const nextLeague = structuredClone(validation.data)
+      nextLeague.state.userTeamId = teamId
+      nextLeague.metadata.updatedAt = now
+      const event = {
+        id: `event:${request.command.commandId}`,
+        type: "command.completed" as const,
+        season: nextLeague.state.season,
+        phase: nextLeague.state.phase,
+        leagueDay: nextLeague.state.leagueDay,
+        entityRefs: [{ type: "team", id: teamId }],
+        payload: { teamId },
+        summary: `Selected ${nextLeague.entities.teams[teamId]?.name ?? teamId}.`,
+        importance: "major" as const,
+        storyTags: ["league-creation", "team-selection"],
+        source: {
+          kind: "command" as const,
+          id: request.command.commandId,
+        },
+      }
+      nextLeague.history.events.push(event)
+
+      return {
+        requestId: request.requestId,
+        status: "completed",
+        league: nextLeague,
+        events: [event],
+        diagnostics: [],
+      }
+    }
+    case "SimulateToNextGame":
+    case "SimulateToDate":
+    case "SimulateToNextKeyDate":
+    case "SimulateToDeadline":
+    case "SimulateToRegularSeasonEnd":
+    case "SimulateToNextPhase": {
+      try {
+        const result = simulateLifecycleTarget(
+          validation.data,
+          request.command as Extract<
+            LeagueCommand,
+            {
+              type:
+                | "SimulateToNextGame"
+                | "SimulateToDate"
+                | "SimulateToNextKeyDate"
+                | "SimulateToDeadline"
+                | "SimulateToRegularSeasonEnd"
+                | "SimulateToNextPhase"
+            }
+          >,
+          ({ progress, checkpoint }) => {
+            options.onProgress?.({
+              type: "progress",
+              requestId: request.requestId,
+              commandId: request.command.commandId,
+              progress,
+              checkpoint,
+            })
+          }
+        )
+        return {
+          requestId: request.requestId,
+          status: "completed",
+          league: result.league,
+          events: result.events,
+          diagnostics: [],
+          progress: result.progress,
+          target: result.target,
+        }
+      } catch (error) {
+        if (error instanceof LifecycleCommandError) {
+          return rejection(request, error.reason)
+        }
+        throw error
+      }
+    }
     default:
       return failure(
         request,
@@ -123,7 +328,10 @@ function executeValidatedCommand(request: RuntimeWorkerRequest): WorkerResult {
   }
 }
 
-export function executeLeagueCommand(request: unknown): WorkerResult {
+export function executeLeagueCommand(
+  request: unknown,
+  options: ExecuteLeagueCommandOptions = {}
+): WorkerResult {
   try {
     if (!isRuntimeWorkerRequest(request)) {
       return failure(request, new Error("The worker request is malformed."))
@@ -136,7 +344,7 @@ export function executeLeagueCommand(request: unknown): WorkerResult {
       )
     }
 
-    return executeValidatedCommand(request)
+    return executeValidatedCommand(request, options)
   } catch (error) {
     return failure(request, error)
   }

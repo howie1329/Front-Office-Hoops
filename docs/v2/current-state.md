@@ -1,39 +1,47 @@
 # Front Office Hoops v2 — Current State
 
-**Last audited:** August 1, 2026  
+**Last audited:** August 10, 2026
 **Status vocabulary:** `implemented` means the code and route exist; `calibration pending` means the behavior is not yet accepted as standard gameplay; `planned` means no production route or authoritative league integration exists.
 
 ## Product position
 
-V2 is currently a browser-hosted calibration platform, not a playable replacement
-for V1. It has a foundation worker/schema/repository round trip and a set of
-worker-backed developer labs that exercise production simulation modules.
+V2 is currently a browser-hosted calibration platform with an authoritative
+league-creation and regular-season vertical slice, not a playable replacement
+for V1. It has the foundation worker/schema/repository round trip,
+worker-backed developer labs, and a generated, structured league with dated
+preseason and regular-season schedules that can be saved, selected, reloaded,
+simulated, and deleted.
 
-The V2 home page currently demonstrates a validated `LeagueDocument` moving
-through the worker, Dexie, and JSON import/export path. The authoritative league
-document is still foundation-only: `LeaguePhase` is `"foundation"`, `NoOp` is the
-only completed lifecycle command, and `AdvanceDay` remains intentionally
-rejected until lifecycle integration is implemented.
+The V2 home page and start flow now demonstrate a validated `LeagueDocument`
+moving through league creation, conference/division assignment, team
+selection, the worker, Dexie, and JSON import/export paths. New saves open on
+the first regular-season date. Date advancement, simulation targets, rotation
+updates, player releases, standings, injuries, production/value updates, and
+season archives are implemented. Playoffs and the authoritative offseason
+phase sequence remain the next lifecycle boundary.
 
 V1 remains the existing playable local league application and is intentionally
 kept runnable beside V2.
 
 ## Implementation matrix
 
-| Area | Current state | Evidence | Next gate |
-| --- | --- | --- | --- |
-| Document, schema, worker, repository | Implemented foundation | `domain-v2`, `league-schema`, `sim-v2`, `db-v2`, and the V2 home round trip | Promote validated systems into lifecycle commands |
-| Population & roster | Implemented workbench | Player Generation and Team Assembly routes; deterministic population and roster fixtures | Accept league-wide distributions and league-creation adapter |
-| Game & matchup | Implemented initial engine and lab | Possession simulation, rotations, availability, reconciliation, worker batches, reports | Accept benchmark ranges and promote into gameplay |
-| Production & value | Implemented initial lab and season runner | Season fixtures, game aggregation, production records, universal player value, worker route | Accept production/value ranges |
-| Career cohort | Implemented worker-backed harness | Development, decline, retirement, matched cohorts, reports, settings, explorer UI | Accept career distributions and league-loop transitions |
-| Market & rules | Active implementation/calibration | Economy, demand, offer utility, deterministic free agency, target boards, activity reporting, roster cleanup | Accept multi-season market behavior and integrate into league commands |
-| Draft & decision | Implemented calibration workbench; calibration pending | `/developer-labs/draft-decision`, deterministic 75-player/60-pick runs, scouting reports, versioned boards, matched diagnostics, safe/full exports | Accept board behavior across 100+ classes and integrate draft contracts into the league loop |
-| League loop and management shell | Planned | No V2 playable league shell; lifecycle command remains foundation-only | Generate, select, simulate, save, reload, and advance a complete league |
+| Area                                 | Current state                                          | Evidence                                                                                                                                           | Next gate                                                                                      |
+| ------------------------------------ | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Document, schema, worker, repository | Implemented authoritative foundation                   | `domain-v2`, `league-schema`, `sim-v2`, `db-v2`, creation/lifecycle workers, recovery checkpoints, and saved league shell                          | Extend phase transitions through playoffs and offseason                                        |
+| Population & roster                  | Implemented workbench                                  | Player Generation and Team Assembly routes; deterministic population and roster fixtures                                                           | Accept league-wide distributions and league-creation adapter                                   |
+| Game & matchup                       | Initial standard benchmark accepted and promoted       | Possession simulation, rotations, availability, reconciliation, 1,000-game baseline, worker batches, and authoritative regular-season games        | Retain cross-lab acceptance and injury-specific evidence                                       |
+| Production & value                   | Implemented lab, season runner, and league promotion   | Season fixtures, game aggregation, production records, universal player value, worker route, and authoritative checkpoint updates                  | Accept production/value distributions                                                          |
+| Career cohort                        | Implemented worker-backed harness                      | Development, decline, retirement, matched cohorts, reports, settings, explorer UI                                                                  | Accept career distributions and league-loop transitions                                        |
+| Market & rules                       | Isolated standard calibration accepted                 | 100-seed market baseline and 30-season line-growth/tax-boundary evidence; demand, utility, free agency, target boards, capacity, and cleanup       | Promote typed market state and validate turnover/tax incidence in the League Loop              |
+| Draft & decision                     | Implemented calibration workbench; calibration pending | `/developer-labs/draft-decision`, deterministic 75-player/60-pick runs, scouting reports, versioned boards, matched diagnostics, safe/full exports | Accept board behavior across 100+ classes and integrate draft contracts into the league loop   |
+| League loop and management shell     | Implemented regular-season vertical slice              | Creation, dashboard, roster/rotation, finance, free agents, player detail, simulation targets, recovery, standings, and season archives            | Add playoffs, offseason phases, draft/market commands, staff, owner goals, and multi-season AI |
 
 ## V2 routes
 
-The current V2 application exposes seven lab routes plus the foundation home page:
+The current V2 application exposes the start/league shell plus seven lab routes:
+
+- `/league/start`
+- `/league`
 
 - `/developer-labs/player-generation`
 - `/developer-labs/team-assembly`
@@ -63,19 +71,22 @@ commands as its source of truth.
 
 ## Current calibration focus
 
-The latest implementation work is in Market & Rules, especially free-agency
-target boards, activity reporting, roster capacity, and unsigned-player cleanup.
-The next product gate is not another standalone visual lab; it is calibration
-acceptance and promotion of the existing modules into authoritative league
-creation and lifecycle commands.
+The isolated standard Market & Rules gate now passes a reproducible 100-seed
+market batch and a 30-season line-growth/tax-boundary harness. The next product
+gate is the cross-lab acceptance review for production/value, career,
+population, and draft behavior, followed by promotion of typed market and
+draft state into authoritative playoff/offseason lifecycle commands.
 
 ## Validation snapshot
 
 On the audit date:
 
-- V2 tests pass across domain, schema, simulation, calibration, database, and web workspaces.
-- V2 typechecks pass across the same workspaces.
-- `web-v2` lint still reports two pre-existing diagnostics in the Game & Matchup implementation: one unnecessary assertion in `src/lib/gameMatchupLab.ts` and one import-style issue in `src/routes/developer-labs.game-matchup.tsx`.
+- The focused market calibration tests and calibration package typecheck pass.
+- The standard market baseline completed 100 of 100 seeds with no run,
+  accounting, accepted-legality, hard-cap, or roster-capacity failures.
+- The 30-season stable, standard, high-growth, low-tax-pressure, and
+  high-tax-pressure line scenarios pass their ordering, monotonicity, relative
+  drift, and sensitivity checks.
 
 Run the focused checks from the repository development guide after changing
 simulation contracts or lab adapters.
@@ -84,10 +95,12 @@ simulation contracts or lab adapters.
 
 The following remain target-product or later-phase work:
 
-- Complete league creation and team selection flow.
-- In-season lifecycle commands, standings, playoffs, and season archives in the authoritative league document.
-- The player-facing league shell and management screens.
+- Playoff scheduling and the authoritative offseason phase sequence. The
+  regular-season worker commands, standings, and season archives now exist.
+- Player-facing management screens beyond the dashboard, roster/rotation,
+  finance, free-agency listing, and player detail surfaces.
 - Authoritative Draft & Decision integration and baseline draft promotion into the league loop.
-- Multi-season League Loop Lab.
+- Integrated multi-season League Loop evidence for roster turnover, tax
+  incidence, draft inflow, development, and retirement.
 - Full first-v2 export profiles, migration coverage, browser E2E coverage, and production hardening.
 - Advanced CBA, multi-year organizational AI, morale, narrative, accounts, and cloud saves.

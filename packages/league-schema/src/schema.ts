@@ -317,6 +317,21 @@ const gameAvailabilitySchema = z.strictObject({
   minutesLimit: z.number().min(0).max(48).optional(),
 })
 
+const leaguePlayerAvailabilitySchema = gameAvailabilitySchema.extend({
+  gamesMissed: z.number().int().nonnegative(),
+  injury: z
+    .strictObject({
+      startedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      expectedReturnDate: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      sourceScheduleId: z.string().min(1).optional(),
+      description: z.string().optional(),
+    })
+    .optional(),
+})
+
 const gameRotationSchema = z.strictObject({
   starters: z.array(z.string().min(1)),
   depthOrder: z.array(z.string().min(1)),
@@ -329,6 +344,11 @@ const gameCoachingProfileSchema = z.strictObject({
   defensivePressure: z.number().min(0).max(100),
   shotSelection: z.number().min(0).max(100),
   rotationDepth: z.number().min(0).max(100),
+})
+
+const teamGamePlanSchema = z.strictObject({
+  rotation: gameRotationSchema,
+  coaching: gameCoachingProfileSchema,
 })
 
 export const gameMatchupFixtureSchema = z.strictObject({
@@ -354,9 +374,27 @@ export const gameMatchupFixtureSchema = z.strictObject({
 
 const eventSchema = z.strictObject({
   id: z.string().min(1),
-  type: z.enum(["command.completed", "migration.applied"]),
+  type: z.enum([
+    "calendar.advanced",
+    "command.completed",
+    "game.completed",
+    "injury.recorded",
+    "availability.updated",
+    "production.updated",
+    "development.updated",
+    "season.archived",
+    "lifecycle.target-reached",
+    "phase.transitioned",
+    "migration.applied",
+  ]),
   season: z.number().int().nonnegative(),
-  phase: z.literal("foundation"),
+  phase: z.enum([
+    "foundation",
+    "preseason",
+    "regular-season",
+    "playoffs",
+    "offseason",
+  ]),
   leagueDay: z.number().int().nonnegative(),
   entityRefs: z.array(
     z.strictObject({
@@ -372,6 +410,48 @@ const eventSchema = z.strictObject({
     kind: z.enum(["command", "simulation", "migration"]),
     id: z.string().min(1),
   }),
+})
+
+const leagueScheduleEntrySchema = z.strictObject({
+  id: z.string().min(1),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  kind: z.enum([
+    "preseason",
+    "regular-season",
+    "play-in",
+    "playoffs",
+    "finals",
+  ]),
+  round: z.number().int().positive(),
+  homeTeamId: z.string().min(1),
+  awayTeamId: z.string().min(1),
+  status: z.enum(["scheduled", "completed", "cancelled"]),
+})
+
+const leagueStandingSchema = z.strictObject({
+  teamId: z.string().min(1),
+  wins: z.number().int().nonnegative(),
+  losses: z.number().int().nonnegative(),
+  gamesPlayed: z.number().int().nonnegative().optional(),
+  pointDifferential: z.number().int().optional(),
+})
+
+const leagueStructureSchema = z.strictObject({
+  conferences: z.array(
+    z.strictObject({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      divisionIds: z.array(z.string().min(1)),
+    })
+  ),
+  divisions: z.array(
+    z.strictObject({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      conferenceId: z.string().min(1),
+      teamIds: z.array(z.string().min(1)),
+    })
+  ),
 })
 
 const gamePeriodSchema = z.strictObject({
@@ -506,6 +586,20 @@ export const gameResultSchema = z.strictObject({
   }),
 })
 
+const leagueGameRecordSchema = z.strictObject({
+  scheduleId: z.string().min(1),
+  season: z.number().int().positive(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  kind: z.enum([
+    "preseason",
+    "regular-season",
+    "play-in",
+    "playoffs",
+    "finals",
+  ]),
+  result: gameResultSchema,
+})
+
 export const gameResultEnvelopeSchema = z.strictObject({
   schema: z.literal("foh-game-result"),
   result: gameResultSchema,
@@ -630,9 +724,8 @@ export const seasonFixtureSchema = z.strictObject({
   config: seasonProductionConfigSchema,
 })
 
-const playerSeasonProductionSchema = z.strictObject({
+const playerSeasonProductionBaseSchema = z.strictObject({
   playerId: z.string().min(1),
-  teamId: z.string().min(1).nullable(),
   population: z.enum(["rostered", "free-agent", "draft-prospect"]),
   gamesScheduled: z.number().int().nonnegative(),
   gamesPlayed: z.number().int().nonnegative(),
@@ -668,6 +761,26 @@ const playerSeasonProductionSchema = z.strictObject({
   }),
   role: z.string().min(1),
   sampleState: z.enum(["provisional", "early", "established", "full"]),
+  minutesPerGame: z.number().nonnegative().optional(),
+  fieldGoalPercentage: z.number().nonnegative().optional(),
+  threePointPercentage: z.number().nonnegative().optional(),
+  freeThrowPercentage: z.number().nonnegative().optional(),
+})
+
+const playerTeamSeasonSplitSchema = playerSeasonProductionBaseSchema.extend({
+  teamId: z.string().min(1),
+})
+
+const playerSeasonProductionSchema = playerSeasonProductionBaseSchema.extend({
+  season: z.number().int().positive().optional(),
+  throughDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  teamId: z.string().min(1).nullable(),
+  teamSplits: z
+    .record(z.string().min(1), playerTeamSeasonSplitSchema)
+    .optional(),
 })
 
 const teamSeasonProductionSchema = z.strictObject({
@@ -746,12 +859,63 @@ const universalPlayerValueSchema = z.strictObject({
 })
 
 export const seasonCheckpointReportSchema = z.strictObject({
+  season: z.number().int().positive().optional(),
+  throughDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   gamesPerTeam: z.number().int().nonnegative(),
   gamesCompleted: z.number().int().nonnegative(),
   playerProduction: z.record(z.string().min(1), playerSeasonProductionSchema),
   teamProduction: z.record(z.string().min(1), teamSeasonProductionSchema),
   leagueSummary: leagueProductionSummarySchema,
   values: z.record(z.string().min(1), universalPlayerValueSchema),
+})
+
+const playerRatingSnapshotSchema = z.strictObject({
+  season: z.number().int().positive(),
+  age: z.number().int().min(18).max(80),
+  overall: ratingSchema,
+  skills: playerSkillsSchema,
+  phase: z.enum(["growth", "plateau", "decline"]),
+})
+
+const playerInjuryHistoryEntrySchema = z.strictObject({
+  id: z.string().min(1),
+  playerId: z.string().min(1),
+  season: z.number().int().positive(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  expectedReturnDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  returnDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  description: z.string(),
+  gamesMissed: z.number().int().nonnegative(),
+  sourceScheduleId: z.string().min(1).optional(),
+})
+
+const leagueSeasonArchiveSchema = z.strictObject({
+  season: z.number().int().positive(),
+  completedAt: z.string().datetime({ offset: true }),
+  games: z.array(leagueGameRecordSchema),
+  playerProduction: z.record(z.string().min(1), playerSeasonProductionSchema),
+  teamProduction: z.record(z.string().min(1), teamSeasonProductionSchema),
+  leagueSummary: leagueProductionSummarySchema,
+  playerValues: z.record(z.string().min(1), universalPlayerValueSchema),
+  ratingSnapshots: z.record(z.string().min(1), playerRatingSnapshotSchema),
+  injuries: z.array(playerInjuryHistoryEntrySchema),
+  modelVersions: z
+    .strictObject({
+      game: z.number().int().positive(),
+      production: z.number().int().positive(),
+      value: z.number().int().positive(),
+      development: z.number().int().positive(),
+    })
+    .optional(),
 })
 
 const seasonRunFailureSchema = z.strictObject({
@@ -1358,18 +1522,69 @@ const leagueDocumentShape = z.strictObject({
       version: z.number().int().positive(),
     }),
     advancedOverrides: jsonRecordSchema,
+    gameConfig: gameSimulationConfigSchema.optional(),
+    productionConfig: seasonProductionConfigSchema.optional(),
   }),
   randomness: z.strictObject({
     mode: z.enum(["normal", "deterministic-lab"]),
     createdWithEntropy: z.boolean(),
+    seed: z.string().min(1).optional(),
     debugScopes: z.record(z.string(), z.string()).optional(),
   }),
   state: z.strictObject({
     season: z.number().int().positive(),
-    phase: z.literal("foundation"),
+    phase: z.enum([
+      "foundation",
+      "preseason",
+      "regular-season",
+      "playoffs",
+      "offseason",
+    ]),
+    offseasonPhase: z
+      .enum([
+        "season-review",
+        "staff",
+        "re-signing",
+        "draft",
+        "free-agency-1",
+        "free-agency-2",
+        "free-agency-3",
+      ])
+      .optional(),
     leagueDay: z.number().int().nonnegative(),
     userTeamId: z.string().min(1).nullable(),
-    calendar: z.strictObject({ kind: z.literal("foundation") }),
+    rotations: z.record(z.string().min(1), gameRotationSchema).optional(),
+    gamePlans: z.record(z.string().min(1), teamGamePlanSchema).optional(),
+    availability: z
+      .record(z.string().min(1), leaguePlayerAvailabilitySchema)
+      .optional(),
+    lifecycleBoundary: z
+      .strictObject({
+        kind: z.enum(["management", "phase"]),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        label: z.string().min(1),
+        commandId: z.string().min(1),
+      })
+      .optional(),
+    structure: leagueStructureSchema,
+    calendar: z.strictObject({
+      kind: z.enum([
+        "foundation",
+        "preseason",
+        "regular-season",
+        "playoffs",
+        "offseason",
+      ]),
+      currentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      preseasonStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      regularSeasonStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      regularSeasonEnd: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      milestones: z.strictObject({
+        tradeDeadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        playoffsStart: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }),
+      schedule: z.array(leagueScheduleEntrySchema),
+    }),
     phaseTasks: z.array(
       z.strictObject({
         id: z.string().min(1),
@@ -1381,7 +1596,14 @@ const leagueDocumentShape = z.strictObject({
   entities: z.strictObject({
     teams: z.record(
       z.string(),
-      z.strictObject({ id: z.string().min(1), name: z.string().min(1) })
+      z.strictObject({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        rosterPlayerIds: z.array(z.string().min(1)).optional(),
+        conferenceId: z.string().min(1).optional(),
+        divisionId: z.string().min(1).optional(),
+        marketSize: z.enum(["small", "medium", "large"]).optional(),
+      })
     ),
     players: z.record(z.string(), playerEntitySchema),
     owners: z.record(z.string(), jsonRecordSchema),
@@ -1391,17 +1613,19 @@ const leagueDocumentShape = z.strictObject({
     offers: z.record(z.string(), jsonRecordSchema),
   }),
   projections: z.strictObject({
-    standings: z.array(jsonRecordSchema),
+    standings: z.array(leagueStandingSchema),
     payroll: z.array(jsonRecordSchema),
+    currentSeason: seasonCheckpointReportSchema.optional(),
   }),
   history: z.strictObject({
     events: z.array(eventSchema),
-    seasonArchives: z.array(jsonRecordSchema),
+    seasonArchives: z.array(leagueSeasonArchiveSchema),
     records: z.array(jsonRecordSchema),
+    injuries: z.array(playerInjuryHistoryEntrySchema).optional(),
   }),
   optionalData: z
     .strictObject({
-      games: z.array(jsonRecordSchema).optional(),
+      games: z.array(leagueGameRecordSchema).optional(),
       playerGameLogs: z.array(jsonRecordSchema).optional(),
       labDiagnostics: z.array(jsonRecordSchema).optional(),
       scoutingDiagnostics: z.array(jsonRecordSchema).optional(),
@@ -1411,12 +1635,96 @@ const leagueDocumentShape = z.strictObject({
 
 export const leagueDocumentSchema = leagueDocumentShape.superRefine(
   (league, context) => {
+    const hasLeagueStructure = league.state.structure.conferences.length > 0
+    const conferences = new Map(
+      league.state.structure.conferences.map((conference) => [
+        conference.id,
+        conference,
+      ])
+    )
+    const divisions = new Map(
+      league.state.structure.divisions.map((division) => [
+        division.id,
+        division,
+      ])
+    )
+    const assignedTeamIds = new Set<string>()
+
+    for (const conference of hasLeagueStructure
+      ? league.state.structure.conferences
+      : []) {
+      if (conference.divisionIds.length !== 3) {
+        context.addIssue({
+          code: "custom",
+          message: "Each conference must contain exactly three divisions.",
+          path: ["state", "structure", "conferences", conference.id],
+        })
+      }
+      for (const divisionId of conference.divisionIds) {
+        const division = divisions.get(divisionId)
+        if (!division || division.conferenceId !== conference.id) {
+          context.addIssue({
+            code: "custom",
+            message:
+              "Conference divisions must reference their parent conference.",
+            path: ["state", "structure", "conferences", conference.id],
+          })
+        }
+      }
+    }
+
+    for (const division of hasLeagueStructure
+      ? league.state.structure.divisions
+      : []) {
+      if (division.teamIds.length !== 5) {
+        context.addIssue({
+          code: "custom",
+          message: "Each division must contain exactly five teams.",
+          path: ["state", "structure", "divisions", division.id],
+        })
+      }
+      if (!conferences.has(division.conferenceId)) {
+        context.addIssue({
+          code: "custom",
+          message: "Each division must reference an existing conference.",
+          path: ["state", "structure", "divisions", division.id],
+        })
+      }
+      for (const teamId of division.teamIds) {
+        if (assignedTeamIds.has(teamId)) {
+          context.addIssue({
+            code: "custom",
+            message: "A team cannot belong to more than one division.",
+            path: ["state", "structure", "divisions", division.id, "teamIds"],
+          })
+        }
+        assignedTeamIds.add(teamId)
+      }
+    }
+
     for (const [teamKey, team] of Object.entries(league.entities.teams)) {
       if (teamKey !== team.id) {
         context.addIssue({
           code: "custom",
           message: "The team record key must match the team ID.",
           path: ["entities", "teams", teamKey, "id"],
+        })
+      }
+
+      if (
+        hasLeagueStructure &&
+        (!team.conferenceId ||
+          !team.divisionId ||
+          !conferences.has(team.conferenceId) ||
+          !divisions.has(team.divisionId) ||
+          divisions.get(team.divisionId)?.conferenceId !== team.conferenceId ||
+          !divisions.get(team.divisionId)?.teamIds.includes(team.id))
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "Every team must reference its stored conference and division.",
+          path: ["entities", "teams", teamKey],
         })
       }
     }
@@ -1439,6 +1747,236 @@ export const leagueDocumentSchema = leagueDocumentShape.superRefine(
           code: "custom",
           message: "The player league status references a missing team.",
           path: ["entities", "players", playerKey, "leagueStatus", "teamId"],
+        })
+      }
+    }
+
+    if (league.state.gamePlans) {
+      for (const teamId of Object.keys(league.entities.teams)) {
+        const plan = league.state.gamePlans[teamId]
+        if (!plan) {
+          context.addIssue({
+            code: "custom",
+            message: "Every team must have a persisted game plan.",
+            path: ["state", "gamePlans", teamId],
+          })
+        }
+      }
+
+      for (const [teamId, plan] of Object.entries(league.state.gamePlans)) {
+        const team = league.entities.teams[teamId]
+        if (!team) {
+          context.addIssue({
+            code: "custom",
+            message: "A game plan must reference an existing team.",
+            path: ["state", "gamePlans", teamId],
+          })
+          continue
+        }
+        const rosterIds = new Set(team.rosterPlayerIds ?? [])
+        const starterIds = new Set(plan.rotation.starters)
+        if (
+          starterIds.size !== plan.rotation.starters.length ||
+          new Set(plan.rotation.depthOrder).size !==
+            plan.rotation.depthOrder.length
+        ) {
+          context.addIssue({
+            code: "custom",
+            message: "A persisted rotation cannot contain duplicate players.",
+            path: ["state", "gamePlans", teamId, "rotation"],
+          })
+        }
+        if (plan.rotation.starters.length !== 5 || starterIds.size !== 5) {
+          context.addIssue({
+            code: "custom",
+            message: "A persisted rotation must contain five unique starters.",
+            path: ["state", "gamePlans", teamId, "rotation", "starters"],
+          })
+        }
+        for (const playerId of plan.rotation.depthOrder) {
+          if (!rosterIds.has(playerId) || !league.entities.players[playerId]) {
+            context.addIssue({
+              code: "custom",
+              message: "Every persisted rotation player must be on the roster.",
+              path: [
+                "state",
+                "gamePlans",
+                teamId,
+                "rotation",
+                "depthOrder",
+                playerId,
+              ],
+            })
+          }
+        }
+        for (const playerId of plan.rotation.starters) {
+          if (!plan.rotation.depthOrder.includes(playerId)) {
+            context.addIssue({
+              code: "custom",
+              message:
+                "Every starter must appear in the persisted rotation order.",
+              path: ["state", "gamePlans", teamId, "rotation", "depthOrder"],
+            })
+          }
+          const availability = league.state.availability?.[playerId]
+          if (availability && !availability.available) {
+            context.addIssue({
+              code: "custom",
+              message: "An unavailable player cannot be a persisted starter.",
+              path: [
+                "state",
+                "gamePlans",
+                teamId,
+                "rotation",
+                "starters",
+                playerId,
+              ],
+            })
+          }
+        }
+
+        const starterPlayers = plan.rotation.starters
+          .map((playerId) => league.entities.players[playerId])
+          .filter((player): player is NonNullable<typeof player> =>
+            Boolean(player)
+          )
+        const positions = ["PG", "SG", "SF", "PF", "C"]
+        function canCover(positionIndex: number, used: Set<string>): boolean {
+          if (positionIndex === positions.length) return true
+          return starterPlayers.some((player) => {
+            const eligible =
+              player.profile.role.primaryPosition ===
+                positions[positionIndex] ||
+              player.profile.role.secondaryPosition === positions[positionIndex]
+            if (!eligible || used.has(player.id)) return false
+            used.add(player.id)
+            const covered = canCover(positionIndex + 1, used)
+            used.delete(player.id)
+            return covered
+          })
+        }
+        if (starterPlayers.length === 5 && !canCover(0, new Set())) {
+          context.addIssue({
+            code: "custom",
+            message: "Persisted starters must cover all five positions.",
+            path: ["state", "gamePlans", teamId, "rotation", "starters"],
+          })
+        }
+      }
+    }
+
+    if (league.state.availability) {
+      for (const playerId of Object.keys(league.state.availability)) {
+        if (!league.entities.players[playerId]) {
+          context.addIssue({
+            code: "custom",
+            message: "Availability must reference an existing player.",
+            path: ["state", "availability", playerId],
+          })
+        }
+      }
+    }
+
+    const storedGames = league.optionalData?.games ?? []
+    const storedGameIds = new Set<string>()
+    for (const game of storedGames) {
+      if (storedGameIds.has(game.scheduleId)) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "A schedule entry cannot have more than one stored game record.",
+          path: ["optionalData", "games", game.scheduleId],
+        })
+      }
+      storedGameIds.add(game.scheduleId)
+      const scheduleEntry = league.state.calendar.schedule.find(
+        (entry) => entry.id === game.scheduleId
+      )
+      if (!scheduleEntry) {
+        context.addIssue({
+          code: "custom",
+          message: "Every stored game must reference a schedule entry.",
+          path: ["optionalData", "games", game.scheduleId],
+        })
+      } else if (scheduleEntry.status !== "completed") {
+        context.addIssue({
+          code: "custom",
+          message: "A stored game requires a completed schedule entry.",
+          path: ["optionalData", "games", game.scheduleId],
+        })
+      }
+    }
+    for (const entry of league.state.calendar.schedule) {
+      if (entry.status === "completed" && !storedGameIds.has(entry.id)) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "Every completed schedule entry must have one stored game record.",
+          path: ["state", "calendar", "schedule", entry.id],
+        })
+      }
+    }
+
+    const archivedSeasons = new Set<number>()
+    const archivedGameKeys = new Set<string>()
+    for (const [archiveIndex, archive] of league.history.seasonArchives.entries()) {
+      if (archivedSeasons.has(archive.season)) {
+        context.addIssue({
+          code: "custom",
+          message: "A season cannot have more than one archive.",
+          path: ["history", "seasonArchives", archiveIndex, "season"],
+        })
+      }
+      archivedSeasons.add(archive.season)
+      for (const [gameIndex, game] of archive.games.entries()) {
+        const key = `${game.season}:${game.scheduleId}`
+        if (game.season !== archive.season) {
+          context.addIssue({
+            code: "custom",
+            message: "An archived game must belong to its archive season.",
+            path: ["history", "seasonArchives", archiveIndex, "games", gameIndex],
+          })
+        }
+        if (archivedGameKeys.has(key)) {
+          context.addIssue({
+            code: "custom",
+            message: "A completed game cannot be archived more than once.",
+            path: ["history", "seasonArchives", archiveIndex, "games", gameIndex],
+          })
+        }
+        archivedGameKeys.add(key)
+      }
+      for (const injury of archive.injuries) {
+        if (!league.entities.players[injury.playerId]) {
+          context.addIssue({
+            code: "custom",
+            message: "An archived injury must reference an existing player.",
+            path: ["history", "seasonArchives", archiveIndex, "injuries"],
+          })
+        }
+      }
+      for (const playerId of Object.keys(archive.ratingSnapshots)) {
+        if (!league.entities.players[playerId]) {
+          context.addIssue({
+            code: "custom",
+            message: "A rating snapshot must reference an existing player.",
+            path: [
+              "history",
+              "seasonArchives",
+              archiveIndex,
+              "ratingSnapshots",
+              playerId,
+            ],
+          })
+        }
+      }
+    }
+    for (const [gameIndex, game] of storedGames.entries()) {
+      if (archivedGameKeys.has(`${game.season}:${game.scheduleId}`)) {
+        context.addIssue({
+          code: "custom",
+          message: "A game cannot exist in both current storage and an archive.",
+          path: ["optionalData", "games", gameIndex],
         })
       }
     }
@@ -1481,6 +2019,9 @@ export const contractEntitySchema = z
       "extension",
       "manual",
     ]),
+    status: z.enum(["active", "released"]).optional(),
+    releasedAtSeason: z.number().int().positive().optional(),
+    releasedFromTeamId: z.string().min(1).optional(),
   })
   .superRefine((contract, context) => {
     if (contract.annualSalary.length !== contract.years) {
