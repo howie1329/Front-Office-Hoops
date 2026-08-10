@@ -12,12 +12,15 @@ Cohort, and Market & Rules. The start flow can generate a league, select a
 team, save it locally, reload it, and delete it.
 
 The authoritative league document now supports deterministic conference and
-division assignment, dated preseason and regular-season schedules, regular-
-season opening bootstrap, and team selection. In-season lifecycle commands,
-the full management shell, Draft & Decision promotion, and the League Loop
-remain future work.
-Market & Rules is the latest active calibration area, with acceptance and
-broader league integration still pending.
+division assignment, dated schedules, team selection, regular-season
+simulation targets, rotations, injuries, standings, production/value updates,
+recovery checkpoints, and season archives. Playoffs, the full offseason
+sequence, Draft & Decision promotion, and the integrated League Loop remain
+future work.
+
+The isolated standard Market & Rules gate now has accepted 100-seed market and
+30-season line-growth/tax-boundary evidence. Typed market promotion and
+turnover/tax-incidence validation remain part of the authoritative League Loop.
 
 Read the [V2 current state](./current-state.md) for the implementation matrix,
 route inventory, package boundaries, and validation snapshot. Read the
@@ -63,6 +66,8 @@ gates.
 
 - [Game Calibration Baseline](./audits/foh-v2-game-calibration-baseline.md)
 - [Slider Sensitivity Baseline](./audits/foh-v2-slider-sensitivity-baseline.md)
+- [Market Calibration Baseline](./audits/foh-v2-market-calibration-baseline.md)
+- [Multi-Season Economy Baseline](./audits/foh-v2-market-economy-calibration-baseline.md)
 - [Basketball Simulation Reference Study](./research/basketball-sim-reference-study.md)
 
 ### 5. Archive

@@ -94,6 +94,35 @@ export type {
   DraftMatchedCalibrationReport,
   DraftMatchedComparison,
 } from "./draft"
+export {
+  renderMarketCalibrationMarkdown,
+  runMarketCalibration,
+  serializeMarketCalibrationReport,
+  STANDARD_MARKET_BENCHMARK_PROFILE,
+} from "./market"
+export type {
+  MarketBenchmarkCheck,
+  MarketBenchmarkProfile,
+  MarketBenchmarkReport,
+  MarketBenchmarkTarget,
+  MarketCalibrationFailure,
+  MarketCalibrationMetric,
+  MarketCalibrationMetricKey,
+  MarketCalibrationOptions,
+  MarketCalibrationOutlier,
+  MarketCalibrationReport,
+  MarketCalibrationRunSummary,
+} from "./market"
+export {
+  renderMarketEconomyCalibrationMarkdown,
+  runMarketEconomyCalibration,
+  serializeMarketEconomyCalibrationReport,
+} from "./marketEconomy"
+export type {
+  MarketEconomyCalibrationReport,
+  MarketEconomyScenarioResult,
+  MarketEconomySeasonEvidence,
+} from "./marketEconomy"
 
 export type CalibrationProgress = {
   completed: number

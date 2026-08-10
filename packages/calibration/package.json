@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "test": "vitest run",
+    "market-calibration": "vitest run --config vitest.market.config.ts",
     "sensitivity-baseline": "vitest run --config vitest.baseline.config.ts",
     "typecheck": "tsc --noEmit"
   },

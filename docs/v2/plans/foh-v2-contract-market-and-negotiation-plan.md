@@ -1,8 +1,19 @@
 # Front Office Hoops V2 Contract Market, Negotiation, and Free Agency
 
-**Status:** Initial implementation active; calibration and league integration pending
-**Last reviewed:** August 1, 2026
+**Status:** Isolated standard calibration accepted; league integration pending
+**Last reviewed:** August 10, 2026
 **Roadmap position:** Phase 2 calibration, Market & Rules Lab; later Phase 5 league integration
+
+The accepted isolated baseline consists of 100 deterministic 30-team markets
+with no run, accounting, accepted-legality, hard-cap, or roster-capacity
+failures, plus 30-season stable, standard, high-growth, and tax-line scenario
+arms with bounded relative drift. The retained evidence is in
+`docs/v2/audits/foh-v2-market-calibration-baseline.md` and
+`docs/v2/audits/foh-v2-market-economy-calibration-baseline.md`.
+
+This acceptance does not claim integrated payroll turnover or tax incidence.
+Those require authoritative offseason transitions, draft inflow, development,
+retirement, and roster replacement in the League Loop.
 
 ## Design conclusion
 
@@ -66,16 +77,16 @@ Use V1 only to identify product gaps and migration hazards. Reimplement the V2 c
 
 Reuse these V2 boundaries:
 
-| Need | Reuse | Constraint |
-|---|---|---|
-| Player basketball signal | `UniversalPlayerValue` and its breakdown | Do not recompute production, potential, age, or durability in market code |
-| Player identity/status | `PlayerEntity` and `PlayerLeagueStatus` | Contract state remains a separate entity |
-| Player role and supply categories | Primary/secondary positions, archetypes, role output | Use broad market categories; do not price every archetype independently |
-| Deterministic runs | `RandomSource` and explicit lab seeds | Stable IDs and seeded draws; never `crypto.randomUUID()` in lab facts |
-| JSON boundaries | `league-schema` Zod schemas and versioned report envelopes | Strict fixtures, reports, and migrations |
-| Long-running execution | Existing worker adapters and progress/cancel pattern | Single evaluation may run locally; batches belong in a worker |
-| Persistence | `LeagueRepository` for future league snapshots | Lab reports remain separate from `LeagueDocument` |
-| Explanations | `DiagnosticEntry`, `LeagueEvent`, and existing breakdown patterns | Use structured reason codes before prose |
+| Need                              | Reuse                                                             | Constraint                                                                |
+| --------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Player basketball signal          | `UniversalPlayerValue` and its breakdown                          | Do not recompute production, potential, age, or durability in market code |
+| Player identity/status            | `PlayerEntity` and `PlayerLeagueStatus`                           | Contract state remains a separate entity                                  |
+| Player role and supply categories | Primary/secondary positions, archetypes, role output              | Use broad market categories; do not price every archetype independently   |
+| Deterministic runs                | `RandomSource` and explicit lab seeds                             | Stable IDs and seeded draws; never `crypto.randomUUID()` in lab facts     |
+| JSON boundaries                   | `league-schema` Zod schemas and versioned report envelopes        | Strict fixtures, reports, and migrations                                  |
+| Long-running execution            | Existing worker adapters and progress/cancel pattern              | Single evaluation may run locally; batches belong in a worker             |
+| Persistence                       | `LeagueRepository` for future league snapshots                    | Lab reports remain separate from `LeagueDocument`                         |
+| Explanations                      | `DiagnosticEntry`, `LeagueEvent`, and existing breakdown patterns | Use structured reason codes before prose                                  |
 
 ## 3. Product decisions retained from the brief
 
@@ -233,11 +244,7 @@ Rights are a team-player relationship derived from contract history and transact
 ```ts
 type ContractMarketPhase = "re-signing" | "extension" | "free-agency"
 type ContractOfferStatus =
-  | "pending"
-  | "accepted"
-  | "declined"
-  | "withdrawn"
-  | "expired"
+  "pending" | "accepted" | "declined" | "withdrawn" | "expired"
 
 type ContractOffer = {
   id: string
@@ -469,7 +476,8 @@ Team interest is not a second UPV. It adds team need, fit, replacement cost, fin
 type ContractLegalityResult = {
   valid: boolean
   affordability: "affordable" | "over-budget" | "over-hard-cap"
-  mechanism: "cap-room" | "bird" | "early-bird" | "non-bird" | "minimum" | "rookie-scale"
+  mechanism:
+    "cap-room" | "bird" | "early-bird" | "non-bird" | "minimum" | "rookie-scale"
   payrollBefore: Money
   payrollAfter: Money
   hardCapRoomAfter: Money
